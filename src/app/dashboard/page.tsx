@@ -3,28 +3,22 @@
 import {
   Bell,
   Briefcase,
-  ChevronRight,
-  CircleDollarSign,
   CreditCard,
   Home,
   Landmark,
-  LogOut,
-  QrCode,
   User,
-  Wallet,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useUser } from '@/firebase/auth/use-user';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -207,7 +201,7 @@ export default function Dashboard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-center text-2xl">
-              Welcome to FortuneFolio 👋
+              WELCOME To TRIBED WORLD 👋
             </DialogTitle>
           </DialogHeader>
           <DialogFooter>
