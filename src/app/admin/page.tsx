@@ -8,12 +8,13 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCollection } from '@/firebase';
-import { collectionGroup, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useEffect, useState } from 'react';
 
 type User = {
   walletBalance?: number;
+  email?: string;
 };
 
 type Deposit = {
@@ -24,8 +25,8 @@ type Withdrawal = {
   status: 'pending' | 'approved' | 'rejected';
 };
 
-type Investment = {
-  status: 'Active' | 'Completed';
+type InvestmentPlan = {
+  status: 'Available' | 'Coming Soon';
 };
 
 
@@ -33,38 +34,16 @@ export default function AdminDashboard() {
   const { data: users, loading: usersLoading } = useCollection<User>('users');
   const { data: deposits, loading: depositsLoading } = useCollection<Deposit>('deposits');
   const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Withdrawal>('withdrawals');
-
-  const [activePlansCount, setActivePlansCount] = useState(0);
-  const [loadingActivePlans, setLoadingActivePlans] = useState(true);
-  const firestore = useFirestore();
+  const { data: investmentPlans, loading: plansLoading } = useCollection<InvestmentPlan>('investmentPlans');
 
 
-  useEffect(() => {
-    const fetchActiveInvestments = async () => {
-      try {
-        const investmentsQuery = query(
-          collectionGroup(firestore, 'investments'),
-          where('status', '==', 'Active')
-        );
-        const querySnapshot = await getDocs(investmentsQuery);
-        setActivePlansCount(querySnapshot.size);
-      } catch (error) {
-        console.error("Error fetching active investments:", error);
-      } finally {
-        setLoadingActivePlans(false);
-      }
-    };
-
-    fetchActiveInvestments();
-  }, [firestore]);
-
-
-  const loading = usersLoading || depositsLoading || withdrawalsLoading || loadingActivePlans;
+  const loading = usersLoading || depositsLoading || withdrawalsLoading || plansLoading;
 
   const totalUsers = users?.filter(u => u.email !== 'admin@tribed.world').length || 0;
   const totalWalletBalance = users?.reduce((sum, user) => sum + (user.walletBalance || 0), 0) || 0;
   const pendingDeposits = deposits?.filter(d => d.status === 'pending').length || 0;
   const pendingWithdrawals = withdrawals?.filter(w => w.status === 'pending').length || 0;
+  const activePlansCount = investmentPlans?.filter(p => p.status === 'Available').length || 0;
 
 
   const stats = [
