@@ -14,6 +14,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -503,7 +504,7 @@ function InvestmentCard({
 
       toast({
         title: 'Investment Successful!',
-        description: `You have invested ₹${investmentAmount} in ${name}.`,
+        description: `You have invested in ${name}.`,
       });
     } catch (e: any) {
       console.error(e);
