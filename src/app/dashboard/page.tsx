@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useFirestore } from '@/firebase';
+import { useDoc, useFirestore } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -79,10 +79,20 @@ const activePlans = [
   },
 ];
 
+type UserData = {
+  walletBalance?: number;
+  totalInvestment?: number;
+  totalIncome?: number;
+};
+
 export default function Dashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { data: userData, loading: userLoading } = useDoc<UserData>(
+    user ? `users/${user.uid}` : null
+  );
+
   const [showWelcome, setShowWelcome] = useState(false);
   const [showRecharge, setShowRecharge] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
@@ -276,18 +286,24 @@ export default function Dashboard() {
               <CardTitle>Wallet Summary</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-sm text-muted-foreground">Wallet Balance</p>
-                <p className="text-2xl font-bold">₹1,250.00</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Investment</p>
-                <p className="text-2xl font-bold">₹2,000.00</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Income</p>
-                <p className="text-2xl font-bold">₹100.00</p>
-              </div>
+               {userLoading ? (
+                <div className="col-span-3 text-center">Loading wallet...</div>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Wallet Balance</p>
+                    <p className="text-2xl font-bold">₹{(userData?.walletBalance || 0).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Investment</p>
+                    <p className="text-2xl font-bold">₹{(userData?.totalInvestment || 0).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Income</p>
+                    <p className="text-2xl font-bold">₹{(userData?.totalIncome || 0).toFixed(2)}</p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -310,7 +326,7 @@ export default function Dashboard() {
             <h2 className="text-lg font-semibold">Investment Plans</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {investmentPlans.map((plan, i) => (
-                <InvestmentCard key={i} {...plan} walletBalance={1250} />
+                <InvestmentCard key={i} {...plan} walletBalance={userData?.walletBalance || 0} />
               ))}
             </div>
           </div>
