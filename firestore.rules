@@ -11,23 +11,27 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
+    
+    function isAdmin() {
+      return request.auth.token.email == "admin@tribed.world";
+    }
 
     // Rules for users collection
     match /users/{userId} {
-      allow read, update, delete: if isOwner(userId);
+      allow read, update, delete: if isOwner(userId) || isAdmin();
       allow create: if request.auth.uid == userId;
     }
 
     // Rules for deposits collection
     match /deposits/{depositId} {
-      allow read, create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn(); // Admin can update
+      allow read, create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
     }
 
     // Rules for withdrawals collection
     match /withdrawals/{withdrawalId} {
-      allow read, create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn(); // Admin can update
+      allow read, create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
     }
 
     // Rules for user investments
@@ -38,7 +42,13 @@ service cloud.firestore {
     // Rules for investment plans
     match /investmentPlans/{planId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn(); // Admin can create, update, delete
+      allow write: if isAdmin();
+    }
+
+    // Rules for admin settings
+    match /settings/admin {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }

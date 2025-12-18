@@ -198,6 +198,22 @@
         "duration",
         "status"
       ]
+    },
+    "adminSettings": {
+      "title": "Admin Settings",
+      "description": "Stores admin-specific settings for the application.",
+      "type": "object",
+      "properties": {
+        "upiId": {
+          "type": "string",
+          "description": "The UPI ID for receiving payments."
+        },
+        "upiQrCodeUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "The URL for the UPI QR code image."
+        }
+      }
     }
   },
   "auth": {
@@ -235,6 +251,12 @@
         "$ref": "#/entities/investmentPlan"
       },
       "description": "Stores the available investment plans for all users."
+    },
+    "/settings/admin": {
+      "schema": {
+        "$ref": "#/entities/adminSettings"
+      },
+      "description": "Stores admin-specific settings like UPI details."
     }
   }
 }

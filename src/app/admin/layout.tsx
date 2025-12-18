@@ -11,6 +11,7 @@ import {
   Briefcase,
   LogOut,
   Menu,
+  Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,6 +55,7 @@ export default function AdminLayout({
             <AdminNavItem icon={CreditCard} href="/admin/deposits">Deposits</AdminNavItem>
             <AdminNavItem icon={Landmark} href="/admin/withdrawals">Withdrawals</AdminNavItem>
             <AdminNavItem icon={Briefcase} href="/admin/investments">Plans</AdminNavItem>
+            <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
           </nav>
           <div className="mt-auto p-4">
             <Button size="sm" className="w-full" onClick={handleLogout}>
@@ -93,6 +95,7 @@ export default function AdminLayout({
                 <AdminNavItem icon={CreditCard} href="/admin/deposits">Deposits</AdminNavItem>
                 <AdminNavItem icon={Landmark} href="/admin/withdrawals">Withdrawals</AdminNavItem>
                 <AdminNavItem icon={Briefcase} href="/admin/investments">Plans</AdminNavItem>
+                <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
               </nav>
               <div className="mt-auto">
                  <Button size="sm" className="w-full" onClick={handleLogout}>

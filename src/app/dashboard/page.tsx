@@ -57,6 +57,11 @@ type InvestmentPlan = {
   status: 'Available' | 'Coming Soon';
 };
 
+type AdminSettings = {
+  upiId?: string;
+  upiQrCodeUrl?: string;
+};
+
 const activePlans = [
   {
     name: 'Day Plan',
@@ -79,6 +84,9 @@ export default function Dashboard() {
   const { data: userData, loading: userLoading } = useDoc<UserData>(
     user ? `users/${user.uid}` : null
   );
+  
+  const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>('settings/admin');
+
 
   const { data: investmentPlans, loading: plansLoading } =
     useCollection<InvestmentPlan>('investmentPlans');
@@ -224,17 +232,23 @@ export default function Dashboard() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="flex flex-col items-center justify-center space-y-2 rounded-md bg-muted p-4">
-              <Image
-                data-ai-hint="QR code"
-                src="https://picsum.photos/seed/qr/200/200"
-                alt="Admin UPI QR Code"
-                width={150}
-                height={150}
-                className="rounded-md"
-              />
-              <p className="text-sm font-medium">admin-upi@bank</p>
-            </div>
+             {settingsLoading ? <p>Loading UPI details...</p> : (
+                <div className="flex flex-col items-center justify-center space-y-2 rounded-md bg-muted p-4">
+                {adminSettings?.upiQrCodeUrl ? (
+                    <Image
+                    data-ai-hint="QR code"
+                    src={adminSettings.upiQrCodeUrl}
+                    alt="Admin UPI QR Code"
+                    width={150}
+                    height={150}
+                    className="rounded-md"
+                    />
+                ) : (
+                    <div className="h-[150px] w-[150px] flex items-center justify-center bg-gray-200 rounded-md text-sm text-gray-500">QR Code</div>
+                )}
+                <p className="text-sm font-medium">{adminSettings?.upiId || 'UPI ID not set'}</p>
+                </div>
+             )}
             <div className="space-y-2">
               <Label htmlFor="recharge-amount">Amount</Label>
               <Input
@@ -250,7 +264,7 @@ export default function Dashboard() {
             <Button variant="outline" onClick={() => setShowRecharge(false)}>
               Cancel
             </Button>
-            <Button onClick={handleRechargeSubmit} disabled={!rechargeAmount}>
+            <Button onClick={handleRechargeSubmit} disabled={!rechargeAmount || !adminSettings?.upiId}>
               Submit Request
             </Button>
           </DialogFooter>
