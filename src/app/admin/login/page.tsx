@@ -5,6 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { KeyRound, Lock, Mail } from "lucide-react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +19,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { AuthCard } from "@/components/auth/auth-card";
+import { useAuth } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -27,7 +31,14 @@ const formSchema = z.object({
   }),
 });
 
+const ADMIN_EMAIL = "admin@tribed.world";
+const ADMIN_PASSWORD = "password";
+
 export default function AdminLoginPage() {
+  const auth = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -36,9 +47,31 @@ export default function AdminLoginPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // Handle admin authentication
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (
+      values.email === ADMIN_EMAIL &&
+      values.password === ADMIN_PASSWORD
+    ) {
+      try {
+        // We sign in to Firebase to get a session, but the authorization is via hardcoded values.
+        // In a real app, you'd have admin roles in Firestore/custom claims.
+        await signInWithEmailAndPassword(auth, values.email, values.password);
+        router.push("/admin");
+      } catch (error: any) {
+        // This might happen if the admin user doesn't exist in Firebase Auth
+        toast({
+          variant: "destructive",
+          title: "Admin Login Failed",
+          description: "Please ensure the admin account is set up in Firebase.",
+        });
+      }
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Authentication Failed",
+        description: "Invalid credentials provided for admin.",
+      });
+    }
   }
 
   return (
