@@ -160,6 +160,44 @@
         "endDate",
         "status"
       ]
+    },
+    "investmentPlan": {
+      "title": "Investment Plan",
+      "description": "Defines a template for an investment plan that can be purchased by users.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the investment plan."
+        },
+        "investmentAmount": {
+          "type": "number",
+          "description": "The cost to purchase this plan."
+        },
+        "profit": {
+          "type": "number",
+          "description": "The daily profit from the investment."
+        },
+        "duration": {
+          "type": "number",
+          "description": "The duration of the investment in days."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "Available",
+            "Coming Soon"
+          ],
+          "description": "The availability status of the plan."
+        }
+      },
+      "required": [
+        "name",
+        "investmentAmount",
+        "profit",
+        "duration",
+        "status"
+      ]
     }
   },
   "auth": {
@@ -191,6 +229,12 @@
         "$ref": "#/entities/investment"
       },
       "description": "Stores the investment plans a user has purchased."
+    },
+    "/investmentPlans/{planId}": {
+      "schema": {
+        "$ref": "#/entities/investmentPlan"
+      },
+      "description": "Stores the available investment plans for all users."
     }
   }
 }

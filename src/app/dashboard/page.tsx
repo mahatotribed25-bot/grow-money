@@ -35,40 +35,27 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useDoc, useFirestore } from '@/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useCollection, useDoc, useFirestore } from '@/firebase';
+import {
+  addDoc,
+  collection,
+  runTransaction,
+  serverTimestamp,
+  doc,
+} from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-const investmentPlans = [
-  {
-    title: 'Day Plan',
-    investment: 2000,
-    dailyIncome: 100,
-    duration: 1,
-    totalReturn: 2100,
-  },
-  {
-    title: 'Weekly Plan',
-    investment: 5000,
-    dailyIncome: 300,
-    duration: 7,
-    totalReturn: 5300,
-  },
-  {
-    title: 'Weekly Plan',
-    investment: 10000,
-    dailyIncome: 650,
-    duration: 7,
-    totalReturn: 10650,
-  },
-  {
-    title: 'Monthly Plan',
-    comingSoon: true,
-  },
-];
+type InvestmentPlan = {
+  id: string;
+  name: string;
+  investmentAmount: number;
+  profit: number;
+  duration: number;
+  status: 'Available' | 'Coming Soon';
+};
 
 const activePlans = [
   {
@@ -93,13 +80,15 @@ export default function Dashboard() {
     user ? `users/${user.uid}` : null
   );
 
+  const { data: investmentPlans, loading: plansLoading } =
+    useCollection<InvestmentPlan>('investmentPlans');
+
   const [showWelcome, setShowWelcome] = useState(false);
   const [showRecharge, setShowRecharge] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawUpi, setWithdrawUpi] = useState('');
-
 
   useEffect(() => {
     const firstLogin = !localStorage.getItem('hasLoggedIn');
@@ -108,14 +97,14 @@ export default function Dashboard() {
       localStorage.setItem('hasLoggedIn', 'true');
     }
   }, []);
-  
+
   const handleCloseWelcome = () => {
     setShowWelcome(false);
-  }
+  };
 
   const handleRechargeSubmit = () => {
     if (!user || !rechargeAmount) return;
-    
+
     const depositData = {
       userId: user.uid,
       amount: parseFloat(rechargeAmount),
@@ -146,27 +135,50 @@ export default function Dashboard() {
   const handleWithdrawSubmit = () => {
     if (!user || !withdrawAmount || !withdrawUpi) return;
 
+    const currentBalance = userData?.walletBalance || 0;
+    const amountToWithdraw = parseFloat(withdrawAmount);
+
+    if (amountToWithdraw > currentBalance) {
+      toast({
+        variant: 'destructive',
+        title: 'Insufficient Balance',
+        description: 'You do not have enough funds to withdraw this amount.',
+      });
+      return;
+    }
+
     const withdrawalData = {
       userId: user.uid,
-      amount: parseFloat(withdrawAmount),
+      amount: amountToWithdraw,
       upiId: withdrawUpi,
       status: 'pending',
       createdAt: serverTimestamp(),
     };
-    
+
+    const userRef = doc(firestore, 'users', user.uid);
     const withdrawalsRef = collection(firestore, 'withdrawals');
-    addDoc(withdrawalsRef, withdrawalData)
+
+    runTransaction(firestore, async (transaction) => {
+      // Deduct from user's balance immediately
+      const newBalance = currentBalance - amountToWithdraw;
+      transaction.update(userRef, { walletBalance: newBalance });
+
+      // Create withdrawal request
+      const withdrawalRef = doc(withdrawalsRef); // Create a new doc ref
+      transaction.set(withdrawalRef, withdrawalData);
+    })
       .then(() => {
         toast({
           title: 'Withdrawal Request Submitted',
-          description: `Your request for ₹${withdrawAmount} has been submitted and is pending approval.`,
+          description: `Your request for ₹${withdrawAmount} has been submitted. The amount has been deducted from your wallet.`,
         });
         setShowWithdraw(false);
         setWithdrawAmount('');
         setWithdrawUpi('');
       })
-      .catch((serverError) => {
-         const permissionError = new FirestorePermissionError({
+      .catch((error) => {
+        console.error(error);
+        const permissionError = new FirestorePermissionError({
           path: withdrawalsRef.path,
           operation: 'create',
           requestResourceData: withdrawalData,
@@ -174,7 +186,6 @@ export default function Dashboard() {
         errorEmitter.emit('permission-error', permissionError);
       });
   };
-
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -187,24 +198,29 @@ export default function Dashboard() {
           <Bell className="h-5 w-5" />
         </Button>
       </header>
-      
+
       <Dialog open={showWelcome} onOpenChange={setShowWelcome}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-center text-2xl">Welcome to Tribed World 👋</DialogTitle>
+            <DialogTitle className="text-center text-2xl">
+              Welcome to Tribed World 👋
+            </DialogTitle>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={handleCloseWelcome} className="w-full">Continue</Button>
+            <Button onClick={handleCloseWelcome} className="w-full">
+              Continue
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       <Dialog open={showRecharge} onOpenChange={setShowRecharge}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Recharge Wallet</DialogTitle>
             <DialogDescription>
-              To add funds, transfer the desired amount to the UPI ID below and submit the reference ID.
+              To add funds, transfer the desired amount to the UPI ID below and
+              submit the reference ID.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -234,7 +250,9 @@ export default function Dashboard() {
             <Button variant="outline" onClick={() => setShowRecharge(false)}>
               Cancel
             </Button>
-            <Button onClick={handleRechargeSubmit} disabled={!rechargeAmount}>Submit Request</Button>
+            <Button onClick={handleRechargeSubmit} disabled={!rechargeAmount}>
+              Submit Request
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -259,7 +277,8 @@ export default function Dashboard() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="withdraw-upi">UPI ID</Label>              <Input
+              <Label htmlFor="withdraw-upi">UPI ID</Label>{' '}
+              <Input
                 id="withdraw-upi"
                 placeholder="your-upi@bank"
                 value={withdrawUpi}
@@ -271,13 +290,15 @@ export default function Dashboard() {
             <Button variant="outline" onClick={() => setShowWithdraw(false)}>
               Cancel
             </Button>
-            <Button onClick={handleWithdrawSubmit} disabled={!withdrawAmount || !withdrawUpi}>
+            <Button
+              onClick={handleWithdrawSubmit}
+              disabled={!withdrawAmount || !withdrawUpi}
+            >
               Request Withdrawal
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-6">
@@ -286,21 +307,31 @@ export default function Dashboard() {
               <CardTitle>Wallet Summary</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-4 text-center">
-               {userLoading ? (
+              {userLoading ? (
                 <div className="col-span-3 text-center">Loading wallet...</div>
               ) : (
                 <>
                   <div>
-                    <p className="text-sm text-muted-foreground">Wallet Balance</p>
-                    <p className="text-2xl font-bold">₹{(userData?.walletBalance || 0).toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Wallet Balance
+                    </p>
+                    <p className="text-2xl font-bold">
+                      ₹{(userData?.walletBalance || 0).toFixed(2)}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Investment</p>
-                    <p className="text-2xl font-bold">₹{(userData?.totalInvestment || 0).toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Total Investment
+                    </p>
+                    <p className="text-2xl font-bold">
+                      ₹{(userData?.totalInvestment || 0).toFixed(2)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total Income</p>
-                    <p className="text-2xl font-bold">₹{(userData?.totalIncome || 0).toFixed(2)}</p>
+                    <p className="text-2xl font-bold">
+                      ₹{(userData?.totalIncome || 0).toFixed(2)}
+                    </p>
                   </div>
                 </>
               )}
@@ -308,13 +339,19 @@ export default function Dashboard() {
           </Card>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div onClick={() => setShowRecharge(true)} className="cursor-pointer">
+            <div
+              onClick={() => setShowRecharge(true)}
+              className="cursor-pointer"
+            >
               <ActionButton icon={CreditCard} label="Recharge" />
             </div>
-            <div onClick={() => setShowWithdraw(true)} className="cursor-pointer">
+            <div
+              onClick={() => setShowWithdraw(true)}
+              className="cursor-pointer"
+            >
               <ActionButton icon={Landmark} label="Withdraw" />
             </div>
-             <Link href="/plans">
+            <Link href="/plans">
               <ActionButton icon={Briefcase} label="My Plans" />
             </Link>
             <Link href="/profile">
@@ -325,9 +362,18 @@ export default function Dashboard() {
           <div>
             <h2 className="text-lg font-semibold">Investment Plans</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {investmentPlans.map((plan, i) => (
-                <InvestmentCard key={i} {...plan} walletBalance={userData?.walletBalance || 0} />
-              ))}
+              {plansLoading ? (
+                <p>Loading plans...</p>
+              ) : (
+                investmentPlans?.map((plan, i) => (
+                  <InvestmentCard
+                    key={plan.id}
+                    plan={plan}
+                    walletBalance={userData?.walletBalance || 0}
+                    userId={user?.uid || ''}
+                  />
+                ))
+              )}
             </div>
           </div>
 
@@ -354,7 +400,13 @@ export default function Dashboard() {
   );
 }
 
-function ActionButton({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+function ActionButton({
+  icon: Icon,
+  label,
+}: {
+  icon: React.ElementType;
+  label: string;
+}) {
   return (
     <Card className="flex h-24 flex-col items-center justify-center gap-2 rounded-lg bg-card text-card-foreground shadow-soft transition-colors hover:bg-accent/50">
       <Icon className="h-6 w-6 text-primary" />
@@ -364,30 +416,104 @@ function ActionButton({ icon: Icon, label }: { icon: React.ElementType; label: s
 }
 
 function InvestmentCard({
-  title,
-  investment,
-  dailyIncome,
-  duration,
-  totalReturn,
-  comingSoon,
+  plan,
   walletBalance,
-}: any) {
-  const canAfford = investment ? walletBalance >= investment : false;
+  userId,
+}: {
+  plan: InvestmentPlan;
+  walletBalance: number;
+  userId: string;
+}) {
+  const {
+    name,
+    investmentAmount,
+    profit,
+    duration,
+    status,
+  } = plan;
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const canAfford = walletBalance >= investmentAmount;
+
+  const handleInvest = async () => {
+    if (!canAfford || !userId) return;
+
+    const userRef = doc(firestore, 'users', userId);
+    const investmentRef = collection(firestore, `users/${userId}/investments`);
+
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists()) throw 'User not found';
+
+        const currentBalance = userDoc.data().walletBalance || 0;
+        const currentInvestment = userDoc.data().totalInvestment || 0;
+        if (currentBalance < investmentAmount) {
+          throw 'Insufficient balance';
+        }
+
+        const newBalance = currentBalance - investmentAmount;
+        const newTotalInvestment = currentInvestment + investmentAmount;
+
+        transaction.update(userRef, {
+          walletBalance: newBalance,
+          totalInvestment: newTotalInvestment,
+        });
+
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setDate(startDate.getDate() + duration);
+
+        transaction.set(doc(investmentRef), {
+          userId: userId,
+          planName: name,
+          investmentAmount: investmentAmount,
+          dailyIncome: profit,
+          startDate: serverTimestamp(),
+          endDate: endDate,
+          status: 'Active',
+        });
+      });
+
+      toast({
+        title: 'Investment Successful!',
+        description: `You have invested ₹${investmentAmount} in ${name}.`,
+      });
+    } catch (e: any) {
+      console.error(e);
+      toast({
+        variant: 'destructive',
+        title: 'Investment Failed',
+        description: e.toString(),
+      });
+    }
+  };
+
   return (
     <Card className="rounded-lg shadow-soft">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        {comingSoon && (
+        <CardTitle>{name}</CardTitle>
+        {status === 'Coming Soon' && (
           <CardDescription>Coming Soon</CardDescription>
         )}
       </CardHeader>
-      {!comingSoon && (
+      {status !== 'Coming Soon' && (
         <CardContent className="space-y-4">
-          <PlanDetail label="Investment" value={`₹${investment}`} />
-          <PlanDetail label="Daily Income" value={`₹${dailyIncome}`} />
+          <PlanDetail label="Investment" value={`₹${investmentAmount}`} />
+          <PlanDetail label="Daily Profit" value={`₹${profit}`} />
           <PlanDetail label="Duration" value={`${duration} Day(s)`} />
-          <PlanDetail label="Total Return" value={`₹${totalReturn}`} />
-          <Button className="w-full" disabled={!canAfford}>Invest Now</Button>
+          <PlanDetail
+            label="Total Return"
+            value={`₹${investmentAmount + profit * duration}`}
+          />
+          <Button
+            className="w-full"
+            disabled={!canAfford}
+            onClick={handleInvest}
+          >
+            Invest Now
+          </Button>
         </CardContent>
       )}
     </Card>
@@ -412,7 +538,9 @@ function ActivePlanCard({ name, progress, total, status }: any) {
           <p className="font-semibold">{name}</p>
           <span
             className={`text-xs font-medium px-2 py-1 rounded-full ${
-              status === 'Active' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
+              status === 'Active'
+                ? 'bg-green-500/20 text-green-400'
+                : 'bg-yellow-500/20 text-yellow-400'
             }`}
           >
             {status}
@@ -432,9 +560,24 @@ function ActivePlanCard({ name, progress, total, status }: any) {
   );
 }
 
-function BottomNavItem({ icon: Icon, label, href, active = false } : { icon: React.ElementType, label: string, href: string, active?: boolean }) {
+function BottomNavItem({
+  icon: Icon,
+  label,
+  href,
+  active = false,
+}: {
+  icon: React.ElementType;
+  label: string;
+  href: string;
+  active?: boolean;
+}) {
   return (
-    <Link href={href} className={`flex flex-col items-center justify-center gap-1 ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+    <Link
+      href={href}
+      className={`flex flex-col items-center justify-center gap-1 ${
+        active ? 'text-primary' : 'text-muted-foreground'
+      }`}
+    >
       <Icon className="h-5 w-5" />
       <span>{label}</span>
     </Link>

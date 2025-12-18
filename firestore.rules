@@ -21,16 +21,24 @@ service cloud.firestore {
     // Rules for deposits collection
     match /deposits/{depositId} {
       allow read, create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn(); // Admin can update
     }
 
     // Rules for withdrawals collection
     match /withdrawals/{withdrawalId} {
       allow read, create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn(); // Admin can update
     }
 
     // Rules for user investments
     match /users/{userId}/investments/{investmentId} {
       allow read, create: if isOwner(userId);
+    }
+
+    // Rules for investment plans
+    match /investmentPlans/{planId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn(); // Admin can create, update, delete
     }
   }
 }
