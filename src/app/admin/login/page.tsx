@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { AuthCard } from "@/components/auth/auth-card";
 import { useAuth } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -32,7 +33,7 @@ const formSchema = z.object({
 });
 
 const ADMIN_EMAIL = "admin@tribed.world";
-const ADMIN_PASSWORD = "password";
+
 
 export default function AdminLoginPage() {
   const auth = useAuth();
@@ -48,30 +49,26 @@ export default function AdminLoginPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (
-      values.email === ADMIN_EMAIL &&
-      values.password === ADMIN_PASSWORD
-    ) {
+    
+      if (values.email !== ADMIN_EMAIL) {
+         toast({
+            variant: "destructive",
+            title: "Authentication Failed",
+            description: "Only admin users can log in here.",
+        });
+        return;
+      }
+    
       try {
-        // We sign in to Firebase to get a session, but the authorization is via hardcoded values.
-        // In a real app, you'd have admin roles in Firestore/custom claims.
         await signInWithEmailAndPassword(auth, values.email, values.password);
         router.push("/admin");
       } catch (error: any) {
-        // This might happen if the admin user doesn't exist in Firebase Auth
         toast({
           variant: "destructive",
           title: "Admin Login Failed",
-          description: "Please ensure the admin account is set up in Firebase.",
+          description: "Invalid credentials. Please try again.",
         });
       }
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Authentication Failed",
-        description: "Invalid credentials provided for admin.",
-      });
-    }
   }
 
   return (

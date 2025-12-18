@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Bell,
   Home,
@@ -21,9 +21,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { useAuth } from '@/firebase';
-import { signOut }from 'firebase/auth';
-import { useRouter } from 'next/navigation';
+import { useAuth, useUser } from '@/firebase';
+import { signOut } from 'firebase/auth';
+
+const ADMIN_EMAIL = "admin@tribed.world";
 
 export default function AdminLayout({
   children,
@@ -32,12 +33,38 @@ export default function AdminLayout({
 }) {
   const auth = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const { user, loading } = useUser();
 
   const handleLogout = async () => {
     if (!auth) return;
     await signOut(auth);
     router.push('/admin/login');
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (pathname !== '/admin/login') {
+    if (!user || user.email !== ADMIN_EMAIL) {
+      router.push('/admin/login');
+      return (
+         <div className="flex min-h-screen w-full items-center justify-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      );
+    }
+  }
+  
+  if (pathname === '/admin/login') {
+      return <>{children}</>;
+  }
+
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
@@ -106,7 +133,7 @@ export default function AdminLayout({
             </SheetContent>
           </Sheet>
           <div className="w-full flex-1">
-             <h1 className="text-lg font-semibold">Dashboard</h1>
+             <h1 className="text-lg font-semibold capitalize">{pathname.split('/').pop() || 'Dashboard'}</h1>
           </div>
           <Button variant="ghost" size="icon">
             <Bell className="h-5 w-5" />
