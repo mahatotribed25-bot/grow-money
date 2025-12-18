@@ -11,25 +11,69 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Check, X } from 'lucide-react';
+import { useCollection, useFirestore } from '@/firebase';
+import type { Timestamp } from 'firebase/firestore';
+import { doc, updateDoc, runTransaction, getDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
-const deposits = [
-    {
-        userEmail: 'john@example.com',
-        amount: 500,
-        utr: '123456789012',
-        date: '2023-10-27',
-        status: 'Pending'
-    },
-    {
-        userEmail: 'jane@example.com',
-        amount: 1000,
-        utr: '234567890123',
-        date: '2023-10-26',
-        status: 'Pending'
-    }
-];
+type Deposit = {
+  id: string;
+  userId: string;
+  amount: number;
+  createdAt: Timestamp;
+  status: 'pending' | 'approved' | 'rejected';
+};
+
+const formatDate = (timestamp: Timestamp) => {
+  if (!timestamp) return 'N/A';
+  return new Date(timestamp.seconds * 1000).toLocaleDateString();
+};
 
 export default function DepositsPage() {
+  const { data: deposits, loading } = useCollection<Deposit>('deposits');
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const handleUpdateStatus = async (
+    deposit: Deposit,
+    newStatus: 'approved' | 'rejected'
+  ) => {
+    const depositRef = doc(firestore, 'deposits', deposit.id);
+    const userRef = doc(firestore, 'users', deposit.userId);
+
+    try {
+      if (newStatus === 'approved') {
+        await runTransaction(firestore, async (transaction) => {
+          const userDoc = await transaction.get(userRef);
+          if (!userDoc.exists()) {
+            throw 'User document does not exist!';
+          }
+          const newBalance = (userDoc.data().walletBalance || 0) + deposit.amount;
+          transaction.update(userRef, { walletBalance: newBalance });
+          transaction.update(depositRef, { status: newStatus });
+        });
+        toast({
+          title: 'Deposit Approved',
+          description: `₹${deposit.amount} has been added to the user's wallet.`,
+        });
+      } else {
+        // Just reject the request
+        await updateDoc(depositRef, { status: newStatus });
+        toast({
+          title: 'Deposit Rejected',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error updating deposit status:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update deposit status.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">Deposit Requests</h2>
@@ -37,36 +81,65 @@ export default function DepositsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>User Email</TableHead>
+              <TableHead>User ID</TableHead>
               <TableHead>Amount</TableHead>
-              <TableHead>UPI Reference</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {deposits.map((deposit) => (
-              <TableRow key={deposit.utr}>
-                <TableCell>{deposit.userEmail}</TableCell>
-                <TableCell>₹{deposit.amount.toFixed(2)}</TableCell>
-                <TableCell>{deposit.utr}</TableCell>
-                <TableCell>{deposit.date}</TableCell>
-                <TableCell>
-                   <Badge variant="secondary">{deposit.status}</Badge>
-                </TableCell>
-                <TableCell>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-600">
-                            <Check className="h-4 w-4 mr-1" /> Approve
-                        </Button>
-                        <Button variant="outline" size="sm" className="bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-600">
-                            <X className="h-4 w-4 mr-1" /> Reject
-                        </Button>
-                    </div>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center">
+                  Loading...
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              deposits?.map((deposit) => (
+                <TableRow key={deposit.id}>
+                  <TableCell className="font-mono text-xs">{deposit.userId}</TableCell>
+                  <TableCell>₹{deposit.amount.toFixed(2)}</TableCell>
+                  <TableCell>{formatDate(deposit.createdAt)}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        deposit.status === 'approved'
+                          ? 'default'
+                          : deposit.status === 'rejected'
+                          ? 'destructive'
+                          : 'secondary'
+                      }
+                      className="capitalize"
+                    >
+                      {deposit.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-600"
+                        onClick={() => handleUpdateStatus(deposit, 'approved')}
+                        disabled={deposit.status !== 'pending'}
+                      >
+                        <Check className="h-4 w-4 mr-1" /> Approve
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-600"
+                        onClick={() => handleUpdateStatus(deposit, 'rejected')}
+                        disabled={deposit.status !== 'pending'}
+                      >
+                        <X className="h-4 w-4 mr-1" /> Reject
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

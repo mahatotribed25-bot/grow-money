@@ -11,35 +11,25 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Eye } from 'lucide-react';
+import { useCollection } from '@/firebase';
 
-const users = [
-  {
-    name: 'John Doe',
-    email: 'john@example.com',
-    walletBalance: 500,
-    totalInvestment: 2000,
-    totalIncome: 150,
-    status: 'Active',
-  },
-  {
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    walletBalance: 1200,
-    totalInvestment: 5000,
-    totalIncome: 300,
-    status: 'Active',
-  },
-    {
-    name: 'Mike Johnson',
-    email: 'mike@example.com',
-    walletBalance: 0,
-    totalInvestment: 0,
-    totalIncome: 0,
-    status: 'Blocked',
-  },
-];
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  walletBalance: number;
+  totalInvestment: number;
+  totalIncome: number;
+  status?: 'Active' | 'Blocked';
+};
+
+const ADMIN_EMAIL = "admin@tribed.world";
 
 export default function UsersPage() {
+  const { data: users, loading } = useCollection<User>('users');
+
+  const filteredUsers = users?.filter(user => user.email !== ADMIN_EMAIL);
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">User Management</h2>
@@ -57,25 +47,33 @@ export default function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.email}>
-                <TableCell>{user.name}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>₹{user.walletBalance.toFixed(2)}</TableCell>
-                <TableCell>₹{user.totalInvestment.toFixed(2)}</TableCell>
-                <TableCell>₹{user.totalIncome.toFixed(2)}</TableCell>
-                <TableCell>
-                  <Badge variant={user.status === 'Active' ? 'default' : 'destructive'}>
-                    {user.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="icon">
-                    <Eye className="h-4 w-4" />
-                  </Button>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center">
+                  Loading...
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredUsers?.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>₹{user.walletBalance.toFixed(2)}</TableCell>
+                  <TableCell>₹{user.totalInvestment.toFixed(2)}</TableCell>
+                  <TableCell>₹{user.totalIncome.toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Badge variant={user.status !== 'Blocked' ? 'default' : 'destructive'}>
+                      {user.status || 'Active'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
