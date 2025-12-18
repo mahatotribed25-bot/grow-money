@@ -201,7 +201,7 @@ export default function Dashboard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-center text-2xl">
-              WELCOME To grow money 💰💰🤑🤑
+              WELCOME To TRIBED WORLD 💰💰🤑🤑
             </DialogTitle>
           </DialogHeader>
           <DialogFooter>
