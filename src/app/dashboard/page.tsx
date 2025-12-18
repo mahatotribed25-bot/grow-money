@@ -39,6 +39,8 @@ import { useFirestore } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const investmentPlans = [
   {
@@ -101,56 +103,66 @@ export default function Dashboard() {
     setShowWelcome(false);
   }
 
-  const handleRechargeSubmit = async () => {
+  const handleRechargeSubmit = () => {
     if (!user || !rechargeAmount) return;
-    try {
-      await addDoc(collection(firestore, 'deposits'), {
-        userId: user.uid,
-        amount: parseFloat(rechargeAmount),
-        status: 'pending',
-        createdAt: serverTimestamp(),
+    
+    const depositData = {
+      userId: user.uid,
+      amount: parseFloat(rechargeAmount),
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    };
+
+    const depositsRef = collection(firestore, 'deposits');
+    addDoc(depositsRef, depositData)
+      .then(() => {
+        toast({
+          title: 'Recharge Request Submitted',
+          description: `Your request for ₹${rechargeAmount} has been submitted and is pending approval.`,
+        });
+        setShowRecharge(false);
+        setRechargeAmount('');
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: depositsRef.path,
+          operation: 'create',
+          requestResourceData: depositData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-      toast({
-        title: 'Recharge Request Submitted',
-        description: `Your request for ₹${rechargeAmount} has been submitted and is pending approval.`,
-      });
-      setShowRecharge(false);
-      setRechargeAmount('');
-    } catch (error) {
-      console.error('Error submitting recharge request:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to submit recharge request.',
-      });
-    }
   };
 
-  const handleWithdrawSubmit = async () => {
+  const handleWithdrawSubmit = () => {
     if (!user || !withdrawAmount || !withdrawUpi) return;
-    try {
-      await addDoc(collection(firestore, 'withdrawals'), {
-        userId: user.uid,
-        amount: parseFloat(withdrawAmount),
-        upiId: withdrawUpi,
-        status: 'pending',
-        createdAt: serverTimestamp(),
+
+    const withdrawalData = {
+      userId: user.uid,
+      amount: parseFloat(withdrawAmount),
+      upiId: withdrawUpi,
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    };
+    
+    const withdrawalsRef = collection(firestore, 'withdrawals');
+    addDoc(withdrawalsRef, withdrawalData)
+      .then(() => {
+        toast({
+          title: 'Withdrawal Request Submitted',
+          description: `Your request for ₹${withdrawAmount} has been submitted and is pending approval.`,
+        });
+        setShowWithdraw(false);
+        setWithdrawAmount('');
+        setWithdrawUpi('');
+      })
+      .catch((serverError) => {
+         const permissionError = new FirestorePermissionError({
+          path: withdrawalsRef.path,
+          operation: 'create',
+          requestResourceData: withdrawalData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-      toast({
-        title: 'Withdrawal Request Submitted',
-        description: `Your request for ₹${withdrawAmount} has been submitted and is pending approval.`,
-      });
-      setShowWithdraw(false);
-      setWithdrawAmount('');
-      setWithdrawUpi('');
-    } catch (error) {
-      console.error('Error submitting withdrawal request:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to submit withdrawal request.',
-      });
-    }
   };
 
 
@@ -237,8 +249,7 @@ export default function Dashboard() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="withdraw-upi">UPI ID</Label>
-              <Input
+              <Label htmlFor="withdraw-upi">UPI ID</Label>              <Input
                 id="withdraw-upi"
                 placeholder="your-upi@bank"
                 value={withdrawUpi}
