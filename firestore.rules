@@ -14,10 +14,8 @@ service cloud.firestore {
 
     // Rules for users collection
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow read, update, delete: if isOwner(userId);
+      allow create: if request.auth.uid == userId;
     }
 
     // Rules for deposits collection
@@ -28,6 +26,11 @@ service cloud.firestore {
     // Rules for withdrawals collection
     match /withdrawals/{withdrawalId} {
       allow read, create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Rules for user investments
+    match /users/{userId}/investments/{investmentId} {
+      allow read, create: if isOwner(userId);
     }
   }
 }

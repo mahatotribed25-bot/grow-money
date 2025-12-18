@@ -281,13 +281,15 @@ export default function Dashboard() {
           </Card>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div onClick={() => setShowRecharge(true)}>
+            <div onClick={() => setShowRecharge(true)} className="cursor-pointer">
               <ActionButton icon={CreditCard} label="Recharge" />
             </div>
-            <div onClick={() => setShowWithdraw(true)}>
+            <div onClick={() => setShowWithdraw(true)} className="cursor-pointer">
               <ActionButton icon={Landmark} label="Withdraw" />
             </div>
-            <ActionButton icon={Briefcase} label="My Plans" />
+             <Link href="/plans">
+              <ActionButton icon={Briefcase} label="My Plans" />
+            </Link>
             <Link href="/profile">
               <ActionButton icon={User} label="Profile" />
             </Link>
@@ -316,7 +318,7 @@ export default function Dashboard() {
       <nav className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur-sm">
         <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" active />
-          <BottomNavItem icon={Briefcase} label="Plans" href="#" />
+          <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Wallet} label="Team" href="#" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
@@ -327,7 +329,7 @@ export default function Dashboard() {
 
 function ActionButton({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
-    <Card className="flex h-24 flex-col items-center justify-center gap-2 rounded-lg bg-card text-card-foreground shadow-soft transition-colors hover:bg-accent/50 cursor-pointer">
+    <Card className="flex h-24 flex-col items-center justify-center gap-2 rounded-lg bg-card text-card-foreground shadow-soft transition-colors hover:bg-accent/50">
       <Icon className="h-6 w-6 text-primary" />
       <span className="text-sm font-medium">{label}</span>
     </Card>

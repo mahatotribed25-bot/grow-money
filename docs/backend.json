@@ -110,6 +110,56 @@
         "status",
         "createdAt"
       ]
+    },
+    "investment": {
+      "title": "Investment",
+      "description": "Represents a user's investment in a plan.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who made the investment."
+        },
+        "planName": {
+          "type": "string",
+          "description": "The name of the investment plan."
+        },
+        "investmentAmount": {
+          "type": "number",
+          "description": "The amount invested."
+        },
+        "dailyIncome": {
+          "type": "number",
+          "description": "The daily income from the investment."
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The start date of the investment."
+        },
+        "endDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The end date of the investment."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "Active",
+            "Completed"
+          ],
+          "description": "The status of the investment."
+        }
+      },
+      "required": [
+        "userId",
+        "planName",
+        "investmentAmount",
+        "dailyIncome",
+        "startDate",
+        "endDate",
+        "status"
+      ]
     }
   },
   "auth": {
@@ -135,6 +185,12 @@
         "$ref": "#/entities/withdrawalRequest"
       },
       "description": "Stores withdrawal requests from users."
+    },
+    "/users/{userId}/investments/{investmentId}": {
+      "schema": {
+        "$ref": "#/entities/investment"
+      },
+      "description": "Stores the investment plans a user has purchased."
     }
   }
 }
