@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -10,11 +11,28 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X } from 'lucide-react';
+import { Check, X, Trash2 } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, runTransaction, getDoc } from 'firebase/firestore';
+import {
+  doc,
+  updateDoc,
+  runTransaction,
+  getDoc,
+  deleteDoc,
+} from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 type Deposit = {
   id: string;
@@ -35,6 +53,7 @@ export default function DepositsPage() {
   const { data: deposits, loading } = useCollection<Deposit>('deposits');
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [selectedDeposit, setSelectedDeposit] = useState<Deposit | null>(null);
 
   const handleUpdateStatus = async (
     deposit: Deposit,
@@ -50,7 +69,8 @@ export default function DepositsPage() {
           if (!userDoc.exists()) {
             throw 'User document does not exist!';
           }
-          const newBalance = (userDoc.data().walletBalance || 0) + deposit.amount;
+          const newBalance =
+            (userDoc.data().walletBalance || 0) + deposit.amount;
           transaction.update(userRef, { walletBalance: newBalance });
           transaction.update(depositRef, { status: newStatus });
         });
@@ -71,6 +91,25 @@ export default function DepositsPage() {
       toast({
         title: 'Error',
         description: 'Failed to update deposit status.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteDeposit = async () => {
+    if (!selectedDeposit) return;
+    try {
+      await deleteDoc(doc(firestore, 'deposits', selectedDeposit.id));
+      toast({
+        title: 'Deposit Deleted',
+        description: 'The deposit request has been successfully deleted.',
+      });
+      setSelectedDeposit(null);
+    } catch (error) {
+      console.error('Error deleting deposit:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete deposit request.',
         variant: 'destructive',
       });
     }
@@ -139,6 +178,39 @@ export default function DepositsPage() {
                       >
                         <X className="h-4 w-4 mr-1" /> Reject
                       </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-600"
+                            onClick={() => setSelectedDeposit(deposit)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Are you sure you want to delete this deposit?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will
+                              permanently delete the deposit request.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel
+                              onClick={() => setSelectedDeposit(null)}
+                            >
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteDeposit}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </TableCell>
                 </TableRow>
