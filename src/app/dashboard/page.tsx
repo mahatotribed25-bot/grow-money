@@ -190,7 +190,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-gradient-to-r from-green-500/10 to-primary/10 px-4 backdrop-blur-md sm:px-6">
         <div className="flex items-center gap-2">
           <Briefcase className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold text-primary">FortuneFolio</h1>
+          <h1 className="text-xl font-bold text-primary">grow money</h1>
         </div>
         <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />
@@ -201,7 +201,7 @@ export default function Dashboard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-center text-2xl">
-              WELCOME To TRIBED WORLD 👋
+              WELCOME To grow money 💰💰🤑🤑
             </DialogTitle>
           </DialogHeader>
           <DialogFooter>
@@ -351,7 +351,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-4 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div
               onClick={() => setShowRecharge(true)}
               className="cursor-pointer"
