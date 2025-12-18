@@ -58,9 +58,9 @@ export default function UsersPage() {
                 <TableRow key={user.id}>
                   <TableCell>{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell>₹{user.walletBalance.toFixed(2)}</TableCell>
-                  <TableCell>₹{user.totalInvestment.toFixed(2)}</TableCell>
-                  <TableCell>₹{user.totalIncome.toFixed(2)}</TableCell>
+                  <TableCell>₹{(user.walletBalance || 0).toFixed(2)}</TableCell>
+                  <TableCell>₹{(user.totalInvestment || 0).toFixed(2)}</TableCell>
+                  <TableCell>₹{(user.totalIncome || 0).toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge variant={user.status !== 'Blocked' ? 'default' : 'destructive'}>
                       {user.status || 'Active'}
