@@ -352,7 +352,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-4 gap-4 sm:grid-cols-4">
             <div
               onClick={() => setShowRecharge(true)}
               className="cursor-pointer"
@@ -403,10 +403,9 @@ export default function Dashboard() {
       </main>
 
       <nav className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" active />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
-          <BottomNavItem icon={Wallet} label="Team" href="#" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>

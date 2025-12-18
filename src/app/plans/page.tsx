@@ -79,10 +79,9 @@ export default function PlansPage() {
       </main>
 
       <nav className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" active />
-          <BottomNavItem icon={Wallet} label="Team" href="#" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>
