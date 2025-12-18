@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 
 export const metadata: Metadata = {
-  title: 'AccessAlly',
+  title: 'FortuneFolio',
   description: 'Secure authentication for your applications.',
 };
 
