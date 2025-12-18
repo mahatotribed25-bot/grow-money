@@ -17,13 +17,105 @@
         "name": {
           "type": "string",
           "description": "The user's display name."
+        },
+        "walletBalance": {
+          "type": "number",
+          "description": "The user's wallet balance."
+        },
+        "totalInvestment": {
+          "type": "number",
+          "description": "The user's total investment."
+        },
+        "totalIncome": {
+          "type": "number",
+          "description": "The user's total income."
         }
       },
-      "required": ["uid", "email"]
+      "required": [
+        "uid",
+        "email"
+      ]
+    },
+    "depositRequest": {
+      "title": "Deposit Request",
+      "description": "A request to deposit funds into a user's wallet.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user making the request."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount to deposit."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ],
+          "description": "The status of the deposit request."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The time the request was created."
+        }
+      },
+      "required": [
+        "userId",
+        "amount",
+        "status",
+        "createdAt"
+      ]
+    },
+    "withdrawalRequest": {
+      "title": "Withdrawal Request",
+      "description": "A request to withdraw funds from a user's wallet.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user making the request."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount to withdraw."
+        },
+        "upiId": {
+          "type": "string",
+          "description": "The UPI ID to send the funds to."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ],
+          "description": "The status of the withdrawal request."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The time the request was created."
+        }
+      },
+      "required": [
+        "userId",
+        "amount",
+        "upiId",
+        "status",
+        "createdAt"
+      ]
     }
   },
   "auth": {
-    "providers": ["password"]
+    "providers": [
+      "password"
+    ]
   },
   "firestore": {
     "/users/{userId}": {
@@ -31,6 +123,18 @@
         "$ref": "#/entities/user"
       },
       "description": "Stores user profile information."
+    },
+    "/deposits/{depositId}": {
+      "schema": {
+        "$ref": "#/entities/depositRequest"
+      },
+      "description": "Stores deposit requests from users."
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": {
+        "$ref": "#/entities/withdrawalRequest"
+      },
+      "description": "Stores withdrawal requests from users."
     }
   }
 }

@@ -9,6 +9,7 @@ import {
   Home,
   Landmark,
   LogOut,
+  QrCode,
   User,
   Wallet,
 } from 'lucide-react';
@@ -30,8 +31,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useFirestore } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import Image from 'next/image';
 
 const investmentPlans = [
   {
@@ -72,7 +79,15 @@ const activePlans = [
 
 export default function Dashboard() {
   const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showRecharge, setShowRecharge] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [rechargeAmount, setRechargeAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawUpi, setWithdrawUpi] = useState('');
+
 
   useEffect(() => {
     const firstLogin = !localStorage.getItem('hasLoggedIn');
@@ -85,6 +100,59 @@ export default function Dashboard() {
   const handleCloseWelcome = () => {
     setShowWelcome(false);
   }
+
+  const handleRechargeSubmit = async () => {
+    if (!user || !rechargeAmount) return;
+    try {
+      await addDoc(collection(firestore, 'deposits'), {
+        userId: user.uid,
+        amount: parseFloat(rechargeAmount),
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      });
+      toast({
+        title: 'Recharge Request Submitted',
+        description: `Your request for ₹${rechargeAmount} has been submitted and is pending approval.`,
+      });
+      setShowRecharge(false);
+      setRechargeAmount('');
+    } catch (error) {
+      console.error('Error submitting recharge request:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to submit recharge request.',
+      });
+    }
+  };
+
+  const handleWithdrawSubmit = async () => {
+    if (!user || !withdrawAmount || !withdrawUpi) return;
+    try {
+      await addDoc(collection(firestore, 'withdrawals'), {
+        userId: user.uid,
+        amount: parseFloat(withdrawAmount),
+        upiId: withdrawUpi,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      });
+      toast({
+        title: 'Withdrawal Request Submitted',
+        description: `Your request for ₹${withdrawAmount} has been submitted and is pending approval.`,
+      });
+      setShowWithdraw(false);
+      setWithdrawAmount('');
+      setWithdrawUpi('');
+    } catch (error) {
+      console.error('Error submitting withdrawal request:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to submit withdrawal request.',
+      });
+    }
+  };
+
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -108,6 +176,87 @@ export default function Dashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      <Dialog open={showRecharge} onOpenChange={setShowRecharge}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recharge Wallet</DialogTitle>
+            <DialogDescription>
+              To add funds, transfer the desired amount to the UPI ID below and submit the reference ID.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex flex-col items-center justify-center space-y-2 rounded-md bg-muted p-4">
+              <Image
+                data-ai-hint="QR code"
+                src="https://picsum.photos/seed/qr/200/200"
+                alt="Admin UPI QR Code"
+                width={150}
+                height={150}
+                className="rounded-md"
+              />
+              <p className="text-sm font-medium">admin-upi@bank</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="recharge-amount">Amount</Label>
+              <Input
+                id="recharge-amount"
+                type="number"
+                placeholder="Enter amount"
+                value={rechargeAmount}
+                onChange={(e) => setRechargeAmount(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRecharge(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRechargeSubmit} disabled={!rechargeAmount}>Submit Request</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showWithdraw} onOpenChange={setShowWithdraw}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Withdraw Funds</DialogTitle>
+            <DialogDescription>
+              Enter the amount to withdraw and your UPI ID.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="withdraw-amount">Amount</Label>
+              <Input
+                id="withdraw-amount"
+                type="number"
+                placeholder="Enter amount"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="withdraw-upi">UPI ID</Label>
+              <Input
+                id="withdraw-upi"
+                placeholder="your-upi@bank"
+                value={withdrawUpi}
+                onChange={(e) => setWithdrawUpi(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowWithdraw(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleWithdrawSubmit} disabled={!withdrawAmount || !withdrawUpi}>
+              Request Withdrawal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-6">
@@ -132,8 +281,12 @@ export default function Dashboard() {
           </Card>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <ActionButton icon={CreditCard} label="Recharge" />
-            <ActionButton icon={Landmark} label="Withdraw" />
+            <div onClick={() => setShowRecharge(true)}>
+              <ActionButton icon={CreditCard} label="Recharge" />
+            </div>
+            <div onClick={() => setShowWithdraw(true)}>
+              <ActionButton icon={Landmark} label="Withdraw" />
+            </div>
             <ActionButton icon={Briefcase} label="My Plans" />
             <Link href="/profile">
               <ActionButton icon={User} label="Profile" />
@@ -174,7 +327,7 @@ export default function Dashboard() {
 
 function ActionButton({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
-    <Card className="flex h-24 flex-col items-center justify-center gap-2 rounded-lg bg-card text-card-foreground shadow-soft transition-colors hover:bg-accent/50">
+    <Card className="flex h-24 flex-col items-center justify-center gap-2 rounded-lg bg-card text-card-foreground shadow-soft transition-colors hover:bg-accent/50 cursor-pointer">
       <Icon className="h-6 w-6 text-primary" />
       <span className="text-sm font-medium">{label}</span>
     </Card>

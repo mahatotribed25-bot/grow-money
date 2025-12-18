@@ -19,5 +19,15 @@ service cloud.firestore {
       allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
     }
+
+    // Rules for deposits collection
+    match /deposits/{depositId} {
+      allow read, create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Rules for withdrawals collection
+    match /withdrawals/{withdrawalId} {
+      allow read, create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
   }
 }
