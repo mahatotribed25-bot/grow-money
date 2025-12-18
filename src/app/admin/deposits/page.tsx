@@ -19,7 +19,9 @@ import { useToast } from '@/hooks/use-toast';
 type Deposit = {
   id: string;
   userId: string;
+  userName: string;
   amount: number;
+  utr: string;
   createdAt: Timestamp;
   status: 'pending' | 'approved' | 'rejected';
 };
@@ -81,8 +83,9 @@ export default function DepositsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>User ID</TableHead>
+              <TableHead>User Name</TableHead>
               <TableHead>Amount</TableHead>
+              <TableHead>UTR Number</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
@@ -91,15 +94,16 @@ export default function DepositsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center">
+                <TableCell colSpan={6} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : (
               deposits?.map((deposit) => (
                 <TableRow key={deposit.id}>
-                  <TableCell className="font-mono text-xs">{deposit.userId}</TableCell>
+                  <TableCell>{deposit.userName}</TableCell>
                   <TableCell>₹{deposit.amount.toFixed(2)}</TableCell>
+                  <TableCell>{deposit.utr}</TableCell>
                   <TableCell>{formatDate(deposit.createdAt)}</TableCell>
                   <TableCell>
                     <Badge

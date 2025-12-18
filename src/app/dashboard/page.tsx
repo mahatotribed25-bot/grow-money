@@ -95,6 +95,7 @@ export default function Dashboard() {
   const [showRecharge, setShowRecharge] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState('');
+  const [utrNumber, setUtrNumber] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawUpi, setWithdrawUpi] = useState('');
 
@@ -103,11 +104,13 @@ export default function Dashboard() {
   };
 
   const handleRechargeSubmit = () => {
-    if (!user || !rechargeAmount) return;
+    if (!user || !rechargeAmount || !utrNumber) return;
 
     const depositData = {
       userId: user.uid,
+      userName: user.displayName || 'N/A',
       amount: parseFloat(rechargeAmount),
+      utr: utrNumber,
       status: 'pending',
       createdAt: serverTimestamp(),
     };
@@ -121,6 +124,7 @@ export default function Dashboard() {
         });
         setShowRecharge(false);
         setRechargeAmount('');
+        setUtrNumber('');
       })
       .catch((serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -219,8 +223,7 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle>Recharge Wallet</DialogTitle>
             <DialogDescription>
-              To add funds, transfer the desired amount to the UPI ID below and
-              submit the reference ID.
+              To add funds, transfer the amount to the UPI ID below and submit the transaction details.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -251,12 +254,22 @@ export default function Dashboard() {
                 onChange={(e) => setRechargeAmount(e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="utr-number">UTR Number</Label>
+              <Input
+                id="utr-number"
+                type="text"
+                placeholder="Enter UTR/Transaction ID"
+                value={utrNumber}
+                onChange={(e) => setUtrNumber(e.target.value)}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRecharge(false)}>
               Cancel
             </Button>
-            <Button onClick={handleRechargeSubmit} disabled={!rechargeAmount || !adminSettings?.upiId}>
+            <Button onClick={handleRechargeSubmit} disabled={!rechargeAmount || !utrNumber || !adminSettings?.upiId}>
               Submit Request
             </Button>
           </DialogFooter>

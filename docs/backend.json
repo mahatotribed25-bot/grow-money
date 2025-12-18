@@ -45,9 +45,17 @@
           "type": "string",
           "description": "The ID of the user making the request."
         },
+        "userName": {
+          "type": "string",
+          "description": "The name of the user making the request."
+        },
         "amount": {
           "type": "number",
           "description": "The amount to deposit."
+        },
+        "utr": {
+          "type": "string",
+          "description": "The Unique Transaction Reference number for the deposit."
         },
         "status": {
           "type": "string",
@@ -66,7 +74,9 @@
       },
       "required": [
         "userId",
+        "userName",
         "amount",
+        "utr",
         "status",
         "createdAt"
       ]
