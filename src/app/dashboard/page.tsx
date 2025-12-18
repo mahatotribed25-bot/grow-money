@@ -91,20 +91,12 @@ export default function Dashboard() {
   const { data: investmentPlans, loading: plansLoading } =
     useCollection<InvestmentPlan>('investmentPlans');
 
-  const [showWelcome, setShowWelcome] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
   const [showRecharge, setShowRecharge] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawUpi, setWithdrawUpi] = useState('');
-
-  useEffect(() => {
-    const firstLogin = !localStorage.getItem('hasLoggedIn');
-    if (firstLogin) {
-      setShowWelcome(true);
-      localStorage.setItem('hasLoggedIn', 'true');
-    }
-  }, []);
 
   const handleCloseWelcome = () => {
     setShowWelcome(false);
