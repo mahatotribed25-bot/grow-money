@@ -7,32 +7,90 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCollection } from '@/firebase';
+import { collectionGroup, query, where, getDocs } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { useEffect, useState } from 'react';
+
+type User = {
+  walletBalance?: number;
+};
+
+type Deposit = {
+  status: 'pending' | 'approved' | 'rejected';
+};
+
+type Withdrawal = {
+  status: 'pending' | 'approved' | 'rejected';
+};
+
+type Investment = {
+  status: 'Active' | 'Completed';
+};
+
 
 export default function AdminDashboard() {
+  const { data: users, loading: usersLoading } = useCollection<User>('users');
+  const { data: deposits, loading: depositsLoading } = useCollection<Deposit>('deposits');
+  const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Withdrawal>('withdrawals');
+
+  const [activePlansCount, setActivePlansCount] = useState(0);
+  const [loadingActivePlans, setLoadingActivePlans] = useState(true);
+  const firestore = useFirestore();
+
+
+  useEffect(() => {
+    const fetchActiveInvestments = async () => {
+      try {
+        const investmentsQuery = query(
+          collectionGroup(firestore, 'investments'),
+          where('status', '==', 'Active')
+        );
+        const querySnapshot = await getDocs(investmentsQuery);
+        setActivePlansCount(querySnapshot.size);
+      } catch (error) {
+        console.error("Error fetching active investments:", error);
+      } finally {
+        setLoadingActivePlans(false);
+      }
+    };
+
+    fetchActiveInvestments();
+  }, [firestore]);
+
+
+  const loading = usersLoading || depositsLoading || withdrawalsLoading || loadingActivePlans;
+
+  const totalUsers = users?.filter(u => u.email !== 'admin@tribed.world').length || 0;
+  const totalWalletBalance = users?.reduce((sum, user) => sum + (user.walletBalance || 0), 0) || 0;
+  const pendingDeposits = deposits?.filter(d => d.status === 'pending').length || 0;
+  const pendingWithdrawals = withdrawals?.filter(w => w.status === 'pending').length || 0;
+
+
   const stats = [
     {
       title: 'Total Users',
-      value: '1,250',
+      value: loading ? '...' : totalUsers,
       icon: Users,
     },
     {
       title: 'Total Wallet Balance',
-      value: '₹1,50,000',
+      value: loading ? '...' : `₹${totalWalletBalance.toFixed(2)}`,
       icon: Wallet,
     },
     {
       title: 'Pending Deposits',
-      value: '15',
+      value: loading ? '...' : pendingDeposits,
       icon: ArrowDownToDot,
     },
     {
       title: 'Pending Withdrawals',
-      value: '8',
+      value: loading ? '...' : pendingWithdrawals,
       icon: ArrowUpFromDot,
     },
     {
       title: 'Active Plans',
-      value: '500',
+      value: loading ? '...' : activePlansCount,
       icon: Briefcase,
     },
   ];
