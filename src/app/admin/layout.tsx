@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/sheet';
 import { useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { useEffect } from 'react';
 
 const ADMIN_EMAIL = "admin@tribed.world";
 
@@ -42,6 +43,17 @@ export default function AdminLayout({
     router.push('/admin/login');
   };
 
+  useEffect(() => {
+    if (loading) {
+      return; // Wait for user status to be determined
+    }
+
+    if (pathname !== '/admin/login' && (!user || user.email !== ADMIN_EMAIL)) {
+      router.push('/admin/login');
+    }
+  }, [user, loading, pathname, router]);
+
+
   if (loading) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
@@ -50,21 +62,18 @@ export default function AdminLayout({
     );
   }
 
-  if (pathname !== '/admin/login') {
-    if (!user || user.email !== ADMIN_EMAIL) {
-      router.push('/admin/login');
-      return (
-         <div className="flex min-h-screen w-full items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
-      );
-    }
-  }
-  
-  if (pathname === '/admin/login') {
+  // If we're on the login page or if the user is not yet loaded or not an admin,
+  // we show a loading screen or let the login page render. The useEffect will handle the redirect.
+  if (pathname === '/admin/login' || !user || user.email !== ADMIN_EMAIL) {
+    if (pathname === '/admin/login') {
       return <>{children}</>;
+    }
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
   }
-
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
