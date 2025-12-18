@@ -10,8 +10,23 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye } from 'lucide-react';
-import { useCollection } from '@/firebase';
+import { Eye, Trash2 } from 'lucide-react';
+import { useCollection, useFirestore } from '@/firebase';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
+
 
 type User = {
   id: string;
@@ -27,8 +42,31 @@ const ADMIN_EMAIL = "admin@tribed.world";
 
 export default function UsersPage() {
   const { data: users, loading } = useCollection<User>('users');
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const filteredUsers = users?.filter(user => user.email !== ADMIN_EMAIL);
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+    try {
+      await deleteDoc(doc(firestore, 'users', selectedUser.id));
+      toast({
+        title: 'User Deleted',
+        description: `User ${selectedUser.name} has been successfully deleted.`,
+      });
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete user.',
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   return (
     <div>
@@ -66,10 +104,29 @@ export default function UsersPage() {
                       {user.status || 'Active'}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="flex gap-2">
                     <Button variant="ghost" size="icon">
                       <Eye className="h-4 w-4" />
                     </Button>
+                     <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => setSelectedUser(user)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure you want to delete this user?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the user account and remove their data from our servers.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setSelectedUser(null)}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDeleteUser}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))

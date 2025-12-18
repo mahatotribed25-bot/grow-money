@@ -25,10 +25,12 @@ import { useUser } from '@/firebase/auth/use-user';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import type { Timestamp } from 'firebase/firestore';
+import { where } from 'firebase/firestore';
 
 
 type Deposit = {
   id: string;
+  userId: string;
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Timestamp;
@@ -36,6 +38,7 @@ type Deposit = {
 
 type Withdrawal = {
   id:string;
+  userId: string;
   amount: number;
   upiId: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -52,19 +55,17 @@ export default function ProfilePage() {
   const { user } = useUser();
   const router = useRouter();
 
-  const { data: deposits, loading: depositsLoading } = useCollection<Deposit>(
-    user ? `deposits` : null
+  const { data: userDeposits, loading: depositsLoading } = useCollection<Deposit>(
+    user ? `deposits` : null,
+    where('userId', '==', user?.uid || '')
   );
-  const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Withdrawal>(
-    user ? `withdrawals` : null
+  const { data: userWithdrawals, loading: withdrawalsLoading } = useCollection<Withdrawal>(
+    user ? `withdrawals` : null,
+     where('userId', '==', user?.uid || '')
   );
-
-  // Filtering by user ID on the client
-  const userDeposits = deposits?.filter(d => d.userId === user?.uid) || [];
-  const userWithdrawals = withdrawals?.filter(w => w.userId === user?.uid) || [];
-
 
   const handleLogout = async () => {
+    if (!auth) return;
     await signOut(auth);
     router.push('/login');
   };
@@ -102,14 +103,14 @@ export default function ProfilePage() {
           </TabsList>
           <TabsContent value="recharge">
             <HistoryList
-              items={userDeposits}
+              items={userDeposits || []}
               loading={depositsLoading}
               type="recharge"
             />
           </TabsContent>
           <TabsContent value="withdrawal">
             <HistoryList
-              items={userWithdrawals}
+              items={userWithdrawals || []}
               loading={withdrawalsLoading}
               type="withdrawal"
             />
