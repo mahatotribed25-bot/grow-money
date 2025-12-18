@@ -36,11 +36,14 @@ import {
   runTransaction,
   serverTimestamp,
   doc,
+  Timestamp,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { isToday, startOfDay } from 'date-fns';
+
 
 type InvestmentPlan = {
   id: string;
@@ -51,19 +54,22 @@ type InvestmentPlan = {
   status: 'Available' | 'Coming Soon';
 };
 
+type ActiveInvestment = {
+  id: string;
+  planName: string;
+  investmentAmount: number;
+  dailyIncome: number;
+  startDate: Timestamp;
+  endDate: Timestamp;
+  status: 'Active' | 'Completed';
+  userId: string;
+  lastClaimedDate?: Timestamp;
+};
+
 type AdminSettings = {
   upiId?: string;
   upiQrCodeUrl?: string;
 };
-
-const activePlans = [
-  {
-    name: 'Day Plan',
-    progress: 1,
-    total: 1,
-    status: 'Active',
-  },
-];
 
 type UserData = {
   walletBalance?: number;
@@ -84,6 +90,10 @@ export default function Dashboard() {
 
   const { data: investmentPlans, loading: plansLoading } =
     useCollection<InvestmentPlan>('investmentPlans');
+
+  const { data: activePlans, loading: activePlansLoading } = useCollection<ActiveInvestment>(
+    user ? `users/${user.uid}/investments` : null
+  );
 
   const [showWelcome, setShowWelcome] = useState(true);
   const [showRecharge, setShowRecharge] = useState(false);
@@ -393,9 +403,17 @@ export default function Dashboard() {
           <div>
             <h2 className="text-lg font-semibold">Active Plans</h2>
             <div className="mt-4 space-y-4">
-              {activePlans.map((plan, i) => (
-                <ActivePlanCard key={i} {...plan} />
-              ))}
+              {activePlansLoading ? (
+                <p>Loading active plans...</p>
+              ) : (
+                 activePlans?.filter(p => p.status === 'Active').map((plan) => (
+                  <ActivePlanCard 
+                    key={plan.id} 
+                    plan={plan} 
+                    userId={user?.uid || ''} 
+                  />
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -485,6 +503,7 @@ function InvestmentCard({
           startDate: serverTimestamp(),
           endDate: endDate,
           status: 'Active',
+          lastClaimedDate: null,
         });
       });
 
@@ -541,31 +560,106 @@ function PlanDetail({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ActivePlanCard({ name, progress, total, status }: any) {
-  const progressValue = (progress / total) * 100;
+function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: string }) {
+  const { planName, status, startDate, endDate, lastClaimedDate } = plan;
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const isClaimable = !lastClaimedDate || !isToday(lastClaimedDate.toDate());
+  const isExpired = endDate.toDate() < new Date();
+
+  const handleClaim = async () => {
+    if (!isClaimable || !userId || isExpired) return;
+
+    const userRef = doc(firestore, 'users', userId);
+    const investmentRef = doc(firestore, `users/${userId}/investments`, plan.id);
+
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists()) throw 'User not found';
+
+        const investmentDoc = await transaction.get(investmentRef);
+        if (!investmentDoc.exists()) throw 'Investment not found';
+        
+        const currentData = investmentDoc.data() as ActiveInvestment;
+        if(currentData.lastClaimedDate && isToday(currentData.lastClaimedDate.toDate())) {
+            throw "Income for today already claimed.";
+        }
+
+
+        const currentBalance = userDoc.data().walletBalance || 0;
+        const currentTotalIncome = userDoc.data().totalIncome || 0;
+        const dailyIncome = plan.dailyIncome;
+
+        transaction.update(userRef, {
+          walletBalance: currentBalance + dailyIncome,
+          totalIncome: currentTotalIncome + dailyIncome,
+        });
+
+        transaction.update(investmentRef, {
+          lastClaimedDate: serverTimestamp(),
+        });
+      });
+
+      toast({
+        title: 'Income Claimed!',
+        description: `₹${plan.dailyIncome} has been added to your wallet.`,
+      });
+    } catch (e: any) {
+      console.error(e);
+      toast({
+        variant: 'destructive',
+        title: 'Claim Failed',
+        description: e.toString(),
+      });
+    }
+  };
+  
+  const getDaysDifference = (start: Timestamp, end: Timestamp) => {
+    const diffTime = Math.abs(end.toDate().getTime() - start.toDate().getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+  
+  const getProgress = () => {
+    const totalDuration = getDaysDifference(startDate, endDate);
+    const daysElapsed = getDaysDifference(startDate, Timestamp.now());
+    const progress = (daysElapsed / totalDuration) * 100;
+    return Math.min(progress, 100);
+  }
+
   return (
     <Card className="rounded-lg shadow-soft">
       <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <p className="font-semibold">{name}</p>
-          <span
-            className={`text-xs font-medium px-2 py-1 rounded-full ${
-              status === 'Active'
-                ? 'bg-green-500/20 text-green-400'
-                : 'bg-yellow-500/20 text-yellow-400'
-            }`}
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="font-semibold">{planName}</p>
+             <span
+              className={`text-xs font-medium px-2 py-1 rounded-full ${
+                status === 'Active'
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-yellow-500/20 text-yellow-400'
+              }`}
+            >
+              {status}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            onClick={handleClaim}
+            disabled={!isClaimable || isExpired}
           >
-            {status}
-          </span>
+            {isExpired ? 'Expired' : isClaimable ? 'Claim' : 'Claimed'}
+          </Button>
         </div>
         <div className="mt-4">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Progress</span>
             <span>
-              {progress} / {total} Days
+              {getDaysDifference(startDate, Timestamp.now())} / {getDaysDifference(startDate, endDate)} Days
             </span>
           </div>
-          <Progress value={progressValue} className="mt-1 h-2" />
+          <Progress value={getProgress()} className="mt-1 h-2" />
         </div>
       </CardContent>
     </Card>

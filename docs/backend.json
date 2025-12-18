@@ -159,6 +159,11 @@
             "Completed"
           ],
           "description": "The status of the investment."
+        },
+        "lastClaimedDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The last date the daily income was claimed."
         }
       },
       "required": [
