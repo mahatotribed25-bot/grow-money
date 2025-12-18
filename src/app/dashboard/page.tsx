@@ -361,7 +361,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4">
             <div
               onClick={() => setShowRecharge(true)}
               className="cursor-pointer"
@@ -374,12 +374,6 @@ export default function Dashboard() {
             >
               <ActionButton icon={Landmark} label="Withdraw" />
             </div>
-            <Link href="/plans">
-              <ActionButton icon={Briefcase} label="My Plans" />
-            </Link>
-            <Link href="/profile">
-              <ActionButton icon={User} label="Profile" />
-            </Link>
           </div>
 
           <div>
@@ -607,12 +601,20 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
         description: `₹${plan.dailyIncome} has been added to your wallet.`,
       });
     } catch (e: any) {
-      console.error(e);
-      toast({
-        variant: 'destructive',
-        title: 'Claim Failed',
-        description: e.toString(),
-      });
+      if (e === "Income for today already claimed.") {
+        toast({
+          variant: 'destructive',
+          title: 'Claim Failed',
+          description: e,
+        });
+      } else {
+        console.error(e);
+        toast({
+          variant: 'destructive',
+          title: 'Claim Failed',
+          description: 'An unexpected error occurred.',
+        });
+      }
     }
   };
   
