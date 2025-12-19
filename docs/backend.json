@@ -142,6 +142,10 @@
           "type": "number",
           "description": "The daily income from the investment."
         },
+        "totalReturn": {
+          "type": "number",
+          "description": "The total return from the investment (investment + profit)."
+        },
         "startDate": {
           "type": "string",
           "format": "date-time",
@@ -171,6 +175,7 @@
         "planName",
         "investmentAmount",
         "dailyIncome",
+        "totalReturn",
         "startDate",
         "endDate",
         "status"

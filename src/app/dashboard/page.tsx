@@ -38,6 +38,7 @@ import {
   serverTimestamp,
   doc,
   Timestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -60,6 +61,7 @@ type ActiveInvestment = {
   planName: string;
   investmentAmount: number;
   dailyIncome: number;
+  totalReturn: number;
   startDate: Timestamp;
   endDate: Timestamp;
   status: 'Active' | 'Completed';
@@ -401,7 +403,7 @@ export default function Dashboard() {
               {activePlansLoading ? (
                 <p>Loading active plans...</p>
               ) : (
-                 activePlans?.filter(p => p.status === 'Active').map((plan) => (
+                 activePlans?.map((plan) => (
                   <ActivePlanCard 
                     key={plan.id} 
                     plan={plan} 
@@ -460,6 +462,7 @@ function InvestmentCard({
   const { toast } = useToast();
 
   const canAfford = walletBalance >= investmentAmount;
+  const totalReturn = investmentAmount + profit * duration;
 
   const handleInvest = async () => {
     if (!canAfford || !userId) return;
@@ -495,8 +498,9 @@ function InvestmentCard({
           planName: name,
           investmentAmount: investmentAmount,
           dailyIncome: profit,
-          startDate: serverTimestamp(),
-          endDate: endDate,
+          totalReturn: totalReturn,
+          startDate: Timestamp.fromDate(startDate),
+          endDate: Timestamp.fromDate(endDate),
           status: 'Active',
           lastClaimedDate: null,
         });
@@ -531,7 +535,7 @@ function InvestmentCard({
           <PlanDetail label="Duration" value={`${duration} Day(s)`} />
           <PlanDetail
             label="Total Return"
-            value={`₹${investmentAmount + profit * duration}`}
+            value={`₹${totalReturn}`}
           />
           <Button
             className="w-full"
@@ -556,18 +560,18 @@ function PlanDetail({ label, value }: { label: string; value: string }) {
 }
 
 function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: string }) {
-  const { planName, status, startDate, endDate, lastClaimedDate, dailyIncome } = plan;
+  const { id, planName, status, startDate, endDate, lastClaimedDate, dailyIncome, totalReturn } = plan;
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const isClaimable = !lastClaimedDate || !isToday(lastClaimedDate.toDate());
+  const isClaimable = status === 'Active' && (!lastClaimedDate || !isToday(lastClaimedDate.toDate()));
   const isExpired = endDate.toDate() < new Date();
-
+  
   const handleClaim = async () => {
     if (!isClaimable || !userId || isExpired) return;
 
     const userRef = doc(firestore, 'users', userId);
-    const investmentRef = doc(firestore, `users/${userId}/investments`, plan.id);
+    const investmentRef = doc(firestore, `users/${userId}/investments`, id);
 
     try {
       await runTransaction(firestore, async (transaction) => {
@@ -616,6 +620,41 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
       }
     }
   };
+
+  const handleComplete = async () => {
+    if (status !== 'Active' || !isExpired) return;
+
+    const userRef = doc(firestore, 'users', userId);
+    const investmentRef = doc(firestore, `users/${userId}/investments`, id);
+
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists()) throw 'User not found';
+            
+            const currentBalance = userDoc.data().walletBalance || 0;
+            transaction.update(userRef, {
+                walletBalance: currentBalance + totalReturn
+            });
+
+            transaction.update(investmentRef, {
+                status: 'Completed'
+            });
+        });
+
+        toast({
+            title: "Plan Completed!",
+            description: `₹${totalReturn} has been credited to your wallet.`
+        });
+    } catch (e: any) {
+        console.error("Error completing plan:", e);
+        toast({
+            variant: "destructive",
+            title: "Completion Failed",
+            description: e.toString()
+        });
+    }
+  };
   
   const getDaysDifference = (start: Timestamp, end: Timestamp) => {
     if (!start || !end) return 0;
@@ -627,10 +666,29 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
     if (!startDate || !endDate) return 0;
     const totalDuration = getDaysDifference(startDate, endDate);
     if (totalDuration === 0) return 100;
+    if (isExpired || status === 'Completed') return 100;
     const daysElapsed = getDaysDifference(startDate, Timestamp.now());
     const progress = (daysElapsed / totalDuration) * 100;
     return Math.min(progress, 100);
   }
+
+  const renderButton = () => {
+    if (status === 'Completed') {
+      return <Button size="sm" disabled>Completed</Button>;
+    }
+    if (isExpired) {
+      return <Button size="sm" onClick={handleComplete}>Complete Plan</Button>
+    }
+    return (
+      <Button
+        size="sm"
+        onClick={handleClaim}
+        disabled={!isClaimable}
+      >
+        {isClaimable ? 'Claim' : 'Claimed'}
+      </Button>
+    );
+  };
 
   return (
     <Card className="rounded-lg shadow-lg border-border/50">
@@ -640,27 +698,21 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
             <p className="font-semibold">{planName}</p>
              <span
               className={`text-xs font-medium px-2 py-1 rounded-full ${
-                status === 'Active'
+                status === 'Active' && !isExpired
                   ? 'bg-green-500/20 text-green-400'
                   : 'bg-yellow-500/20 text-yellow-400'
               }`}
             >
-              {status}
+              {isExpired && status === 'Active' ? 'Expired' : status}
             </span>
           </div>
-          <Button
-            size="sm"
-            onClick={handleClaim}
-            disabled={!isClaimable || isExpired}
-          >
-            {isExpired ? 'Expired' : isClaimable ? 'Claim' : 'Claimed'}
-          </Button>
+          {renderButton()}
         </div>
         <div className="mt-4">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Progress</span>
             <span>
-              {getDaysDifference(startDate, Timestamp.now())} / {getDaysDifference(startDate, endDate)} Days
+              {Math.min(getDaysDifference(startDate, Timestamp.now()), getDaysDifference(startDate, endDate))} / {getDaysDifference(startDate, endDate)} Days
             </span>
           </div>
           <Progress value={getProgress()} className="mt-1 h-2" />

@@ -28,6 +28,7 @@ type Investment = {
   planName: string;
   investmentAmount: number;
   dailyIncome: number;
+  totalReturn: number;
   startDate: Timestamp;
   endDate: Timestamp;
   status: 'Active' | 'Completed';
@@ -90,6 +91,8 @@ export default function PlansPage() {
 }
 
 function PlanCard({ plan }: { plan: Investment }) {
+  const isExpired = plan.endDate.toDate() < new Date();
+  
   return (
     <Card className="shadow-soft">
       <CardHeader>
@@ -97,12 +100,12 @@ function PlanCard({ plan }: { plan: Investment }) {
           <CardTitle>{plan.planName}</CardTitle>
           <span
             className={`px-2 py-1 text-xs font-semibold rounded-full ${
-              plan.status === 'Active'
+              plan.status === 'Active' && !isExpired
                 ? 'bg-green-500/20 text-green-400'
                 : 'bg-yellow-500/20 text-yellow-400'
             }`}
           >
-            {plan.status}
+            {isExpired && plan.status === 'Active' ? 'Expired' : plan.status}
           </span>
         </div>
       </CardHeader>
@@ -116,6 +119,11 @@ function PlanCard({ plan }: { plan: Investment }) {
           icon={TrendingUp}
           label="Daily Income"
           value={`₹${plan.dailyIncome}`}
+        />
+         <PlanDetail
+          icon={IndianRupee}
+          label="Total Return"
+          value={`₹${plan.totalReturn}`}
         />
         <PlanDetail
           icon={Calendar}
