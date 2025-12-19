@@ -198,7 +198,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-gradient-to-r from-green-500/10 to-primary/10 px-4 backdrop-blur-md sm:px-6">
+      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/50 px-4 backdrop-blur-md sm:px-6">
         <div className="flex items-center gap-2">
           <Briefcase className="h-6 w-6 text-primary" />
           <h1 className="text-xl font-bold text-primary">grow money 💰💰🤑🤑</h1>
@@ -326,7 +326,7 @@ export default function Dashboard() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-6">
-          <Card className="shadow-soft">
+          <Card className="shadow-lg border-border/50">
             <CardHeader>
               <CardTitle>Wallet Summary</CardTitle>
             </CardHeader>
@@ -378,8 +378,8 @@ export default function Dashboard() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">Investment Plans</h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <h2 className="text-lg font-semibold mb-4">Investment Plans</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {plansLoading ? (
                 <p>Loading plans...</p>
               ) : (
@@ -396,7 +396,7 @@ export default function Dashboard() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">Active Plans</h2>
+            <h2 className="text-lg font-semibold mb-4">Active Plans</h2>
             <div className="mt-4 space-y-4">
               {activePlansLoading ? (
                 <p>Loading active plans...</p>
@@ -414,7 +414,7 @@ export default function Dashboard() {
         </div>
       </main>
 
-      <nav className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur-sm">
+      <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" active />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
@@ -433,7 +433,7 @@ function ActionButton({
   label: string;
 }) {
   return (
-    <Card className="flex h-24 flex-col items-center justify-center gap-2 rounded-lg bg-card text-card-foreground shadow-soft transition-colors hover:bg-accent/50">
+    <Card className="flex h-24 flex-col items-center justify-center gap-2 rounded-lg bg-card text-card-foreground shadow-lg border-border/50 transition-colors hover:bg-accent/50">
       <Icon className="h-6 w-6 text-primary" />
       <span className="text-sm font-medium">{label}</span>
     </Card>
@@ -517,9 +517,9 @@ function InvestmentCard({
   };
 
   return (
-    <Card className="rounded-lg shadow-soft">
+    <Card className="rounded-lg shadow-lg border-border/50 bg-gradient-to-br from-secondary/50 to-background">
       <CardHeader>
-        <CardTitle>{name}</CardTitle>
+        <CardTitle className='text-primary'>{name}</CardTitle>
         {status === 'Coming Soon' && (
           <CardDescription>Coming Soon</CardDescription>
         )}
@@ -556,7 +556,7 @@ function PlanDetail({ label, value }: { label: string; value: string }) {
 }
 
 function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: string }) {
-  const { planName, status, startDate, endDate, lastClaimedDate } = plan;
+  const { planName, status, startDate, endDate, lastClaimedDate, dailyIncome } = plan;
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -582,10 +582,8 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
             throw "Income for today already claimed.";
         }
 
-
         const currentBalance = userDoc.data().walletBalance || 0;
         const currentTotalIncome = userDoc.data().totalIncome || 0;
-        const dailyIncome = plan.dailyIncome;
 
         transaction.update(userRef, {
           walletBalance: currentBalance + dailyIncome,
@@ -599,7 +597,7 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
 
       toast({
         title: 'Income Claimed!',
-        description: `₹${plan.dailyIncome} has been added to your wallet.`,
+        description: `₹${dailyIncome} has been added to your wallet.`,
       });
     } catch (e: any) {
       if (e === "Income for today already claimed.") {
@@ -620,19 +618,22 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
   };
   
   const getDaysDifference = (start: Timestamp, end: Timestamp) => {
+    if (!start || !end) return 0;
     const diffTime = Math.abs(end.toDate().getTime() - start.toDate().getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
   
   const getProgress = () => {
+    if (!startDate || !endDate) return 0;
     const totalDuration = getDaysDifference(startDate, endDate);
+    if (totalDuration === 0) return 100;
     const daysElapsed = getDaysDifference(startDate, Timestamp.now());
     const progress = (daysElapsed / totalDuration) * 100;
     return Math.min(progress, 100);
   }
 
   return (
-    <Card className="rounded-lg shadow-soft">
+    <Card className="rounded-lg shadow-lg border-border/50">
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div>

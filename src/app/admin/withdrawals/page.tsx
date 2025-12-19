@@ -13,12 +13,13 @@ import { Button } from '@/components/ui/button';
 import { Check, X } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, runTransaction } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 type Withdrawal = {
   id: string;
   userId: string;
-  userEmail?: string; // This might not be on the withdrawal doc directly
+  userEmail?: string; 
   amount: number;
   upiId: string;
   createdAt: Timestamp;
@@ -34,14 +35,44 @@ const formatDate = (timestamp: Timestamp) => {
 export default function WithdrawalsPage() {
   const { data: withdrawals, loading } = useCollection<Withdrawal>('withdrawals');
   const firestore = useFirestore();
+  const { toast } = useToast();
 
-  const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected') => {
-    const withdrawalRef = doc(firestore, 'withdrawals', id);
+  const handleUpdateStatus = async (withdrawal: Withdrawal, status: 'approved' | 'rejected') => {
+    const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
+    const userRef = doc(firestore, 'users', withdrawal.userId);
+    
     try {
-      await updateDoc(withdrawalRef, { status });
+      if (status === 'rejected') {
+        // If rejected, refund the amount to the user's wallet
+        await runTransaction(firestore, async (transaction) => {
+          const userDoc = await transaction.get(userRef);
+          if (!userDoc.exists()) {
+            throw "User document does not exist!";
+          }
+          const currentBalance = userDoc.data().walletBalance || 0;
+          const newBalance = currentBalance + withdrawal.amount;
+          transaction.update(userRef, { walletBalance: newBalance });
+          transaction.update(withdrawalRef, { status: 'rejected' });
+        });
+        toast({
+          title: 'Withdrawal Rejected',
+          description: `₹${withdrawal.amount} has been refunded to the user's wallet.`,
+        });
+      } else {
+        // If approved (paid), just update the status
+        await updateDoc(withdrawalRef, { status });
+        toast({
+          title: 'Withdrawal Approved',
+          description: 'The withdrawal has been marked as paid.',
+        });
+      }
     } catch (error) {
       console.error('Error updating withdrawal status:', error);
-      // You might want to show a toast message here
+       toast({
+        title: 'Error',
+        description: 'Failed to update withdrawal status.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -93,7 +124,7 @@ export default function WithdrawalsPage() {
                                 variant="outline" 
                                 size="sm" 
                                 className="bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-600"
-                                onClick={() => handleUpdateStatus(withdrawal.id, 'approved')}
+                                onClick={() => handleUpdateStatus(withdrawal, 'approved')}
                                 disabled={withdrawal.status !== 'pending'}
                             >
                                 <Check className="h-4 w-4 mr-1" /> Paid
@@ -102,7 +133,7 @@ export default function WithdrawalsPage() {
                                 variant="outline" 
                                 size="sm" 
                                 className="bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-600"
-                                onClick={() => handleUpdateStatus(withdrawal.id, 'rejected')}
+                                onClick={() => handleUpdateStatus(withdrawal, 'rejected')}
                                 disabled={withdrawal.status !== 'pending'}
                             >
                                 <X className="h-4 w-4 mr-1" /> Reject
