@@ -80,6 +80,17 @@ type UserData = {
   totalIncome?: number;
 };
 
+const isValidHttpUrl = (string: string | undefined): boolean => {
+  if (!string) return false;
+  let url;
+  try {
+    url = new URL(string);
+  } catch (_) {
+    return false;
+  }
+  return url.protocol === 'http:' || url.protocol === 'https:';
+}
+
 export default function Dashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -236,10 +247,10 @@ export default function Dashboard() {
           <div className="space-y-4 py-4">
              {settingsLoading ? <p>Loading UPI details...</p> : (
                 <div className="flex flex-col items-center justify-center space-y-2 rounded-md bg-muted p-4">
-                {adminSettings?.upiQrCodeUrl ? (
+                {isValidHttpUrl(adminSettings?.upiQrCodeUrl) ? (
                     <Image
                     data-ai-hint="QR code"
-                    src={adminSettings.upiQrCodeUrl}
+                    src={adminSettings.upiQrCodeUrl!}
                     alt="Admin UPI QR Code"
                     width={150}
                     height={150}

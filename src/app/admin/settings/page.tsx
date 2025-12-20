@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,21 +23,12 @@ export default function SettingsPage() {
   const [upiId, setUpiId] = useState('');
   const [upiQrCodeUrl, setUpiQrCodeUrl] = useState('');
 
-  useState(() => {
+  useEffect(() => {
     if (settings) {
       setUpiId(settings.upiId || '');
       setUpiQrCodeUrl(settings.upiQrCodeUrl || '');
     }
-  });
-  
-  // A simple effect to update local state when Firestore data loads
-  useState(() => {
-    if (settings) {
-      setUpiId(settings.upiId || '');
-      setUpiQrCodeUrl(settings.upiQrCodeUrl || '');
-    }
-  });
-
+  },[settings]);
 
   const handleSave = async () => {
     const settingsRef = doc(firestore, 'settings', 'admin');
@@ -76,10 +67,14 @@ export default function SettingsPage() {
                     <Label htmlFor="qr-code-url">UPI QR Code Image URL</Label>
                     <Input
                     id="qr-code-url"
+                    type="url"
                     placeholder="https://example.com/qr.png"
                     value={upiQrCodeUrl}
                     onChange={(e) => setUpiQrCodeUrl(e.target.value)}
                     />
+                    <p className="text-sm text-muted-foreground">
+                        Please provide a direct link (URL) to the QR code image, not the UPI payment link.
+                    </p>
                 </div>
                 <Button onClick={handleSave}>Save Settings</Button>
             </>
