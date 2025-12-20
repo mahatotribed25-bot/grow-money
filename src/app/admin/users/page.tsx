@@ -26,6 +26,7 @@ import {
 import { doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import Link from 'next/link';
 
 
 type User = {
@@ -105,8 +106,10 @@ export default function UsersPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="flex gap-2">
-                    <Button variant="ghost" size="icon">
-                      <Eye className="h-4 w-4" />
+                    <Button asChild variant="ghost" size="icon">
+                      <Link href={`/admin/users/${user.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Link>
                     </Button>
                      <AlertDialog>
                       <AlertDialogTrigger asChild>
