@@ -92,7 +92,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6">
+      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
         <Link href="/dashboard">
           <Button variant="ghost" size="icon">
             <ChevronLeft className="h-5 w-5" />
@@ -103,7 +103,7 @@ export default function ProfilePage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-        <Card className="shadow-soft">
+        <Card className="shadow-lg border-border/50">
           <CardHeader>
             <CardTitle>My Information</CardTitle>
           </CardHeader>
@@ -116,7 +116,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
         
-        <Card className="shadow-soft mt-6">
+        <Card className="shadow-lg border-border/50 mt-6">
           <CardHeader>
             <CardTitle>Referral Code</CardTitle>
           </CardHeader>
@@ -161,7 +161,7 @@ export default function ProfilePage() {
           Logout
         </Button>
       </main>
-      <nav className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur-sm">
+      <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
@@ -196,7 +196,7 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
 function HistoryList({ items, loading, type }: { items: (Deposit[] | Withdrawal[]), loading: boolean, type: 'recharge' | 'withdrawal' }) {
   if (loading) {
     return (
-      <Card>
+      <Card className="shadow-lg border-border/50">
         <CardContent className="p-6 text-center text-muted-foreground">
           <p>Loading history...</p>
         </CardContent>
@@ -206,7 +206,7 @@ function HistoryList({ items, loading, type }: { items: (Deposit[] | Withdrawal[
 
   if (!items || items.length === 0) {
     return (
-      <Card>
+      <Card className="shadow-lg border-border/50">
         <CardContent className="p-6 text-center text-muted-foreground">
           <p>No {type} history found.</p>
         </CardContent>
@@ -229,7 +229,7 @@ function HistoryList({ items, loading, type }: { items: (Deposit[] | Withdrawal[
   return (
     <div className="space-y-4">
       {items.map((item) => (
-        <Card key={item.id} className="shadow-soft">
+        <Card key={item.id} className="shadow-lg border-border/50">
           <CardContent className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
                {type === 'recharge' ? (

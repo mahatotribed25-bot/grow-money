@@ -142,7 +142,7 @@ export default function AdminLayout({
             </SheetContent>
           </Sheet>
           <div className="w-full flex-1">
-             <h1 className="text-lg font-semibold capitalize">{pathname.split('/').pop() || 'Dashboard'}</h1>
+             <h1 className="text-lg font-semibold capitalize">{pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}</h1>
           </div>
           <Button variant="ghost" size="icon">
             <Bell className="h-5 w-5" />

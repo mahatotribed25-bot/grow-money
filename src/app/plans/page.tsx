@@ -48,7 +48,7 @@ export default function PlansPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6">
+      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
         <Link href="/dashboard">
           <Button variant="ghost" size="icon">
             <ChevronLeft className="h-5 w-5" />
@@ -67,7 +67,7 @@ export default function PlansPage() {
               <PlanCard key={plan.id} plan={plan} />
             ))
           ) : (
-            <Card>
+            <Card className="shadow-lg border-border/50">
               <CardContent className="p-6 text-center text-muted-foreground">
                 <p>You have not invested in any plans yet.</p>
                 <Button asChild className="mt-4">
@@ -79,7 +79,7 @@ export default function PlansPage() {
         </div>
       </main>
 
-      <nav className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur-sm">
+      <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" active />
@@ -94,10 +94,10 @@ function PlanCard({ plan }: { plan: Investment }) {
   const isExpired = plan.endDate.toDate() < new Date();
   
   return (
-    <Card className="shadow-soft">
+    <Card className="shadow-lg border-border/50">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>{plan.planName}</CardTitle>
+          <CardTitle className="text-primary">{plan.planName}</CardTitle>
           <span
             className={`px-2 py-1 text-xs font-semibold rounded-full ${
               plan.status === 'Active' && !isExpired

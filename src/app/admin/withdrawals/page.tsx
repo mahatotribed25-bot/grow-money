@@ -126,7 +126,7 @@ export default function WithdrawalsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-600"
+                        className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
                         onClick={() =>
                           handleUpdateStatus(withdrawal, 'approved')
                         }
@@ -137,7 +137,7 @@ export default function WithdrawalsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-600"
+                        className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
                         onClick={() =>
                           handleUpdateStatus(withdrawal, 'rejected')
                         }
