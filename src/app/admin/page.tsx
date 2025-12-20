@@ -8,9 +8,18 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCollection } from '@/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
-import { useEffect, useState } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import { Timestamp } from 'firebase/firestore';
+import { subDays, format, startOfDay } from 'date-fns';
 
 type User = {
   walletBalance?: number;
@@ -19,32 +28,84 @@ type User = {
 
 type Deposit = {
   status: 'pending' | 'approved' | 'rejected';
+  createdAt: Timestamp;
+  amount: number;
 };
 
 type Withdrawal = {
   status: 'pending' | 'approved' | 'rejected';
+  createdAt: Timestamp;
+  amount: number;
 };
 
 type InvestmentPlan = {
   status: 'Available' | 'Coming Soon';
 };
 
+// Function to process data for the chart
+const processFinancialData = (
+  deposits: Deposit[] | null,
+  withdrawals: Withdrawal[] | null
+) => {
+  const last7Days = Array.from({ length: 7 }, (_, i) =>
+    startOfDay(subDays(new Date(), i))
+  ).reverse();
+
+  const chartData = last7Days.map((day) => {
+    const formattedDate = format(day, 'MMM d');
+
+    const dailyDeposits =
+      deposits
+        ?.filter(
+          (d) =>
+            d.createdAt &&
+            d.status === 'approved' &&
+            startOfDay(d.createdAt.toDate()).getTime() === day.getTime()
+        )
+        .reduce((sum, d) => sum + d.amount, 0) || 0;
+
+    const dailyWithdrawals =
+      withdrawals
+        ?.filter(
+          (w) =>
+            w.createdAt &&
+            w.status === 'approved' &&
+            startOfDay(w.createdAt.toDate()).getTime() === day.getTime()
+        )
+        .reduce((sum, w) => sum + w.amount, 0) || 0;
+
+    return {
+      date: formattedDate,
+      Deposits: dailyDeposits,
+      Withdrawals: dailyWithdrawals,
+    };
+  });
+
+  return chartData;
+};
 
 export default function AdminDashboard() {
   const { data: users, loading: usersLoading } = useCollection<User>('users');
-  const { data: deposits, loading: depositsLoading } = useCollection<Deposit>('deposits');
-  const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Withdrawal>('withdrawals');
-  const { data: investmentPlans, loading: plansLoading } = useCollection<InvestmentPlan>('investmentPlans');
+  const { data: deposits, loading: depositsLoading } =
+    useCollection<Deposit>('deposits');
+  const { data: withdrawals, loading: withdrawalsLoading } =
+    useCollection<Withdrawal>('withdrawals');
+  const { data: investmentPlans, loading: plansLoading } =
+    useCollection<InvestmentPlan>('investmentPlans');
 
+  const loading =
+    usersLoading || depositsLoading || withdrawalsLoading || plansLoading;
 
-  const loading = usersLoading || depositsLoading || withdrawalsLoading || plansLoading;
-
-  const totalUsers = users?.filter(u => u.email !== 'admin@tribed.world').length || 0;
-  const totalWalletBalance = users?.reduce((sum, user) => sum + (user.walletBalance || 0), 0) || 0;
-  const pendingDeposits = deposits?.filter(d => d.status === 'pending').length || 0;
-  const pendingWithdrawals = withdrawals?.filter(w => w.status === 'pending').length || 0;
-  const activePlansCount = investmentPlans?.filter(p => p.status === 'Available').length || 0;
-
+  const totalUsers =
+    users?.filter((u) => u.email !== 'admin@tribed.world').length || 0;
+  const totalWalletBalance =
+    users?.reduce((sum, user) => sum + (user.walletBalance || 0), 0) || 0;
+  const pendingDeposits =
+    deposits?.filter((d) => d.status === 'pending').length || 0;
+  const pendingWithdrawals =
+    withdrawals?.filter((w) => w.status === 'pending').length || 0;
+  const activePlansCount =
+    investmentPlans?.filter((p) => p.status === 'Available').length || 0;
 
   const stats = [
     {
@@ -74,8 +135,10 @@ export default function AdminDashboard() {
     },
   ];
 
+  const financialChartData = processFinancialData(deposits, withdrawals);
+
   return (
-    <div>
+    <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {stats.map((stat) => (
           <Card key={stat.title}>
@@ -91,9 +154,35 @@ export default function AdminDashboard() {
           </Card>
         ))}
       </div>
-      <div className="mt-6">
-        {/* We can add recent activity or charts here later */}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Last 7 Days Financials</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="h-[350px] w-full flex items-center justify-center">
+              <p>Loading chart data...</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={financialChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(value) => `₹${value}`} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--background))',
+                    borderColor: 'hsl(var(--border))',
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="Deposits" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Withdrawals" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
