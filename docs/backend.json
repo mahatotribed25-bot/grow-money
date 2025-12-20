@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "user": {
@@ -29,6 +30,14 @@
         "totalIncome": {
           "type": "number",
           "description": "The user's total income."
+        },
+        "referralCode": {
+            "type": "string",
+            "description": "The user's unique referral code."
+        },
+        "referredBy": {
+            "type": "string",
+            "description": "The UID of the user who referred this user."
         }
       },
       "required": [
@@ -232,6 +241,14 @@
           "type": "string",
           "format": "uri",
           "description": "The URL for the UPI QR code image."
+        },
+        "signupBonus": {
+          "type": "number",
+          "description": "Bonus amount for a new user signing up with a referral code."
+        },
+        "referralBonus": {
+            "type": "number",
+            "description": "Bonus amount for the referrer."
         }
       }
     }

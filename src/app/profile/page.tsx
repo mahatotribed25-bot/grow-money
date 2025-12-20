@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -13,12 +14,14 @@ import {
   ArrowLeft,
   Download,
   Upload,
+  Copy,
+  Gift,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { useAuth, useCollection } from '@/firebase';
+import { useAuth, useCollection, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
@@ -26,7 +29,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import type { Timestamp } from 'firebase/firestore';
 import { where } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
+type UserData = {
+  referralCode?: string;
+};
 
 type Deposit = {
   id: string;
@@ -54,6 +61,7 @@ export default function ProfilePage() {
   const auth = useAuth();
   const { user } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
 
   const { data: userDeposits, loading: depositsLoading } = useCollection<Deposit>(
     user ? `deposits` : null,
@@ -64,10 +72,22 @@ export default function ProfilePage() {
      where('userId', '==', user?.uid || '')
   );
 
+  const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+
   const handleLogout = async () => {
     if (!auth) return;
     await signOut(auth);
     router.push('/login');
+  };
+  
+  const handleCopyCode = () => {
+    if (userData?.referralCode) {
+      navigator.clipboard.writeText(userData.referralCode);
+      toast({
+        title: "Copied!",
+        description: "Your referral code has been copied to the clipboard.",
+      });
+    }
   };
 
   return (
@@ -93,6 +113,24 @@ export default function ProfilePage() {
             <InfoRow icon={Mail} label="Email" value={user?.email || 'N/A'} />
             <Separator />
             <InfoRow icon={CreditCard} label="Saved UPI ID" value="Not set" />
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-soft mt-6">
+          <CardHeader>
+            <CardTitle>Referral Code</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between rounded-md bg-muted p-3">
+              <div className="flex items-center gap-3">
+                  <Gift className="h-6 w-6 text-primary" />
+                  <span className="text-lg font-mono tracking-widest">{userData?.referralCode || 'Loading...'}</span>
+              </div>
+              <Button variant="ghost" size="icon" onClick={handleCopyCode}>
+                <Copy className="h-5 w-5" />
+              </Button>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">Share this code with your friends. You'll get a bonus when they sign up and invest!</p>
           </CardContent>
         </Card>
 
