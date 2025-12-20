@@ -171,6 +171,7 @@ export default function Dashboard() {
 
     const withdrawalData = {
       userId: user.uid,
+      userName: user.displayName || 'N/A',
       amount: amountToWithdraw,
       upiId: withdrawUpi,
       status: 'pending',

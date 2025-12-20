@@ -13,15 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Check, X } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, runTransaction, getDocs, collection } from 'firebase/firestore';
+import { doc, updateDoc, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-}
 
 type Withdrawal = {
   id: string;
@@ -42,22 +35,6 @@ export default function WithdrawalsPage() {
   const { data: withdrawals, loading } = useCollection<Withdrawal>('withdrawals');
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [usersMap, setUsersMap] = useState<Map<string, string>>(new Map());
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      if (!firestore) return;
-      const usersSnapshot = await getDocs(collection(firestore, 'users'));
-      const newUsersMap = new Map<string, string>();
-      usersSnapshot.forEach((doc) => {
-        const userData = doc.data() as User;
-        newUsersMap.set(doc.id, userData.name || doc.id);
-      });
-      setUsersMap(newUsersMap);
-    };
-    fetchUsers();
-  }, [firestore]);
-
 
   const handleUpdateStatus = async (
     withdrawal: Withdrawal,
@@ -126,7 +103,7 @@ export default function WithdrawalsPage() {
             ) : (
               withdrawals?.map((withdrawal) => (
                 <TableRow key={withdrawal.id}>
-                  <TableCell>{usersMap.get(withdrawal.userId) || withdrawal.userId}</TableCell>
+                  <TableCell>{withdrawal.userName || withdrawal.userId}</TableCell>
                   <TableCell>₹{withdrawal.amount.toFixed(2)}</TableCell>
                   <TableCell>{withdrawal.upiId}</TableCell>
                   <TableCell>{formatDate(withdrawal.createdAt)}</TableCell>
