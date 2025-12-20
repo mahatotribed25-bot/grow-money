@@ -19,7 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useUser } from '@/firebase/auth/use-user';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -498,7 +498,7 @@ function InvestmentCard({
           planName: name,
           investmentAmount: investmentAmount,
           dailyIncome: profit,
-          totalReturn: totalReturn,
+          totalReturn: investmentAmount + (profit * duration),
           startDate: Timestamp.fromDate(startDate),
           endDate: Timestamp.fromDate(endDate),
           status: 'Active',
@@ -563,9 +563,18 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
   const { id, planName, status, startDate, endDate, lastClaimedDate, dailyIncome, totalReturn } = plan;
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
 
   const isClaimable = status === 'Active' && (!lastClaimedDate || !isToday(lastClaimedDate.toDate()));
-  const isExpired = endDate.toDate() < new Date();
+  const isExpired = endDate.toDate() < now;
   
   const handleClaim = async () => {
     if (!isClaimable || !userId || isExpired) return;
@@ -634,7 +643,7 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
             
             const currentBalance = userDoc.data().walletBalance || 0;
             transaction.update(userRef, {
-                walletBalance: currentBalance + totalReturn
+                walletBalance: currentBalance + (totalReturn - plan.investmentAmount)
             });
 
             transaction.update(investmentRef, {
@@ -644,7 +653,7 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
 
         toast({
             title: "Plan Completed!",
-            description: `₹${totalReturn} has been credited to your wallet.`
+            description: `Your earnings of ₹${totalReturn - plan.investmentAmount} have been credited to your wallet.`
         });
     } catch (e: any) {
         console.error("Error completing plan:", e);
@@ -661,16 +670,19 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
     const diffTime = Math.abs(end.toDate().getTime() - start.toDate().getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
-  
+
   const getProgress = () => {
-    if (!startDate || !endDate) return 0;
-    const totalDuration = getDaysDifference(startDate, endDate);
-    if (totalDuration === 0) return 100;
-    if (isExpired || status === 'Completed') return 100;
-    const daysElapsed = getDaysDifference(startDate, Timestamp.now());
-    const progress = (daysElapsed / totalDuration) * 100;
+    if (!startDate || !endDate || status === 'Completed' || isExpired) return 100;
+    
+    const totalDuration = endDate.toMillis() - startDate.toMillis();
+    if (totalDuration <= 0) return 100;
+    
+    const elapsed = now.getTime() - startDate.toMillis();
+    const progress = (elapsed / totalDuration) * 100;
+    
     return Math.min(progress, 100);
-  }
+  };
+
 
   const renderButton = () => {
     if (status === 'Completed') {
@@ -711,8 +723,10 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
         <div className="mt-4">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Progress</span>
-            <span>
-              {Math.min(getDaysDifference(startDate, Timestamp.now()), getDaysDifference(startDate, endDate))} / {getDaysDifference(startDate, endDate)} Days
+             <span>
+              {status === 'Completed' || isExpired
+                ? 'Completed'
+                : 'Ends in ' + Math.max(0, getDaysDifference(Timestamp.fromDate(now), endDate)) + ' days'}
             </span>
           </div>
           <Progress value={getProgress()} className="mt-1 h-2" />
