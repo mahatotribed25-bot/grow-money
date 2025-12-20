@@ -7,6 +7,7 @@ import * as z from "zod";
 import { KeyRound, Lock, Mail } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { AuthCard } from "@/components/auth/auth-card";
-import { useAuth } from "@/firebase";
+import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
@@ -33,6 +34,7 @@ const formSchema = z.object({
 
 export default function LoginPage() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -46,9 +48,25 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // Check if user is blocked
+      const userDocRef = doc(firestore, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists() && userDoc.data().status === 'Blocked') {
+        await auth.signOut(); // Sign out the blocked user
+        toast({
+          variant: "destructive",
+          title: "Account Blocked",
+          description: "Your account has been blocked by an administrator.",
+        });
+        return;
+      }
+      
       router.push("/");
-    } catch (error: any) {
+    } catch (error: any) => {
       toast({
         variant: "destructive",
         title: "Authentication Failed",

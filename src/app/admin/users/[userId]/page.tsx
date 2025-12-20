@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Wallet, Briefcase, Download, Upload } from 'lucide-react';
+import { ArrowLeft, User, Wallet, Briefcase, Download, Upload, Ban } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
-import { where } from 'firebase/firestore';
+import { where, doc, updateDoc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
 
 type UserData = {
   id: string;
@@ -60,6 +61,7 @@ const getStatusVariant = (status: string) => {
     case 'Completed':
       return 'default';
     case 'rejected':
+    case 'Blocked':
       return 'destructive';
     default:
       return 'secondary';
@@ -70,6 +72,8 @@ export default function UserDetailPage() {
   const router = useRouter();
   const params = useParams();
   const userId = params.userId as string;
+  const firestore = useFirestore();
+  const { toast } = useToast();
 
   const { data: user, loading: userLoading } = useDoc<UserData>(userId ? `users/${userId}` : null);
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
@@ -81,8 +85,29 @@ export default function UserDetailPage() {
     userId ? 'withdrawals' : null,
     where('userId', '==', userId)
   );
-
+  
   const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading;
+
+  const handleToggleStatus = async () => {
+    if (!user) return;
+    const newStatus = user.status === 'Blocked' ? 'Active' : 'Blocked';
+    try {
+      const userRef = doc(firestore, 'users', userId);
+      await updateDoc(userRef, { status: newStatus });
+      toast({
+        title: 'Status Updated',
+        description: `User has been ${newStatus}.`,
+      });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update user status.',
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   if (loading) {
     return (
@@ -98,11 +123,20 @@ export default function UserDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h2 className="text-2xl font-bold">User Details</h2>
+        </div>
+        <Button
+            variant={user.status === 'Blocked' ? 'default' : 'destructive'}
+            onClick={handleToggleStatus}
+        >
+            <Ban className="mr-2 h-4 w-4" />
+            {user.status === 'Blocked' ? 'Unblock User' : 'Block User'}
         </Button>
-        <h2 className="text-2xl font-bold">User Details</h2>
       </div>
 
       <Card>
@@ -116,7 +150,7 @@ export default function UserDetailPage() {
           <InfoBox title="Wallet Balance" value={`₹${(user.walletBalance || 0).toFixed(2)}`} icon={Wallet} />
           <InfoBox title="Total Investment" value={`₹${(user.totalInvestment || 0).toFixed(2)}`} icon={Briefcase} />
           <InfoBox title="Total Income" value={`₹${(user.totalIncome || 0).toFixed(2)}`} icon={Download} />
-          <InfoBox title="Status" value={user.status || 'Active'} icon={User} badgeVariant={user.status === 'Blocked' ? 'destructive' : 'default'} />
+          <InfoBox title="Status" value={user.status || 'Active'} icon={User} badgeVariant={getStatusVariant(user.status || 'Active')} />
         </CardContent>
       </Card>
 
@@ -186,7 +220,7 @@ function InfoBox({ title, value, icon: Icon, badgeVariant }: { title: string, va
         <Icon className="h-4 w-4" />
       </div>
       {badgeVariant ? (
-        <Badge variant={badgeVariant} className="w-fit">{value}</Badge>
+        <Badge variant={badgeVariant} className="w-fit capitalize">{value}</Badge>
       ) : (
         <p className="text-2xl font-bold">{value}</p>
       )}
