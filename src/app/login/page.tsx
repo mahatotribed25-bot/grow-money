@@ -66,7 +66,7 @@ export default function LoginPage() {
       }
       
       router.push("/");
-    } catch (error: any) => {
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Authentication Failed",
