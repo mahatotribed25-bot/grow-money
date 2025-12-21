@@ -7,6 +7,7 @@ import {
   CreditCard,
   Home,
   Landmark,
+  Megaphone,
   User,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -47,6 +48,7 @@ import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 type InvestmentPlan = {
@@ -74,6 +76,7 @@ type ActiveInvestment = {
 type AdminSettings = {
   upiId?: string;
   upiQrCodeUrl?: string;
+  broadcastMessage?: string;
 };
 
 type UserData = {
@@ -356,6 +359,16 @@ export default function Dashboard() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-6">
+          {adminSettings?.broadcastMessage && (
+            <Alert>
+              <Megaphone className="h-4 w-4" />
+              <AlertTitle>Announcement</AlertTitle>
+              <AlertDescription>
+                {adminSettings.broadcastMessage}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Card className="shadow-lg border-border/50">
             <CardHeader>
               <CardTitle>Wallet Summary</CardTitle>
@@ -790,5 +803,3 @@ function BottomNavItem({
     </Link>
   );
 }
-
-    

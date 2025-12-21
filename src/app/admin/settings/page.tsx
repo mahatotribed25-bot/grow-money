@@ -10,12 +10,15 @@ import { useDoc, useFirestore } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Megaphone } from 'lucide-react';
 
 type AdminSettings = {
   upiId?: string;
   upiQrCodeUrl?: string;
   signupBonus?: number;
   referralBonus?: number;
+  broadcastMessage?: string;
 };
 
 export default function SettingsPage() {
@@ -27,6 +30,7 @@ export default function SettingsPage() {
   const [upiQrCodeUrl, setUpiQrCodeUrl] = useState('');
   const [signupBonus, setSignupBonus] = useState(0);
   const [referralBonus, setReferralBonus] = useState(0);
+  const [broadcastMessage, setBroadcastMessage] = useState('');
 
 
   useEffect(() => {
@@ -35,6 +39,7 @@ export default function SettingsPage() {
       setUpiQrCodeUrl(settings.upiQrCodeUrl || '');
       setSignupBonus(settings.signupBonus || 0);
       setReferralBonus(settings.referralBonus || 0);
+      setBroadcastMessage(settings.broadcastMessage || '');
     }
   },[settings]);
 
@@ -46,6 +51,7 @@ export default function SettingsPage() {
         upiQrCodeUrl,
         signupBonus: Number(signupBonus),
         referralBonus: Number(referralBonus),
+        broadcastMessage,
       }, { merge: true });
       toast({ title: 'Settings Saved', description: 'Your settings have been updated.' });
     } catch (error) {
@@ -58,69 +64,92 @@ export default function SettingsPage() {
     <div>
       <h2 className="text-2xl font-bold mb-4">Admin Settings</h2>
       <Card>
-        <CardHeader>
-          <CardTitle>Payment Details</CardTitle>
-          <CardDescription>
-            This UPI ID and QR code will be shown to users when they recharge their wallets.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="pt-6 space-y-6">
            {loading ? <p>Loading settings...</p> : (
             <>
-                <div className="space-y-2">
-                    <Label htmlFor="upi-id">UPI ID</Label>
-                    <Input
-                    id="upi-id"
-                    placeholder="your-upi@bank"
-                    value={upiId}
-                    onChange={(e) => setUpiId(e.target.value)}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="qr-code-url">UPI QR Code Image URL</Label>
-                    <Input
-                    id="qr-code-url"
-                    type="url"
-                    placeholder="https://example.com/qr.png"
-                    value={upiQrCodeUrl}
-                    onChange={(e) => setUpiQrCodeUrl(e.target.value)}
-                    />
-                    <p className="text-sm text-muted-foreground">
-                        Please provide a direct link (URL) to the QR code image, not the UPI payment link.
-                    </p>
-                </div>
-                <Separator className="my-6" />
-                <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Referral Settings</h3>
-                     <div className="space-y-2">
-                        <Label htmlFor="signup-bonus">Signup Bonus</Label>
-                        <Input
-                        id="signup-bonus"
-                        type="number"
-                        placeholder="Amount for new user"
-                        value={signupBonus}
-                        onChange={(e) => setSignupBonus(Number(e.target.value))}
+                <Card className="bg-secondary/50">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Megaphone /> Broadcast Message</CardTitle>
+                        <CardDescription>
+                            This message will be displayed to all users on their dashboard. Leave it empty to hide it.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Textarea
+                            placeholder="Enter your announcement..."
+                            value={broadcastMessage}
+                            onChange={(e) => setBroadcastMessage(e.target.value)}
+                            rows={3}
                         />
-                         <p className="text-sm text-muted-foreground">
-                            Bonus amount a new user receives when they sign up with a referral code.
-                        </p>
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="referral-bonus">Referral Bonus</Label>
-                        <Input
-                        id="referral-bonus"
-                        type="number"
-                        placeholder="Amount for referrer"
-                        value={referralBonus}
-                        onChange={(e) => setReferralBonus(Number(e.target.value))}
-                        />
-                         <p className="text-sm text-muted-foreground">
-                            Bonus amount the referring user receives.
-                        </p>
+                    </CardContent>
+                </Card>
+                <Separator />
+                <div>
+                    <CardTitle>Payment Details</CardTitle>
+                    <CardDescription>
+                        This UPI ID and QR code will be shown to users when they recharge their wallets.
+                    </CardDescription>
+                    <div className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="upi-id">UPI ID</Label>
+                            <Input
+                            id="upi-id"
+                            placeholder="your-upi@bank"
+                            value={upiId}
+                            onChange={(e) => setUpiId(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="qr-code-url">UPI QR Code Image URL</Label>
+                            <Input
+                            id="qr-code-url"
+                            type="url"
+                            placeholder="https://example.com/qr.png"
+                            value={upiQrCodeUrl}
+                            onChange={(e) => setUpiQrCodeUrl(e.target.value)}
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                Please provide a direct link (URL) to the QR code image, not the UPI payment link.
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                <Button onClick={handleSave} className="mt-4">Save Settings</Button>
+                <Separator />
+                
+                <div>
+                    <CardTitle>Referral Settings</CardTitle>
+                     <div className="space-y-4 mt-4">
+                         <div className="space-y-2">
+                            <Label htmlFor="signup-bonus">Signup Bonus</Label>
+                            <Input
+                            id="signup-bonus"
+                            type="number"
+                            placeholder="Amount for new user"
+                            value={signupBonus}
+                            onChange={(e) => setSignupBonus(Number(e.target.value))}
+                            />
+                             <p className="text-sm text-muted-foreground">
+                                Bonus amount a new user receives when they sign up with a referral code.
+                            </p>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="referral-bonus">Referral Bonus</Label>
+                            <Input
+                            id="referral-bonus"
+                            type="number"
+                            placeholder="Amount for referrer"
+                            value={referralBonus}
+                            onChange={(e) => setReferralBonus(Number(e.target.value))}
+                            />
+                             <p className="text-sm text-muted-foreground">
+                                Bonus amount the referring user receives.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <Button onClick={handleSave} className="mt-4">Save All Settings</Button>
             </>
            )}
         </CardContent>

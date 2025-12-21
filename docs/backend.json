@@ -266,6 +266,10 @@
         "referralBonus": {
             "type": "number",
             "description": "Bonus amount for the referrer."
+        },
+        "broadcastMessage": {
+          "type": "string",
+          "description": "A message to be broadcast to all users on their dashboard."
         }
       }
     }
