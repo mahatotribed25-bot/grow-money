@@ -616,11 +616,9 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
             throw "Income for today already claimed.";
         }
 
-        const currentBalance = userDoc.data().walletBalance || 0;
         const currentTotalIncome = userDoc.data().totalIncome || 0;
 
         transaction.update(userRef, {
-          walletBalance: currentBalance + dailyIncome,
           totalIncome: currentTotalIncome + dailyIncome,
         });
 
@@ -631,7 +629,7 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
 
       toast({
         title: 'Income Claimed!',
-        description: `₹${dailyIncome} has been added to your wallet.`,
+        description: `Your daily income of ₹${dailyIncome} has been logged.`,
       });
     } catch (e: any) {
       if (e === "Income for today already claimed.") {
@@ -652,17 +650,35 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
   };
 
   const handleComplete = async () => {
-    if (status !== 'Active' || !isExpired) return;
+     if (status !== 'Active' || !isExpired || !userId) return;
 
+    const userRef = doc(firestore, 'users', userId);
     const investmentRef = doc(firestore, `users/${userId}/investments`, id);
 
     try {
-      // No need for a transaction if we are only updating one document.
-      await updateDoc(investmentRef, { status: 'Completed' });
+      await runTransaction(firestore, async (transaction) => {
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists()) throw 'User not found';
+
+        const investmentDoc = await transaction.get(investmentRef);
+        if (!investmentDoc.exists() || investmentDoc.data().status !== 'Active') {
+          throw 'Investment is not active or not found.';
+        }
+
+        const currentBalance = userDoc.data().walletBalance || 0;
+        
+        // Add the full totalReturn to the wallet
+        transaction.update(userRef, {
+          walletBalance: currentBalance + totalReturn,
+        });
+
+        // Mark the investment as completed
+        transaction.update(investmentRef, { status: 'Completed' });
+      });
 
       toast({
         title: "Plan Completed!",
-        description: `Plan ${planName} is now marked as complete.`
+        description: `₹${totalReturn} has been added to your wallet for the completed ${planName} plan.`
       });
     } catch (e: any) {
         console.error("Error completing plan:", e);
