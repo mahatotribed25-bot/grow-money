@@ -41,6 +41,7 @@ import {
   Timestamp,
   updateDoc,
   writeBatch,
+  getDoc,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -641,19 +642,33 @@ const autoCreditIncome = async (userId: string, plans: ActiveInvestment[], fires
   }
 };
 
+function formatDuration(milliseconds: number) {
+  if (milliseconds < 0) return "00d 00h 00m 00s";
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const days = Math.floor(totalSeconds / (3600 * 24));
+  const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+
+  return `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+}
+
 
 function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: string }) {
-  const { id, planName, status, startDate, endDate, lastIncomeDate, dailyIncome, totalReturn } = plan;
+  const { id, planName, status, startDate, endDate, totalReturn } = plan;
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [now, setNow] = useState(new Date());
+  
+  const [remainingTime, setRemainingTime] = useState(endDate.toDate().getTime() - new Date().getTime());
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000 * 60); // Update every minute
+    const timer = setInterval(() => {
+      setRemainingTime(endDate.toDate().getTime() - new Date().getTime());
+    }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [endDate]);
 
-  const isExpired = endDate.toDate() < now;
+  const isExpired = remainingTime <= 0;
   
   const handleComplete = async () => {
      if (status !== 'Active' || !isExpired || !userId) return;
@@ -694,19 +709,13 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
     }
   };
   
-  const getDaysDifference = (start: Timestamp, end: Timestamp) => {
-    if (!start || !end) return 0;
-    const diffTime = Math.abs(end.toDate().getTime() - start.toDate().getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
   const getProgress = () => {
-    if (!startDate || !endDate || status === 'Completed' || isExpired) return 100;
+    if (status === 'Completed' || isExpired) return 100;
     
     const totalDuration = endDate.toMillis() - startDate.toMillis();
     if (totalDuration <= 0) return 100;
     
-    const elapsed = now.getTime() - startDate.toMillis();
+    const elapsed = new Date().getTime() - startDate.toMillis();
     const progress = (elapsed / totalDuration) * 100;
     
     return Math.min(progress, 100);
@@ -720,7 +729,6 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
     if (isExpired) {
       return <Button size="sm" onClick={handleComplete}>Complete Plan</Button>
     }
-    // No button needed for active, non-expired plans
     return null;
   };
 
@@ -746,9 +754,7 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Progress</span>
              <span>
-              {status === 'Completed' || isExpired
-                ? 'Completed'
-                : 'Ends in ' + Math.max(0, getDaysDifference(Timestamp.fromDate(now), endDate)) + ' days'}
+              {status === 'Completed' ? 'Completed' : formatDuration(remainingTime)}
             </span>
           </div>
           <Progress value={getProgress()} className="mt-1 h-2" />
@@ -784,3 +790,5 @@ function BottomNavItem({
     </Link>
   );
 }
+
+    
