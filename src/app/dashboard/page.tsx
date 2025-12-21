@@ -584,6 +584,9 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
   const { id, planName, status, startDate, endDate, lastClaimedDate, dailyIncome, totalReturn } = plan;
   const firestore = useFirestore();
   const { toast } = useToast();
+
+  const [countdown, setCountdown] = useState('');
+  const [isClaimable, setIsClaimable] = useState(false);
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -593,9 +596,44 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
     return () => clearInterval(timer);
   }, []);
 
-
-  const isClaimable = status === 'Active' && (!lastClaimedDate || !isToday(lastClaimedDate.toDate()));
   const isExpired = endDate.toDate() < now;
+
+  useEffect(() => {
+    if (status !== 'Active' || isExpired) {
+      setIsClaimable(false);
+      setCountdown('');
+      return;
+    }
+
+    const claimBasisTime = lastClaimedDate ? lastClaimedDate.toDate() : startDate.toDate();
+    const nextClaimTime = new Date(claimBasisTime.getTime() + 24 * 60 * 60 * 1000);
+
+    const interval = setInterval(() => {
+      const currentTime = new Date();
+      const difference = nextClaimTime.getTime() - currentTime.getTime();
+
+      if (difference <= 0) {
+        setIsClaimable(true);
+        setCountdown('00:00:00');
+        clearInterval(interval);
+      } else {
+        setIsClaimable(false);
+        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((difference / 1000 / 60) % 60);
+        const seconds = Math.floor((difference / 1000) % 60);
+        setCountdown(
+          `${String(hours).padStart(2, '0')}:${String(minutes).padStart(
+            2,
+            '0'
+          )}:${String(seconds).padStart(2, '0')}`
+        );
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [status, startDate, lastClaimedDate, isExpired]);
+
+
   
   const handleClaim = async () => {
     if (!isClaimable || !userId || isExpired) return;
@@ -611,9 +649,13 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
         const investmentDoc = await transaction.get(investmentRef);
         if (!investmentDoc.exists()) throw 'Investment not found';
         
+        // Refetch data inside transaction to ensure atomicity
         const currentData = investmentDoc.data() as ActiveInvestment;
-        if(currentData.lastClaimedDate && isToday(currentData.lastClaimedDate.toDate())) {
-            throw "Income for today already claimed.";
+        const claimBasis = currentData.lastClaimedDate ? currentData.lastClaimedDate.toDate() : currentData.startDate.toDate();
+        const nextPossibleClaim = new Date(claimBasis.getTime() + 24 * 60 * 60 * 1000);
+        
+        if (new Date() < nextPossibleClaim) {
+            throw "Claim is not available yet.";
         }
 
         const currentTotalIncome = userDoc.data().totalIncome || 0;
@@ -632,20 +674,12 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
         description: `Your daily income of ₹${dailyIncome} has been logged.`,
       });
     } catch (e: any) {
-      if (e === "Income for today already claimed.") {
-        toast({
-          variant: 'destructive',
-          title: 'Claim Failed',
-          description: e,
-        });
-      } else {
         console.error(e);
         toast({
           variant: 'destructive',
           title: 'Claim Failed',
-          description: 'An unexpected error occurred.',
+          description: e.toString(),
         });
-      }
     }
   };
 
@@ -667,12 +701,10 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
 
         const currentBalance = userDoc.data().walletBalance || 0;
         
-        // Add the full totalReturn to the wallet
         transaction.update(userRef, {
           walletBalance: currentBalance + totalReturn,
         });
 
-        // Mark the investment as completed
         transaction.update(investmentRef, { status: 'Completed' });
       });
 
@@ -722,7 +754,7 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
         onClick={handleClaim}
         disabled={!isClaimable}
       >
-        {isClaimable ? 'Claim' : 'Claimed'}
+        {isClaimable ? 'Claim' : (countdown || 'Loading...')}
       </Button>
     );
   };
