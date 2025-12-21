@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -78,6 +79,7 @@ type UserData = {
   walletBalance?: number;
   totalInvestment?: number;
   totalIncome?: number;
+  upiId?: string;
 };
 
 const isValidHttpUrl = (string: string | undefined): boolean => {
@@ -116,6 +118,13 @@ export default function Dashboard() {
   const [utrNumber, setUtrNumber] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawUpi, setWithdrawUpi] = useState('');
+
+  useEffect(() => {
+    if (userData?.upiId) {
+      setWithdrawUpi(userData.upiId);
+    }
+  }, [userData]);
+
 
   const handleCloseWelcome = () => {
     setShowWelcome(false);
@@ -197,7 +206,7 @@ export default function Dashboard() {
         });
         setShowWithdraw(false);
         setWithdrawAmount('');
-        setWithdrawUpi('');
+        // setWithdrawUpi(''); keep it pre-filled
       })
       .catch((error) => {
         console.error(error);
@@ -645,28 +654,16 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
   const handleComplete = async () => {
     if (status !== 'Active' || !isExpired) return;
 
-    const userRef = doc(firestore, 'users', userId);
     const investmentRef = doc(firestore, `users/${userId}/investments`, id);
 
     try {
-        await runTransaction(firestore, async (transaction) => {
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists()) throw 'User not found';
-            
-            const currentBalance = userDoc.data().walletBalance || 0;
-            transaction.update(userRef, {
-                walletBalance: currentBalance + (totalReturn - plan.investmentAmount)
-            });
+      // No need for a transaction if we are only updating one document.
+      await updateDoc(investmentRef, { status: 'Completed' });
 
-            transaction.update(investmentRef, {
-                status: 'Completed'
-            });
-        });
-
-        toast({
-            title: "Plan Completed!",
-            description: `Your earnings of ₹${totalReturn - plan.investmentAmount} have been credited to your wallet.`
-        });
+      toast({
+        title: "Plan Completed!",
+        description: `Plan ${planName} is now marked as complete.`
+      });
     } catch (e: any) {
         console.error("Error completing plan:", e);
         toast({

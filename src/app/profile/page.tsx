@@ -33,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 
 type UserData = {
   referralCode?: string;
+  upiId?: string;
 };
 
 type Deposit = {
@@ -112,7 +113,7 @@ export default function ProfilePage() {
             <Separator />
             <InfoRow icon={Mail} label="Email" value={user?.email || 'N/A'} />
             <Separator />
-            <InfoRow icon={CreditCard} label="Saved UPI ID" value="Not set" />
+            <InfoRow icon={CreditCard} label="Saved UPI ID" value={userData?.upiId || 'Not set'} />
           </CardContent>
         </Card>
         
@@ -228,7 +229,7 @@ function HistoryList({ items, loading, type }: { items: (Deposit[] | Withdrawal[
 
   return (
     <div className="space-y-4">
-      {items.map((item) => (
+      {(items as any[]).map((item) => (
         <Card key={item.id} className="shadow-lg border-border/50">
           <CardContent className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">

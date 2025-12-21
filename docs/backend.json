@@ -46,6 +46,10 @@
             "Blocked"
           ],
           "description": "The status of the user's account."
+        },
+        "upiId": {
+          "type": "string",
+          "description": "The user's saved UPI ID for withdrawals."
         }
       },
       "required": [
