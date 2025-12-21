@@ -6,11 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Wallet, Briefcase, Download, Upload, Ban } from 'lucide-react';
+import { ArrowLeft, User, Wallet, Briefcase, Download, Upload, Ban, RefreshCcw } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
-import { where, doc, updateDoc } from 'firebase/firestore';
+import { where, doc, updateDoc, writeBatch, collection, getDocs, query } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 type UserData = {
   id: string;
@@ -108,6 +119,55 @@ export default function UserDetailPage() {
     }
   };
 
+  const handleResetData = async () => {
+    if (!user) return;
+
+    try {
+        const batch = writeBatch(firestore);
+
+        // 1. Reset user document fields
+        const userRef = doc(firestore, 'users', userId);
+        batch.update(userRef, {
+            walletBalance: 0,
+            totalInvestment: 0,
+            totalIncome: 0
+        });
+
+        // 2. Delete all investments
+        const investmentsRef = collection(firestore, 'users', userId, 'investments');
+        const investmentsSnapshot = await getDocs(investmentsRef);
+        investmentsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        // 3. Delete all deposits
+        const depositsRef = collection(firestore, 'deposits');
+        const depositsQuery = query(depositsRef, where('userId', '==', userId));
+        const depositsSnapshot = await getDocs(depositsQuery);
+        depositsSnapshot.forEach(doc => batch.delete(doc.ref));
+        
+        // 4. Delete all withdrawals
+        const withdrawalsRef = collection(firestore, 'withdrawals');
+        const withdrawalsQuery = query(withdrawalsRef, where('userId', '==', userId));
+        const withdrawalsSnapshot = await getDocs(withdrawalsQuery);
+        withdrawalsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        // Commit the batch
+        await batch.commit();
+
+        toast({
+            title: 'User Data Reset',
+            description: `All financial data for ${user.name} has been erased.`,
+        });
+
+    } catch (error) {
+        console.error("Error resetting user data:", error);
+        toast({
+            title: 'Error Resetting Data',
+            description: 'Could not reset user data. Please try again.',
+            variant: 'destructive',
+        });
+    }
+  }
+
 
   if (loading) {
     return (
@@ -123,20 +183,44 @@ export default function UserDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
             </Button>
             <h2 className="text-2xl font-bold">User Details</h2>
         </div>
-        <Button
-            variant={user.status === 'Blocked' ? 'default' : 'destructive'}
-            onClick={handleToggleStatus}
-        >
-            <Ban className="mr-2 h-4 w-4" />
-            {user.status === 'Blocked' ? 'Unblock User' : 'Block User'}
-        </Button>
+        <div className="flex gap-2">
+            <Button
+                variant={user.status === 'Blocked' ? 'default' : 'destructive'}
+                onClick={handleToggleStatus}
+            >
+                <Ban className="mr-2 h-4 w-4" />
+                {user.status === 'Blocked' ? 'Unblock User' : 'Block User'}
+            </Button>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                     <Button variant="destructive" className="bg-orange-500 hover:bg-orange-600">
+                        <RefreshCcw className="mr-2 h-4 w-4" />
+                        Reset User Data
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action is irreversible. This will permanently delete all of the user's investments, deposits, and withdrawal history, and reset their wallet balance, total investment, and total income to zero.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleResetData} className="bg-destructive hover:bg-destructive/90">
+                      Yes, reset data
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
       </div>
 
       <Card>
@@ -257,3 +341,5 @@ function HistoryTable({ title, headers, items, renderRow }: { title: string, hea
     </Card>
   )
 }
+
+    
