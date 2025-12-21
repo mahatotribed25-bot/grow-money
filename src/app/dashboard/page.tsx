@@ -40,12 +40,12 @@ import {
   doc,
   Timestamp,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { isToday, startOfDay } from 'date-fns';
 
 
 type InvestmentPlan = {
@@ -67,7 +67,7 @@ type ActiveInvestment = {
   endDate: Timestamp;
   status: 'Active' | 'Completed';
   userId: string;
-  lastClaimedDate?: Timestamp;
+  lastIncomeDate?: Timestamp;
 };
 
 type AdminSettings = {
@@ -124,6 +124,12 @@ export default function Dashboard() {
       setWithdrawUpi(userData.upiId);
     }
   }, [userData]);
+
+  useEffect(() => {
+    if (user && activePlans && activePlans.length > 0 && firestore) {
+      autoCreditIncome(user.uid, activePlans, firestore, toast);
+    }
+  }, [user, activePlans, firestore, toast]);
 
 
   const handleCloseWelcome = () => {
@@ -523,7 +529,7 @@ function InvestmentCard({
           startDate: Timestamp.fromDate(startDate),
           endDate: Timestamp.fromDate(endDate),
           status: 'Active',
-          lastClaimedDate: null,
+          lastIncomeDate: Timestamp.fromDate(startDate),
         });
       });
 
@@ -580,109 +586,75 @@ function PlanDetail({ label, value }: { label: string; value: string }) {
   );
 }
 
+const autoCreditIncome = async (userId: string, plans: ActiveInvestment[], firestore: any, toast: any) => {
+  const userRef = doc(firestore, 'users', userId);
+  const batch = writeBatch(firestore);
+  let totalIncomeToCredit = 0;
+  let hasUpdates = false;
+
+  for (const plan of plans) {
+    if (plan.status !== 'Active' || new Date() > plan.endDate.toDate()) {
+      continue;
+    }
+    
+    const lastIncomeDate = plan.lastIncomeDate ? plan.lastIncomeDate.toDate() : plan.startDate.toDate();
+    const now = new Date();
+    const hoursPassed = (now.getTime() - lastIncomeDate.getTime()) / (1000 * 60 * 60);
+    const periodsToCredit = Math.floor(hoursPassed / 24);
+
+    if (periodsToCredit > 0) {
+      const incomeThisPlan = periodsToCredit * plan.dailyIncome;
+      totalIncomeToCredit += incomeThisPlan;
+      
+      const newLastIncomeDate = new Date(lastIncomeDate.getTime() + periodsToCredit * 24 * 60 * 60 * 1000);
+      
+      const investmentRef = doc(firestore, `users/${userId}/investments`, plan.id);
+      batch.update(investmentRef, { lastIncomeDate: Timestamp.fromDate(newLastIncomeDate) });
+      hasUpdates = true;
+    }
+  }
+
+  if (hasUpdates) {
+    try {
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        const currentTotalIncome = userDoc.data().totalIncome || 0;
+        batch.update(userRef, { totalIncome: currentTotalIncome + totalIncomeToCredit });
+      }
+      
+      await batch.commit();
+      
+      if (totalIncomeToCredit > 0) {
+        toast({
+          title: 'Income Automatically Credited',
+          description: `₹${totalIncomeToCredit.toFixed(2)} has been added to your total income.`,
+        });
+      }
+    } catch (error) {
+      console.error("Error auto-crediting income:", error);
+      toast({
+        title: 'Auto-Credit Failed',
+        description: 'Could not automatically credit your income.',
+        variant: 'destructive',
+      });
+    }
+  }
+};
+
+
 function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: string }) {
-  const { id, planName, status, startDate, endDate, lastClaimedDate, dailyIncome, totalReturn } = plan;
+  const { id, planName, status, startDate, endDate, lastIncomeDate, dailyIncome, totalReturn } = plan;
   const firestore = useFirestore();
   const { toast } = useToast();
-
-  const [countdown, setCountdown] = useState('');
-  const [isClaimable, setIsClaimable] = useState(false);
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(new Date());
-    }, 1000);
+    const timer = setInterval(() => setNow(new Date()), 1000 * 60); // Update every minute
     return () => clearInterval(timer);
   }, []);
 
   const isExpired = endDate.toDate() < now;
-
-  useEffect(() => {
-    if (status !== 'Active' || isExpired) {
-      setIsClaimable(false);
-      setCountdown('');
-      return;
-    }
-
-    const claimBasisTime = lastClaimedDate ? lastClaimedDate.toDate() : startDate.toDate();
-    const nextClaimTime = new Date(claimBasisTime.getTime() + 24 * 60 * 60 * 1000);
-
-    const interval = setInterval(() => {
-      const currentTime = new Date();
-      const difference = nextClaimTime.getTime() - currentTime.getTime();
-
-      if (difference <= 0) {
-        setIsClaimable(true);
-        setCountdown('00:00:00');
-        clearInterval(interval);
-      } else {
-        setIsClaimable(false);
-        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
-        const minutes = Math.floor((difference / 1000 / 60) % 60);
-        const seconds = Math.floor((difference / 1000) % 60);
-        setCountdown(
-          `${String(hours).padStart(2, '0')}:${String(minutes).padStart(
-            2,
-            '0'
-          )}:${String(seconds).padStart(2, '0')}`
-        );
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [status, startDate, lastClaimedDate, isExpired]);
-
-
   
-  const handleClaim = async () => {
-    if (!isClaimable || !userId || isExpired) return;
-
-    const userRef = doc(firestore, 'users', userId);
-    const investmentRef = doc(firestore, `users/${userId}/investments`, id);
-
-    try {
-      await runTransaction(firestore, async (transaction) => {
-        const userDoc = await transaction.get(userRef);
-        if (!userDoc.exists()) throw 'User not found';
-
-        const investmentDoc = await transaction.get(investmentRef);
-        if (!investmentDoc.exists()) throw 'Investment not found';
-        
-        // Refetch data inside transaction to ensure atomicity
-        const currentData = investmentDoc.data() as ActiveInvestment;
-        const claimBasis = currentData.lastClaimedDate ? currentData.lastClaimedDate.toDate() : currentData.startDate.toDate();
-        const nextPossibleClaim = new Date(claimBasis.getTime() + 24 * 60 * 60 * 1000);
-        
-        if (new Date() < nextPossibleClaim) {
-            throw "Claim is not available yet.";
-        }
-
-        const currentTotalIncome = userDoc.data().totalIncome || 0;
-
-        transaction.update(userRef, {
-          totalIncome: currentTotalIncome + dailyIncome,
-        });
-
-        transaction.update(investmentRef, {
-          lastClaimedDate: serverTimestamp(),
-        });
-      });
-
-      toast({
-        title: 'Income Claimed!',
-        description: `Your daily income of ₹${dailyIncome} has been logged.`,
-      });
-    } catch (e: any) {
-        console.error(e);
-        toast({
-          variant: 'destructive',
-          title: 'Claim Failed',
-          description: e.toString(),
-        });
-    }
-  };
-
   const handleComplete = async () => {
      if (status !== 'Active' || !isExpired || !userId) return;
 
@@ -748,15 +720,8 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
     if (isExpired) {
       return <Button size="sm" onClick={handleComplete}>Complete Plan</Button>
     }
-    return (
-      <Button
-        size="sm"
-        onClick={handleClaim}
-        disabled={!isClaimable}
-      >
-        {isClaimable ? 'Claim' : (countdown || 'Loading...')}
-      </Button>
-    );
+    // No button needed for active, non-expired plans
+    return null;
   };
 
   return (
@@ -787,6 +752,9 @@ function ActivePlanCard({ plan, userId }: { plan: ActiveInvestment, userId: stri
             </span>
           </div>
           <Progress value={getProgress()} className="mt-1 h-2" />
+        </div>
+        <div className="mt-2 text-xs text-muted-foreground">
+            Daily income is credited automatically.
         </div>
       </CardContent>
     </Card>

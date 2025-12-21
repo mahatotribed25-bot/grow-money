@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -17,6 +18,7 @@ import {
   getDocs,
   writeBatch,
   getDoc,
+  Timestamp,
 } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
@@ -132,6 +134,7 @@ export default function RegisterPage() {
         totalIncome: 0,
         referralCode: generateReferralCode(),
         referredBy: referredBy,
+        status: 'Active',
       });
 
       router.push("/");

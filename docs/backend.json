@@ -190,10 +190,10 @@
           ],
           "description": "The status of the investment."
         },
-        "lastClaimedDate": {
+        "lastIncomeDate": {
           "type": "string",
           "format": "date-time",
-          "description": "The last date the daily income was claimed."
+          "description": "The last date the daily income was automatically credited."
         }
       },
       "required": [
