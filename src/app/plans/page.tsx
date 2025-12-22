@@ -20,7 +20,7 @@ import {
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { collection, addDoc, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
 import { add, addDays } from 'date-fns';
 
 type InvestmentPlan = {
@@ -35,6 +35,8 @@ type InvestmentPlan = {
 
 type UserData = {
     walletBalance: number;
+    referredBy?: string;
+    totalInvestment?: number;
 }
 
 export default function PlansPage() {
@@ -93,8 +95,9 @@ export default function PlansPage() {
             const isFirstInvestment = (userDoc.data().totalInvestment || 0) === 0;
 
             if (referredBy && isFirstInvestment) {
-                const { data: adminSettings } = await getDoc(doc(firestore, 'settings/admin'));
-                const bonus = adminSettings?.referralBonus || 0;
+                const settingsRef = doc(firestore, 'settings/admin');
+                const adminSettingsDoc = await transaction.get(settingsRef);
+                const bonus = adminSettingsDoc.data()?.referralBonus || 0;
                 
                 if (bonus > 0) {
                     const referrerRef = doc(firestore, 'users', referredBy);
@@ -163,13 +166,13 @@ function PlanCard({ plan, onInvest }: { plan: InvestmentPlan, onInvest: (plan: I
     <Card className="shadow-lg border-border/50 bg-gradient-to-br from-secondary/50 to-background">
       <CardHeader>
         <CardTitle className="text-primary">{plan.name}</CardTitle>
-        <CardDescription>Investment: ₹{plan.price.toFixed(2)}</CardDescription>
+        <CardDescription>Investment: ₹{(plan.price || 0).toFixed(2)}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <PlanDetail label="Daily Income" value={`₹${plan.dailyIncome.toFixed(2)}`} />
-        <PlanDetail label="Validity" value={`${plan.validity} Days`} />
-        <PlanDetail label="Total Income" value={`₹${plan.totalIncome.toFixed(2)}`} />
-        <PlanDetail label="Final Return (Inc. Principal)" value={`₹${plan.finalReturn.toFixed(2)}`} />
+        <PlanDetail label="Daily Income" value={`₹${(plan.dailyIncome || 0).toFixed(2)}`} />
+        <PlanDetail label="Validity" value={`${plan.validity || 0} Days`} />
+        <PlanDetail label="Total Income" value={`₹${(plan.totalIncome || 0).toFixed(2)}`} />
+        <PlanDetail label="Final Return (Inc. Principal)" value={`₹${(plan.finalReturn || 0).toFixed(2)}`} />
         <Button className="w-full" onClick={() => onInvest(plan)}>Invest Now</Button>
       </CardContent>
     </Card>
