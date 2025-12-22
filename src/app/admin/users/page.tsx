@@ -117,7 +117,7 @@ export default function UsersPage() {
                           <AlertDialogTitle>Are you sure you want to delete this user?</AlertDialogTitle>
                           <AlertDialogDescription>
                             This action cannot be undone. This will permanently delete the user account and remove their data from our servers.
-                          </Description>
+                          </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel onClick={() => setSelectedUser(null)}>Cancel</AlertDialogCancel>
