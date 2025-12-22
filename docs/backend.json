@@ -236,6 +236,25 @@
           "description": "Bonus amount for the referrer when the referred user makes their first investment."
         }
       }
+    },
+    "announcement": {
+      "title": "Announcement",
+      "description": "A message broadcast to all users on their dashboard.",
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "link": {
+            "type": "string",
+            "description": "An optional URL for the announcement."
+        }
+      },
+      "required": ["message", "createdAt"]
     }
   },
   "auth": {
@@ -279,6 +298,10 @@
         "$ref": "#/entities/adminSettings"
       },
       "description": "Stores admin-specific settings."
+    },
+    "/announcements/{announcementId}": {
+        "schema": { "$ref": "#/entities/announcement"},
+        "description": "Stores admin announcements for the user dashboard."
     }
   }
 }

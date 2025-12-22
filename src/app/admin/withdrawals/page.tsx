@@ -105,7 +105,7 @@ export default function WithdrawalsPage() {
             ) : (
               withdrawals?.map((withdrawal) => (
                 <TableRow key={withdrawal.id}>
-                  <TableCell>{withdrawal.name}</TableCell>
+                  <TableCell>{withdrawal.name || 'N/A'}</TableCell>
                   <TableCell>₹{withdrawal.amount.toFixed(2)}</TableCell>
                   <TableCell>{withdrawal.upiId}</TableCell>
                   <TableCell>{formatDate(withdrawal.createdAt)}</TableCell>

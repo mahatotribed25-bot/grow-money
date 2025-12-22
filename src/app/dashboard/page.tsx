@@ -12,6 +12,7 @@ import {
   Power,
   BarChart2,
   TrendingUp,
+  Megaphone,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,8 +70,15 @@ type Investment = {
   lastIncomeDate?: Timestamp;
 };
 
+type Announcement = {
+    id: string;
+    message: string;
+    link?: string;
+    createdAt: Timestamp;
+}
+
 const CountdownTimer = ({ endDate, onComplete }: { endDate: Date, onComplete: () => void }) => {
-    const [timeLeft, setTimeLeft] = useState('');
+    const [timeLeft, setTimeLeft] = useState('...');
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -80,7 +88,7 @@ const CountdownTimer = ({ endDate, onComplete }: { endDate: Date, onComplete: ()
             if (distance < 0) {
                 clearInterval(interval);
                 setTimeLeft("00d 00h 00m 00s");
-                onComplete();
+                if(onComplete) onComplete();
                 return;
             }
 
@@ -109,16 +117,18 @@ export default function Dashboard() {
     useCollection<Investment>(
       user ? `users/${user.uid}/investments` : null
     );
+  const { data: announcements, loading: announcementsLoading } = useCollection<Announcement>('announcements');
+
 
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const handleInvestmentMaturity = async () => {
+  const handleInvestmentMaturity = async (investmentId?: string) => {
     if (!user || !investments) return;
 
     const now = new Date();
     const maturedInvestments = investments.filter(
-      (inv) => inv.status === 'Active' && inv.maturityDate.toDate() <= now
+      (inv) => (inv.status === 'Active' && inv.maturityDate.toDate() <= now) && (!investmentId || inv.id === investmentId)
     );
 
     if (maturedInvestments.length === 0) return;
@@ -158,6 +168,7 @@ export default function Dashboard() {
      if (!user || !investments) return;
 
      const now = new Date();
+     let totalIncomeToAdd = 0;
      
      try {
        await runTransaction(firestore, async (transaction) => {
@@ -165,8 +176,6 @@ export default function Dashboard() {
            const userDoc = await transaction.get(userRef);
 
            if (!userDoc.exists()) throw "User document does not exist!";
-
-           let totalIncomeToAdd = 0;
            
            for (const inv of investments) {
                if (inv.status !== 'Active') continue;
@@ -221,6 +230,8 @@ export default function Dashboard() {
 
   const activeInvestments = investments?.filter((inv) => inv.status === 'Active');
 
+  const sortedAnnouncements = announcements?.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/50 px-4 backdrop-blur-md sm:px-6">
@@ -234,6 +245,9 @@ export default function Dashboard() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-6">
+
+          <Announcements announcements={sortedAnnouncements} loading={announcementsLoading} />
+
           <WalletSummary
             walletBalance={userData?.walletBalance}
             totalInvestment={userData?.totalInvestment}
@@ -261,7 +275,7 @@ export default function Dashboard() {
           ) : activeInvestments && activeInvestments.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {activeInvestments.map((investment) => (
-                <ActivePlanCard key={investment.id} investment={investment} onMaturity={handleInvestmentMaturity} />
+                <ActivePlanCard key={investment.id} investment={investment} onMaturity={() => handleInvestmentMaturity(investment.id)} />
               ))}
             </div>
           ) : (
@@ -296,6 +310,46 @@ export default function Dashboard() {
       </nav>
     </div>
   );
+}
+
+function Announcements({ announcements, loading }: { announcements: Announcement[] | null | undefined, loading: boolean }) {
+    if (loading) {
+        return (
+            <Card>
+                <CardContent className="pt-6">
+                    <p>Loading announcements...</p>
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    if (!announcements || announcements.length === 0) {
+        return null; // Don't show the card if there are no announcements
+    }
+
+    return (
+        <Card className="bg-blue-500/10 border-blue-500/30">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-300">
+                    <Megaphone className="h-5 w-5"/>
+                    Announcements
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+                {announcements.map(ann => (
+                    <div key={ann.id} className="text-sm">
+                        {ann.link ? (
+                            <a href={ann.link} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                                {ann.message}
+                            </a>
+                        ) : (
+                            <p className="text-foreground/90">{ann.message}</p>
+                        )}
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
+    )
 }
 
 function WalletSummary({
@@ -549,12 +603,12 @@ function ActivePlanCard({ investment, onMaturity }: { investment: Investment, on
       <CardContent className="space-y-3">
         <div className="flex justify-between">
           <p className="text-sm text-muted-foreground">Invested</p>
-          <p className="font-semibold">₹{investment.investedAmount.toFixed(2)}</p>
+          <p className="font-semibold">₹{(investment.investedAmount || 0).toFixed(2)}</p>
         </div>
         <div className="flex justify-between">
           <p className="text-sm text-muted-foreground">Maturity Return</p>
           <p className="font-semibold text-green-400">
-            ₹{investment.returnAmount.toFixed(2)}
+            ₹{(investment.returnAmount || 0).toFixed(2)}
           </p>
         </div>
         <div className="space-y-1">

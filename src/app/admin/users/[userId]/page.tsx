@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -6,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Briefcase, Ban, RefreshCcw, Wallet, Download, Upload } from 'lucide-react';
+import { ArrowLeft, User, Briefcase, Ban, RefreshCcw, Wallet, Download, Upload, Fingerprint } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, writeBatch, collection, getDocs, query } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -217,6 +218,7 @@ export default function UserDetailPage() {
           <CardDescription>{user.email}</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <InfoBox title="User ID" value={user.id} icon={Fingerprint} />
           <InfoBox title="Wallet Balance" value={`₹${(user.walletBalance || 0).toFixed(2)}`} icon={Wallet} />
           <InfoBox title="Total Investment" value={`₹${(user.totalInvestment || 0).toFixed(2)}`} icon={Briefcase} />
           <InfoBox title="Total Income" value={`₹${(user.totalIncome || 0).toFixed(2)}`} icon={Wallet} />
@@ -286,7 +288,7 @@ function InfoBox({ title, value, icon: Icon, badgeVariant }: { title: string, va
       {badgeVariant ? (
         <Badge variant={badgeVariant} className="w-fit capitalize">{value}</Badge>
       ) : (
-        <p className="text-lg font-bold">{value}</p>
+        <p className="text-lg font-bold truncate">{value}</p>
       )}
     </div>
   )

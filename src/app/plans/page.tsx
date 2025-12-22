@@ -67,7 +67,7 @@ export default function PlansPage() {
 
             if (!userDoc.exists()) throw "User does not exist";
 
-            const newWalletBalance = userDoc.data().walletBalance - planPrice;
+            const newWalletBalance = (userDoc.data().walletBalance || 0) - planPrice;
             const newTotalInvestment = (userDoc.data().totalInvestment || 0) + planPrice;
 
             transaction.update(userRef, {
@@ -144,10 +144,15 @@ export default function PlansPage() {
             <p>Loading plans...</p>
           ) : plans && plans.length > 0 ? (
             plans.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} onInvest={handleInvest}/>
+                <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} />
             ))
           ) : (
-            <p>No investment plans available at the moment.</p>
+            <Card className="col-span-full">
+                <CardContent className="pt-6 text-center text-muted-foreground">
+                    <h3 className="text-xl font-semibold mb-2">Coming Soon!</h3>
+                    <p>New investment plans are being prepared and will be available shortly.</p>
+                </CardContent>
+            </Card>
           )}
         </div>
       </main>
@@ -163,7 +168,8 @@ export default function PlansPage() {
   );
 }
 
-function PlanCard({ plan, onInvest }: { plan: InvestmentPlan, onInvest: (plan: InvestmentPlan) => void }) {
+function PlanCard({ plan, onInvest, userBalance }: { plan: InvestmentPlan, onInvest: (plan: InvestmentPlan) => void, userBalance: number }) {
+  const canAfford = userBalance >= (plan.price || 0);
   return (
     <Card className="shadow-lg border-border/50 bg-gradient-to-br from-secondary/50 to-background">
       <CardHeader>
@@ -175,7 +181,9 @@ function PlanCard({ plan, onInvest }: { plan: InvestmentPlan, onInvest: (plan: I
         <PlanDetail label="Validity" value={`${plan.validity || 0} Days`} />
         <PlanDetail label="Total Income" value={`₹${(plan.totalIncome || 0).toFixed(2)}`} />
         <PlanDetail label="Final Return (Inc. Principal)" value={`₹${(plan.finalReturn || 0).toFixed(2)}`} />
-        <Button className="w-full" onClick={() => onInvest(plan)}>Invest Now</Button>
+        <Button className="w-full" onClick={() => onInvest(plan)} disabled={!canAfford}>
+          {canAfford ? 'Invest Now' : 'Insufficient Balance'}
+        </Button>
       </CardContent>
     </Card>
   );

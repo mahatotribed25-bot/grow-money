@@ -104,7 +104,7 @@ export default function DepositsPage() {
             ) : (
               deposits?.map((deposit) => (
                 <TableRow key={deposit.id}>
-                  <TableCell>{deposit.name}</TableCell>
+                  <TableCell>{deposit.name || 'N/A'}</TableCell>
                   <TableCell>₹{deposit.amount.toFixed(2)}</TableCell>
                   <TableCell>{deposit.transactionId}</TableCell>
                   <TableCell>{formatDate(deposit.createdAt)}</TableCell>

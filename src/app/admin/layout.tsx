@@ -13,6 +13,7 @@ import {
   Briefcase,
   Download,
   Upload,
+  Megaphone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -90,6 +91,7 @@ export default function AdminLayout({
             <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
             <AdminNavItem icon={Upload} href="/admin/deposits">Deposits</AdminNavItem>
             <AdminNavItem icon={Download} href="/admin/withdrawals">Withdrawals</AdminNavItem>
+            <AdminNavItem icon={Megaphone} href="/admin/announcements">Announcements</AdminNavItem>
             <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
           </nav>
           <div className="mt-auto p-4">
@@ -130,6 +132,7 @@ export default function AdminLayout({
                 <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
                 <AdminNavItem icon={Upload} href="/admin/deposits">Deposits</AdminNavItem>
                 <AdminNavItem icon={Download} href="/admin/withdrawals">Withdrawals</AdminNavItem>
+                <AdminNavItem icon={Megaphone} href="/admin/announcements">Announcements</AdminNavItem>
                 <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
               </nav>
               <div className="mt-auto">
