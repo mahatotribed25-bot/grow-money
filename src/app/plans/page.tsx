@@ -53,7 +53,9 @@ export default function PlansPage() {
         return;
     }
 
-    if (userData.walletBalance < plan.price) {
+    const planPrice = plan.price || 0;
+
+    if (userData.walletBalance < planPrice) {
         toast({ variant: 'destructive', title: 'Insufficient Balance', description: 'Please recharge your wallet to invest.' });
         return;
     }
@@ -65,8 +67,8 @@ export default function PlansPage() {
 
             if (!userDoc.exists()) throw "User does not exist";
 
-            const newWalletBalance = userDoc.data().walletBalance - plan.price;
-            const newTotalInvestment = (userDoc.data().totalInvestment || 0) + plan.price;
+            const newWalletBalance = userDoc.data().walletBalance - planPrice;
+            const newTotalInvestment = (userDoc.data().totalInvestment || 0) + planPrice;
 
             transaction.update(userRef, {
                 walletBalance: newWalletBalance,
@@ -75,15 +77,15 @@ export default function PlansPage() {
 
             const investmentRef = doc(collection(firestore, 'users', user.uid, 'investments'));
             const startDate = new Date();
-            const maturityDate = addDays(startDate, plan.validity);
+            const maturityDate = addDays(startDate, plan.validity || 0);
             
             transaction.set(investmentRef, {
                 userId: user.uid,
                 planId: plan.id,
                 planName: plan.name,
-                investedAmount: plan.price,
-                returnAmount: plan.finalReturn,
-                dailyIncome: plan.dailyIncome,
+                investedAmount: planPrice,
+                returnAmount: plan.finalReturn || 0,
+                dailyIncome: plan.dailyIncome || 0,
                 startDate: serverTimestamp(),
                 maturityDate: maturityDate,
                 lastIncomeDate: serverTimestamp(),
