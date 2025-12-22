@@ -34,7 +34,7 @@ type User = {
   id: string;
   name: string;
   email: string;
-  panNumber?: string;
+  walletBalance?: number;
   status?: 'Active' | 'Blocked';
 };
 
@@ -77,7 +77,7 @@ export default function UsersPage() {
             <TableRow>
               <TableHead>User Name</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>PAN Number</TableHead>
+              <TableHead>Wallet Balance</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -94,7 +94,7 @@ export default function UsersPage() {
                 <TableRow key={user.id}>
                   <TableCell>{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.panNumber || 'N/A'}</TableCell>
+                  <TableCell>₹{(user.walletBalance || 0).toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge variant={user.status !== 'Blocked' ? 'default' : 'destructive'}>
                       {user.status || 'Active'}

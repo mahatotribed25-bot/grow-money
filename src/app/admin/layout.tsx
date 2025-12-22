@@ -10,9 +10,9 @@ import {
   LogOut,
   Menu,
   Settings,
-  HandCoins,
-  FileText,
   Briefcase,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,7 +25,6 @@ import {
 import { useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useEffect } from 'react';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const ADMIN_EMAIL = "admin@tribed.world";
 
@@ -88,8 +87,9 @@ export default function AdminLayout({
           <nav className="flex-1 grid items-start px-2 text-sm font-medium lg:px-4">
             <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
             <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
-            <AdminNavItem icon={FileText} href="/admin/loan-plans">Loan Plans</AdminNavItem>
-            <AdminNavItem icon={HandCoins} href="/admin/loans">Loan Requests</AdminNavItem>
+            <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
+            <AdminNavItem icon={Upload} href="/admin/deposits">Deposits</AdminNavItem>
+            <AdminNavItem icon={Download} href="/admin/withdrawals">Withdrawals</AdminNavItem>
             <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
           </nav>
           <div className="mt-auto p-4">
@@ -127,8 +127,9 @@ export default function AdminLayout({
                 </Link>
                 <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
                 <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
-                <AdminNavItem icon={FileText} href="/admin/loan-plans">Loan Plans</AdminNavItem>
-                <AdminNavItem icon={HandCoins} href="/admin/loans">Loan Requests</AdminNavItem>
+                <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
+                <AdminNavItem icon={Upload} href="/admin/deposits">Deposits</AdminNavItem>
+                <AdminNavItem icon={Download} href="/admin/withdrawals">Withdrawals</AdminNavItem>
                 <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
               </nav>
               <div className="mt-auto">

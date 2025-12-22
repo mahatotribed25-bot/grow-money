@@ -5,14 +5,12 @@ import {
   ChevronLeft,
   User,
   Mail,
-  CreditCard,
+  Wallet,
   LogOut,
   Home,
+  Briefcase,
   Copy,
-  Gift,
-  HandCoins,
-  FileText,
-  Save,
+  Gift
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -23,15 +21,26 @@ import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useCollection } from '@/firebase';
+import { Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useEffect, useState } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+
+type Transaction = {
+  id: string;
+  type: 'deposit' | 'withdrawal';
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: Timestamp;
+};
 
 type UserData = {
   referralCode?: string;
   upiId?: string;
-  panNumber?: string;
 };
 
 export default function ProfilePage() {
@@ -41,18 +50,21 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const { data: deposits } = useCollection<Transaction>(user ? 'deposits' : null);
+  const { data: withdrawals } = useCollection<Transaction>(user ? 'withdrawals' : null);
   const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   
   const [upiId, setUpiId] = useState('');
-  const [panNumber, setPanNumber] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   
   useEffect(() => {
     if (userData) {
       setUpiId(userData.upiId || '');
-      setPanNumber(userData.panNumber || '');
     }
   }, [userData]);
+
+  const userDeposits = deposits?.filter((d) => d.userId === user?.uid);
+  const userWithdrawals = withdrawals?.filter((w) => w.userId === user?.uid);
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -70,24 +82,21 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSaveChanges = async () => {
+  const handleSaveUpi = async () => {
       if (!user) return;
       const userRef = doc(firestore, 'users', user.uid);
       try {
-          await updateDoc(userRef, {
-              upiId: upiId,
-              panNumber: panNumber,
-          });
+          await updateDoc(userRef, { upiId: upiId });
           toast({
-              title: "Profile Updated",
-              description: "Your information has been saved successfully."
+              title: "UPI ID Saved",
+              description: "Your UPI ID has been updated successfully."
           });
           setIsEditing(false);
       } catch (error) {
-          console.error("Error updating profile:", error);
+          console.error("Error saving UPI ID:", error);
           toast({
               title: "Update Failed",
-              description: "Could not save your changes. Please try again.",
+              description: "Could not save your UPI ID. Please try again.",
               variant: "destructive",
           })
       }
@@ -115,30 +124,14 @@ export default function ProfilePage() {
             <Separator />
             <InfoRow icon={Mail} label="Email" value={user?.email || 'N/A'} />
             <Separator />
-
              <div className="space-y-2">
-                <Label htmlFor="upiId" className="flex items-center gap-3 text-sm font-medium">
-                    <CreditCard className="h-5 w-5 text-muted-foreground" />
-                    <span>UPI ID for Payments</span>
-                </Label>
-                <Input id="upiId" value={upiId} onChange={(e) => {setUpiId(e.target.value); setIsEditing(true);}} placeholder="your-upi@bank" />
+                <Label htmlFor="upiId">Your UPI ID</Label>
+                <div className="flex gap-2">
+                    <Input id="upiId" value={upiId} onChange={(e) => {setUpiId(e.target.value); setIsEditing(true);}} placeholder="your-upi@bank" />
+                    {isEditing && <Button onClick={handleSaveUpi}>Save</Button>}
+                </div>
+                <p className="text-xs text-muted-foreground">Your withdrawals will be sent to this UPI ID.</p>
              </div>
-
-             <div className="space-y-2">
-                <Label htmlFor="panNumber" className="flex items-center gap-3 text-sm font-medium">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <span>PAN Number</span>
-                </Label>
-                <Input id="panNumber" value={panNumber} onChange={(e) => {setPanNumber(e.target.value); setIsEditing(true);}} placeholder="ABCDE1234F" />
-             </div>
-
-            {isEditing && (
-                <Button onClick={handleSaveChanges} className="w-full">
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Changes
-                </Button>
-            )}
-
           </CardContent>
         </Card>
         
@@ -156,9 +149,22 @@ export default function ProfilePage() {
                 <Copy className="h-5 w-5" />
               </Button>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">Share this code with your friends. You'll get a bonus when they sign up!</p>
+            <p className="mt-2 text-sm text-muted-foreground">Share this code with friends. You'll get a bonus when they make their first investment!</p>
           </CardContent>
         </Card>
+
+        <Tabs defaultValue="deposits" className="mt-6">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="deposits">Deposit History</TabsTrigger>
+                <TabsTrigger value="withdrawals">Withdrawal History</TabsTrigger>
+            </TabsList>
+            <TabsContent value="deposits">
+                <TransactionTable transactions={userDeposits} />
+            </TabsContent>
+            <TabsContent value="withdrawals">
+                <TransactionTable transactions={userWithdrawals} />
+            </TabsContent>
+        </Tabs>
 
         <Button onClick={handleLogout} className="mt-6 w-full" variant="destructive">
           <LogOut className="mr-2 h-4 w-4" />
@@ -168,7 +174,7 @@ export default function ProfilePage() {
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
-          <BottomNavItem icon={HandCoins} label="Loans" href="/loans" />
+          <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" active />
         </div>
       </nav>
@@ -195,4 +201,51 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
       <span>{label}</span>
     </Link>
   );
+}
+
+
+function TransactionTable({ transactions }: { transactions: Transaction[] | undefined | null }) {
+    const formatDate = (timestamp: Timestamp) => {
+        if (!timestamp) return 'N/A';
+        return new Date(timestamp.seconds * 1000).toLocaleString();
+    };
+
+    const getStatusVariant = (status: string) => {
+        switch (status) {
+            case 'approved': return 'default';
+            case 'rejected': return 'destructive';
+            default: return 'secondary';
+        }
+    };
+    
+    return (
+        <Card>
+            <CardContent className="pt-6">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Date</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {transactions && transactions.length > 0 ? (
+                            transactions.map(tx => (
+                                <TableRow key={tx.id}>
+                                    <TableCell>₹{tx.amount.toFixed(2)}</TableCell>
+                                    <TableCell><Badge variant={getStatusVariant(tx.status)}>{tx.status}</Badge></TableCell>
+                                    <TableCell>{formatDate(tx.createdAt)}</TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={3} className="text-center">No transactions found.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
 }

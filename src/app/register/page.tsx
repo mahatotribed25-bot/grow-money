@@ -5,7 +5,7 @@ import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Gift, KeyRound, Lock, Mail, User, FileText as PanIcon } from "lucide-react";
+import { Gift, KeyRound, Lock, Mail, User } from "lucide-react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import {
@@ -44,7 +44,6 @@ const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
-  panNumber: z.string().min(10, { message: "Please enter a valid PAN number." }).max(10),
   referralCode: z.string().optional(),
 });
 
@@ -68,7 +67,6 @@ export default function RegisterPage() {
       name: "",
       email: "",
       password: "",
-      panNumber: "",
       referralCode: "",
     },
   });
@@ -115,7 +113,9 @@ export default function RegisterPage() {
         uid: user.uid,
         name: values.name,
         email: values.email,
-        panNumber: values.panNumber.toUpperCase(),
+        walletBalance: 0,
+        totalInvestment: 0,
+        totalIncome: 0,
         referralCode: generateReferralCode(),
         referredBy: referredBy,
         status: 'Active',
@@ -215,27 +215,6 @@ export default function RegisterPage() {
                           placeholder="••••••••"
                           {...field}
                           className="pl-10"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="panNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>PAN Number</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <PanIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          placeholder="ABCDE1234F"
-                          {...field}
-                          className="pl-10 uppercase"
-                          maxLength={10}
                         />
                       </div>
                     </FormControl>

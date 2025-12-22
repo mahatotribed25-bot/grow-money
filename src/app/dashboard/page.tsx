@@ -1,98 +1,225 @@
 
 'use client';
-
 import {
-  Bell,
+  Wallet,
   Briefcase,
+  Upload,
+  Download,
+  ArrowRight,
+  History,
   Home,
   User,
-  HandCoins,
-  FileText,
-  AlertCircle,
-  Megaphone,
+  Power,
+  BarChart2,
+  TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/firebase/auth/use-user';
-import { useCollection, useDoc, useFirestore } from '@/firebase';
+import { useDoc, useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
-import { where, doc, updateDoc } from 'firebase/firestore';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useState, useEffect } from 'react';
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  doc,
+  runTransaction,
+  updateDoc,
+} from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { useEffect } from 'react';
+import { Progress } from '@/components/ui/progress';
 
-type ActiveLoan = {
-    id: string;
-    loanAmount: number;
-    interest: number;
-    totalPayable: number;
-    duration: number;
-    startDate: Timestamp;
-    dueDate: Timestamp;
-    status: 'Active' | 'Due' | 'Completed';
-    userId: string;
-}
-
-type LoanRequest = {
-    id: string;
-    status: 'pending' | 'approved' | 'rejected' | 'sent';
-}
+type UserData = {
+  id: string;
+  walletBalance: number;
+  totalInvestment: number;
+  totalIncome: number;
+  name?: string;
+  email?: string;
+};
 
 type AdminSettings = {
-  broadcastMessage?: string;
+  adminUpi?: string;
+  minWithdrawal?: number;
 };
+
+type Investment = {
+  id: string;
+  planName: string;
+  investedAmount: number;
+  returnAmount: number;
+  startDate: Timestamp;
+  maturityDate: Timestamp;
+  status: 'Active' | 'Matured';
+  dailyIncome: number;
+  lastIncomeDate?: Timestamp;
+};
+
+const CountdownTimer = ({ endDate, onComplete }: { endDate: Date, onComplete: () => void }) => {
+    const [timeLeft, setTimeLeft] = useState('');
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const now = new Date();
+            const distance = endDate.getTime() - now.getTime();
+
+            if (distance < 0) {
+                clearInterval(interval);
+                setTimeLeft("00d 00h 00m 00s");
+                onComplete();
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [endDate, onComplete]);
+
+    return <span className="font-mono">{timeLeft}</span>;
+};
+
 
 export default function Dashboard() {
   const { user, loading: userLoading } = useUser();
+  const { data: userData, loading: userDataLoading } = useDoc<UserData>(
+    user ? `users/${user.uid}` : null
+  );
+  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
+  const { data: investments, loading: investmentsLoading } =
+    useCollection<Investment>(
+      user ? `users/${user.uid}/investments` : null
+    );
+
   const firestore = useFirestore();
   const { toast } = useToast();
-  
-  const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>('settings/admin');
-  const { data: activeLoans, loading: activeLoansLoading } = useCollection<ActiveLoan>(
-      user ? `users/${user.uid}/loans` : null,
-      where('status', '!=', 'Completed')
-  );
-  const { data: loanRequests, loading: loanRequestsLoading } = useCollection<LoanRequest>(
-      user ? `loanRequests` : null,
-      where('userId', '==', user?.uid || 'placeholder'),
-  );
 
-  const pendingRequest = loanRequests?.find(req => req.status === 'pending');
-  const approvedRequest = loanRequests?.find(req => req.status === 'approved');
+  const handleInvestmentMaturity = async () => {
+    if (!user || !investments) return;
 
-  const loading = userLoading || activeLoansLoading || loanRequestsLoading || settingsLoading;
-  
-  // Auto-update loan status to 'Due'
-  useEffect(() => {
-    if (activeLoans && firestore && user) {
-        const now = new Date();
-        activeLoans.forEach(async (loan) => {
-            if (loan.status === 'Active' && loan.dueDate.toDate() < now) {
-                try {
-                    const loanRef = doc(firestore, 'users', user.uid, 'loans', loan.id);
-                    await updateDoc(loanRef, { status: 'Due' });
-                    toast({
-                        title: "Loan Overdue",
-                        description: "Your loan is now overdue. Please repay it soon.",
-                        variant: "destructive",
-                    });
-                } catch (error) {
-                    console.error("Error auto-updating loan status:", error);
-                }
-            }
+    const now = new Date();
+    const maturedInvestments = investments.filter(
+      (inv) => inv.status === 'Active' && inv.maturityDate.toDate() <= now
+    );
+
+    if (maturedInvestments.length === 0) return;
+
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const userRef = doc(firestore, 'users', user.uid);
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists()) throw 'User document does not exist!';
+        
+        let newWalletBalance = userDoc.data().walletBalance || 0;
+        let newTotalInvestment = userDoc.data().totalInvestment || 0;
+
+        for (const inv of maturedInvestments) {
+          const invRef = doc(firestore, `users/${user.uid}/investments`, inv.id);
+          transaction.update(invRef, { status: 'Matured' });
+          newWalletBalance += inv.returnAmount;
+          newTotalInvestment -= inv.investedAmount;
+        }
+
+        transaction.update(userRef, { 
+            walletBalance: newWalletBalance,
+            totalInvestment: newTotalInvestment < 0 ? 0 : newTotalInvestment,
         });
-    }
-  }, [activeLoans, firestore, user, toast]);
+      });
 
-  const activeLoan = activeLoans && activeLoans.length > 0 ? activeLoans[0] : null;
+      toast({
+        title: 'Investment Matured!',
+        description: 'Your investment has matured and the return has been added to your wallet.',
+      });
+    } catch (error) {
+      console.error('Error processing maturity:', error);
+    }
+  };
+
+  const autoCreditDailyIncome = async () => {
+     if (!user || !investments) return;
+
+     const now = new Date();
+     
+     try {
+       await runTransaction(firestore, async (transaction) => {
+           const userRef = doc(firestore, 'users', user.uid);
+           const userDoc = await transaction.get(userRef);
+
+           if (!userDoc.exists()) throw "User document does not exist!";
+
+           let totalIncomeToAdd = 0;
+           
+           for (const inv of investments) {
+               if (inv.status !== 'Active') continue;
+
+               const lastIncomeDate = inv.lastIncomeDate?.toDate() || inv.startDate.toDate();
+               const hoursDiff = (now.getTime() - lastIncomeDate.getTime()) / (1000 * 60 * 60);
+               
+               const cyclesToCredit = Math.floor(hoursDiff / 24);
+
+               if (cyclesToCredit > 0) {
+                   const incomeToAdd = cyclesToCredit * inv.dailyIncome;
+                   totalIncomeToAdd += incomeToAdd;
+                   
+                   const newLastIncomeDate = new Date(lastIncomeDate.getTime() + cyclesToCredit * 24 * 60 * 60 * 1000);
+                   
+                   const invRef = doc(firestore, 'users', user.uid, 'investments', inv.id);
+                   transaction.update(invRef, { lastIncomeDate: newLastIncomeDate });
+               }
+           }
+           
+           if (totalIncomeToAdd > 0) {
+                const currentWallet = userDoc.data().walletBalance || 0;
+                const currentTotalIncome = userDoc.data().totalIncome || 0;
+                
+                transaction.update(userRef, {
+                    walletBalance: currentWallet + totalIncomeToAdd,
+                    totalIncome: currentTotalIncome + totalIncomeToAdd,
+                });
+           }
+       });
+
+       if (totalIncomeToAdd > 0) {
+            toast({
+              title: "Income Credited",
+              description: `₹${totalIncomeToAdd.toFixed(2)} has been automatically added to your wallet.`
+            });
+       }
+
+     } catch(e) {
+         console.error("Failed to auto-credit income", e);
+     }
+  }
+
+
+  useEffect(() => {
+      autoCreditDailyIncome();
+      handleInvestmentMaturity();
+  // We want this to run only once on load to avoid multiple credits
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [investmentsLoading]);
+
+
+  const activeInvestments = investments?.filter((inv) => inv.status === 'Active');
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -101,58 +228,61 @@ export default function Dashboard() {
           <Briefcase className="h-6 w-6 text-primary" />
           <h1 className="text-xl font-bold text-primary">grow money 💰💰🤑🤑</h1>
         </div>
-         <h1 className="text-lg font-semibold">Welcome, {user?.displayName || 'User'}!</h1>
-        <Button variant="ghost" size="icon">
-          <Bell className="h-5 w-5" />
-        </Button>
+        <h1 className="text-lg font-semibold">Welcome, {userData?.name || 'User'}!</h1>
+        <div className="w-9" />
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-6">
-          {adminSettings?.broadcastMessage && (
-            <Alert>
-              <Megaphone className="h-4 w-4" />
-              <AlertTitle>Announcement</AlertTitle>
-              <AlertDescription>
-                {adminSettings.broadcastMessage}
-              </AlertDescription>
-            </Alert>
-          )}
+          <WalletSummary
+            walletBalance={userData?.walletBalance}
+            totalInvestment={userData?.totalInvestment}
+            totalIncome={userData?.totalIncome}
+            adminUpi={adminSettings?.adminUpi}
+            minWithdrawal={adminSettings?.minWithdrawal}
+            loading={userDataLoading}
+          />
+          
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold">Active Investments</h2>
+             <Button variant="outline" size="sm" asChild>
+              <Link href="/plans">
+                Invest More <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
 
-           <Card className="shadow-lg border-border/50">
-                <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                        <span>My Loan Status</span>
-                        <LoanStatusBadge 
-                            activeLoan={activeLoan} 
-                            pendingRequest={pendingRequest}
-                            approvedRequest={approvedRequest}
-                        />
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                        <p>Loading loan status...</p>
-                    ) : activeLoan ? (
-                        <ActiveLoanDetails loan={activeLoan} />
-                    ) : pendingRequest ? (
-                        <div className="text-center text-muted-foreground py-4">
-                            <p>Your loan application is currently pending review.</p>
-                        </div>
-                    ) : approvedRequest ? (
-                         <div className="text-center text-muted-foreground py-4">
-                            <p>Your loan is approved! The amount will be sent by the admin shortly.</p>
-                        </div>
-                    ) : (
-                        <div className="text-center text-muted-foreground py-4">
-                            <p>You have no active loans.</p>
-                            <Button asChild className="mt-2">
-                                <Link href="/loans">Apply for a Loan</Link>
-                            </Button>
-                        </div>
-                    )}
+          {investmentsLoading ? (
+             <Card>
+                <CardContent className="pt-6">
+                    <p>Loading your investments...</p>
                 </CardContent>
             </Card>
+          ) : activeInvestments && activeInvestments.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {activeInvestments.map((investment) => (
+                <ActivePlanCard key={investment.id} investment={investment} onMaturity={handleInvestmentMaturity} />
+              ))}
+            </div>
+          ) : (
+            <Card>
+                <CardContent className="pt-6 text-center text-muted-foreground">
+                    <p>You have no active investments.</p>
+                </CardContent>
+            </Card>
+          )}
+
+           <Card>
+            <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" />
+                <QuickActionButton icon={History} label="My Plans" href="/my-plans" />
+                <QuickActionButton icon={User} label="Profile" href="/profile" />
+                <QuickActionButton icon={BarChart2} label="Team" href="/team" />
+            </CardContent>
+           </Card>
 
         </div>
       </main>
@@ -160,7 +290,7 @@ export default function Dashboard() {
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" active />
-          <BottomNavItem icon={HandCoins} label="Loans" href="/loans" />
+          <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>
@@ -168,53 +298,276 @@ export default function Dashboard() {
   );
 }
 
-const LoanStatusBadge = ({ activeLoan, pendingRequest, approvedRequest }: { activeLoan: any, pendingRequest: any, approvedRequest: any }) => {
-    if (activeLoan) {
-        return <Badge variant={activeLoan.status === 'Due' ? 'destructive' : 'default'} className="capitalize">{activeLoan.status}</Badge>;
-    }
-    if (pendingRequest) {
-        return <Badge variant="secondary">Pending</Badge>;
-    }
-    if (approvedRequest) {
-        return <Badge variant="default">Approved</Badge>;
-    }
-    return <Badge variant="outline">None</Badge>;
-};
-
-const ActiveLoanDetails = ({ loan }: { loan: ActiveLoan }) => {
-    const isDue = loan.status === 'Due';
-    
-    return (
-        <div className="space-y-3">
-            <PlanDetail label="Loan Amount" value={`₹${loan.loanAmount.toFixed(2)}`} />
-            <PlanDetail label="Interest" value={`₹${loan.interest.toFixed(2)}`} />
-            <PlanDetail label="Total Payable" value={`₹${loan.totalPayable.toFixed(2)}`} />
-            <PlanDetail label="Start Date" value={new Date(loan.startDate.seconds * 1000).toLocaleDateString()} />
-            <PlanDetail label="Due Date" value={new Date(loan.dueDate.seconds * 1000).toLocaleDateString()} />
-            {isDue && (
-                 <Alert variant="destructive" className="mt-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Loan Overdue</AlertTitle>
-                    <AlertDescription>
-                        Your loan is now overdue. Please contact support to repay.
-                    </AlertDescription>
-                </Alert>
-            )}
-            <Button className="w-full mt-4" disabled>Repay Loan</Button>
-            <p className="text-xs text-muted-foreground text-center">To repay your loan, please contact the admin.</p>
-        </div>
-    );
-}
-
-function PlanDetail({ label, value }: { label: string; value: string }) {
+function WalletSummary({
+  walletBalance,
+  totalInvestment,
+  totalIncome,
+  adminUpi,
+  minWithdrawal,
+  loading
+}: {
+  walletBalance?: number;
+  totalInvestment?: number;
+  totalIncome?: number;
+  adminUpi?: string;
+  minWithdrawal?: number;
+  loading: boolean;
+}) {
   return (
-    <div className="flex justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-semibold">{value}</span>
-    </div>
+    <Card className="shadow-lg">
+      <CardHeader>
+        <CardTitle>My Wallet</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">Current Balance</p>
+            <p className="text-3xl font-bold">
+              {loading ? '...' : `₹${(walletBalance || 0).toFixed(2)}`}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-center">
+            <div>
+              <p className="text-xs text-muted-foreground">Total Investment</p>
+              <p className="font-semibold">
+                {loading ? '...' : `₹${(totalInvestment || 0).toFixed(2)}`}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Total Income</p>
+              <p className="font-semibold">
+                {loading ? '...' : `₹${(totalIncome || 0).toFixed(2)}`}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <DepositButton adminUpi={adminUpi} />
+            <WithdrawButton minWithdrawal={minWithdrawal} currentBalance={walletBalance} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
+function DepositButton({ adminUpi }: { adminUpi?: string }) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const [amount, setAmount] = useState('');
+  const [transactionId, setTransactionId] = useState('');
+  const { toast } = useToast();
+
+  const handleSubmit = async () => {
+    if (!user || !amount || !transactionId) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing fields',
+        description: 'Please enter both amount and transaction ID.',
+      });
+      return;
+    }
+
+    try {
+      await addDoc(collection(firestore, 'deposits'), {
+        userId: user.uid,
+        name: user.displayName,
+        amount: parseFloat(amount),
+        transactionId,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      });
+      toast({
+        title: 'Deposit Request Submitted',
+        description:
+          'Your deposit request is pending approval. It may take up to 2 hours.',
+      });
+    } catch (e) {
+      console.error(e);
+      toast({
+        variant: 'destructive',
+        title: 'Submission Failed',
+        description: 'Could not submit your request. Please try again.',
+      });
+    }
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button className="w-full">
+          <Upload className="mr-2 h-4 w-4" /> Recharge
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Recharge Wallet</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-sm">
+            To add funds, please send money to the UPI ID below and enter the
+            details.
+          </p>
+          <div className="rounded-md bg-muted p-3 text-center font-mono text-lg">
+            {adminUpi || 'Loading UPI...'}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="amount">Amount (INR)</Label>
+            <Input
+              id="amount"
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="e.g., 500"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="transactionId">Transaction ID</Label>
+            <Input
+              id="transactionId"
+              value={transactionId}
+              onChange={(e) => setTransactionId(e.target.value)}
+              placeholder="Enter the 12-digit transaction ID"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button onClick={handleSubmit}>Submit Request</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function WithdrawButton({ minWithdrawal, currentBalance }: { minWithdrawal?: number, currentBalance?: number }) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const [amount, setAmount] = useState('');
+  const {data: userData} = useDoc<UserData>(user ? `users/${user.uid}`: null);
+  const { toast } = useToast();
+
+  const handleWithdraw = async () => {
+    const withdrawAmount = parseFloat(amount);
+    if (!user || !userData || !amount || !userData.upiId) {
+        toast({ variant: 'destructive', title: 'Missing Information', description: 'Please ensure you have a saved UPI ID in your profile and enter an amount.' });
+        return;
+    }
+    if (withdrawAmount < (minWithdrawal || 0)) {
+        toast({ variant: 'destructive', title: 'Amount Too Low', description: `The minimum withdrawal amount is ₹${minWithdrawal}.` });
+        return;
+    }
+    if (withdrawAmount > (currentBalance || 0)) {
+        toast({ variant: 'destructive', title: 'Insufficient Balance', description: 'You cannot withdraw more than your current wallet balance.' });
+        return;
+    }
+
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const userRef = doc(firestore, 'users', user.uid);
+            const userDoc = await transaction.get(userRef);
+
+            if (!userDoc.exists()) throw "User document does not exist!";
+
+            const newBalance = (userDoc.data().walletBalance || 0) - withdrawAmount;
+            if (newBalance < 0) throw "Insufficient funds";
+            
+            transaction.update(userRef, { walletBalance: newBalance });
+            
+            const withdrawalRef = doc(collection(firestore, 'withdrawals'));
+            transaction.set(withdrawalRef, {
+                userId: user.uid,
+                name: user.displayName,
+                amount: withdrawAmount,
+                upiId: userData.upiId,
+                status: 'pending',
+                createdAt: serverTimestamp(),
+            });
+        });
+
+        toast({
+            title: 'Withdrawal Request Submitted',
+            description: 'Your request is pending and will be processed within 24 hours.',
+        });
+    } catch(e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Request Failed', description: 'Could not submit your withdrawal request. Please try again.' });
+    }
+  };
+
+
+  return (
+      <Dialog>
+        <DialogTrigger asChild>
+            <Button variant="secondary" className="w-full">
+              <Download className="mr-2 h-4 w-4" /> Withdraw
+            </Button>
+        </DialogTrigger>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Withdraw Funds</DialogTitle>
+            </DialogHeader>
+             <div className="space-y-4">
+                <p className="text-sm">
+                    Enter the amount you wish to withdraw. Funds will be sent to your saved UPI ID.
+                </p>
+                <div className="space-y-2">
+                    <Label htmlFor="amount">Amount (INR)</Label>
+                    <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Minimum ₹${minWithdrawal || 0}`}/>
+                </div>
+             </div>
+             <DialogFooter>
+                <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button onClick={handleWithdraw}>Request Withdrawal</Button>
+             </DialogFooter>
+        </DialogContent>
+      </Dialog>
+  );
+}
+
+
+function ActivePlanCard({ investment, onMaturity }: { investment: Investment, onMaturity: () => void }) {
+  const startDate = investment.startDate.toDate();
+  const maturityDate = investment.maturityDate.toDate();
+  const now = new Date();
+
+  const totalDuration = maturityDate.getTime() - startDate.getTime();
+  const elapsedDuration = now.getTime() - startDate.getTime();
+  const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
+
+  return (
+    <Card className="bg-secondary/30">
+      <CardHeader>
+        <CardTitle className="flex justify-between items-center">
+          <span>{investment.planName}</span>
+          <Badge>Active</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex justify-between">
+          <p className="text-sm text-muted-foreground">Invested</p>
+          <p className="font-semibold">₹{investment.investedAmount.toFixed(2)}</p>
+        </div>
+        <div className="flex justify-between">
+          <p className="text-sm text-muted-foreground">Maturity Return</p>
+          <p className="font-semibold text-green-400">
+            ₹{investment.returnAmount.toFixed(2)}
+          </p>
+        </div>
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-muted-foreground">
+             <span>Time Remaining:</span>
+             <CountdownTimer endDate={maturityDate} onComplete={onMaturity} />
+          </div>
+          <Progress value={progress} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function BottomNavItem({
   icon: Icon,
@@ -238,4 +591,15 @@ function BottomNavItem({
       <span>{label}</span>
     </Link>
   );
+}
+
+function QuickActionButton({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href: string }) {
+    return (
+        <Button variant="outline" className="flex-col h-20" asChild>
+            <Link href={href}>
+                <Icon className="h-6 w-6 mb-1" />
+                <span>{label}</span>
+            </Link>
+        </Button>
+    )
 }

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, User, Briefcase, Ban, RefreshCcw, Wallet, Download, Upload } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
-import { where, doc, updateDoc, writeBatch, collection, getDocs, query } from 'firebase/firestore';
+import { doc, updateDoc, writeBatch, collection, getDocs, query } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -24,22 +24,32 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
+
 type UserData = {
   id: string;
   name: string;
   email: string;
-  panNumber?: string;
+  walletBalance?: number;
+  totalInvestment?: number;
+  totalIncome?: number;
   status?: 'Active' | 'Blocked';
 };
 
-type Loan = {
+type Investment = {
   id: string;
   planName: string;
-  loanAmount: number;
-  totalPayable: number;
-  startDate: Timestamp;
-  dueDate: Timestamp;
-  status: 'Active' | 'Due' | 'Completed';
+  investedAmount: number;
+  maturityDate: Timestamp;
+  returnAmount: number;
+  status: 'Active' | 'Matured';
+}
+
+type Transaction = {
+  id: string;
+  type: 'deposit' | 'withdrawal';
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: Timestamp;
 }
 
 const formatDate = (timestamp: Timestamp) => {
@@ -51,11 +61,10 @@ const getStatusVariant = (status: string) => {
   switch (status) {
     case 'approved':
     case 'Active':
-    case 'Completed':
+    case 'Matured':
       return 'default';
     case 'rejected':
     case 'Blocked':
-    case 'Due':
       return 'destructive';
     default:
       return 'secondary';
@@ -70,9 +79,14 @@ export default function UserDetailPage() {
   const { toast } = useToast();
 
   const { data: user, loading: userLoading } = useDoc<UserData>(userId ? `users/${userId}` : null);
-  const { data: loans, loading: loansLoading } = useCollection<Loan>(userId ? `users/${userId}/loans` : null);
+  const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
+  const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(userId ? `deposits` : null,);
+  const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(`withdrawals`);
   
-  const loading = userLoading || loansLoading;
+  const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading;
+
+  const userDeposits = deposits?.filter(d => d.userId === userId);
+  const userWithdrawals = withdrawals?.filter(w => w.userId === userId);
 
   const handleToggleStatus = async () => {
     if (!user) return;
@@ -100,23 +114,34 @@ export default function UserDetailPage() {
     try {
         const batch = writeBatch(firestore);
 
-        // Delete all loans
-        const loansRef = collection(firestore, 'users', userId, 'loans');
-        const loansSnapshot = await getDocs(loansRef);
-        loansSnapshot.forEach(doc => batch.delete(doc.ref));
+        // Reset user wallet and stats
+        const userRef = doc(firestore, 'users', userId);
+        batch.update(userRef, {
+            walletBalance: 0,
+            totalIncome: 0,
+            totalInvestment: 0,
+        });
 
-        // Delete all loan requests
-        const loanRequestsRef = collection(firestore, 'loanRequests');
-        const loanRequestsQuery = query(loanRequestsRef, where('userId', '==', userId));
-        const loanRequestsSnapshot = await getDocs(loanRequestsQuery);
-        loanRequestsSnapshot.forEach(doc => batch.delete(doc.ref));
+        // Delete all investments
+        const investmentsRef = collection(firestore, 'users', userId, 'investments');
+        const investmentsSnapshot = await getDocs(investmentsRef);
+        investmentsSnapshot.forEach(doc => batch.delete(doc.ref));
 
-        // Commit the batch
+        // Delete all deposit and withdrawal requests
+        const depositsSnapshot = await getDocs(collection(firestore, 'deposits'));
+        depositsSnapshot.forEach(doc => {
+            if(doc.data().userId === userId) batch.delete(doc.ref);
+        });
+        const withdrawalsSnapshot = await getDocs(collection(firestore, 'withdrawals'));
+        withdrawalsSnapshot.forEach(doc => {
+            if(doc.data().userId === userId) batch.delete(doc.ref);
+        });
+
         await batch.commit();
 
         toast({
-            title: 'User Loan Data Reset',
-            description: `All loan data for ${user.name} has been erased.`,
+            title: 'User Data Reset',
+            description: `All financial data for ${user.name} has been reset.`,
         });
 
     } catch (error) {
@@ -170,7 +195,7 @@ export default function UserDetailPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action is irreversible. This will permanently delete all of the user's loan history and active loans.
+                      This action is irreversible. This will permanently delete all of the user's investment history and reset their wallet balance to zero.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -191,27 +216,62 @@ export default function UserDetailPage() {
           </CardTitle>
           <CardDescription>{user.email}</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <InfoBox title="PAN Number" value={user.panNumber || 'Not provided'} icon={Briefcase} />
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <InfoBox title="Wallet Balance" value={`₹${(user.walletBalance || 0).toFixed(2)}`} icon={Wallet} />
+          <InfoBox title="Total Investment" value={`₹${(user.totalInvestment || 0).toFixed(2)}`} icon={Briefcase} />
+          <InfoBox title="Total Income" value={`₹${(user.totalIncome || 0).toFixed(2)}`} icon={Wallet} />
           <InfoBox title="Status" value={user.status || 'Active'} icon={User} badgeVariant={getStatusVariant(user.status || 'Active')} />
         </CardContent>
       </Card>
 
-      <HistoryTable
-        title="Loan History"
-        headers={['Plan Name', 'Amount', 'Total Payable', 'Status', 'Start Date', 'Due Date']}
-        items={loans}
-        renderRow={(item: Loan) => (
-          <TableRow key={item.id}>
-            <TableCell>{item.planName}</TableCell>
-            <TableCell>₹{item.loanAmount.toFixed(2)}</TableCell>
-            <TableCell>₹{item.totalPayable.toFixed(2)}</TableCell>
-            <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
-            <TableCell>{formatDate(item.startDate)}</TableCell>
-            <TableCell>{formatDate(item.dueDate)}</TableCell>
-          </TableRow>
-        )}
-      />
+      <Tabs defaultValue="investments">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="investments">Investment History</TabsTrigger>
+          <TabsTrigger value="deposits">Deposit History</TabsTrigger>
+          <TabsTrigger value="withdrawals">Withdrawal History</TabsTrigger>
+        </TabsList>
+        <TabsContent value="investments">
+           <HistoryTable
+              headers={['Plan Name', 'Invested', 'Return', 'Status', 'Maturity Date']}
+              items={investments}
+              renderRow={(item: Investment) => (
+                <TableRow key={item.id}>
+                  <TableCell>{item.planName}</TableCell>
+                  <TableCell>₹{item.investedAmount.toFixed(2)}</TableCell>
+                  <TableCell>₹{item.returnAmount.toFixed(2)}</TableCell>
+                  <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
+                  <TableCell>{formatDate(item.maturityDate)}</TableCell>
+                </TableRow>
+              )}
+            />
+        </TabsContent>
+        <TabsContent value="deposits">
+             <HistoryTable
+              headers={['Amount', 'Status', 'Date']}
+              items={userDeposits}
+              renderRow={(item: Transaction) => (
+                <TableRow key={item.id}>
+                  <TableCell>₹{item.amount.toFixed(2)}</TableCell>
+                  <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
+                  <TableCell>{formatDate(item.createdAt)}</TableCell>
+                </TableRow>
+              )}
+            />
+        </TabsContent>
+        <TabsContent value="withdrawals">
+             <HistoryTable
+              headers={['Amount', 'Status', 'Date']}
+              items={userWithdrawals}
+              renderRow={(item: Transaction) => (
+                <TableRow key={item.id}>
+                  <TableCell>₹{item.amount.toFixed(2)}</TableCell>
+                  <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
+                  <TableCell>{formatDate(item.createdAt)}</TableCell>
+                </TableRow>
+              )}
+            />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -232,13 +292,15 @@ function InfoBox({ title, value, icon: Icon, badgeVariant }: { title: string, va
   )
 }
 
-function HistoryTable({ title, headers, items, renderRow }: { title: string, headers: string[], items: any[] | null, renderRow: (item: any) => React.ReactNode }) {
+function HistoryTable({ title, headers, items, renderRow }: { title?: string, headers: string[], items: any[] | null, renderRow: (item: any) => React.ReactNode }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
+      {title && 
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+        </CardHeader>
+      }
+      <CardContent className="pt-6">
         <div className="rounded-lg border">
           <Table>
             <TableHeader>

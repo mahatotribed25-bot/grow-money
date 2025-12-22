@@ -19,6 +19,18 @@
           "type": "string",
           "description": "The user's display name."
         },
+        "walletBalance": {
+          "type": "number",
+          "description": "The user's current wallet balance."
+        },
+        "totalInvestment": {
+          "type": "number",
+          "description": "The total amount the user has invested."
+        },
+        "totalIncome": {
+          "type": "number",
+          "description": "The total income the user has earned from investments."
+        },
         "referralCode": {
           "type": "string",
           "description": "The user's unique referral code."
@@ -28,20 +40,13 @@
           "description": "The UID of the user who referred this user."
         },
         "status": {
-          "type": "string",
-          "enum": [
-            "Active",
-            "Blocked"
-          ],
-          "description": "The status of the user's account."
+            "type": "string",
+            "enum": ["Active", "Blocked"],
+            "description": "The status of the user's account."
         },
         "upiId": {
           "type": "string",
-          "description": "The user's saved UPI ID for receiving payments."
-        },
-        "panNumber": {
-            "type": "string",
-            "description": "The user's PAN card number."
+          "description": "The user's saved UPI ID for receiving withdrawals."
         }
       },
       "required": [
@@ -49,95 +54,44 @@
         "email"
       ]
     },
-    "loanPlan": {
-      "title": "Loan Plan",
-      "description": "Defines a template for a loan plan that can be requested by users.",
+    "investmentPlan": {
+      "title": "Investment Plan",
+      "description": "Defines a template for an investment plan.",
       "type": "object",
       "properties": {
         "name": {
-          "type": "string",
-          "description": "The name of the loan plan."
+          "type": "string"
         },
-        "loanAmount": {
+        "price": {
+          "type": "number"
+        },
+        "dailyIncome": {
+          "type": "number"
+        },
+        "validity": {
           "type": "number",
-          "description": "The amount of money disbursed to the user."
+          "description": "Duration of the plan in days."
         },
-        "interest": {
+        "totalIncome": {
+          "type": "number"
+        },
+        "finalReturn": {
           "type": "number",
-          "description": "The total interest to be paid."
-        },
-        "totalRepayment": {
-          "type": "number",
-          "description": "The total amount to be repaid (loan + interest)."
-        },
-        "duration": {
-          "type": "number",
-          "description": "The duration of the loan in months."
-        },
-        "emiOption": {
-          "type": "boolean",
-          "description": "Whether an EMI option is available for this loan."
-        },
-        "directPayOption": {
-          "type": "boolean",
-          "description": "Whether a direct full payment option is available."
+          "description": "The amount returned to the user after maturity (price + totalIncome)."
         }
       },
       "required": [
         "name",
-        "loanAmount",
-        "interest",
-        "totalRepayment",
-        "duration"
+        "price",
+        "dailyIncome",
+        "validity",
+        "totalIncome",
+        "finalReturn"
       ]
     },
-    "loanRequest": {
-      "title": "Loan Request",
-      "description": "A user's request for a loan.",
-      "type": "object",
-      "properties": {
-        "userId": {
-          "type": "string"
-        },
-        "userName": {
-          "type": "string"
-        },
-        "planName": {
-          "type": "string"
-        },
-        "loanAmount": {
-          "type": "number"
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "approved",
-            "rejected",
-            "sent"
-          ]
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "planId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "userId",
-        "userName",
-        "planName",
-        "loanAmount",
-        "status",
-        "createdAt",
-        "planId"
-      ]
-    },
-    "loan": {
-      "title": "Active Loan",
-      "description": "An active, approved loan for a user.",
+    "investment": {
+      "title": "Investment",
+      "description": "A user's active investment in a plan.",
       "type": "object",
       "properties": {
         "userId": {
@@ -146,49 +100,122 @@
         "planName": {
           "type": "string"
         },
-        "loanAmount": {
+        "investedAmount": {
           "type": "number"
         },
-        "interest": {
+        "returnAmount": {
           "type": "number"
         },
-        "totalPayable": {
-          "type": "number"
-        },
-        "duration": {
+        "dailyIncome": {
           "type": "number"
         },
         "startDate": {
           "type": "string",
           "format": "date-time"
         },
-        "dueDate": {
+        "maturityDate": {
           "type": "string",
           "format": "date-time"
+        },
+        "lastIncomeDate": {
+            "type": "string",
+            "format": "date-time"
         },
         "status": {
           "type": "string",
           "enum": [
             "Active",
-            "Due",
-            "Completed"
+            "Matured"
           ]
-        },
-        "amountPaid": {
-          "type": "number"
         }
       },
       "required": [
         "userId",
         "planName",
-        "loanAmount",
-        "interest",
-        "totalPayable",
-        "duration",
+        "investedAmount",
+        "returnAmount",
+        "dailyIncome",
         "startDate",
-        "dueDate",
+        "maturityDate",
+        "status"
+      ]
+    },
+    "depositRequest": {
+      "title": "Deposit Request",
+      "description": "A user's request to deposit funds.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "transactionId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "amount",
+        "transactionId",
         "status",
-        "amountPaid"
+        "createdAt"
+      ]
+    },
+    "withdrawalRequest": {
+      "title": "Withdrawal Request",
+      "description": "A user's request to withdraw funds.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "upiId": {
+            "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "amount",
+        "upiId",
+        "status",
+        "createdAt"
       ]
     },
     "adminSettings": {
@@ -196,13 +223,17 @@
       "description": "Stores admin-specific settings for the application.",
       "type": "object",
       "properties": {
+        "adminUpi": {
+          "type": "string",
+          "description": "The UPI ID for users to send deposits to."
+        },
+        "minWithdrawal": {
+          "type": "number",
+          "description": "The minimum amount for a withdrawal request."
+        },
         "referralBonus": {
           "type": "number",
-          "description": "Bonus amount for the referrer."
-        },
-        "broadcastMessage": {
-          "type": "string",
-          "description": "A message to be broadcast to all users on their dashboard."
+          "description": "Bonus amount for the referrer when the referred user makes their first investment."
         }
       }
     }
@@ -219,29 +250,35 @@
       },
       "description": "Stores user profile information."
     },
+    "/investmentPlans/{planId}": {
+      "schema": {
+        "$ref": "#/entities/investmentPlan"
+      },
+      "description": "Stores available investment plans for users."
+    },
+    "/users/{userId}/investments/{investmentId}": {
+      "schema": {
+        "$ref": "#/entities/investment"
+      },
+      "description": "Stores a user's active investments."
+    },
+    "/deposits/{depositId}": {
+      "schema": {
+        "$ref": "#/entities/depositRequest"
+      },
+      "description": "Stores user deposit requests."
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": {
+        "$ref": "#/entities/withdrawalRequest"
+      },
+      "description": "Stores user withdrawal requests."
+    },
     "/settings/admin": {
       "schema": {
         "$ref": "#/entities/adminSettings"
       },
       "description": "Stores admin-specific settings."
-    },
-    "/loanPlans/{planId}": {
-      "schema": {
-        "$ref": "#/entities/loanPlan"
-      },
-      "description": "Stores available loan plans for users."
-    },
-    "/loanRequests/{requestId}": {
-      "schema": {
-        "$ref": "#/entities/loanRequest"
-      },
-      "description": "Stores loan requests from users."
-    },
-    "/users/{userId}/loans/{loanId}": {
-      "schema": {
-        "$ref": "#/entities/loan"
-      },
-      "description": "Stores active loans for a user."
     }
   }
 }

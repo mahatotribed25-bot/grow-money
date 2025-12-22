@@ -26,25 +26,33 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Rules for loan plans
-    match /loanPlans/{planId} {
+    // Rules for investment plans
+    match /investmentPlans/{planId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
     
-    // Rules for loan requests
-    match /loanRequests/{requestId} {
-      // User can create and read their own requests. Admin can read any and update status.
-      allow create: if isOwner(request.resource.data.userId);
-      allow read: if isSignedIn() && (isOwner(request.resource.data.userId) || isAdmin());
-      allow update: if isAdmin();
+    // Rules for user investments
+    match /users/{userId}/investments/{investmentId} {
+      // User can read their own investments.
+      allow read: if isOwner(userId);
+      // Investments are created via transactions, not direct writes.
+      // Updates (like status to Matured) are done via transactions.
+      allow create, update, delete: if isAdmin(); // Admin can manage
     }
     
-    // Rules for user loans
-    match /users/{userId}/loans/{loanId} {
-      // User can read their own loans. Admin can manage them fully.
-      allow read: if isOwner(userId);
-      allow create, update, delete: if isAdmin();
+    // Rules for deposit requests
+    match /deposits/{depositId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
+      allow update: if isAdmin(); // Only admin can approve/reject
+    }
+    
+    // Rules for withdrawal requests
+    match /withdrawals/{withdrawalId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
+      allow update: if isAdmin(); // Only admin can approve/reject
     }
 
     // Rules for admin settings

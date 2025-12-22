@@ -5,7 +5,8 @@ import {
   Wallet,
   Briefcase,
   HandCoins,
-  FileWarning,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCollection } from '@/firebase';
@@ -23,23 +24,20 @@ import { Timestamp } from 'firebase/firestore';
 import { subDays, format, startOfDay } from 'date-fns';
 
 type User = {
+  walletBalance?: number;
   email?: string;
 };
 
-type Loan = {
-  status: 'Active' | 'Due' | 'Completed';
-  loanAmount: number;
-  startDate: Timestamp;
-}
-
-type LoanRequest = {
+type Transaction = {
+  amount: number;
   status: 'pending' | 'approved' | 'rejected';
+  createdAt: Timestamp;
 };
-
 
 // Function to process data for the chart
 const processFinancialData = (
-  loans: Loan[] | null,
+  deposits: Transaction[] | null,
+  withdrawals: Transaction[] | null
 ) => {
   const last7Days = Array.from({ length: 7 }, (_, i) =>
     startOfDay(subDays(new Date(), i))
@@ -48,18 +46,30 @@ const processFinancialData = (
   const chartData = last7Days.map((day) => {
     const formattedDate = format(day, 'MMM d');
 
-    const dailyLoans =
-      loans
+    const dailyDeposits =
+      deposits
         ?.filter(
-          (l) =>
-            l.startDate &&
-            startOfDay(l.startDate.toDate()).getTime() === day.getTime()
+          (d) =>
+            d.status === 'approved' &&
+            d.createdAt &&
+            startOfDay(d.createdAt.toDate()).getTime() === day.getTime()
         )
-        .reduce((sum, l) => sum + l.loanAmount, 0) || 0;
+        .reduce((sum, d) => sum + d.amount, 0) || 0;
+
+    const dailyWithdrawals =
+      withdrawals
+        ?.filter(
+          (w) =>
+            w.status === 'approved' &&
+            w.createdAt &&
+            startOfDay(w.createdAt.toDate()).getTime() === day.getTime()
+        )
+        .reduce((sum, w) => sum + w.amount, 0) || 0;
 
     return {
       date: formattedDate,
-      'Loans Disbursed': dailyLoans,
+      Deposits: dailyDeposits,
+      Withdrawals: dailyWithdrawals,
     };
   });
 
@@ -68,25 +78,27 @@ const processFinancialData = (
 
 export default function AdminDashboard() {
   const { data: users, loading: usersLoading } = useCollection<User>('users');
-  const { data: loans, loading: loansLoading } = useCollection<Loan>('loans'); // This should ideally query all loans across all users
-  const { data: loanRequests, loading: requestsLoading } =
-    useCollection<LoanRequest>('loanRequests');
+  const { data: deposits, loading: depositsLoading } =
+    useCollection<Transaction>('deposits');
+  const { data: withdrawals, loading: withdrawalsLoading } =
+    useCollection<Transaction>('withdrawals');
     
-  const { data: loanPlans, loading: plansLoading } =
-    useCollection<LoanPlan>('loanPlans');
+  const { data: investmentPlans, loading: plansLoading } =
+    useCollection<InvestmentPlan>('investmentPlans');
 
 
   const loading =
-    usersLoading || loansLoading || requestsLoading || plansLoading;
+    usersLoading || depositsLoading || withdrawalsLoading || plansLoading;
 
   const totalUsers =
     users?.filter((u) => u.email !== 'admin@tribed.world').length || 0;
-  const totalLoanAmountDisbursed = loans?.reduce((sum, loan) => sum + loan.loanAmount, 0) || 0;
-  const pendingLoanRequests = loanRequests?.filter(d => d.status === 'pending').length || 0;
-  const dueLoans = loans?.filter(l => l.status === 'Due').length || 0;
-  const activeLoanPlans = loanPlans?.length || 0;
+  const totalWalletBalance =
+    users?.reduce((sum, user) => sum + (user.walletBalance || 0), 0) || 0;
+  const pendingDeposits = deposits?.filter(d => d.status === 'pending').length || 0;
+  const pendingWithdrawals = withdrawals?.filter(w => w.status === 'pending').length || 0;
+  const activePlans = investmentPlans?.length || 0;
   
-  type LoanPlan = {
+  type InvestmentPlan = {
       id: string;
   }
 
@@ -97,28 +109,28 @@ export default function AdminDashboard() {
       icon: Users,
     },
     {
-      title: 'Total Disbursed',
-      value: loading ? '...' : `₹${totalLoanAmountDisbursed.toFixed(2)}`,
-      icon: HandCoins,
+      title: 'Total Wallet Balance',
+      value: loading ? '...' : `₹${totalWalletBalance.toFixed(2)}`,
+      icon: Wallet,
     },
     {
-      title: 'Pending Requests',
-      value: loading ? '...' : pendingLoanRequests,
-      icon: Wallet, // Using wallet icon for pending requests
+      title: 'Pending Deposits',
+      value: loading ? '...' : pendingDeposits,
+      icon: Upload,
     },
     {
-      title: 'Loans Due',
-      value: loading ? '...' : dueLoans,
-      icon: FileWarning,
+      title: 'Pending Withdrawals',
+      value: loading ? '...' : pendingWithdrawals,
+      icon: Download,
     },
     {
-      title: 'Loan Plans',
-      value: loading ? '...' : activeLoanPlans,
+      title: 'Investment Plans',
+      value: loading ? '...' : activePlans,
       icon: Briefcase,
     },
   ];
 
-  const financialChartData = processFinancialData(loans);
+  const financialChartData = processFinancialData(deposits, withdrawals);
 
   return (
     <div className="space-y-6">
@@ -139,7 +151,7 @@ export default function AdminDashboard() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Last 7 Days Loan Disbursement</CardTitle>
+          <CardTitle>Last 7 Days Financial Overview</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -159,7 +171,8 @@ export default function AdminDashboard() {
                   }}
                 />
                 <Legend />
-                <Bar dataKey="Loans Disbursed" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Deposits" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Withdrawals" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}

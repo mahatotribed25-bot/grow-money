@@ -10,12 +10,11 @@ import { useDoc, useFirestore } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
-import { Megaphone, Save } from 'lucide-react';
 
 type AdminSettings = {
+  adminUpi?: string;
+  minWithdrawal?: number;
   referralBonus?: number;
-  broadcastMessage?: string;
 };
 
 export default function SettingsPage() {
@@ -23,14 +22,16 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { data: settings, loading } = useDoc<AdminSettings>('settings/admin');
 
+  const [adminUpi, setAdminUpi] = useState('');
+  const [minWithdrawal, setMinWithdrawal] = useState(0);
   const [referralBonus, setReferralBonus] = useState(0);
-  const [broadcastMessage, setBroadcastMessage] = useState('');
 
 
   useEffect(() => {
     if (settings) {
+      setAdminUpi(settings.adminUpi || '');
+      setMinWithdrawal(settings.minWithdrawal || 0);
       setReferralBonus(settings.referralBonus || 0);
-      setBroadcastMessage(settings.broadcastMessage || '');
     }
   },[settings]);
 
@@ -38,8 +39,9 @@ export default function SettingsPage() {
     const settingsRef = doc(firestore, 'settings', 'admin');
     try {
       await setDoc(settingsRef, { 
+        adminUpi, 
+        minWithdrawal: Number(minWithdrawal),
         referralBonus: Number(referralBonus),
-        broadcastMessage,
       }, { merge: true });
       toast({ title: 'Settings Saved', description: 'Your settings have been updated.' });
     } catch (error) {
@@ -55,24 +57,40 @@ export default function SettingsPage() {
         <CardContent className="pt-6 space-y-6">
            {loading ? <p>Loading settings...</p> : (
             <>
-                <Card className="bg-secondary/50">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Megaphone /> Broadcast Message</CardTitle>
-                        <CardDescription>
-                            This message will be displayed to all users on their dashboard. Leave it empty to hide it.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Textarea
-                            placeholder="Enter your announcement..."
-                            value={broadcastMessage}
-                            onChange={(e) => setBroadcastMessage(e.target.value)}
-                            rows={3}
-                        />
-                    </CardContent>
-                </Card>
+                <div>
+                    <CardTitle>Payment Settings</CardTitle>
+                    <CardDescription>
+                        Configure how users make deposits and withdrawals.
+                    </CardDescription>
+                    <div className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="admin-upi">Admin UPI ID</Label>
+                            <Input
+                            id="admin-upi"
+                            placeholder="your-upi@bank"
+                            value={adminUpi}
+                            onChange={(e) => setAdminUpi(e.target.value)}
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                This is the UPI ID users will send money to for deposits.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="min-withdrawal">Minimum Withdrawal Amount</Label>
+                            <Input
+                            id="min-withdrawal"
+                            type="number"
+                            placeholder="100"
+                            value={minWithdrawal}
+                            onChange={(e) => setMinWithdrawal(Number(e.target.value))}
+                            />
+                             <p className="text-sm text-muted-foreground">
+                                The minimum amount a user can request to withdraw.
+                            </p>
+                        </div>
+                    </div>
+                </div>
                 <Separator />
-                
                 <div>
                     <CardTitle>Referral Settings</CardTitle>
                      <div className="space-y-4 mt-4">
@@ -86,14 +104,13 @@ export default function SettingsPage() {
                             onChange={(e) => setReferralBonus(Number(e.target.value))}
                             />
                              <p className="text-sm text-muted-foreground">
-                                Bonus amount the referring user receives when their referral takes a loan.
+                                Bonus amount the referring user receives when their referral makes their first investment.
                             </p>
                         </div>
                     </div>
                 </div>
 
                 <Button onClick={handleSave} className="mt-4">
-                  <Save className="mr-2 h-4 w-4" />
                   Save All Settings
                 </Button>
             </>
