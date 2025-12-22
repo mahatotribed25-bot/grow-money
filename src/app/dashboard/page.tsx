@@ -54,6 +54,7 @@ import Image from 'next/image';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 
 
 type InvestmentPlan = {
@@ -874,3 +875,5 @@ function BottomNavItem({
     </Link>
   );
 }
+
+    
