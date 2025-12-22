@@ -158,11 +158,11 @@ export default function InvestmentPlansPage() {
               plans?.map((plan) => (
                 <TableRow key={plan.id}>
                   <TableCell>{plan.name}</TableCell>
-                  <TableCell>₹{plan.price.toFixed(2)}</TableCell>
-                  <TableCell>₹{plan.dailyIncome.toFixed(2)}</TableCell>
+                  <TableCell>₹{(plan.price || 0).toFixed(2)}</TableCell>
+                  <TableCell>₹{(plan.dailyIncome || 0).toFixed(2)}</TableCell>
                   <TableCell>{plan.validity} days</TableCell>
-                  <TableCell>₹{plan.totalIncome.toFixed(2)}</TableCell>
-                  <TableCell>₹{plan.finalReturn.toFixed(2)}</TableCell>
+                  <TableCell>₹{(plan.totalIncome || 0).toFixed(2)}</TableCell>
+                  <TableCell>₹{(plan.finalReturn || 0).toFixed(2)}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
