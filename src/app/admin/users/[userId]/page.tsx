@@ -50,6 +50,7 @@ type Transaction = {
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Timestamp;
+  userId?: string;
 }
 
 const formatDate = (timestamp: Timestamp) => {
@@ -237,8 +238,8 @@ export default function UserDetailPage() {
               renderRow={(item: Investment) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.planName}</TableCell>
-                  <TableCell>₹{item.investedAmount.toFixed(2)}</TableCell>
-                  <TableCell>₹{item.returnAmount.toFixed(2)}</TableCell>
+                  <TableCell>₹{(item.investedAmount || 0).toFixed(2)}</TableCell>
+                  <TableCell>₹{(item.returnAmount || 0).toFixed(2)}</TableCell>
                   <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
                   <TableCell>{formatDate(item.maturityDate)}</TableCell>
                 </TableRow>
@@ -251,7 +252,7 @@ export default function UserDetailPage() {
               items={userDeposits}
               renderRow={(item: Transaction) => (
                 <TableRow key={item.id}>
-                  <TableCell>₹{item.amount.toFixed(2)}</TableCell>
+                  <TableCell>₹{(item.amount || 0).toFixed(2)}</TableCell>
                   <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
                   <TableCell>{formatDate(item.createdAt)}</TableCell>
                 </TableRow>
@@ -264,7 +265,7 @@ export default function UserDetailPage() {
               items={userWithdrawals}
               renderRow={(item: Transaction) => (
                 <TableRow key={item.id}>
-                  <TableCell>₹{item.amount.toFixed(2)}</TableCell>
+                  <TableCell>₹{(item.amount || 0).toFixed(2)}</TableCell>
                   <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
                   <TableCell>{formatDate(item.createdAt)}</TableCell>
                 </TableRow>
