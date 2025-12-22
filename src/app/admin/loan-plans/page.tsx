@@ -8,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import {
@@ -21,13 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useCollection, useFirestore } from '@/firebase';
 import { useState } from 'react';
 import {
@@ -39,45 +32,49 @@ import {
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-type Plan = {
+type LoanPlan = {
   id: string;
   name: string;
-  investmentAmount: number;
-  profit: number;
-  duration: number;
-  status: 'Available' | 'Coming Soon';
+  loanAmount: number;
+  interest: number;
+  totalRepayment: number;
+  duration: number; // in months
+  emiOption: boolean;
+  directPayOption: boolean;
 };
 
-const emptyPlan: Omit<Plan, 'id'> = {
+const emptyPlan: Omit<LoanPlan, 'id'> = {
   name: '',
-  investmentAmount: 0,
-  profit: 0,
+  loanAmount: 0,
+  interest: 0,
+  totalRepayment: 0,
   duration: 1,
-  status: 'Available',
+  emiOption: true,
+  directPayOption: true,
 };
 
-export default function InvestmentPlansPage() {
-  const { data: plans, loading } = useCollection<Plan>('investmentPlans');
+export default function LoanPlansPage() {
+  const { data: plans, loading } = useCollection<LoanPlan>('loanPlans');
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<Partial<Plan> | null>(null);
+  const [editingPlan, setEditingPlan] = useState<Partial<LoanPlan> | null>(null);
 
   const handleCreateNew = () => {
     setEditingPlan(emptyPlan);
     setIsDialogOpen(true);
   };
 
-  const handleEdit = (plan: Plan) => {
+  const handleEdit = (plan: LoanPlan) => {
     setEditingPlan(plan);
     setIsDialogOpen(true);
   };
 
   const handleDelete = async (planId: string) => {
     try {
-      await deleteDoc(doc(firestore, 'investmentPlans', planId));
-      toast({ title: 'Plan deleted successfully' });
+      await deleteDoc(doc(firestore, 'loanPlans', planId));
+      toast({ title: 'Loan Plan deleted successfully' });
     } catch (error) {
       console.error('Error deleting plan: ', error);
       toast({
@@ -89,18 +86,21 @@ export default function InvestmentPlansPage() {
 
   const handleSave = async () => {
     if (!editingPlan) return;
+    
+    const planToSave = {
+        ...editingPlan,
+        totalRepayment: (editingPlan.loanAmount || 0) + (editingPlan.interest || 0)
+    };
 
     try {
-      if ('id' in editingPlan && editingPlan.id) {
-        // Update existing plan
-        const planRef = doc(firestore, 'investmentPlans', editingPlan.id);
-        const { id, ...planData } = editingPlan;
+      if ('id' in planToSave && planToSave.id) {
+        const planRef = doc(firestore, 'loanPlans', planToSave.id);
+        const { id, ...planData } = planToSave;
         await updateDoc(planRef, planData);
-        toast({ title: 'Plan updated successfully' });
+        toast({ title: 'Loan Plan updated successfully' });
       } else {
-        // Create new plan
-        await addDoc(collection(firestore, 'investmentPlans'), editingPlan);
-        toast({ title: 'Plan created successfully' });
+        await addDoc(collection(firestore, 'loanPlans'), planToSave);
+        toast({ title: 'Loan Plan created successfully' });
       }
       setIsDialogOpen(false);
       setEditingPlan(null);
@@ -110,23 +110,23 @@ export default function InvestmentPlansPage() {
     }
   };
 
-  const handleFieldChange = (field: keyof Omit<Plan, 'id'>, value: any) => {
+  const handleFieldChange = (field: keyof Omit<LoanPlan, 'id' | 'totalRepayment'>, value: any) => {
     if (!editingPlan) return;
     const parsedValue =
-      ['investmentAmount', 'profit', 'duration'].includes(field) &&
+      ['loanAmount', 'interest', 'duration'].includes(field) &&
       typeof value === 'string'
         ? parseFloat(value)
         : value;
     setEditingPlan({ ...editingPlan, [field]: parsedValue });
   };
-
+  
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Investment Plans</h2>
+        <h2 className="text-2xl font-bold">Loan Plans</h2>
         <Button onClick={handleCreateNew}>
           <PlusCircle className="h-4 w-4 mr-2" />
-          Create New Plan
+          Create New Loan Plan
         </Button>
       </div>
       <div className="rounded-lg border">
@@ -134,10 +134,10 @@ export default function InvestmentPlansPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Plan Name</TableHead>
-              <TableHead>Investment Amount</TableHead>
-              <TableHead>Daily Profit</TableHead>
-              <TableHead>Duration (Days)</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Loan Amount</TableHead>
+              <TableHead>Interest</TableHead>
+              <TableHead>Total Repayment</TableHead>
+              <TableHead>Duration (Months)</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -152,18 +152,10 @@ export default function InvestmentPlansPage() {
               plans?.map((plan) => (
                 <TableRow key={plan.id}>
                   <TableCell>{plan.name}</TableCell>
-                  <TableCell>₹{plan.investmentAmount?.toFixed(2) || '0.00'}</TableCell>
-                  <TableCell>₹{plan.profit?.toFixed(2) || '0.00'}</TableCell>
-                  <TableCell>{plan.duration}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        plan.status === 'Available' ? 'default' : 'secondary'
-                      }
-                    >
-                      {plan.status}
-                    </Badge>
-                  </TableCell>
+                  <TableCell>₹{plan.loanAmount?.toFixed(2)}</TableCell>
+                  <TableCell>₹{plan.interest?.toFixed(2)}</TableCell>
+                  <TableCell>₹{plan.totalRepayment?.toFixed(2)}</TableCell>
+                  <TableCell>{plan.duration} months</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
@@ -194,7 +186,7 @@ export default function InvestmentPlansPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingPlan && 'id' in editingPlan ? 'Edit Plan' : 'Create New Plan'}
+              {editingPlan && 'id' in editingPlan ? 'Edit Loan Plan' : 'Create New Loan Plan'}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -210,34 +202,34 @@ export default function InvestmentPlansPage() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="investment" className="text-right">
-                Investment
+              <Label htmlFor="loanAmount" className="text-right">
+                Loan Amount
               </Label>
               <Input
-                id="investment"
+                id="loanAmount"
                 type="number"
-                value={editingPlan?.investmentAmount || 0}
+                value={editingPlan?.loanAmount || 0}
                 onChange={(e) =>
-                  handleFieldChange('investmentAmount', e.target.value)
+                  handleFieldChange('loanAmount', e.target.value)
                 }
                 className="col-span-3"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="profit" className="text-right">
-                Daily Profit
+              <Label htmlFor="interest" className="text-right">
+                Interest
               </Label>
               <Input
-                id="profit"
+                id="interest"
                 type="number"
-                value={editingPlan?.profit || 0}
-                onChange={(e) => handleFieldChange('profit', e.target.value)}
+                value={editingPlan?.interest || 0}
+                onChange={(e) => handleFieldChange('interest', e.target.value)}
                 className="col-span-3"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="duration" className="text-right">
-                Duration (Days)
+                Duration (Months)
               </Label>
               <Input
                 id="duration"
@@ -247,22 +239,23 @@ export default function InvestmentPlansPage() {
                 className="col-span-3"
               />
             </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="emiOption" className="text-right">EMI Option</Label>
+                <Switch 
+                    id="emiOption" 
+                    checked={editingPlan?.emiOption} 
+                    onCheckedChange={(checked) => handleFieldChange('emiOption', checked)}
+                    className="col-span-3"
+                />
+            </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status" className="text-right">
-                Status
-              </Label>
-              <Select
-                value={editingPlan?.status || 'Available'}
-                onValueChange={(value) => handleFieldChange('status', value)}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Available">Available</SelectItem>
-                  <SelectItem value="Coming Soon">Coming Soon</SelectItem>
-                </SelectContent>
-              </Select>
+                <Label htmlFor="directPayOption" className="text-right">Direct Pay Option</Label>
+                <Switch 
+                    id="directPayOption" 
+                    checked={editingPlan?.directPayOption} 
+                    onCheckedChange={(checked) => handleFieldChange('directPayOption', checked)}
+                    className="col-span-3"
+                />
             </div>
           </div>
           <DialogFooter>

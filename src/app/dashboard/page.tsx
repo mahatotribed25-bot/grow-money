@@ -9,6 +9,9 @@ import {
   Landmark,
   Megaphone,
   User,
+  HandCoins,
+  FileText,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -43,6 +46,8 @@ import {
   updateDoc,
   writeBatch,
   getDoc,
+  query,
+  where,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -73,6 +78,22 @@ type ActiveInvestment = {
   lastIncomeDate?: Timestamp;
 };
 
+type ActiveLoan = {
+    id: string;
+    loanAmount: number;
+    interest: number;
+    totalPayable: number;
+    duration: number;
+    startDate: Timestamp;
+    dueDate: Timestamp;
+    status: 'Active' | 'Due' | 'Completed';
+}
+
+type LoanRequest = {
+    id: string;
+    status: 'pending' | 'approved' | 'rejected';
+}
+
 type AdminSettings = {
   upiId?: string;
   upiQrCodeUrl?: string;
@@ -101,21 +122,26 @@ export default function Dashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  
   const { data: userData, loading: userLoading } = useDoc<UserData>(
     user ? `users/${user.uid}` : null
   );
-  
   const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>('settings/admin');
-
-
-  const { data: investmentPlans, loading: plansLoading } =
-    useCollection<InvestmentPlan>('investmentPlans');
-
-  const { data: activePlans, loading: activePlansLoading } = useCollection<ActiveInvestment>(
+  const { data: investmentPlans, loading: plansLoading } = useCollection<InvestmentPlan>('investmentPlans');
+  const { data: activeInvestments, loading: activePlansLoading } = useCollection<ActiveInvestment>(
     user ? `users/${user.uid}/investments` : null
   );
+  const { data: activeLoans, loading: activeLoansLoading } = useCollection<ActiveLoan>(
+      user ? `users/${user.uid}/loans` : null,
+      where('status', '!=', 'Completed')
+  );
+  const { data: loanRequests, loading: loanRequestsLoading } = useCollection<LoanRequest>(
+      user ? `loanRequests` : null,
+      where('userId', '==', user?.uid || 'placeholder'),
+      where('status', '==', 'pending')
+  );
 
-  const [showWelcome, setShowWelcome] = useState(true);
+
   const [showRecharge, setShowRecharge] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState('');
@@ -130,15 +156,10 @@ export default function Dashboard() {
   }, [userData]);
 
   useEffect(() => {
-    if (user && activePlans && activePlans.length > 0 && firestore) {
-      autoCreditIncome(user.uid, activePlans, firestore, toast);
+    if (user && activeInvestments && activeInvestments.length > 0 && firestore) {
+      autoCreditIncome(user.uid, activeInvestments, firestore, toast);
     }
-  }, [user, activePlans, firestore, toast]);
-
-
-  const handleCloseWelcome = () => {
-    setShowWelcome(false);
-  };
+  }, [user, activeInvestments, firestore, toast]);
 
   const handleRechargeSubmit = () => {
     if (!user || !rechargeAmount || !utrNumber) return;
@@ -201,12 +222,9 @@ export default function Dashboard() {
     const withdrawalsRef = collection(firestore, 'withdrawals');
 
     runTransaction(firestore, async (transaction) => {
-      // Deduct from user's balance immediately
       const newBalance = currentBalance - amountToWithdraw;
       transaction.update(userRef, { walletBalance: newBalance });
-
-      // Create withdrawal request
-      const withdrawalRef = doc(withdrawalsRef); // Create a new doc ref
+      const withdrawalRef = doc(withdrawalsRef); 
       transaction.set(withdrawalRef, withdrawalData);
     })
       .then(() => {
@@ -216,7 +234,6 @@ export default function Dashboard() {
         });
         setShowWithdraw(false);
         setWithdrawAmount('');
-        // setWithdrawUpi(''); keep it pre-filled
       })
       .catch((error) => {
         console.error(error);
@@ -229,6 +246,9 @@ export default function Dashboard() {
       });
   };
 
+  const activeLoan = activeLoans && activeLoans.length > 0 ? activeLoans[0] : null;
+  const hasPendingLoanRequest = loanRequests && loanRequests.length > 0;
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/50 px-4 backdrop-blur-md sm:px-6">
@@ -236,25 +256,11 @@ export default function Dashboard() {
           <Briefcase className="h-6 w-6 text-primary" />
           <h1 className="text-xl font-bold text-primary">grow money 💰💰🤑🤑</h1>
         </div>
+         <h1 className="text-lg font-semibold">Welcome, {user?.displayName || 'User'}!</h1>
         <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />
         </Button>
       </header>
-
-      <Dialog open={showWelcome} onOpenChange={setShowWelcome}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-center text-2xl">
-              WELCOME To TRIBED WORLD 💰💰🤑🤑
-            </DialogTitle>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={handleCloseWelcome} className="w-full">
-              Continue
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showRecharge} onOpenChange={setShowRecharge}>
         <DialogContent>
@@ -419,9 +425,37 @@ export default function Dashboard() {
               <ActionButton icon={Landmark} label="Withdraw" />
             </div>
           </div>
+          
+           <Card className="shadow-lg border-border/50">
+                <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                        <span>My Loan</span>
+                        <LoanStatusBadge activeLoan={activeLoan} hasPendingRequest={hasPendingLoanRequest} />
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {(activeLoansLoading || loanRequestsLoading) ? (
+                        <p>Loading loan status...</p>
+                    ) : activeLoan ? (
+                        <ActiveLoanDetails loan={activeLoan} />
+                    ) : hasPendingLoanRequest ? (
+                        <div className="text-center text-muted-foreground py-4">
+                            <p>Your loan application is currently pending review.</p>
+                        </div>
+                    ) : (
+                        <div className="text-center text-muted-foreground py-4">
+                            <p>You have no active loans.</p>
+                            <Button asChild className="mt-2">
+                                <Link href="/loans">Apply for a Loan</Link>
+                            </Button>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
 
           <div>
-            <h2 className="text-lg font-semibold mb-4">Investment Plans</h2>
+            <h2 className="text-lg font-semibold mb-4">Our Investment Plans</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {plansLoading ? (
                 <p>Loading plans...</p>
@@ -439,18 +473,20 @@ export default function Dashboard() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold mb-4">Active Plans</h2>
+            <h2 className="text-lg font-semibold mb-4">My Active Investments</h2>
             <div className="mt-4 space-y-4">
               {activePlansLoading ? (
                 <p>Loading active plans...</p>
-              ) : (
-                 activePlans?.map((plan) => (
+              ) : activeInvestments && activeInvestments.length > 0 ? (
+                 activeInvestments?.map((plan) => (
                   <ActivePlanCard 
                     key={plan.id} 
                     plan={plan} 
                     userId={user?.uid || ''} 
                   />
                 ))
+              ) : (
+                <p className="text-muted-foreground text-sm">You have no active investment plans.</p>
               )}
             </div>
           </div>
@@ -458,14 +494,49 @@ export default function Dashboard() {
       </main>
 
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" active />
-          <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
+          <BottomNavItem icon={FileText} label="My Plans" href="/plans" />
+          <BottomNavItem icon={HandCoins} label="Loans" href="/loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>
     </div>
   );
+}
+
+const LoanStatusBadge = ({ activeLoan, hasPendingRequest }: { activeLoan: any, hasPendingRequest: boolean }) => {
+    if (activeLoan) {
+        return <Badge variant="default" className="capitalize">{activeLoan.status}</Badge>;
+    }
+    if (hasPendingRequest) {
+        return <Badge variant="secondary">Pending</Badge>;
+    }
+    return <Badge variant="outline">None</Badge>;
+};
+
+const ActiveLoanDetails = ({ loan }: { loan: ActiveLoan }) => {
+    const isDue = new Date(loan.dueDate.seconds * 1000) < new Date();
+    
+    return (
+        <div className="space-y-3">
+            <PlanDetail label="Loan Amount" value={`₹${loan.loanAmount.toFixed(2)}`} />
+            <PlanDetail label="Interest" value={`₹${loan.interest.toFixed(2)}`} />
+            <PlanDetail label="Total Payable" value={`₹${loan.totalPayable.toFixed(2)}`} />
+            <PlanDetail label="Start Date" value={new Date(loan.startDate.seconds * 1000).toLocaleDateString()} />
+            <PlanDetail label="Due Date" value={new Date(loan.dueDate.seconds * 1000).toLocaleDateString()} />
+            {isDue && loan.status === 'Active' && (
+                 <Alert variant="destructive" className="mt-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Loan Due</AlertTitle>
+                    <AlertDescription>
+                        Your loan is now due for repayment.
+                    </AlertDescription>
+                </Alert>
+            )}
+            <Button className="w-full mt-4" disabled={loan.status !== 'Active'}>Repay Loan</Button>
+        </div>
+    );
 }
 
 function ActionButton({

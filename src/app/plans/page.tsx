@@ -1,14 +1,16 @@
+
 'use client';
 
 import {
   ChevronLeft,
   Briefcase,
   Home,
-  Wallet,
   User,
   Calendar,
   IndianRupee,
   TrendingUp,
+  FileText,
+  HandCoins,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -17,7 +19,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection } from '@/firebase';
@@ -54,7 +55,7 @@ export default function PlansPage() {
             <ChevronLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <h1 className="text-lg font-semibold">My Plans</h1>
+        <h1 className="text-lg font-semibold">My Investment Plans</h1>
         <div className="w-9" />
       </header>
 
@@ -80,9 +81,10 @@ export default function PlansPage() {
       </main>
 
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
-          <BottomNavItem icon={Briefcase} label="Plans" href="/plans" active />
+          <BottomNavItem icon={FileText} label="My Plans" href="/plans" active />
+          <BottomNavItem icon={HandCoins} label="Loans" href="/loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>
@@ -91,7 +93,7 @@ export default function PlansPage() {
 }
 
 function PlanCard({ plan }: { plan: Investment }) {
-  const isExpired = plan.endDate.toDate() < new Date();
+  const isExpired = plan.endDate.toDate() < new Date() && plan.status === 'Active';
   
   return (
     <Card className="shadow-lg border-border/50">
@@ -105,7 +107,7 @@ function PlanCard({ plan }: { plan: Investment }) {
                 : 'bg-yellow-500/20 text-yellow-400'
             }`}
           >
-            {isExpired && plan.status === 'Active' ? 'Expired' : plan.status}
+            {isExpired ? 'Expired' : plan.status}
           </span>
         </div>
       </CardHeader>

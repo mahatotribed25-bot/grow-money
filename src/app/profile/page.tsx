@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import {
@@ -7,19 +8,17 @@ import {
   Mail,
   CreditCard,
   LogOut,
-  Briefcase,
   Home,
-  Wallet,
-  ArrowRight,
-  ArrowLeft,
   Download,
   Upload,
   Copy,
   Gift,
+  HandCoins,
+  FileText,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useAuth, useCollection, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -163,9 +162,10 @@ export default function ProfilePage() {
         </Button>
       </main>
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
-          <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
+          <BottomNavItem icon={FileText} label="My Plans" href="/plans" />
+          <BottomNavItem icon={HandCoins} label="Loans" href="/loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" active />
         </div>
       </nav>

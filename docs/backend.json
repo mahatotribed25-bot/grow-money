@@ -245,6 +245,147 @@
         "status"
       ]
     },
+    "loanPlan": {
+      "title": "Loan Plan",
+      "description": "Defines a template for a loan plan that can be requested by users.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the loan plan."
+        },
+        "loanAmount": {
+          "type": "number",
+          "description": "The amount of money disbursed to the user."
+        },
+        "interest": {
+          "type": "number",
+          "description": "The total interest to be paid."
+        },
+        "totalRepayment": {
+          "type": "number",
+          "description": "The total amount to be repaid (loan + interest)."
+        },
+        "duration": {
+          "type": "number",
+          "description": "The duration of the loan in months."
+        },
+        "emiOption": {
+          "type": "boolean",
+          "description": "Whether an EMI option is available for this loan."
+        },
+        "directPayOption": {
+          "type": "boolean",
+          "description": "Whether a direct full payment option is available."
+        }
+      },
+      "required": [
+        "name",
+        "loanAmount",
+        "interest",
+        "totalRepayment",
+        "duration"
+      ]
+    },
+    "loanRequest": {
+      "title": "Loan Request",
+      "description": "A user's request for a loan.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "planName": {
+          "type": "string"
+        },
+        "loanAmount": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "planId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "userId",
+        "userName",
+        "planName",
+        "loanAmount",
+        "status",
+        "createdAt",
+        "planId"
+      ]
+    },
+    "loan": {
+      "title": "Active Loan",
+      "description": "An active, approved loan for a user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "planName": {
+          "type": "string"
+        },
+        "loanAmount": {
+          "type": "number"
+        },
+        "interest": {
+          "type": "number"
+        },
+        "totalPayable": {
+          "type": "number"
+        },
+        "duration": {
+          "type": "number"
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "dueDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "Active",
+            "Due",
+            "Completed"
+          ]
+        },
+        "amountPaid": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "userId",
+        "planName",
+        "loanAmount",
+        "interest",
+        "totalPayable",
+        "duration",
+        "startDate",
+        "dueDate",
+        "status",
+        "amountPaid"
+      ]
+    },
     "adminSettings": {
       "title": "Admin Settings",
       "description": "Stores admin-specific settings for the application.",
@@ -264,8 +405,8 @@
           "description": "Bonus amount for a new user signing up with a referral code."
         },
         "referralBonus": {
-            "type": "number",
-            "description": "Bonus amount for the referrer."
+          "type": "number",
+          "description": "Bonus amount for the referrer."
         },
         "broadcastMessage": {
           "type": "string",
@@ -315,6 +456,24 @@
         "$ref": "#/entities/adminSettings"
       },
       "description": "Stores admin-specific settings like UPI details."
+    },
+    "/loanPlans/{planId}": {
+      "schema": {
+        "$ref": "#/entities/loanPlan"
+      },
+      "description": "Stores available loan plans for users."
+    },
+    "/loanRequests/{requestId}": {
+      "schema": {
+        "$ref": "#/entities/loanRequest"
+      },
+      "description": "Stores loan requests from users."
+    },
+    "/users/{userId}/loans/{loanId}": {
+      "schema": {
+        "$ref": "#/entities/loan"
+      },
+      "description": "Stores active loans for a user."
     }
   }
 }

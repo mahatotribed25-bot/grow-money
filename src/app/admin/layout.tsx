@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -12,6 +13,8 @@ import {
   LogOut,
   Menu,
   Settings,
+  HandCoins,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,6 +27,7 @@ import {
 import { useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useEffect } from 'react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const ADMIN_EMAIL = "admin@tribed.world";
 
@@ -62,8 +66,6 @@ export default function AdminLayout({
     );
   }
 
-  // If we're on the login page or if the user is not yet loaded or not an admin,
-  // we show a loading screen or let the login page render. The useEffect will handle the redirect.
   if (pathname === '/admin/login' || !user || user.email !== ADMIN_EMAIL) {
     if (pathname === '/admin/login') {
       return <>{children}</>;
@@ -74,6 +76,17 @@ export default function AdminLayout({
       </div>
     );
   }
+
+  const getActiveAccordionItem = () => {
+    if (pathname.startsWith('/admin/investments') || pathname.startsWith('/admin/deposits') || pathname.startsWith('/admin/withdrawals')) {
+      return 'investments';
+    }
+    if (pathname.startsWith('/admin/loan-plans') || pathname.startsWith('/admin/loans')) {
+      return 'loans';
+    }
+    return '';
+  }
+
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
@@ -88,9 +101,36 @@ export default function AdminLayout({
           <nav className="flex-1 grid items-start px-2 text-sm font-medium lg:px-4">
             <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
             <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
-            <AdminNavItem icon={CreditCard} href="/admin/deposits">Deposits</AdminNavItem>
-            <AdminNavItem icon={Landmark} href="/admin/withdrawals">Withdrawals</AdminNavItem>
-            <AdminNavItem icon={Briefcase} href="/admin/investments">Plans</AdminNavItem>
+
+            <Accordion type="single" collapsible defaultValue={getActiveAccordionItem()}>
+              <AccordionItem value="investments" className="border-b-0">
+                <AccordionTrigger className="py-2 hover:no-underline text-muted-foreground hover:bg-muted rounded-lg px-3">
+                  <div className="flex items-center gap-3">
+                    <Briefcase className="h-4 w-4" />
+                    <span>Investments</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pl-8 pt-1">
+                  <AdminNavItem icon={CreditCard} href="/admin/deposits">Deposits</AdminNavItem>
+                  <AdminNavItem icon={Landmark} href="/admin/withdrawals">Withdrawals</AdminNavItem>
+                  <AdminNavItem icon={FileText} href="/admin/investments">Investment Plans</AdminNavItem>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="loans" className="border-b-0">
+                <AccordionTrigger className="py-2 hover:no-underline text-muted-foreground hover:bg-muted rounded-lg px-3">
+                  <div className="flex items-center gap-3">
+                    <HandCoins className="h-4 w-4" />
+                    <span>Loans</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pl-8 pt-1">
+                   <AdminNavItem icon={FileText} href="/admin/loan-plans">Loan Plans</AdminNavItem>
+                   <AdminNavItem icon={FileText} href="/admin/loans">Loan Requests</AdminNavItem>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+            
             <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
           </nav>
           <div className="mt-auto p-4">
@@ -130,7 +170,9 @@ export default function AdminLayout({
                 <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
                 <AdminNavItem icon={CreditCard} href="/admin/deposits">Deposits</AdminNavItem>
                 <AdminNavItem icon={Landmark} href="/admin/withdrawals">Withdrawals</AdminNavItem>
-                <AdminNavItem icon={Briefcase} href="/admin/investments">Plans</AdminNavItem>
+                <AdminNavItem icon={Briefcase} href="/admin/investments">Investment Plans</AdminNavItem>
+                <AdminNavItem icon={FileText} href="/admin/loan-plans">Loan Plans</AdminNavItem>
+                <AdminNavItem icon={HandCoins} href="/admin/loans">Loan Requests</AdminNavItem>
                 <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
               </nav>
               <div className="mt-auto">
@@ -163,7 +205,7 @@ function AdminNavItem({ href, icon: Icon, children }: { href: string; icon: Reac
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
+      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm ${
         isActive
           ? 'bg-primary text-primary-foreground'
           : 'text-muted-foreground hover:bg-muted'
