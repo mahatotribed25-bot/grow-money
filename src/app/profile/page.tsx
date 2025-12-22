@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import {
@@ -9,70 +8,51 @@ import {
   CreditCard,
   LogOut,
   Home,
-  Download,
-  Upload,
   Copy,
   Gift,
   HandCoins,
   FileText,
+  Save,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { useAuth, useCollection, useDoc } from '@/firebase';
+import { useAuth, useDoc, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import type { Timestamp } from 'firebase/firestore';
-import { where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useEffect, useState } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
 
 type UserData = {
   referralCode?: string;
   upiId?: string;
-};
-
-type Deposit = {
-  id: string;
-  userId: string;
-  amount: number;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: Timestamp;
-};
-
-type Withdrawal = {
-  id:string;
-  userId: string;
-  amount: number;
-  upiId: string;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: Timestamp;
-}
-
-const formatDate = (timestamp: Timestamp) => {
-  if (!timestamp) return 'N/A';
-  return new Date(timestamp.seconds * 1000).toLocaleDateString();
+  panNumber?: string;
 };
 
 export default function ProfilePage() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
-  const { data: userDeposits, loading: depositsLoading } = useCollection<Deposit>(
-    user ? `deposits` : null,
-    where('userId', '==', user?.uid || '')
-  );
-  const { data: userWithdrawals, loading: withdrawalsLoading } = useCollection<Withdrawal>(
-    user ? `withdrawals` : null,
-     where('userId', '==', user?.uid || '')
-  );
-
   const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+  
+  const [upiId, setUpiId] = useState('');
+  const [panNumber, setPanNumber] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  
+  useEffect(() => {
+    if (userData) {
+      setUpiId(userData.upiId || '');
+      setPanNumber(userData.panNumber || '');
+    }
+  }, [userData]);
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -89,6 +69,29 @@ export default function ProfilePage() {
       });
     }
   };
+
+  const handleSaveChanges = async () => {
+      if (!user) return;
+      const userRef = doc(firestore, 'users', user.uid);
+      try {
+          await updateDoc(userRef, {
+              upiId: upiId,
+              panNumber: panNumber,
+          });
+          toast({
+              title: "Profile Updated",
+              description: "Your information has been saved successfully."
+          });
+          setIsEditing(false);
+      } catch (error) {
+          console.error("Error updating profile:", error);
+          toast({
+              title: "Update Failed",
+              description: "Could not save your changes. Please try again.",
+              variant: "destructive",
+          })
+      }
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -112,7 +115,30 @@ export default function ProfilePage() {
             <Separator />
             <InfoRow icon={Mail} label="Email" value={user?.email || 'N/A'} />
             <Separator />
-            <InfoRow icon={CreditCard} label="Saved UPI ID" value={userData?.upiId || 'Not set'} />
+
+             <div className="space-y-2">
+                <Label htmlFor="upiId" className="flex items-center gap-3 text-sm font-medium">
+                    <CreditCard className="h-5 w-5 text-muted-foreground" />
+                    <span>UPI ID for Payments</span>
+                </Label>
+                <Input id="upiId" value={upiId} onChange={(e) => {setUpiId(e.target.value); setIsEditing(true);}} placeholder="your-upi@bank" />
+             </div>
+
+             <div className="space-y-2">
+                <Label htmlFor="panNumber" className="flex items-center gap-3 text-sm font-medium">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <span>PAN Number</span>
+                </Label>
+                <Input id="panNumber" value={panNumber} onChange={(e) => {setPanNumber(e.target.value); setIsEditing(true);}} placeholder="ABCDE1234F" />
+             </div>
+
+            {isEditing && (
+                <Button onClick={handleSaveChanges} className="w-full">
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                </Button>
+            )}
+
           </CardContent>
         </Card>
         
@@ -130,31 +156,9 @@ export default function ProfilePage() {
                 <Copy className="h-5 w-5" />
               </Button>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">Share this code with your friends. You'll get a bonus when they sign up and invest!</p>
+            <p className="mt-2 text-sm text-muted-foreground">Share this code with your friends. You'll get a bonus when they sign up!</p>
           </CardContent>
         </Card>
-
-        <Tabs defaultValue="recharge" className="mt-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="recharge">Recharge History</TabsTrigger>
-            <TabsTrigger value="withdrawal">Withdrawal History</TabsTrigger>
-          </TabsList>
-          <TabsContent value="recharge">
-            <HistoryList
-              items={userDeposits || []}
-              loading={depositsLoading}
-              type="recharge"
-            />
-          </TabsContent>
-          <TabsContent value="withdrawal">
-            <HistoryList
-              items={userWithdrawals || []}
-              loading={withdrawalsLoading}
-              type="withdrawal"
-            />
-          </TabsContent>
-        </Tabs>
-
 
         <Button onClick={handleLogout} className="mt-6 w-full" variant="destructive">
           <LogOut className="mr-2 h-4 w-4" />
@@ -162,9 +166,8 @@ export default function ProfilePage() {
         </Button>
       </main>
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
-          <BottomNavItem icon={FileText} label="My Plans" href="/plans" />
           <BottomNavItem icon={HandCoins} label="Loans" href="/loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" active />
         </div>
@@ -191,71 +194,5 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
       <Icon className="h-5 w-5" />
       <span>{label}</span>
     </Link>
-  );
-}
-
-function HistoryList({ items, loading, type }: { items: (Deposit[] | Withdrawal[]), loading: boolean, type: 'recharge' | 'withdrawal' }) {
-  if (loading) {
-    return (
-      <Card className="shadow-lg border-border/50">
-        <CardContent className="p-6 text-center text-muted-foreground">
-          <p>Loading history...</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!items || items.length === 0) {
-    return (
-      <Card className="shadow-lg border-border/50">
-        <CardContent className="p-6 text-center text-muted-foreground">
-          <p>No {type} history found.</p>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return 'default';
-      case 'rejected':
-        return 'destructive';
-      default:
-        return 'secondary';
-    }
-  };
-
-
-  return (
-    <div className="space-y-4">
-      {(items as any[]).map((item) => (
-        <Card key={item.id} className="shadow-lg border-border/50">
-          <CardContent className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-               {type === 'recharge' ? (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 text-green-500">
-                  <Download className="h-5 w-5" />
-                </div>
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 text-red-500">
-                  <Upload className="h-5 w-5" />
-                </div>
-              )}
-              <div>
-                <p className="font-semibold capitalize">{type} Request</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatDate(item.createdAt)}
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-               <p className="font-bold text-lg">₹{item.amount.toFixed(2)}</p>
-               <Badge variant={getStatusVariant(item.status)} className="capitalize">{item.status}</Badge>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
   );
 }

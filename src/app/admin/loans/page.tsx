@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X } from 'lucide-react';
+import { Check, X, ShieldCheck } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import {
@@ -32,7 +32,7 @@ type LoanRequest = {
   planName: string;
   loanAmount: number;
   createdAt: Timestamp;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'sent';
   planId: string;
 };
 
@@ -61,59 +61,49 @@ export default function LoanRequestsPage() {
     newStatus: 'approved' | 'rejected'
   ) => {
     const requestRef = doc(firestore, 'loanRequests', request.id);
-    const userRef = doc(firestore, 'users', request.userId);
-
+    
     try {
-      if (newStatus === 'approved') {
-        const plan = loanPlans?.find(p => p.id === request.planId);
-        if (!plan) {
-            throw new Error("Could not find the associated loan plan.");
+        if (newStatus === 'approved') {
+            const plan = loanPlans?.find(p => p.id === request.planId);
+            if (!plan) {
+                throw new Error("Could not find the associated loan plan.");
+            }
+
+            const batch = writeBatch(firestore);
+
+            // 1. Update the request status to approved
+            batch.update(requestRef, { status: newStatus });
+            
+            // 2. Create an active loan document for the user
+            const loanRef = doc(collection(firestore, 'users', request.userId, 'loans'));
+            const startDate = new Date();
+            const dueDate = add(startDate, { months: plan.duration });
+
+            batch.set(loanRef, {
+                userId: request.userId,
+                planName: plan.name,
+                loanAmount: plan.loanAmount,
+                interest: plan.interest,
+                totalPayable: plan.totalRepayment,
+                duration: plan.duration,
+                startDate: Timestamp.fromDate(startDate),
+                dueDate: Timestamp.fromDate(dueDate),
+                status: 'Active',
+                amountPaid: 0
+            });
+
+            await batch.commit();
+            toast({
+                title: 'Loan Approved',
+                description: `Loan for ${request.userName} is approved. Please send the funds manually.`,
+            });
+        } else { // 'rejected'
+            await updateDoc(requestRef, { status: newStatus });
+            toast({
+                title: 'Loan Rejected',
+                variant: 'destructive',
+            });
         }
-
-        await runTransaction(firestore, async (transaction) => {
-          const userDoc = await transaction.get(userRef);
-          if (!userDoc.exists()) {
-            throw 'User document does not exist!';
-          }
-
-          // 1. Credit loan amount to user's wallet
-          const newBalance = (userDoc.data().walletBalance || 0) + plan.loanAmount;
-          transaction.update(userRef, { walletBalance: newBalance });
-
-          // 2. Update the request status
-          transaction.update(requestRef, { status: newStatus });
-          
-          // 3. Create an active loan document for the user
-          const loanRef = doc(collection(firestore, 'users', request.userId, 'loans'));
-          const startDate = new Date();
-          const dueDate = add(startDate, { months: plan.duration });
-
-          transaction.set(loanRef, {
-              userId: request.userId,
-              planName: plan.name,
-              loanAmount: plan.loanAmount,
-              interest: plan.interest,
-              totalPayable: plan.totalRepayment,
-              duration: plan.duration,
-              startDate: Timestamp.fromDate(startDate),
-              dueDate: Timestamp.fromDate(dueDate),
-              status: 'Active',
-              amountPaid: 0
-          });
-        });
-
-        toast({
-          title: 'Loan Approved',
-          description: `₹${request.loanAmount} has been credited to ${request.userName}'s wallet.`,
-        });
-
-      } else { // 'rejected'
-        await updateDoc(requestRef, { status: newStatus });
-        toast({
-          title: 'Loan Rejected',
-          variant: 'destructive',
-        });
-      }
     } catch (error) {
       console.error('Error updating loan request status:', error);
       toast({
@@ -123,6 +113,24 @@ export default function LoanRequestsPage() {
       });
     }
   };
+
+  const handleMarkAsSent = async (request: LoanRequest) => {
+      const requestRef = doc(firestore, 'loanRequests', request.id);
+      try {
+          await updateDoc(requestRef, { status: 'sent' });
+          toast({
+              title: 'Amount Sent',
+              description: `Loan amount for ${request.userName} has been marked as sent.`,
+          });
+      } catch (error) {
+          console.error("Error marking as sent:", error);
+          toast({
+              title: "Error",
+              description: "Could not mark the loan as sent.",
+              variant: "destructive"
+          });
+      }
+  }
 
 
   return (
@@ -157,7 +165,7 @@ export default function LoanRequestsPage() {
                   <TableCell>
                     <Badge
                       variant={
-                        request.status === 'approved'
+                        request.status === 'approved' || request.status === 'sent'
                           ? 'default'
                           : request.status === 'rejected'
                           ? 'destructive'
@@ -170,24 +178,37 @@ export default function LoanRequestsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                        onClick={() => handleUpdateStatus(request, 'approved')}
-                        disabled={request.status !== 'pending'}
-                      >
-                        <Check className="h-4 w-4 mr-1" /> Approve
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                        onClick={() => handleUpdateStatus(request, 'rejected')}
-                        disabled={request.status !== 'pending'}
-                      >
-                        <X className="h-4 w-4 mr-1" /> Reject
-                      </Button>
+                       {request.status === 'pending' && (
+                           <>
+                             <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                                onClick={() => handleUpdateStatus(request, 'approved')}
+                              >
+                                <Check className="h-4 w-4 mr-1" /> Approve
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                onClick={() => handleUpdateStatus(request, 'rejected')}
+                              >
+                                <X className="h-4 w-4 mr-1" /> Reject
+                              </Button>
+                           </>
+                       )}
+                       {request.status === 'approved' && (
+                           <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                                onClick={() => handleMarkAsSent(request)}
+                            >
+                                <ShieldCheck className="h-4 w-4 mr-1" /> Mark as Sent
+                           </Button>
+                       )}
+
                     </div>
                   </TableCell>
                 </TableRow>

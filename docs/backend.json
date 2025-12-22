@@ -19,18 +19,6 @@
           "type": "string",
           "description": "The user's display name."
         },
-        "walletBalance": {
-          "type": "number",
-          "description": "The user's wallet balance."
-        },
-        "totalInvestment": {
-          "type": "number",
-          "description": "The user's total investment."
-        },
-        "totalIncome": {
-          "type": "number",
-          "description": "The user's total income."
-        },
         "referralCode": {
           "type": "string",
           "description": "The user's unique referral code."
@@ -49,200 +37,16 @@
         },
         "upiId": {
           "type": "string",
-          "description": "The user's saved UPI ID for withdrawals."
+          "description": "The user's saved UPI ID for receiving payments."
+        },
+        "panNumber": {
+            "type": "string",
+            "description": "The user's PAN card number."
         }
       },
       "required": [
         "uid",
         "email"
-      ]
-    },
-    "depositRequest": {
-      "title": "Deposit Request",
-      "description": "A request to deposit funds into a user's wallet.",
-      "type": "object",
-      "properties": {
-        "userId": {
-          "type": "string",
-          "description": "The ID of the user making the request."
-        },
-        "userName": {
-          "type": "string",
-          "description": "The name of the user making the request."
-        },
-        "amount": {
-          "type": "number",
-          "description": "The amount to deposit."
-        },
-        "utr": {
-          "type": "string",
-          "description": "The Unique Transaction Reference number for the deposit."
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "approved",
-            "rejected"
-          ],
-          "description": "The status of the deposit request."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The time the request was created."
-        }
-      },
-      "required": [
-        "userId",
-        "userName",
-        "amount",
-        "utr",
-        "status",
-        "createdAt"
-      ]
-    },
-    "withdrawalRequest": {
-      "title": "Withdrawal Request",
-      "description": "A request to withdraw funds from a user's wallet.",
-      "type": "object",
-      "properties": {
-        "userId": {
-          "type": "string",
-          "description": "The ID of the user making the request."
-        },
-        "userName": {
-          "type": "string",
-          "description": "The name of the user making the request."
-        },
-        "amount": {
-          "type": "number",
-          "description": "The amount to withdraw."
-        },
-        "upiId": {
-          "type": "string",
-          "description": "The UPI ID to send the funds to."
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "approved",
-            "rejected"
-          ],
-          "description": "The status of the withdrawal request."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The time the request was created."
-        }
-      },
-      "required": [
-        "userId",
-        "userName",
-        "amount",
-        "upiId",
-        "status",
-        "createdAt"
-      ]
-    },
-    "investment": {
-      "title": "Investment",
-      "description": "Represents a user's investment in a plan.",
-      "type": "object",
-      "properties": {
-        "userId": {
-          "type": "string",
-          "description": "The ID of the user who made the investment."
-        },
-        "planName": {
-          "type": "string",
-          "description": "The name of the investment plan."
-        },
-        "investmentAmount": {
-          "type": "number",
-          "description": "The amount invested."
-        },
-        "dailyIncome": {
-          "type": "number",
-          "description": "The daily income from the investment."
-        },
-        "totalReturn": {
-          "type": "number",
-          "description": "The total return from the investment (investment + profit)."
-        },
-        "startDate": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The start date of the investment."
-        },
-        "endDate": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The end date of the investment."
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "Active",
-            "Completed"
-          ],
-          "description": "The status of the investment."
-        },
-        "lastIncomeDate": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The last date the daily income was automatically credited."
-        }
-      },
-      "required": [
-        "userId",
-        "planName",
-        "investmentAmount",
-        "dailyIncome",
-        "totalReturn",
-        "startDate",
-        "endDate",
-        "status"
-      ]
-    },
-    "investmentPlan": {
-      "title": "Investment Plan",
-      "description": "Defines a template for an investment plan that can be purchased by users.",
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "The name of the investment plan."
-        },
-        "investmentAmount": {
-          "type": "number",
-          "description": "The cost to purchase this plan."
-        },
-        "profit": {
-          "type": "number",
-          "description": "The daily profit from the investment."
-        },
-        "duration": {
-          "type": "number",
-          "description": "The duration of the investment in days."
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "Available",
-            "Coming Soon"
-          ],
-          "description": "The availability status of the plan."
-        }
-      },
-      "required": [
-        "name",
-        "investmentAmount",
-        "profit",
-        "duration",
-        "status"
       ]
     },
     "loanPlan": {
@@ -309,7 +113,8 @@
           "enum": [
             "pending",
             "approved",
-            "rejected"
+            "rejected",
+            "sent"
           ]
         },
         "createdAt": {
@@ -391,19 +196,6 @@
       "description": "Stores admin-specific settings for the application.",
       "type": "object",
       "properties": {
-        "upiId": {
-          "type": "string",
-          "description": "The UPI ID for receiving payments."
-        },
-        "upiQrCodeUrl": {
-          "type": "string",
-          "format": "uri",
-          "description": "The URL for the UPI QR code image."
-        },
-        "signupBonus": {
-          "type": "number",
-          "description": "Bonus amount for a new user signing up with a referral code."
-        },
         "referralBonus": {
           "type": "number",
           "description": "Bonus amount for the referrer."
@@ -427,35 +219,11 @@
       },
       "description": "Stores user profile information."
     },
-    "/deposits/{depositId}": {
-      "schema": {
-        "$ref": "#/entities/depositRequest"
-      },
-      "description": "Stores deposit requests from users."
-    },
-    "/withdrawals/{withdrawalId}": {
-      "schema": {
-        "$ref": "#/entities/withdrawalRequest"
-      },
-      "description": "Stores withdrawal requests from users."
-    },
-    "/users/{userId}/investments/{investmentId}": {
-      "schema": {
-        "$ref": "#/entities/investment"
-      },
-      "description": "Stores the investment plans a user has purchased."
-    },
-    "/investmentPlans/{planId}": {
-      "schema": {
-        "$ref": "#/entities/investmentPlan"
-      },
-      "description": "Stores the available investment plans for all users."
-    },
     "/settings/admin": {
       "schema": {
         "$ref": "#/entities/adminSettings"
       },
-      "description": "Stores admin-specific settings like UPI details."
+      "description": "Stores admin-specific settings."
     },
     "/loanPlans/{planId}": {
       "schema": {

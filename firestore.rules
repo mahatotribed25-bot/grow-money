@@ -14,39 +14,18 @@ service cloud.firestore {
     }
     
     function isAdmin() {
+      // It's better to use custom claims for roles rather than hardcoding emails.
+      // For this example, we'll keep the email check.
       return request.auth.token.email == "admin@tribed.world";
     }
 
     // Rules for users collection
     match /users/{userId} {
-      allow read, update, delete: if isOwner(userId) || isAdmin();
+      allow read, update: if isOwner(userId) || isAdmin();
       allow create: if request.auth.uid == userId;
+      allow delete: if isAdmin();
     }
 
-    // Rules for deposits collection
-    match /deposits/{depositId} {
-      allow read, create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAdmin();
-    }
-
-    // Rules for withdrawals collection
-    match /withdrawals/{withdrawalId} {
-      allow read, create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAdmin();
-    }
-
-    // Rules for user investments
-    match /users/{userId}/investments/{investmentId} {
-      allow read, create: if isOwner(userId);
-      allow update, delete: if isOwner(userId) || isAdmin();
-    }
-
-    // Rules for investment plans
-    match /investmentPlans/{planId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-    
     // Rules for loan plans
     match /loanPlans/{planId} {
       allow read: if isSignedIn();
@@ -55,13 +34,17 @@ service cloud.firestore {
     
     // Rules for loan requests
     match /loanRequests/{requestId} {
-      allow read, create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      // User can create and read their own requests. Admin can read any and update status.
+      allow create: if isOwner(request.resource.data.userId);
+      allow read: if isSignedIn() && (isOwner(request.resource.data.userId) || isAdmin());
       allow update: if isAdmin();
     }
     
     // Rules for user loans
     match /users/{userId}/loans/{loanId} {
-      allow read, create, update, delete: if isOwner(userId) || isAdmin();
+      // User can read their own loans. Admin can manage them fully.
+      allow read: if isOwner(userId);
+      allow create, update, delete: if isAdmin();
     }
 
     // Rules for admin settings

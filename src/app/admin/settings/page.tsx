@@ -11,12 +11,9 @@ import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { Megaphone } from 'lucide-react';
+import { Megaphone, Save } from 'lucide-react';
 
 type AdminSettings = {
-  upiId?: string;
-  upiQrCodeUrl?: string;
-  signupBonus?: number;
   referralBonus?: number;
   broadcastMessage?: string;
 };
@@ -26,18 +23,12 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { data: settings, loading } = useDoc<AdminSettings>('settings/admin');
 
-  const [upiId, setUpiId] = useState('');
-  const [upiQrCodeUrl, setUpiQrCodeUrl] = useState('');
-  const [signupBonus, setSignupBonus] = useState(0);
   const [referralBonus, setReferralBonus] = useState(0);
   const [broadcastMessage, setBroadcastMessage] = useState('');
 
 
   useEffect(() => {
     if (settings) {
-      setUpiId(settings.upiId || '');
-      setUpiQrCodeUrl(settings.upiQrCodeUrl || '');
-      setSignupBonus(settings.signupBonus || 0);
       setReferralBonus(settings.referralBonus || 0);
       setBroadcastMessage(settings.broadcastMessage || '');
     }
@@ -47,9 +38,6 @@ export default function SettingsPage() {
     const settingsRef = doc(firestore, 'settings', 'admin');
     try {
       await setDoc(settingsRef, { 
-        upiId, 
-        upiQrCodeUrl,
-        signupBonus: Number(signupBonus),
         referralBonus: Number(referralBonus),
         broadcastMessage,
       }, { merge: true });
@@ -84,55 +72,10 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
                 <Separator />
-                <div>
-                    <CardTitle>Payment Details</CardTitle>
-                    <CardDescription>
-                        This UPI ID and QR code will be shown to users when they recharge their wallets.
-                    </CardDescription>
-                    <div className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="upi-id">UPI ID</Label>
-                            <Input
-                            id="upi-id"
-                            placeholder="your-upi@bank"
-                            value={upiId}
-                            onChange={(e) => setUpiId(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="qr-code-url">UPI QR Code Image URL</Label>
-                            <Input
-                            id="qr-code-url"
-                            type="url"
-                            placeholder="https://example.com/qr.png"
-                            value={upiQrCodeUrl}
-                            onChange={(e) => setUpiQrCodeUrl(e.target.value)}
-                            />
-                            <p className="text-sm text-muted-foreground">
-                                Please provide a direct link (URL) to the QR code image, not the UPI payment link.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <Separator />
                 
                 <div>
                     <CardTitle>Referral Settings</CardTitle>
                      <div className="space-y-4 mt-4">
-                         <div className="space-y-2">
-                            <Label htmlFor="signup-bonus">Signup Bonus</Label>
-                            <Input
-                            id="signup-bonus"
-                            type="number"
-                            placeholder="Amount for new user"
-                            value={signupBonus}
-                            onChange={(e) => setSignupBonus(Number(e.target.value))}
-                            />
-                             <p className="text-sm text-muted-foreground">
-                                Bonus amount a new user receives when they sign up with a referral code.
-                            </p>
-                        </div>
                          <div className="space-y-2">
                             <Label htmlFor="referral-bonus">Referral Bonus</Label>
                             <Input
@@ -143,13 +86,16 @@ export default function SettingsPage() {
                             onChange={(e) => setReferralBonus(Number(e.target.value))}
                             />
                              <p className="text-sm text-muted-foreground">
-                                Bonus amount the referring user receives.
+                                Bonus amount the referring user receives when their referral takes a loan.
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <Button onClick={handleSave} className="mt-4">Save All Settings</Button>
+                <Button onClick={handleSave} className="mt-4">
+                  <Save className="mr-2 h-4 w-4" />
+                  Save All Settings
+                </Button>
             </>
            )}
         </CardContent>

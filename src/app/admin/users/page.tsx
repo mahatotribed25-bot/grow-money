@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -33,9 +34,7 @@ type User = {
   id: string;
   name: string;
   email: string;
-  walletBalance: number;
-  totalInvestment: number;
-  totalIncome: number;
+  panNumber?: string;
   status?: 'Active' | 'Blocked';
 };
 
@@ -78,9 +77,7 @@ export default function UsersPage() {
             <TableRow>
               <TableHead>User Name</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Wallet Balance</TableHead>
-              <TableHead>Total Investment</TableHead>
-              <TableHead>Total Income</TableHead>
+              <TableHead>PAN Number</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -88,7 +85,7 @@ export default function UsersPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={5} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -97,9 +94,7 @@ export default function UsersPage() {
                 <TableRow key={user.id}>
                   <TableCell>{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell>₹{(user.walletBalance || 0).toFixed(2)}</TableCell>
-                  <TableCell>₹{(user.totalInvestment || 0).toFixed(2)}</TableCell>
-                  <TableCell>₹{(user.totalIncome || 0).toFixed(2)}</TableCell>
+                  <TableCell>{user.panNumber || 'N/A'}</TableCell>
                   <TableCell>
                     <Badge variant={user.status !== 'Blocked' ? 'default' : 'destructive'}>
                       {user.status || 'Active'}
@@ -122,7 +117,7 @@ export default function UsersPage() {
                           <AlertDialogTitle>Are you sure you want to delete this user?</AlertDialogTitle>
                           <AlertDialogDescription>
                             This action cannot be undone. This will permanently delete the user account and remove their data from our servers.
-                          </AlertDialogDescription>
+                          </Description>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel onClick={() => setSelectedUser(null)}>Cancel</AlertDialogCancel>

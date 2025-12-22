@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -67,11 +68,15 @@ export default function LoginPage() {
       
       router.push("/");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Authentication Failed",
-        description: error.message,
-      });
+       let errorMessage = "An unexpected error occurred. Please try again.";
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            errorMessage = "Invalid email or password. Please check your credentials and try again.";
+        }
+        toast({
+            variant: "destructive",
+            title: "Authentication Failed",
+            description: errorMessage,
+        });
     }
   }
 

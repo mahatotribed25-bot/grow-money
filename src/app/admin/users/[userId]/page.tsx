@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -6,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Wallet, Briefcase, Download, Upload, Ban, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, User, Briefcase, Ban, RefreshCcw, Wallet, Download, Upload } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { where, doc, updateDoc, writeBatch, collection, getDocs, query } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -27,38 +28,19 @@ type UserData = {
   id: string;
   name: string;
   email: string;
-  walletBalance: number;
-  totalInvestment: number;
-  totalIncome: number;
+  panNumber?: string;
   status?: 'Active' | 'Blocked';
 };
 
-type Investment = {
+type Loan = {
   id: string;
   planName: string;
-  investmentAmount: number;
-  dailyIncome: number;
-  totalReturn: number;
+  loanAmount: number;
+  totalPayable: number;
   startDate: Timestamp;
-  endDate: Timestamp;
-  status: 'Active' | 'Completed';
-};
-
-type Deposit = {
-  id: string;
-  amount: number;
-  utr: string;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: Timestamp;
-};
-
-type Withdrawal = {
-  id: string;
-  amount: number;
-  upiId: string;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: Timestamp;
-};
+  dueDate: Timestamp;
+  status: 'Active' | 'Due' | 'Completed';
+}
 
 const formatDate = (timestamp: Timestamp) => {
   if (!timestamp) return 'N/A';
@@ -73,6 +55,7 @@ const getStatusVariant = (status: string) => {
       return 'default';
     case 'rejected':
     case 'Blocked':
+    case 'Due':
       return 'destructive';
     default:
       return 'secondary';
@@ -87,17 +70,9 @@ export default function UserDetailPage() {
   const { toast } = useToast();
 
   const { data: user, loading: userLoading } = useDoc<UserData>(userId ? `users/${userId}` : null);
-  const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
-  const { data: deposits, loading: depositsLoading } = useCollection<Deposit>(
-    userId ? 'deposits' : null,
-    where('userId', '==', userId)
-  );
-  const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Withdrawal>(
-    userId ? 'withdrawals' : null,
-    where('userId', '==', userId)
-  );
+  const { data: loans, loading: loansLoading } = useCollection<Loan>(userId ? `users/${userId}/loans` : null);
   
-  const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading;
+  const loading = userLoading || loansLoading;
 
   const handleToggleStatus = async () => {
     if (!user) return;
@@ -125,37 +100,23 @@ export default function UserDetailPage() {
     try {
         const batch = writeBatch(firestore);
 
-        // 1. Reset user document fields
-        const userRef = doc(firestore, 'users', userId);
-        batch.update(userRef, {
-            walletBalance: 0,
-            totalInvestment: 0,
-            totalIncome: 0
-        });
+        // Delete all loans
+        const loansRef = collection(firestore, 'users', userId, 'loans');
+        const loansSnapshot = await getDocs(loansRef);
+        loansSnapshot.forEach(doc => batch.delete(doc.ref));
 
-        // 2. Delete all investments
-        const investmentsRef = collection(firestore, 'users', userId, 'investments');
-        const investmentsSnapshot = await getDocs(investmentsRef);
-        investmentsSnapshot.forEach(doc => batch.delete(doc.ref));
-
-        // 3. Delete all deposits
-        const depositsRef = collection(firestore, 'deposits');
-        const depositsQuery = query(depositsRef, where('userId', '==', userId));
-        const depositsSnapshot = await getDocs(depositsQuery);
-        depositsSnapshot.forEach(doc => batch.delete(doc.ref));
-        
-        // 4. Delete all withdrawals
-        const withdrawalsRef = collection(firestore, 'withdrawals');
-        const withdrawalsQuery = query(withdrawalsRef, where('userId', '==', userId));
-        const withdrawalsSnapshot = await getDocs(withdrawalsQuery);
-        withdrawalsSnapshot.forEach(doc => batch.delete(doc.ref));
+        // Delete all loan requests
+        const loanRequestsRef = collection(firestore, 'loanRequests');
+        const loanRequestsQuery = query(loanRequestsRef, where('userId', '==', userId));
+        const loanRequestsSnapshot = await getDocs(loanRequestsQuery);
+        loanRequestsSnapshot.forEach(doc => batch.delete(doc.ref));
 
         // Commit the batch
         await batch.commit();
 
         toast({
-            title: 'User Data Reset',
-            description: `All financial data for ${user.name} has been erased.`,
+            title: 'User Loan Data Reset',
+            description: `All loan data for ${user.name} has been erased.`,
         });
 
     } catch (error) {
@@ -209,7 +170,7 @@ export default function UserDetailPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action is irreversible. This will permanently delete all of the user's investments, deposits, and withdrawal history, and reset their wallet balance, total investment, and total income to zero.
+                      This action is irreversible. This will permanently delete all of the user's loan history and active loans.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -230,68 +191,27 @@ export default function UserDetailPage() {
           </CardTitle>
           <CardDescription>{user.email}</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <InfoBox title="Wallet Balance" value={`₹${(user.walletBalance || 0).toFixed(2)}`} icon={Wallet} />
-          <InfoBox title="Total Investment" value={`₹${(user.totalInvestment || 0).toFixed(2)}`} icon={Briefcase} />
-          <InfoBox title="Total Income" value={`₹${(user.totalIncome || 0).toFixed(2)}`} icon={Download} />
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <InfoBox title="PAN Number" value={user.panNumber || 'Not provided'} icon={Briefcase} />
           <InfoBox title="Status" value={user.status || 'Active'} icon={User} badgeVariant={getStatusVariant(user.status || 'Active')} />
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="investments">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="investments">Investments</TabsTrigger>
-          <TabsTrigger value="deposits">Deposits</TabsTrigger>
-          <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
-        </TabsList>
-        <TabsContent value="investments">
-          <HistoryTable
-            title="Investment History"
-            headers={['Plan Name', 'Amount', 'Daily Income', 'Status', 'Start Date', 'End Date']}
-            items={investments}
-            renderRow={(item: Investment) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.planName}</TableCell>
-                <TableCell>₹{item.investmentAmount.toFixed(2)}</TableCell>
-                <TableCell>₹{item.dailyIncome.toFixed(2)}</TableCell>
-                <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
-                <TableCell>{formatDate(item.startDate)}</TableCell>
-                <TableCell>{formatDate(item.endDate)}</TableCell>
-              </TableRow>
-            )}
-          />
-        </TabsContent>
-        <TabsContent value="deposits">
-          <HistoryTable
-            title="Deposit History"
-            headers={['Amount', 'UTR', 'Status', 'Date']}
-            items={deposits}
-            renderRow={(item: Deposit) => (
-              <TableRow key={item.id}>
-                <TableCell>₹{item.amount.toFixed(2)}</TableCell>
-                <TableCell>{item.utr}</TableCell>
-                <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
-                <TableCell>{formatDate(item.createdAt)}</TableCell>
-              </TableRow>
-            )}
-          />
-        </TabsContent>
-        <TabsContent value="withdrawals">
-          <HistoryTable
-            title="Withdrawal History"
-            headers={['Amount', 'UPI ID', 'Status', 'Date']}
-            items={withdrawals}
-            renderRow={(item: Withdrawal) => (
-              <TableRow key={item.id}>
-                <TableCell>₹{item.amount.toFixed(2)}</TableCell>
-                <TableCell>{item.upiId}</TableCell>
-                <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
-                <TableCell>{formatDate(item.createdAt)}</TableCell>
-              </TableRow>
-            )}
-          />
-        </TabsContent>
-      </Tabs>
+      <HistoryTable
+        title="Loan History"
+        headers={['Plan Name', 'Amount', 'Total Payable', 'Status', 'Start Date', 'Due Date']}
+        items={loans}
+        renderRow={(item: Loan) => (
+          <TableRow key={item.id}>
+            <TableCell>{item.planName}</TableCell>
+            <TableCell>₹{item.loanAmount.toFixed(2)}</TableCell>
+            <TableCell>₹{item.totalPayable.toFixed(2)}</TableCell>
+            <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
+            <TableCell>{formatDate(item.startDate)}</TableCell>
+            <TableCell>{formatDate(item.dueDate)}</TableCell>
+          </TableRow>
+        )}
+      />
     </div>
   );
 }
@@ -306,7 +226,7 @@ function InfoBox({ title, value, icon: Icon, badgeVariant }: { title: string, va
       {badgeVariant ? (
         <Badge variant={badgeVariant} className="w-fit capitalize">{value}</Badge>
       ) : (
-        <p className="text-2xl font-bold">{value}</p>
+        <p className="text-lg font-bold">{value}</p>
       )}
     </div>
   )
@@ -341,5 +261,3 @@ function HistoryTable({ title, headers, items, renderRow }: { title: string, hea
     </Card>
   )
 }
-
-    

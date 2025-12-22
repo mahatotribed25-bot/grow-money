@@ -23,7 +23,7 @@ import {
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { collection, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -41,7 +41,12 @@ type LoanPlan = {
 type LoanRequest = {
   id: string;
   userId: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'sent';
+}
+
+type ActiveLoan = {
+    id: string;
+    status: 'Active' | 'Due' | 'Completed';
 }
 
 export default function LoansPage() {
@@ -50,13 +55,19 @@ export default function LoansPage() {
   const { toast } = useToast();
 
   const { data: loanPlans, loading: plansLoading } = useCollection<LoanPlan>('loanPlans');
+  
   const { data: userLoanRequests, loading: requestsLoading } = useCollection<LoanRequest>(
       'loanRequests',
        where('userId', '==', user?.uid || 'placeholder'),
-       where('status', '==', 'pending')
+  );
+
+  const { data: activeLoans, loading: activeLoansLoading } = useCollection<ActiveLoan>(
+    user ? `users/${user?.uid}/loans` : null,
+    where('status', '!=', 'Completed')
   );
   
-  const hasPendingRequest = (userLoanRequests && userLoanRequests.length > 0);
+  const hasPendingRequest = userLoanRequests?.some(req => req.status === 'pending');
+  const hasActiveLoan = activeLoans && activeLoans.length > 0;
 
   const handleApply = async (plan: LoanPlan) => {
     if (!user) {
@@ -65,6 +76,10 @@ export default function LoansPage() {
     }
     if (hasPendingRequest) {
         toast({ variant: 'destructive', title: 'You already have a pending loan request.' });
+        return;
+    }
+    if (hasActiveLoan) {
+        toast({ variant: 'destructive', title: 'You already have an active loan.' });
         return;
     }
 
@@ -100,6 +115,8 @@ export default function LoansPage() {
             });
         });
   };
+  
+  const loading = plansLoading || requestsLoading || activeLoansLoading;
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -115,20 +132,23 @@ export default function LoansPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-4">
-            {hasPendingRequest && (
+            {(hasPendingRequest || hasActiveLoan) && (
                 <Card className="bg-yellow-500/10 border-yellow-500/50">
                     <CardContent className="p-4 text-center text-yellow-300">
-                        <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>
+                        {hasActiveLoan 
+                            ? <p>You have an active loan. You must repay it before applying for a new one.</p>
+                            : <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>
+                        }
                     </CardContent>
                 </Card>
             )}
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {plansLoading ? (
+                {loading ? (
                     <p>Loading loan plans...</p>
                 ) : loanPlans && loanPlans.length > 0 ? (
                     loanPlans.map((plan) => (
-                        <LoanPlanCard key={plan.id} plan={plan} onApply={handleApply} disabled={hasPendingRequest}/>
+                        <LoanPlanCard key={plan.id} plan={plan} onApply={handleApply} disabled={hasPendingRequest || hasActiveLoan}/>
                     ))
                 ) : (
                     <p>No loan plans are available at the moment.</p>
@@ -138,9 +158,8 @@ export default function LoansPage() {
       </main>
 
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
-          <BottomNavItem icon={FileText} label="My Plans" href="/plans" />
           <BottomNavItem icon={HandCoins} label="Loans" href="/loans" active />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
