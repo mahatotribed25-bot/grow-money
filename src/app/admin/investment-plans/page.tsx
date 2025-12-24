@@ -49,6 +49,7 @@ type InvestmentPlan = {
   totalIncome: number;
   finalReturn: number;
   status: 'Available' | 'Coming Soon';
+  stock?: number;
 };
 
 const emptyPlan: Omit<InvestmentPlan, 'id'> = {
@@ -59,6 +60,7 @@ const emptyPlan: Omit<InvestmentPlan, 'id'> = {
   totalIncome: 0,
   finalReturn: 0,
   status: 'Available',
+  stock: 100,
 };
 
 export default function InvestmentPlansPage() {
@@ -107,6 +109,7 @@ export default function InvestmentPlansPage() {
         totalIncome,
         finalReturn,
         status: editingPlan.status || 'Available',
+        stock: Number(editingPlan.stock || 0),
     };
 
     try {
@@ -130,7 +133,7 @@ export default function InvestmentPlansPage() {
   const handleFieldChange = (field: keyof Omit<InvestmentPlan, 'id' | 'totalIncome' | 'finalReturn'>, value: any) => {
     if (!editingPlan) return;
     const parsedValue =
-      ['price', 'dailyIncome', 'validity'].includes(field) &&
+      ['price', 'dailyIncome', 'validity', 'stock'].includes(field) &&
       typeof value === 'string'
         ? parseFloat(value)
         : value;
@@ -158,8 +161,7 @@ export default function InvestmentPlansPage() {
               <TableHead>Price</TableHead>
               <TableHead>Daily Income</TableHead>
               <TableHead>Validity</TableHead>
-              <TableHead>Total Income</TableHead>
-              <TableHead>Final Return</TableHead>
+              <TableHead>Stock</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -167,7 +169,7 @@ export default function InvestmentPlansPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -178,8 +180,7 @@ export default function InvestmentPlansPage() {
                   <TableCell>₹{(plan.price || 0).toFixed(2)}</TableCell>
                   <TableCell>₹{(plan.dailyIncome || 0).toFixed(2)}</TableCell>
                   <TableCell>{plan.validity} days</TableCell>
-                  <TableCell>₹{(plan.totalIncome || 0).toFixed(2)}</TableCell>
-                  <TableCell>₹{(plan.finalReturn || 0).toFixed(2)}</TableCell>
+                  <TableCell>{plan.stock ?? 'N/A'}</TableCell>
                   <TableCell>
                     <Badge variant={getStatusVariant(plan.status)}>
                         {plan.status}
@@ -268,6 +269,18 @@ export default function InvestmentPlansPage() {
                 className="col-span-3"
               />
             </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="stock" className="text-right">
+                    Stock
+                </Label>
+                <Input
+                    id="stock"
+                    type="number"
+                    value={editingPlan?.stock || 100}
+                    onChange={(e) => handleFieldChange('stock', e.target.value)}
+                    className="col-span-3"
+                />
+            </div>
              <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="status" className="text-right">
                     Status
@@ -297,3 +310,5 @@ export default function InvestmentPlansPage() {
     </div>
   );
 }
+
+    

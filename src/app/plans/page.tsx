@@ -33,6 +33,7 @@ type InvestmentPlan = {
   totalIncome: number;
   finalReturn: number;
   status: 'Available' | 'Coming Soon';
+  stock?: number;
 };
 
 type UserData = {
@@ -56,8 +57,8 @@ export default function PlansPage() {
         return;
     }
     
-    if (plan.status !== 'Available') {
-        toast({ variant: 'destructive', title: 'Plan Not Available', description: 'This plan is not available for investment yet.' });
+    if (plan.status !== 'Available' || (plan.stock !== undefined && plan.stock <= 0)) {
+        toast({ variant: 'destructive', title: 'Plan Not Available', description: 'This plan is either not available or out of stock.' });
         return;
     }
 
@@ -71,9 +72,23 @@ export default function PlansPage() {
     try {
         await runTransaction(firestore, async (transaction) => {
             const userRef = doc(firestore, 'users', user.uid);
+            const planRef = doc(firestore, 'investmentPlans', plan.id);
+
             const userDoc = await transaction.get(userRef);
+            const planDoc = await transaction.get(planRef);
 
             if (!userDoc.exists()) throw "User does not exist";
+            if (!planDoc.exists()) throw "Plan does not exist";
+
+            const currentStock = planDoc.data().stock;
+            if (currentStock !== undefined && currentStock <= 0) {
+                throw "Plan is out of stock.";
+            }
+
+            // Decrement stock if it exists
+            if (currentStock !== undefined) {
+                transaction.update(planRef, { stock: currentStock - 1 });
+            }
 
             const newWalletBalance = (userDoc.data().walletBalance || 0) - planPrice;
             const newTotalInvestment = (userDoc.data().totalInvestment || 0) + planPrice;
@@ -127,9 +142,9 @@ export default function PlansPage() {
             description: `You have successfully invested in the ${plan.name}.`,
         });
 
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
-        toast({ variant: 'destructive', title: 'Investment Failed', description: 'Could not process your investment. Please try again.'});
+        toast({ variant: 'destructive', title: 'Investment Failed', description: e.message || 'Could not process your investment. Please try again.'});
     }
 
   };
@@ -197,13 +212,18 @@ export default function PlansPage() {
 function PlanCard({ plan, onInvest, userBalance }: { plan: InvestmentPlan, onInvest: (plan: InvestmentPlan) => void, userBalance: number }) {
   const canAfford = userBalance >= (plan.price || 0);
   const isAvailable = plan.status === 'Available';
+  const isOutOfStock = plan.stock !== undefined && plan.stock <= 0;
 
   return (
-    <Card className={`shadow-lg border-border/50 bg-gradient-to-br from-secondary/50 to-background ${!isAvailable && 'opacity-60'}`}>
+    <Card className={`shadow-lg border-border/50 bg-gradient-to-br from-secondary/50 to-background ${(!isAvailable || isOutOfStock) && 'opacity-60'}`}>
       <CardHeader>
         <div className="flex justify-between items-center">
             <CardTitle className="text-primary">{plan.name}</CardTitle>
-            {!isAvailable && <Badge variant="outline">Coming Soon</Badge>}
+            {isOutOfStock ? (
+                <Badge variant="destructive">Out of Stock</Badge>
+            ) : !isAvailable && (
+                <Badge variant="outline">Coming Soon</Badge>
+            )}
         </div>
         <CardDescription>Investment: ₹{(plan.price || 0).toFixed(2)}</CardDescription>
       </CardHeader>
@@ -212,8 +232,9 @@ function PlanCard({ plan, onInvest, userBalance }: { plan: InvestmentPlan, onInv
         <PlanDetail label="Validity" value={`${plan.validity || 0} Days`} />
         <PlanDetail label="Total Income" value={`₹${(plan.totalIncome || 0).toFixed(2)}`} />
         <PlanDetail label="Final Return (Inc. Principal)" value={`₹${(plan.finalReturn || 0).toFixed(2)}`} />
-        <Button className="w-full" onClick={() => onInvest(plan)} disabled={!canAfford || !isAvailable}>
-          {isAvailable ? (canAfford ? 'Invest Now' : 'Insufficient Balance') : 'Coming Soon'}
+        {plan.stock !== undefined && isAvailable && <PlanDetail label="Units Left" value={`${plan.stock}`} />}
+        <Button className="w-full" onClick={() => onInvest(plan)} disabled={!canAfford || !isAvailable || isOutOfStock}>
+          {isOutOfStock ? 'Out of Stock' : isAvailable ? (canAfford ? 'Invest Now' : 'Insufficient Balance') : 'Coming Soon'}
         </Button>
       </CardContent>
     </Card>
@@ -252,3 +273,5 @@ function BottomNavItem({
     </Link>
   );
 }
+
+    

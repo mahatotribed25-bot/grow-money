@@ -87,6 +87,10 @@
             "type": "string",
             "enum": ["Available", "Coming Soon"],
             "description": "The visibility status of the plan."
+        },
+        "stock": {
+            "type": "number",
+            "description": "Total available units of this plan."
         }
       },
       "required": [
@@ -394,3 +398,5 @@
     }
   }
 }
+
+    
