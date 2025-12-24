@@ -33,7 +33,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-type DurationType = 'Days' | 'Weeks' | 'Months';
+type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
 type LoanPlan = {
   id: string;
@@ -255,6 +255,7 @@ export default function LoanPlansPage() {
                         <SelectItem value="Days">Days</SelectItem>
                         <SelectItem value="Weeks">Weeks</SelectItem>
                         <SelectItem value="Months">Months</SelectItem>
+                        <SelectItem value="Years">Years</SelectItem>
                     </SelectContent>
                 </Select>
               </div>

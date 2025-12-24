@@ -34,6 +34,10 @@ type Transaction = {
   createdAt: Timestamp;
 };
 
+type ActiveLoan = {
+    id: string;
+}
+
 // Function to process data for the chart
 const processFinancialData = (
   deposits: Transaction[] | null,
@@ -84,11 +88,15 @@ export default function AdminDashboard() {
     useCollection<Transaction>('withdrawals');
     
   const { data: investmentPlans, loading: plansLoading } =
-    useCollection<InvestmentPlan>('investmentPlans');
+    useCollection('investmentPlans');
+
+  const { data: activeLoans, loading: loansLoading } = useCollection<ActiveLoan>('loanRequests', {
+      where: ['status', 'in', ['approved', 'sent']]
+  });
 
 
   const loading =
-    usersLoading || depositsLoading || withdrawalsLoading || plansLoading;
+    usersLoading || depositsLoading || withdrawalsLoading || plansLoading || loansLoading;
 
   const totalUsers =
     users?.filter((u) => u.email !== 'admin@tribed.world').length || 0;
@@ -97,11 +105,8 @@ export default function AdminDashboard() {
   const pendingDeposits = deposits?.filter(d => d.status === 'pending').length || 0;
   const pendingWithdrawals = withdrawals?.filter(w => w.status === 'pending').length || 0;
   const activePlans = investmentPlans?.length || 0;
+  const totalActiveLoans = activeLoans?.length || 0;
   
-  type InvestmentPlan = {
-      id: string;
-  }
-
   const stats = [
     {
       title: 'Total Users',
@@ -128,13 +133,18 @@ export default function AdminDashboard() {
       value: loading ? '...' : activePlans,
       icon: Briefcase,
     },
+    {
+      title: 'Active Loans',
+      value: loading ? '...' : totalActiveLoans,
+      icon: HandCoins,
+    },
   ];
 
   const financialChartData = processFinancialData(deposits, withdrawals);
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

@@ -276,7 +276,7 @@
         "interest": { "type": "number" },
         "totalRepayment": { "type": "number" },
         "duration": { "type": "number", "description": "Duration value (e.g., 10, 2, 3)." },
-        "durationType": { "type": "string", "enum": ["Days", "Weeks", "Months"], "description": "The unit for the duration."},
+        "durationType": { "type": "string", "enum": ["Days", "Weeks", "Months", "Years"], "description": "The unit for the duration."},
         "emiOption": { "type": "boolean" },
         "directPayOption": { "type": "boolean" }
       },
@@ -289,6 +289,7 @@
       "properties": {
         "userId": { "type": "string" },
         "userName": { "type": "string" },
+        "userUpiId": { "type": "string" },
         "planId": { "type": "string" },
         "planName": { "type": "string" },
         "loanAmount": { "type": "number" },
@@ -309,10 +310,10 @@
             "interest": { "type": "number" },
             "totalPayable": { "type": "number" },
             "duration": { "type": "number" },
-            "durationType": { "type": "string", "enum": ["Days", "Weeks", "Months"]},
+            "durationType": { "type": "string", "enum": ["Days", "Weeks", "Months", "Years"]},
             "startDate": { "type": "string", "format": "date-time" },
             "dueDate": { "type": "string", "format": "date-time" },
-            "status": { "type": "string", "enum": ["Active", "Due", "Completed"] },
+            "status": { "type": "string", "enum": ["Active", "Due", "Completed", "Payment Pending"] },
             "amountPaid": { "type": "number" }
         },
         "required": ["userId", "planName", "loanAmount", "totalPayable", "duration", "durationType", "startDate", "dueDate", "status"]
@@ -378,5 +379,3 @@
     }
   }
 }
-
-    

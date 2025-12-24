@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Briefcase, Ban, RefreshCcw, Wallet, Download, Upload, Fingerprint, HandCoins } from 'lucide-react';
+import { ArrowLeft, User, Briefcase, Ban, RefreshCcw, Wallet, Download, Upload, Fingerprint, HandCoins, CheckCircle } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, writeBatch, collection, getDocs, query } from 'firebase/firestore';
+import { doc, updateDoc, writeBatch, collection, getDocs } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -60,7 +60,7 @@ type ActiveLoan = {
     loanAmount: number;
     totalPayable: number;
     dueDate: Timestamp;
-    status: 'Active' | 'Due' | 'Completed';
+    status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
 }
 
 const formatDate = (timestamp: Timestamp) => {
@@ -79,6 +79,8 @@ const getStatusVariant = (status: string) => {
     case 'Blocked':
     case 'Due':
       return 'destructive';
+    case 'Payment Pending':
+        return 'outline'
     default:
       return 'secondary';
   }
@@ -177,6 +179,25 @@ export default function UserDetailPage() {
     }
   }
 
+  const handleCompleteLoan = async (loanId: string) => {
+    if (!user) return;
+    try {
+      const loanRef = doc(firestore, 'users', userId, 'loans', loanId);
+      await updateDoc(loanRef, { status: 'Completed', amountPaid: 'totalPayable' }); // Consider adding logic for partial payments
+      toast({
+        title: 'Loan Completed',
+        description: 'The loan has been marked as completed.',
+      });
+    } catch (error) {
+      console.error('Error completing loan:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to complete the loan.',
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   if (loading) {
     return (
@@ -273,15 +294,27 @@ export default function UserDetailPage() {
         </TabsContent>
          <TabsContent value="loans">
            <HistoryTable
-              headers={['Plan Name', 'Loan Amount', 'Total Payable', 'Status', 'Due Date']}
+              headers={['Plan Name', 'Loan Amount', 'Total Payable', 'Status', 'Due Date', 'Actions']}
               items={loans}
               renderRow={(item: ActiveLoan) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.planName}</TableCell>
                   <TableCell>₹{(item.loanAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>₹{(item.totalPayable || 0).toFixed(2)}</TableCell>
-                  <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
+                  <TableCell><Badge variant={getStatusVariant(item.status)} className="capitalize">{item.status}</Badge></TableCell>
                   <TableCell>{formatDate(item.dueDate)}</TableCell>
+                   <TableCell>
+                    {item.status === 'Payment Pending' && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleCompleteLoan(item.id)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Confirm & Complete
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               )}
             />
@@ -333,14 +366,9 @@ function InfoBox({ title, value, icon: Icon, badgeVariant }: { title: string, va
   )
 }
 
-function HistoryTable({ title, headers, items, renderRow }: { title?: string, headers: string[], items: any[] | null, renderRow: (item: any) => React.ReactNode }) {
+function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null, renderRow: (item: any) => React.ReactNode }) {
   return (
     <Card>
-      {title && 
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-      }
       <CardContent className="pt-6">
         <div className="rounded-lg border">
           <Table>

@@ -6,11 +6,10 @@ import {
   Home,
   User,
   HandCoins,
-  FileText,
+  Briefcase,
   IndianRupee,
   Calendar,
   Percent,
-  Briefcase,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -24,13 +23,13 @@ import {
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 
-type DurationType = 'Days' | 'Weeks' | 'Months';
+type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
 type LoanPlan = {
   id: string;
@@ -52,11 +51,12 @@ type LoanRequest = {
 
 type ActiveLoan = {
     id: string;
-    status: 'Active' | 'Due' | 'Completed';
+    status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
 }
 
 type UserData = {
     panCard?: string;
+    upiId?: string;
 }
 
 export default function LoansPage() {
@@ -82,7 +82,7 @@ export default function LoansPage() {
   const hasPanCard = !!userData?.panCard;
 
   const handleApply = async (plan: LoanPlan, repaymentMethod: string) => {
-    if (!user) {
+    if (!user || !userData) {
         toast({ variant: 'destructive', title: 'You must be logged in.' });
         return;
     }
@@ -107,6 +107,7 @@ export default function LoansPage() {
     const requestData = {
         userId: user.uid,
         userName: user.displayName || 'N/A',
+        userUpiId: userData.upiId || '',
         planId: plan.id,
         planName: plan.name,
         loanAmount: plan.loanAmount,
@@ -222,7 +223,7 @@ function LoanPlanCard({ plan, onApply, disabled }: { plan: LoanPlan, onApply: (p
         {showRepaymentOptions && (
           <div className="space-y-2">
             <Label>Choose Repayment Method</Label>
-            <RadioGroup onValueChange={setRepaymentMethod} value={repaymentMethod}>
+            <RadioGroup onValueChange={setRepaymentMethod} value={repaymentMethod} required>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="EMI" id={`emi-${plan.id}`} />
                 <Label htmlFor={`emi-${plan.id}`}>EMI</Label>
@@ -288,5 +289,3 @@ function BottomNavItem({
     </Link>
   );
 }
-
-    

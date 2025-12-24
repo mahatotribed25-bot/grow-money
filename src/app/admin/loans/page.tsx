@@ -17,13 +17,12 @@ import { useCollection, useFirestore } from '@/firebase';
 import {
   doc,
   updateDoc,
-  runTransaction,
-  collection,
   writeBatch,
+  collection,
   Timestamp,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { addDays, addWeeks, addMonths } from 'date-fns';
+import { addDays, addWeeks, addMonths, addYears } from 'date-fns';
 
 type LoanRequest = {
   id: string;
@@ -34,9 +33,10 @@ type LoanRequest = {
   createdAt: Timestamp;
   status: 'pending' | 'approved' | 'rejected' | 'sent';
   planId: string;
+  userUpiId?: string; // Add this field
 };
 
-type DurationType = 'Days' | 'Weeks' | 'Months';
+type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
 type LoanPlan = {
     id: string;
@@ -92,8 +92,11 @@ export default function LoanRequestsPage() {
                 case 'Months':
                     dueDate = addMonths(startDate, plan.duration);
                     break;
+                case 'Years':
+                    dueDate = addYears(startDate, plan.duration);
+                    break;
                 default:
-                    dueDate = addDays(startDate, plan.duration); // Fallback to days
+                    dueDate = addDays(startDate, plan.duration); // Fallback
             }
 
             batch.set(loanRef, {
@@ -161,6 +164,7 @@ export default function LoanRequestsPage() {
               <TableHead>User Name</TableHead>
               <TableHead>Plan Name</TableHead>
               <TableHead>Loan Amount</TableHead>
+              <TableHead>User UPI</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
@@ -169,7 +173,7 @@ export default function LoanRequestsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -179,6 +183,7 @@ export default function LoanRequestsPage() {
                   <TableCell>{request.userName}</TableCell>
                   <TableCell>{request.planName}</TableCell>
                   <TableCell>₹{(request.loanAmount || 0).toFixed(2)}</TableCell>
+                  <TableCell>{request.userUpiId || 'N/A'}</TableCell>
                   <TableCell>{formatDate(request.createdAt)}</TableCell>
                   <TableCell>
                     <Badge

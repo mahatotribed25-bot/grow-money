@@ -11,13 +11,15 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser } from '@/firebase/auth/use-user';
-import { useCollection } from '@/firebase';
+import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useEffect, useState } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
-type DurationType = 'Days' | 'Weeks' | 'Months';
+type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
 type ActiveLoan = {
   id: string;
@@ -26,7 +28,7 @@ type ActiveLoan = {
   totalPayable: number;
   startDate: Timestamp;
   dueDate: Timestamp;
-  status: 'Active' | 'Due' | 'Completed';
+  status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
   duration: number;
   durationType: DurationType;
 };
@@ -68,7 +70,7 @@ export default function MyLoansPage() {
     );
 
   const loading = userLoading || loansLoading;
-  const loan = activeLoans?.[0]; // Assuming one active loan at a time
+  const loan = activeLoans?.find(l => l.status !== 'Completed'); 
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -115,6 +117,10 @@ export default function MyLoansPage() {
 
 
 function LoanCard({ loan }: { loan: ActiveLoan }) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
   if (!loan.startDate || !loan.dueDate) {
     return null;
   }
@@ -127,12 +133,40 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
   const elapsedDuration = now.getTime() - startDate.getTime();
   const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
 
+  const handlePayNow = async () => {
+    if (!user) return;
+    const loanRef = doc(firestore, 'users', user.uid, 'loans', loan.id);
+    try {
+      await updateDoc(loanRef, { status: 'Payment Pending' });
+      toast({
+        title: 'Payment Initiated',
+        description: 'Your payment is being processed. The admin will confirm it shortly.',
+      });
+    } catch (error) {
+      console.error('Error initiating payment:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not initiate payment. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+        case 'Active': return 'default';
+        case 'Due': return 'destructive';
+        case 'Payment Pending': return 'outline';
+        default: return 'secondary';
+    }
+  }
+
   return (
     <Card className="bg-secondary/30">
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>{loan.planName}</span>
-          <Badge variant={loan.status === 'Active' ? 'default': 'outline'}>
+          <Badge variant={getStatusVariant(loan.status)} className="capitalize">
             {loan.status}
           </Badge>
         </CardTitle>
@@ -159,7 +193,16 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
             Due on: {dueDate.toLocaleDateString()}
           </p>
         </div>
-        <Button className="w-full" disabled>Pay Now (Feature Coming)</Button>
+        <Button 
+            className="w-full" 
+            onClick={handlePayNow} 
+            disabled={loan.status === 'Payment Pending' || loan.status === 'Completed'}
+        >
+            {loan.status === 'Payment Pending' ? 'Processing Payment...' : 'Pay Now'}
+        </Button>
+         <p className="text-xs text-muted-foreground text-center">
+            Note: Clicking 'Pay Now' will deduct the amount from your wallet. Admin will confirm the payment.
+        </p>
       </CardContent>
     </Card>
   );
@@ -189,5 +232,3 @@ function BottomNavItem({
     </Link>
   );
 }
-
-    
