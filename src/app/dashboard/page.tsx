@@ -584,6 +584,10 @@ function WithdrawButton({ minWithdrawal, currentBalance }: { minWithdrawal?: num
 
 
 function ActivePlanCard({ investment, onMaturity }: { investment: Investment, onMaturity: () => void }) {
+  if (!investment.startDate || !investment.maturityDate) {
+    return null;
+  }
+  
   const startDate = investment.startDate.toDate();
   const maturityDate = investment.maturityDate.toDate();
   const now = new Date();
