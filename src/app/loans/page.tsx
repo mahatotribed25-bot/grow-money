@@ -1,6 +1,6 @@
 
 'use client';
-
+import { useState } from 'react';
 import {
   ChevronLeft,
   Home,
@@ -22,11 +22,14 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { useUser } from '@/firebase/auth/use-user';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
+
 
 type LoanPlan = {
   id: string;
@@ -50,6 +53,10 @@ type ActiveLoan = {
     status: 'Active' | 'Due' | 'Completed';
 }
 
+type UserData = {
+    panCard?: string;
+}
+
 export default function LoansPage() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -65,12 +72,20 @@ export default function LoansPage() {
     user ? query(collection(firestore, 'users', user.uid, 'loans'), where('status', '!=', 'Completed')) : null,
   );
   
+  const { data: userData, loading: userLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+
+  
   const hasPendingRequest = userLoanRequests?.some(req => req.status === 'pending');
   const hasActiveLoan = activeLoans && activeLoans.length > 0;
+  const hasPanCard = !!userData?.panCard;
 
-  const handleApply = async (plan: LoanPlan) => {
+  const handleApply = async (plan: LoanPlan, repaymentMethod: string) => {
     if (!user) {
         toast({ variant: 'destructive', title: 'You must be logged in.' });
+        return;
+    }
+    if (!hasPanCard) {
+        toast({ variant: 'destructive', title: 'PAN Card Required', description: "Please add your PAN card in your profile before applying for a loan." });
         return;
     }
     if (hasPendingRequest) {
@@ -81,6 +96,11 @@ export default function LoansPage() {
         toast({ variant: 'destructive', title: 'You already have an active loan.' });
         return;
     }
+    if ((plan.emiOption && plan.directPayOption) && !repaymentMethod) {
+        toast({ variant: 'destructive', title: 'Repayment Method Required', description: "Please select a repayment method." });
+        return;
+    }
+
 
     const requestData = {
         userId: user.uid,
@@ -90,6 +110,7 @@ export default function LoansPage() {
         loanAmount: plan.loanAmount,
         status: 'pending',
         createdAt: serverTimestamp(),
+        repaymentMethod: repaymentMethod,
     };
 
     const requestsRef = collection(firestore, 'loanRequests');
@@ -115,7 +136,9 @@ export default function LoansPage() {
         });
   };
   
-  const loading = plansLoading || requestsLoading || activeLoansLoading;
+  const loading = plansLoading || requestsLoading || activeLoansLoading || userLoading;
+  
+  const disableApplication = !!(hasPendingRequest || hasActiveLoan || !hasPanCard);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -131,12 +154,14 @@ export default function LoansPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-4">
-            {(hasPendingRequest || hasActiveLoan) && (
+            {(hasPendingRequest || hasActiveLoan || !hasPanCard) && (
                 <Card className="bg-yellow-500/10 border-yellow-500/50">
                     <CardContent className="p-4 text-center text-yellow-300">
                         {hasActiveLoan 
                             ? <p>You have an active loan. You must repay it before applying for a new one. <Link href="/my-loans" className="underline">View loan details.</Link></p>
-                            : <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>
+                            : hasPendingRequest
+                            ? <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>
+                            : !hasPanCard && <p>Please update your profile with your PAN card number to be eligible for a loan. <Link href="/profile" className="underline">Go to Profile.</Link></p>
                         }
                     </CardContent>
                 </Card>
@@ -147,7 +172,7 @@ export default function LoansPage() {
                     <p>Loading loan plans...</p>
                 ) : loanPlans && loanPlans.length > 0 ? (
                     loanPlans.map((plan) => (
-                        <LoanPlanCard key={plan.id} plan={plan} onApply={handleApply} disabled={!!(hasPendingRequest || hasActiveLoan)}/>
+                        <LoanPlanCard key={plan.id} plan={plan} onApply={handleApply} disabled={disableApplication}/>
                     ))
                 ) : (
                     <p>No loan plans are available at the moment.</p>
@@ -168,7 +193,19 @@ export default function LoansPage() {
   );
 }
 
-function LoanPlanCard({ plan, onApply, disabled }: { plan: LoanPlan, onApply: (plan: LoanPlan) => void, disabled: boolean }) {
+function LoanPlanCard({ plan, onApply, disabled }: { plan: LoanPlan, onApply: (plan: LoanPlan, repaymentMethod: string) => void, disabled: boolean }) {
+  const [repaymentMethod, setRepaymentMethod] = useState('');
+  
+  const showRepaymentOptions = plan.emiOption && plan.directPayOption;
+
+  const handleApplyClick = () => {
+    let method = '';
+    if (plan.emiOption && !plan.directPayOption) method = 'EMI';
+    else if (!plan.emiOption && plan.directPayOption) method = 'Direct';
+    else method = repaymentMethod;
+    onApply(plan, method);
+  }
+
   return (
     <Card className="shadow-lg border-border/50 bg-gradient-to-br from-secondary/50 to-background">
       <CardHeader>
@@ -178,12 +215,29 @@ function LoanPlanCard({ plan, onApply, disabled }: { plan: LoanPlan, onApply: (p
       <CardContent className="space-y-4">
         <LoanDetail icon={Percent} label="Interest" value={`₹${(plan.interest || 0).toFixed(2)}`} />
         <LoanDetail icon={IndianRupee} label="Total Repayment" value={`₹${(plan.totalRepayment || 0).toFixed(2)}`} />
-        <LoanDetail icon={Calendar} label="Duration" value={`${plan.duration} Months`} />
+        <LoanDetail icon={Calendar} label="Duration" value={`${plan.duration} Days`} />
+        
+        {showRepaymentOptions && (
+          <div className="space-y-2">
+            <Label>Choose Repayment Method</Label>
+            <RadioGroup onValueChange={setRepaymentMethod} value={repaymentMethod}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="EMI" id={`emi-${plan.id}`} />
+                <Label htmlFor={`emi-${plan.id}`}>EMI</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="Direct" id={`direct-${plan.id}`} />
+                <Label htmlFor={`direct-${plan.id}`}>Direct Pay</Label>
+              </div>
+            </RadioGroup>
+          </div>
+        )}
+
         <div className="flex justify-around text-xs">
-            {plan.emiOption && <span className="text-green-400">EMI Available</span>}
-            {plan.directPayOption && <span className="text-green-400">Full Payment Available</span>}
+            {plan.emiOption && !showRepaymentOptions && <span className="text-green-400">EMI Available</span>}
+            {plan.directPayOption && !showRepaymentOptions && <span className="text-green-400">Full Payment Available</span>}
         </div>
-        <Button className="w-full" onClick={() => onApply(plan)} disabled={disabled}>Apply Now</Button>
+        <Button className="w-full" onClick={handleApplyClick} disabled={disabled}>Apply Now</Button>
       </CardContent>
     </Card>
   );

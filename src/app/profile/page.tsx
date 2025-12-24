@@ -10,7 +10,8 @@ import {
   Home,
   Briefcase,
   Copy,
-  Gift
+  Gift,
+  CreditCard
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,7 @@ type Transaction = {
 type UserData = {
   referralCode?: string;
   upiId?: string;
+  panCard?: string;
 };
 
 export default function ProfilePage() {
@@ -50,16 +52,19 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const { data: deposits } = useCollection<Transaction>(user ? 'deposits' : null);
-  const { data: withdrawals } = useCollection<Transaction>(user ? 'withdrawals' : null);
-  const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+  const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null);
+  const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null);
+  const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   
   const [upiId, setUpiId] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
+  const [panCard, setPanCard] = useState('');
+  const [isUpiEditing, setIsUpiEditing] = useState(false);
+  const [isPanEditing, setIsPanEditing] = useState(false);
   
   useEffect(() => {
     if (userData) {
       setUpiId(userData.upiId || '');
+      setPanCard(userData.panCard || '');
     }
   }, [userData]);
 
@@ -91,12 +96,42 @@ export default function ProfilePage() {
               title: "UPI ID Saved",
               description: "Your UPI ID has been updated successfully."
           });
-          setIsEditing(false);
+          setIsUpiEditing(false);
       } catch (error) {
           console.error("Error saving UPI ID:", error);
           toast({
               title: "Update Failed",
               description: "Could not save your UPI ID. Please try again.",
+              variant: "destructive",
+          })
+      }
+  }
+  
+  const handleSavePan = async () => {
+      if (!user) return;
+      // Basic PAN validation
+      const panRegex = /[A-Z]{5}[0-9]{4}[A-Z]{1}/;
+      if (!panRegex.test(panCard)) {
+          toast({
+              title: "Invalid PAN",
+              description: "Please enter a valid PAN card number.",
+              variant: "destructive",
+          });
+          return;
+      }
+      const userRef = doc(firestore, 'users', user.uid);
+      try {
+          await updateDoc(userRef, { panCard: panCard });
+          toast({
+              title: "PAN Card Saved",
+              description: "Your PAN card number has been updated."
+          });
+          setIsPanEditing(false);
+      } catch (error) {
+          console.error("Error saving PAN:", error);
+          toast({
+              title: "Update Failed",
+              description: "Could not save your PAN card. Please try again.",
               variant: "destructive",
           })
       }
@@ -120,18 +155,30 @@ export default function ProfilePage() {
             <CardTitle>My Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <InfoRow icon={User} label="Name" value={user?.displayName || 'N/A'} />
-            <Separator />
-            <InfoRow icon={Mail} label="Email" value={user?.email || 'N/A'} />
-            <Separator />
-             <div className="space-y-2">
-                <Label htmlFor="upiId">Your UPI ID</Label>
-                <div className="flex gap-2">
-                    <Input id="upiId" value={upiId} onChange={(e) => {setUpiId(e.target.value); setIsEditing(true);}} placeholder="your-upi@bank" />
-                    {isEditing && <Button onClick={handleSaveUpi}>Save</Button>}
-                </div>
-                <p className="text-xs text-muted-foreground">Your withdrawals will be sent to this UPI ID.</p>
-             </div>
+            {userDataloading ? <p>Loading...</p> : <>
+              <InfoRow icon={User} label="Name" value={user?.displayName || 'N/A'} />
+              <Separator />
+              <InfoRow icon={Mail} label="Email" value={user?.email || 'N/A'} />
+              <Separator />
+              <div className="space-y-2">
+                  <Label htmlFor="panCard">Your PAN Card</Label>
+                  <div className="flex gap-2">
+                      <Input id="panCard" value={panCard} onChange={(e) => {setPanCard(e.target.value.toUpperCase()); setIsPanEditing(true);}} placeholder="ABCDE1234F" maxLength={10} />
+                      {isPanEditing && <Button onClick={handleSavePan}>Save</Button>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Required for applying for loans.</p>
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                  <Label htmlFor="upiId">Your UPI ID</Label>
+                  <div className="flex gap-2">
+                      <Input id="upiId" value={upiId} onChange={(e) => {setUpiId(e.target.value); setIsUpiEditing(true);}} placeholder="your-upi@bank" />
+                      {isUpiEditing && <Button onClick={handleSaveUpi}>Save</Button>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Your withdrawals will be sent to this UPI ID.</p>
+              </div>
+            </>
+          }
           </CardContent>
         </Card>
         

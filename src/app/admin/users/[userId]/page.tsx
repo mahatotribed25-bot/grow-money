@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Briefcase, Ban, RefreshCcw, Wallet, Download, Upload, Fingerprint } from 'lucide-react';
+import { ArrowLeft, User, Briefcase, Ban, RefreshCcw, Wallet, Download, Upload, Fingerprint, HandCoins } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, writeBatch, collection, getDocs, query } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,6 +33,7 @@ type UserData = {
   totalInvestment?: number;
   totalIncome?: number;
   status?: 'Active' | 'Blocked';
+  panCard?: string;
 };
 
 type Investment = {
@@ -53,6 +54,15 @@ type Transaction = {
   userId?: string;
 }
 
+type ActiveLoan = {
+    id: string;
+    planName: string;
+    loanAmount: number;
+    totalPayable: number;
+    dueDate: Timestamp;
+    status: 'Active' | 'Due' | 'Completed';
+}
+
 const formatDate = (timestamp: Timestamp) => {
   if (!timestamp) return 'N/A';
   return new Date(timestamp.seconds * 1000).toLocaleString();
@@ -63,9 +73,11 @@ const getStatusVariant = (status: string) => {
     case 'approved':
     case 'Active':
     case 'Matured':
+    case 'Completed':
       return 'default';
     case 'rejected':
     case 'Blocked':
+    case 'Due':
       return 'destructive';
     default:
       return 'secondary';
@@ -81,10 +93,11 @@ export default function UserDetailPage() {
 
   const { data: user, loading: userLoading } = useDoc<UserData>(userId ? `users/${userId}` : null);
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
+  const { data: loans, loading: loansLoading } = useCollection<ActiveLoan>(userId ? `users/${userId}/loans` : null);
   const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(userId ? `deposits` : null,);
   const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(`withdrawals`);
   
-  const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading;
+  const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading || loansLoading;
 
   const userDeposits = deposits?.filter(d => d.userId === userId);
   const userWithdrawals = withdrawals?.filter(w => w.userId === userId);
@@ -128,6 +141,11 @@ export default function UserDetailPage() {
         const investmentsSnapshot = await getDocs(investmentsRef);
         investmentsSnapshot.forEach(doc => batch.delete(doc.ref));
 
+        // Delete all loans
+        const loansRef = collection(firestore, 'users', userId, 'loans');
+        const loansSnapshot = await getDocs(loansRef);
+        loansSnapshot.forEach(doc => batch.delete(doc.ref));
+
         // Delete all deposit and withdrawal requests
         const depositsSnapshot = await getDocs(collection(firestore, 'deposits'));
         depositsSnapshot.forEach(doc => {
@@ -135,6 +153,10 @@ export default function UserDetailPage() {
         });
         const withdrawalsSnapshot = await getDocs(collection(firestore, 'withdrawals'));
         withdrawalsSnapshot.forEach(doc => {
+            if(doc.data().userId === userId) batch.delete(doc.ref);
+        });
+        const loanRequestsSnapshot = await getDocs(collection(firestore, 'loanRequests'));
+        loanRequestsSnapshot.forEach(doc => {
             if(doc.data().userId === userId) batch.delete(doc.ref);
         });
 
@@ -196,7 +218,7 @@ export default function UserDetailPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action is irreversible. This will permanently delete all of the user's investment history and reset their wallet balance to zero.
+                      This action is irreversible. This will permanently delete all of the user's investment, loan, and transaction history and reset their wallet balance to zero.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -219,6 +241,7 @@ export default function UserDetailPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <InfoBox title="User ID" value={user.id} icon={Fingerprint} />
+          <InfoBox title="PAN Card" value={user.panCard || 'Not Provided'} icon={Fingerprint} />
           <InfoBox title="Wallet Balance" value={`₹${(user.walletBalance || 0).toFixed(2)}`} icon={Wallet} />
           <InfoBox title="Total Investment" value={`₹${(user.totalInvestment || 0).toFixed(2)}`} icon={Briefcase} />
           <InfoBox title="Total Income" value={`₹${(user.totalIncome || 0).toFixed(2)}`} icon={Wallet} />
@@ -227,8 +250,9 @@ export default function UserDetailPage() {
       </Card>
 
       <Tabs defaultValue="investments">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="investments">Investment History</TabsTrigger>
+          <TabsTrigger value="loans">Loan History</TabsTrigger>
           <TabsTrigger value="deposits">Deposit History</TabsTrigger>
           <TabsTrigger value="withdrawals">Withdrawal History</TabsTrigger>
         </TabsList>
@@ -243,6 +267,21 @@ export default function UserDetailPage() {
                   <TableCell>₹{(item.returnAmount || 0).toFixed(2)}</TableCell>
                   <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
                   <TableCell>{formatDate(item.maturityDate)}</TableCell>
+                </TableRow>
+              )}
+            />
+        </TabsContent>
+         <TabsContent value="loans">
+           <HistoryTable
+              headers={['Plan Name', 'Loan Amount', 'Total Payable', 'Status', 'Due Date']}
+              items={loans}
+              renderRow={(item: ActiveLoan) => (
+                <TableRow key={item.id}>
+                  <TableCell>{item.planName}</TableCell>
+                  <TableCell>₹{(item.loanAmount || 0).toFixed(2)}</TableCell>
+                  <TableCell>₹{(item.totalPayable || 0).toFixed(2)}</TableCell>
+                  <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
+                  <TableCell>{formatDate(item.dueDate)}</TableCell>
                 </TableRow>
               )}
             />

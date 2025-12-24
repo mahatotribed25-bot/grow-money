@@ -38,7 +38,7 @@ type LoanPlan = {
   loanAmount: number;
   interest: number;
   totalRepayment: number;
-  duration: number; // in months
+  duration: number; // in days
   emiOption: boolean;
   directPayOption: boolean;
 };
@@ -137,7 +137,7 @@ export default function LoanPlansPage() {
               <TableHead>Loan Amount</TableHead>
               <TableHead>Interest</TableHead>
               <TableHead>Total Repayment</TableHead>
-              <TableHead>Duration (Months)</TableHead>
+              <TableHead>Duration (Days)</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -155,7 +155,7 @@ export default function LoanPlansPage() {
                   <TableCell>₹{(plan.loanAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>₹{(plan.interest || 0).toFixed(2)}</TableCell>
                   <TableCell>₹{(plan.totalRepayment || 0).toFixed(2)}</TableCell>
-                  <TableCell>{plan.duration} months</TableCell>
+                  <TableCell>{plan.duration} days</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
@@ -229,7 +229,7 @@ export default function LoanPlansPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="duration" className="text-right">
-                Duration (Months)
+                Duration (Days)
               </Label>
               <Input
                 id="duration"

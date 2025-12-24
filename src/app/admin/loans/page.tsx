@@ -23,7 +23,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { add } from 'date-fns';
+import { add, addDays } from 'date-fns';
 
 type LoanRequest = {
   id: string;
@@ -42,7 +42,7 @@ type LoanPlan = {
     loanAmount: number;
     interest: number;
     totalRepayment: number;
-    duration: number; // in months
+    duration: number; // in days
 };
 
 const formatDate = (timestamp: Timestamp) => {
@@ -77,7 +77,7 @@ export default function LoanRequestsPage() {
             // 2. Create an active loan document for the user
             const loanRef = doc(collection(firestore, 'users', request.userId, 'loans'));
             const startDate = new Date();
-            const dueDate = add(startDate, { months: plan.duration });
+            const dueDate = addDays(startDate, plan.duration);
 
             batch.set(loanRef, {
                 userId: request.userId,

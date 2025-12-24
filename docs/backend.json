@@ -47,6 +47,10 @@
         "upiId": {
           "type": "string",
           "description": "The user's saved UPI ID for receiving withdrawals."
+        },
+        "panCard": {
+            "type": "string",
+            "description": "The user's PAN card number."
         }
       },
       "required": [
@@ -271,7 +275,7 @@
         "loanAmount": { "type": "number" },
         "interest": { "type": "number" },
         "totalRepayment": { "type": "number" },
-        "duration": { "type": "number", "description": "Duration in months." },
+        "duration": { "type": "number", "description": "Duration in days." },
         "emiOption": { "type": "boolean" },
         "directPayOption": { "type": "boolean" }
       },
@@ -288,7 +292,8 @@
         "planName": { "type": "string" },
         "loanAmount": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected", "sent"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "repaymentMethod": { "type": "string", "enum": ["EMI", "Direct"] }
       },
       "required": ["userId", "userName", "planId", "planName", "loanAmount", "status", "createdAt"]
     },
@@ -302,7 +307,7 @@
             "loanAmount": { "type": "number" },
             "interest": { "type": "number" },
             "totalPayable": { "type": "number" },
-            "duration": { "type": "number", "description": "Duration in months."},
+            "duration": { "type": "number", "description": "Duration in days."},
             "startDate": { "type": "string", "format": "date-time" },
             "dueDate": { "type": "string", "format": "date-time" },
             "status": { "type": "string", "enum": ["Active", "Due", "Completed"] },
