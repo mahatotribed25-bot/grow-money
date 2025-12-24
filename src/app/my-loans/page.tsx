@@ -15,8 +15,7 @@ import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { useEffect, useState } from 'react';
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -208,7 +207,7 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
                                     <Badge variant={getStatusVariant(emi.status)} className="capitalize">{emi.status}</Badge>
                                 </TableCell>
                                 <TableCell>
-                                    <Button size="sm" onClick={() => handlePayNow(true, index)} disabled={!isEmiPayable(emi)}>
+                                    <Button size="sm" onClick={() => handlePayNow(true, index)} disabled={!isEmiPayable(emi) || emi.status === 'Payment Pending'}>
                                         {emi.status === 'Payment Pending' ? 'Processing...' : 'Pay Now'}
                                     </Button>
                                 </TableCell>
@@ -228,7 +227,7 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
         )}
 
          <p className="text-xs text-muted-foreground text-center pt-2">
-            Note: Clicking 'Pay Now' will deduct the amount from your wallet. Admin will confirm the payment.
+            Note: Clicking 'Pay Now' will require admin confirmation to complete the payment.
         </p>
       </CardContent>
     </Card>
@@ -259,5 +258,3 @@ function BottomNavItem({
     </Link>
   );
 }
-
-    

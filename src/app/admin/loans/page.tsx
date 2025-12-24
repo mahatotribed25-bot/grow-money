@@ -107,18 +107,32 @@ export default function LoanRequestsPage() {
                 repaymentMethod: request.repaymentMethod,
             };
 
-            if (request.repaymentMethod === 'EMI' && plan.durationType === 'Months') {
+            if (request.repaymentMethod === 'EMI') {
                 const emis = [];
-                const emiAmount = plan.totalRepayment / plan.duration;
-                for (let i = 1; i <= plan.duration; i++) {
-                    emis.push({
-                        emiAmount: emiAmount,
-                        dueDate: Timestamp.fromDate(addMonths(startDate, i)),
-                        status: 'Pending',
-                    });
+                let numberOfEmis = 0;
+                let addEmiDuration: (date: Date, num: number) => Date;
+
+                if (plan.durationType === 'Months') {
+                    numberOfEmis = plan.duration;
+                    addEmiDuration = addMonths;
+                } else if (plan.durationType === 'Years') {
+                    numberOfEmis = plan.duration * 12;
+                    addEmiDuration = addMonths;
                 }
-                activeLoanData.emis = emis;
+
+                if (numberOfEmis > 0) {
+                    const emiAmount = plan.totalRepayment / numberOfEmis;
+                    for (let i = 1; i <= numberOfEmis; i++) {
+                        emis.push({
+                            emiAmount: emiAmount,
+                            dueDate: Timestamp.fromDate(addEmiDuration(startDate, i)),
+                            status: 'Pending',
+                        });
+                    }
+                    activeLoanData.emis = emis;
+                }
             }
+
 
             batch.set(loanRef, activeLoanData);
 
@@ -252,5 +266,3 @@ export default function LoanRequestsPage() {
     </div>
   );
 }
-
-    

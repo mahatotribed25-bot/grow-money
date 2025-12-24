@@ -102,10 +102,10 @@ export default function UserDetailPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const { data: user, loading: userLoading, refetch: refetchUser } = useDoc<UserData>(userId ? `users/${userId}` : null);
+  const { data: user, loading: userLoading } = useDoc<UserData>(userId ? `users/${userId}` : null);
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
   const { data: loans, loading: loansLoading } = useCollection<ActiveLoan>(userId ? `users/${userId}/loans` : null);
-  const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(userId ? `deposits` : null,);
+  const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(`deposits`);
   const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(`withdrawals`);
   
   const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading || loansLoading;
@@ -432,5 +432,3 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
     </Card>
   )
 }
-
-    
