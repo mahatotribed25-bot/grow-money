@@ -50,6 +50,7 @@ export default function PlansPage() {
   const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}`: null);
 
   const handleInvest = async (plan: InvestmentPlan) => {
+    // This function handles the logic when a user invests in a plan.
     if (!user || !userData) {
         toast({ variant: 'destructive', title: 'You must be logged in.' });
         return;
