@@ -14,13 +14,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Check, X, ShieldCheck } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
-import type { Timestamp } from 'firebase/firestore';
 import {
   doc,
   updateDoc,
   runTransaction,
   collection,
   writeBatch,
+  Timestamp,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { add } from 'date-fns';
