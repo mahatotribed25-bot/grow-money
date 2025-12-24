@@ -30,6 +30,15 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+
 
 type InvestmentPlan = {
   id: string;
@@ -39,6 +48,7 @@ type InvestmentPlan = {
   validity: number; // in days
   totalIncome: number;
   finalReturn: number;
+  status: 'Available' | 'Coming Soon';
 };
 
 const emptyPlan: Omit<InvestmentPlan, 'id'> = {
@@ -48,6 +58,7 @@ const emptyPlan: Omit<InvestmentPlan, 'id'> = {
   validity: 1,
   totalIncome: 0,
   finalReturn: 0,
+  status: 'Available',
 };
 
 export default function InvestmentPlansPage() {
@@ -95,6 +106,7 @@ export default function InvestmentPlansPage() {
         ...editingPlan,
         totalIncome,
         finalReturn,
+        status: editingPlan.status || 'Available',
     };
 
     try {
@@ -125,6 +137,10 @@ export default function InvestmentPlansPage() {
     setEditingPlan({ ...editingPlan, [field]: parsedValue });
   };
   
+  const getStatusVariant = (status: string) => {
+    return status === 'Available' ? 'default' : 'secondary';
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -144,13 +160,14 @@ export default function InvestmentPlansPage() {
               <TableHead>Validity</TableHead>
               <TableHead>Total Income</TableHead>
               <TableHead>Final Return</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={8} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -163,6 +180,11 @@ export default function InvestmentPlansPage() {
                   <TableCell>{plan.validity} days</TableCell>
                   <TableCell>₹{(plan.totalIncome || 0).toFixed(2)}</TableCell>
                   <TableCell>₹{(plan.finalReturn || 0).toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusVariant(plan.status)}>
+                        {plan.status}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
@@ -245,6 +267,23 @@ export default function InvestmentPlansPage() {
                 onChange={(e) => handleFieldChange('validity', e.target.value)}
                 className="col-span-3"
               />
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status" className="text-right">
+                    Status
+                </Label>
+                <Select
+                    value={editingPlan?.status || 'Available'}
+                    onValueChange={(value) => handleFieldChange('status', value)}
+                >
+                    <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select a status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Available">Available</SelectItem>
+                        <SelectItem value="Coming Soon">Coming Soon</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
           </div>
           <DialogFooter>

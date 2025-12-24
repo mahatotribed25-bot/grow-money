@@ -78,6 +78,11 @@
         "finalReturn": {
           "type": "number",
           "description": "The amount returned to the user after maturity (price + totalIncome)."
+        },
+        "status": {
+            "type": "string",
+            "enum": ["Available", "Coming Soon"],
+            "description": "The visibility status of the plan."
         }
       },
       "required": [
@@ -86,7 +91,8 @@
         "dailyIncome",
         "validity",
         "totalIncome",
-        "finalReturn"
+        "finalReturn",
+        "status"
       ]
     },
     "investment": {
