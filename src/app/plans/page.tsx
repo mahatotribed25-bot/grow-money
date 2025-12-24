@@ -91,7 +91,7 @@ export default function PlansPage() {
                 userId: user.uid,
                 planId: plan.id,
                 planName: plan.name,
-                investedAmount: planPrice,
+                investedAmount: plan.price || 0,
                 returnAmount: plan.finalReturn || 0,
                 dailyIncome: plan.dailyIncome || 0,
                 startDate: serverTimestamp(),

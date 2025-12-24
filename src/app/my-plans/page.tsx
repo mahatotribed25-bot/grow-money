@@ -120,12 +120,12 @@ function InvestmentCard({ investment }: { investment: Investment }) {
       <CardContent className="space-y-3">
         <div className="flex justify-between">
           <p className="text-sm text-muted-foreground">Invested Amount</p>
-          <p className="font-semibold">₹{investment.investedAmount.toFixed(2)}</p>
+          <p className="font-semibold">₹{(investment.investedAmount || 0).toFixed(2)}</p>
         </div>
         <div className="flex justify-between">
           <p className="text-sm text-muted-foreground">Maturity Return</p>
           <p className="font-semibold text-green-400">
-            ₹{investment.returnAmount.toFixed(2)}
+            ₹{(investment.returnAmount || 0).toFixed(2)}
           </p>
         </div>
         {investment.status === 'Active' && (
