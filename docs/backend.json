@@ -297,7 +297,7 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "repaymentMethod": { "type": "string", "enum": ["EMI", "Direct"] }
       },
-      "required": ["userId", "userName", "planId", "planName", "loanAmount", "status", "createdAt"]
+      "required": ["userId", "userName", "planId", "planName", "loanAmount", "status", "createdAt", "repaymentMethod"]
     },
     "activeLoan": {
         "title": "Active Loan",
@@ -314,9 +314,23 @@
             "startDate": { "type": "string", "format": "date-time" },
             "dueDate": { "type": "string", "format": "date-time" },
             "status": { "type": "string", "enum": ["Active", "Due", "Completed", "Payment Pending"] },
-            "amountPaid": { "type": "number" }
+            "amountPaid": { "type": "number" },
+            "repaymentMethod": { "type": "string", "enum": ["EMI", "Direct"] },
+            "emis": {
+                "type": "array",
+                "description": "Array of EMI installment details if repayment is EMI.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "emiAmount": { "type": "number" },
+                        "dueDate": { "type": "string", "format": "date-time" },
+                        "status": { "type": "string", "enum": ["Pending", "Paid", "Due", "Payment Pending"] }
+                    },
+                    "required": ["emiAmount", "dueDate", "status"]
+                }
+            }
         },
-        "required": ["userId", "planName", "loanAmount", "totalPayable", "duration", "durationType", "startDate", "dueDate", "status"]
+        "required": ["userId", "planName", "loanAmount", "totalPayable", "duration", "durationType", "startDate", "dueDate", "status", "repaymentMethod"]
     }
   },
   "auth": {
@@ -379,3 +393,5 @@
     }
   }
 }
+
+    

@@ -34,6 +34,7 @@ type LoanRequest = {
   status: 'pending' | 'approved' | 'rejected' | 'sent';
   planId: string;
   userUpiId?: string;
+  repaymentMethod: 'EMI' | 'Direct';
 };
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
@@ -46,6 +47,8 @@ type LoanPlan = {
     totalRepayment: number;
     duration: number;
     durationType: DurationType;
+    emiOption: boolean;
+    directPayOption: boolean;
 };
 
 const formatDate = (timestamp: Timestamp) => {
@@ -73,45 +76,51 @@ export default function LoanRequestsPage() {
             }
 
             const batch = writeBatch(firestore);
-
-            // 1. Update the request status to approved
             batch.update(requestRef, { status: newStatus });
             
-            // 2. Create an active loan document for the user
             const loanRef = doc(collection(firestore, 'users', request.userId, 'loans'));
             const startDate = new Date();
             let dueDate;
+            let addDuration;
 
             switch(plan.durationType) {
-                case 'Days':
-                    dueDate = addDays(startDate, plan.duration);
-                    break;
-                case 'Weeks':
-                    dueDate = addWeeks(startDate, plan.duration);
-                    break;
-                case 'Months':
-                    dueDate = addMonths(startDate, plan.duration);
-                    break;
-                case 'Years':
-                    dueDate = addYears(startDate, plan.duration);
-                    break;
-                default:
-                    dueDate = addDays(startDate, plan.duration); // Fallback
+                case 'Days': addDuration = addDays; break;
+                case 'Weeks': addDuration = addWeeks; break;
+                case 'Months': addDuration = addMonths; break;
+                case 'Years': addDuration = addYears; break;
+                default: addDuration = addDays;
             }
+            dueDate = addDuration(startDate, plan.duration);
 
-            batch.set(loanRef, {
+            const activeLoanData: any = {
                 userId: request.userId,
                 planName: plan.name,
                 loanAmount: plan.loanAmount,
                 interest: plan.interest,
                 totalPayable: plan.totalRepayment,
                 duration: plan.duration,
-                durationType: plan.durationType || 'Days',
+                durationType: plan.durationType,
                 startDate: Timestamp.fromDate(startDate),
                 dueDate: Timestamp.fromDate(dueDate),
                 status: 'Active',
-                amountPaid: 0
-            });
+                amountPaid: 0,
+                repaymentMethod: request.repaymentMethod,
+            };
+
+            if (request.repaymentMethod === 'EMI' && plan.durationType === 'Months') {
+                const emis = [];
+                const emiAmount = plan.totalRepayment / plan.duration;
+                for (let i = 1; i <= plan.duration; i++) {
+                    emis.push({
+                        emiAmount: emiAmount,
+                        dueDate: Timestamp.fromDate(addMonths(startDate, i)),
+                        status: 'Pending',
+                    });
+                }
+                activeLoanData.emis = emis;
+            }
+
+            batch.set(loanRef, activeLoanData);
 
             await batch.commit();
             toast({

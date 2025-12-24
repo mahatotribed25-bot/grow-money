@@ -54,6 +54,12 @@ type Transaction = {
   userId?: string;
 }
 
+type EMI = {
+  emiAmount: number;
+  dueDate: Timestamp;
+  status: 'Pending' | 'Paid' | 'Due' | 'Payment Pending';
+}
+
 type ActiveLoan = {
     id: string;
     planName: string;
@@ -61,6 +67,8 @@ type ActiveLoan = {
     totalPayable: number;
     dueDate: Timestamp;
     status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
+    repaymentMethod: 'EMI' | 'Direct';
+    emis?: EMI[];
 }
 
 const formatDate = (timestamp: Timestamp) => {
@@ -74,6 +82,7 @@ const getStatusVariant = (status: string) => {
     case 'Active':
     case 'Matured':
     case 'Completed':
+    case 'Paid':
       return 'default';
     case 'rejected':
     case 'Blocked':
@@ -93,7 +102,7 @@ export default function UserDetailPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const { data: user, loading: userLoading } = useDoc<UserData>(userId ? `users/${userId}` : null);
+  const { data: user, loading: userLoading, refetch: refetchUser } = useDoc<UserData>(userId ? `users/${userId}` : null);
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
   const { data: loans, loading: loansLoading } = useCollection<ActiveLoan>(userId ? `users/${userId}/loans` : null);
   const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(userId ? `deposits` : null,);
@@ -179,11 +188,33 @@ export default function UserDetailPage() {
     }
   }
 
-  const handleCompleteLoan = async (loanId: string) => {
+  const handleConfirmEmiPayment = async (loan: ActiveLoan, emiIndex: number) => {
+    if (!user || !loan.emis) return;
+    try {
+      const loanRef = doc(firestore, 'users', userId, 'loans', loan.id);
+      const updatedEmis = loan.emis.map((emi, index) => 
+        index === emiIndex ? { ...emi, status: 'Paid' } : emi
+      );
+      
+      const allPaid = updatedEmis.every(emi => emi.status === 'Paid');
+      const newLoanStatus = allPaid ? 'Completed' : loan.status;
+
+      await updateDoc(loanRef, { emis: updatedEmis, status: newLoanStatus });
+      toast({
+        title: 'EMI Payment Confirmed',
+        description: `EMI for ${loan.planName} has been marked as paid.`,
+      });
+    } catch(e) {
+      console.error(e);
+      toast({ title: 'Error', variant: 'destructive'});
+    }
+  }
+
+  const handleCompleteLoan = async (loanId: string, totalPayable: number) => {
     if (!user) return;
     try {
       const loanRef = doc(firestore, 'users', userId, 'loans', loanId);
-      await updateDoc(loanRef, { status: 'Completed', amountPaid: 'totalPayable' }); // Consider adding logic for partial payments
+      await updateDoc(loanRef, { status: 'Completed', amountPaid: totalPayable });
       toast({
         title: 'Loan Completed',
         description: 'The loan has been marked as completed.',
@@ -304,15 +335,24 @@ export default function UserDetailPage() {
                   <TableCell><Badge variant={getStatusVariant(item.status)} className="capitalize">{item.status}</Badge></TableCell>
                   <TableCell>{formatDate(item.dueDate)}</TableCell>
                    <TableCell>
-                    {item.status === 'Payment Pending' && (
+                    {item.status === 'Payment Pending' && item.repaymentMethod === 'Direct' && (
                       <Button
                         size="sm"
-                        onClick={() => handleCompleteLoan(item.id)}
+                        onClick={() => handleCompleteLoan(item.id, item.totalPayable)}
                         className="bg-green-600 hover:bg-green-700"
                       >
                         <CheckCircle className="mr-2 h-4 w-4" />
                         Confirm & Complete
                       </Button>
+                    )}
+                    {item.repaymentMethod === 'EMI' && item.emis && (
+                      <div className='flex flex-col gap-1'>
+                        {item.emis.filter(emi => emi.status === 'Payment Pending').map((emi, idx) => (
+                           <Button key={idx} size="sm" onClick={() => handleConfirmEmiPayment(item, item.emis!.findIndex(e => e.dueDate === emi.dueDate))}>
+                              Confirm EMI on {new Date(emi.dueDate.seconds * 1000).toLocaleDateString()}
+                           </Button>
+                        ))}
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
@@ -366,7 +406,7 @@ function InfoBox({ title, value, icon: Icon, badgeVariant }: { title: string, va
   )
 }
 
-function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null, renderRow: (item: any) => React.ReactNode }) {
+function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
   return (
     <Card>
       <CardContent className="pt-6">
@@ -392,3 +432,5 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
     </Card>
   )
 }
+
+    

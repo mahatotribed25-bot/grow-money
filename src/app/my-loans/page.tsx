@@ -16,10 +16,17 @@ import type { Timestamp } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useEffect, useState } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
+
+type EMI = {
+    emiAmount: number;
+    dueDate: Timestamp;
+    status: 'Pending' | 'Paid' | 'Due' | 'Payment Pending';
+}
 
 type ActiveLoan = {
   id: string;
@@ -31,36 +38,9 @@ type ActiveLoan = {
   status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
   duration: number;
   durationType: DurationType;
+  repaymentMethod: 'EMI' | 'Direct';
+  emis?: EMI[];
 };
-
-const CountdownTimer = ({ endDate }: { endDate: Date }) => {
-    const [timeLeft, setTimeLeft] = useState('...');
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const now = new Date();
-            const distance = endDate.getTime() - now.getTime();
-
-            if (distance < 0) {
-                clearInterval(interval);
-                setTimeLeft("Due");
-                return;
-            }
-
-            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-            setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, [endDate]);
-
-    return <span className="font-mono">{timeLeft}</span>;
-};
-
 
 export default function MyLoansPage() {
   const { user, loading: userLoading } = useUser();
@@ -133,11 +113,22 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
   const elapsedDuration = now.getTime() - startDate.getTime();
   const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
 
-  const handlePayNow = async () => {
+  const handlePayNow = async (isEmi: boolean, emiIndex?: number) => {
     if (!user) return;
     const loanRef = doc(firestore, 'users', user.uid, 'loans', loan.id);
     try {
-      await updateDoc(loanRef, { status: 'Payment Pending' });
+        if(isEmi && emiIndex !== undefined && loan.emis) {
+            const updatedEmis = loan.emis.map((emi, index) => {
+                if(index === emiIndex) {
+                    return {...emi, status: 'Payment Pending'};
+                }
+                return emi;
+            });
+            await updateDoc(loanRef, { emis: updatedEmis });
+        } else {
+            await updateDoc(loanRef, { status: 'Payment Pending' });
+        }
+      
       toast({
         title: 'Payment Initiated',
         description: 'Your payment is being processed. The admin will confirm it shortly.',
@@ -154,11 +145,17 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-        case 'Active': return 'default';
+        case 'Active':
+        case 'Paid':
+             return 'default';
         case 'Due': return 'destructive';
         case 'Payment Pending': return 'outline';
         default: return 'secondary';
     }
+  }
+
+  const isEmiPayable = (emi: EMI) => {
+      return new Date(emi.dueDate.seconds * 1000) <= now && emi.status === 'Pending';
   }
 
   return (
@@ -184,23 +181,53 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
           </p>
         </div>
         <div className="space-y-1">
-          <div className="flex justify-between text-xs text-muted-foreground">
-             <span>Time Remaining:</span>
-             <CountdownTimer endDate={dueDate} />
-          </div>
           <Progress value={progress} className="[&>div]:bg-red-500"/>
           <p className="text-xs text-muted-foreground pt-1">
-            Due on: {dueDate.toLocaleDateString()}
+            Final due date: {dueDate.toLocaleDateString()}
           </p>
         </div>
-        <Button 
-            className="w-full" 
-            onClick={handlePayNow} 
-            disabled={loan.status === 'Payment Pending' || loan.status === 'Completed'}
-        >
-            {loan.status === 'Payment Pending' ? 'Processing Payment...' : 'Pay Now'}
-        </Button>
-         <p className="text-xs text-muted-foreground text-center">
+        
+        {loan.repaymentMethod === 'EMI' && loan.emis ? (
+            <div className="space-y-2">
+                <h4 className="font-semibold">EMI Schedule</h4>
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Due Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Action</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {loan.emis.map((emi, index) => (
+                            <TableRow key={index}>
+                                <TableCell>₹{emi.emiAmount.toFixed(2)}</TableCell>
+                                <TableCell>{new Date(emi.dueDate.seconds * 1000).toLocaleDateString()}</TableCell>
+                                <TableCell>
+                                    <Badge variant={getStatusVariant(emi.status)} className="capitalize">{emi.status}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <Button size="sm" onClick={() => handlePayNow(true, index)} disabled={!isEmiPayable(emi)}>
+                                        {emi.status === 'Payment Pending' ? 'Processing...' : 'Pay Now'}
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+        ) : (
+             <Button 
+                className="w-full" 
+                onClick={() => handlePayNow(false)} 
+                disabled={loan.status === 'Payment Pending' || loan.status === 'Completed'}
+            >
+                {loan.status === 'Payment Pending' ? 'Processing Payment...' : 'Pay Now'}
+            </Button>
+        )}
+
+         <p className="text-xs text-muted-foreground text-center pt-2">
             Note: Clicking 'Pay Now' will deduct the amount from your wallet. Admin will confirm the payment.
         </p>
       </CardContent>
@@ -232,3 +259,5 @@ function BottomNavItem({
     </Link>
   );
 }
+
+    
