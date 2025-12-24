@@ -1,30 +1,39 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
   collection,
   query,
   onSnapshot,
   Query,
   DocumentData,
-  where,
   QueryConstraint
 } from 'firebase/firestore';
 import { useFirestore } from '../provider';
 
-export function useCollection<T>(path: string | null, ...queryConstraints: QueryConstraint[]) {
+export function useCollection<T>(pathOrQuery: string | Query | null, ...queryConstraints: QueryConstraint[]) {
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState(true);
   const firestore = useFirestore();
   
+  // Basic serialization for the query to use in dependency array
+  const queryKey = typeof pathOrQuery === 'string' 
+      ? pathOrQuery 
+      : pathOrQuery ? pathOrQuery.path + JSON.stringify(pathOrQuery) : 'null';
+
   useEffect(() => {
-    if (!path) {
+    if (!pathOrQuery) {
       setData([]);
       setLoading(false);
       return;
     }
 
-    const collectionRef = collection(firestore, path);
-    const q = query(collectionRef, ...queryConstraints);
+    let q: Query<DocumentData>;
+    if (typeof pathOrQuery === 'string') {
+        q = query(collection(firestore, pathOrQuery), ...queryConstraints);
+    } else {
+        q = pathOrQuery;
+    }
+
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map((doc) => ({
@@ -40,7 +49,7 @@ export function useCollection<T>(path: string | null, ...queryConstraints: Query
 
     return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firestore, path, ...queryConstraints.map(c => c.type + ('_field' in c ? c._field.toString() + c._op + c._value : ''))]);
+  }, [firestore, queryKey]);
 
   return { data, loading };
 }
