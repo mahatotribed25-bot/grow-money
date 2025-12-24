@@ -40,6 +40,7 @@ type LoanPlan = {
   name: string;
   loanAmount: number;
   interest: number;
+  tax?: number;
   totalRepayment: number;
   duration: number; 
   durationType: DurationType;
@@ -51,6 +52,7 @@ const emptyPlan: Omit<LoanPlan, 'id'> = {
   name: '',
   loanAmount: 0,
   interest: 0,
+  tax: 0,
   totalRepayment: 0,
   duration: 1,
   durationType: 'Days',
@@ -94,7 +96,7 @@ export default function LoanPlansPage() {
     
     const planToSave = {
         ...editingPlan,
-        totalRepayment: (editingPlan.loanAmount || 0) + (editingPlan.interest || 0)
+        totalRepayment: (editingPlan.loanAmount || 0) + (editingPlan.interest || 0) + (editingPlan.tax || 0)
     };
 
     try {
@@ -118,7 +120,7 @@ export default function LoanPlansPage() {
   const handleFieldChange = (field: keyof Omit<LoanPlan, 'id' | 'totalRepayment'>, value: any) => {
     if (!editingPlan) return;
     const parsedValue =
-      ['loanAmount', 'interest', 'duration'].includes(field) &&
+      ['loanAmount', 'interest', 'duration', 'tax'].includes(field) &&
       typeof value === 'string'
         ? parseFloat(value)
         : value;
@@ -141,6 +143,7 @@ export default function LoanPlansPage() {
               <TableHead>Plan Name</TableHead>
               <TableHead>Loan Amount</TableHead>
               <TableHead>Interest</TableHead>
+              <TableHead>Tax</TableHead>
               <TableHead>Total Repayment</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Actions</TableHead>
@@ -149,7 +152,7 @@ export default function LoanPlansPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -159,6 +162,7 @@ export default function LoanPlansPage() {
                   <TableCell>{plan.name}</TableCell>
                   <TableCell>₹{(plan.loanAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>₹{(plan.interest || 0).toFixed(2)}</TableCell>
+                  <TableCell>₹{(plan.tax || 0).toFixed(2)}</TableCell>
                   <TableCell>₹{(plan.totalRepayment || 0).toFixed(2)}</TableCell>
                   <TableCell>{plan.duration} {plan.durationType}</TableCell>
                   <TableCell>
@@ -232,6 +236,18 @@ export default function LoanPlansPage() {
                 className="col-span-3"
               />
             </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="tax" className="text-right">
+                Tax
+              </Label>
+              <Input
+                id="tax"
+                type="number"
+                value={editingPlan?.tax || 0}
+                onChange={(e) => handleFieldChange('tax', e.target.value)}
+                className="col-span-3"
+              />
+            </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="duration" className="text-right">
                 Duration
@@ -290,5 +306,3 @@ export default function LoanPlansPage() {
     </div>
   );
 }
-
-    

@@ -274,6 +274,7 @@
         "name": { "type": "string" },
         "loanAmount": { "type": "number" },
         "interest": { "type": "number" },
+        "tax": { "type": "number" },
         "totalRepayment": { "type": "number" },
         "duration": { "type": "number", "description": "Duration value (e.g., 10, 2, 3)." },
         "durationType": { "type": "string", "enum": ["Days", "Weeks", "Months", "Years"], "description": "The unit for the duration."},

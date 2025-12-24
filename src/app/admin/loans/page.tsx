@@ -44,6 +44,7 @@ type LoanPlan = {
     name: string;
     loanAmount: number;
     interest: number;
+    tax?: number;
     totalRepayment: number;
     duration: number;
     durationType: DurationType;
@@ -110,15 +111,23 @@ export default function LoanRequestsPage() {
             if (request.repaymentMethod === 'EMI') {
                 const emis = [];
                 let numberOfEmis = 0;
-                let addEmiDuration: (date: Date, num: number) => Date;
+                let addEmiDuration: (date: Date, num: number) => Date = addMonths; // Default to monthly for EMI
 
                 if (plan.durationType === 'Months') {
                     numberOfEmis = plan.duration;
-                    addEmiDuration = addMonths;
                 } else if (plan.durationType === 'Years') {
                     numberOfEmis = plan.duration * 12;
-                    addEmiDuration = addMonths;
+                } else if (plan.durationType === 'Weeks') {
+                    // Weekly EMIs if duration is in weeks
+                    numberOfEmis = plan.duration;
+                    addEmiDuration = addWeeks;
+                } else if (plan.durationType === 'Days') {
+                    // This is unusual, but handle daily EMIs if needed
+                    // For simplicity, let's assume EMI is not for daily plans, but if so:
+                    // numberOfEmis = plan.duration;
+                    // addEmiDuration = addDays;
                 }
+
 
                 if (numberOfEmis > 0) {
                     const emiAmount = plan.totalRepayment / numberOfEmis;

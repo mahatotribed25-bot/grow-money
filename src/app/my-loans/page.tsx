@@ -28,7 +28,7 @@ type EMI = {
     status: 'Pending' | 'Paid' | 'Due' | 'Payment Pending';
 }
 
-type ActiveLoan = {
+type Loan = {
   id: string;
   planName: string;
   loanAmount: number;
@@ -44,13 +44,14 @@ type ActiveLoan = {
 
 export default function MyLoansPage() {
   const { user, loading: userLoading } = useUser();
-  const { data: activeLoans, loading: loansLoading } =
-    useCollection<ActiveLoan>(
+  const { data: allLoans, loading: loansLoading } =
+    useCollection<Loan>(
       user ? `users/${user.uid}/loans` : null
     );
 
   const loading = userLoading || loansLoading;
-  const loan = activeLoans?.find(l => l.status !== 'Completed'); 
+  
+  const sortedLoans = allLoans?.sort((a,b) => b.startDate.seconds - a.startDate.seconds);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -60,19 +61,19 @@ export default function MyLoansPage() {
             <ChevronLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <h1 className="text-lg font-semibold">My Active Loan</h1>
+        <h1 className="text-lg font-semibold">My Loan History</h1>
         <div className="w-9" />
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-         <div className="space-y-4 mt-4">
-            {loading ? <p>Loading...</p> : 
-                loan ? (
-                    <LoanCard loan={loan}/>
+         <div className="space-y-4">
+            {loading ? <p>Loading loan history...</p> : 
+                sortedLoans && sortedLoans.length > 0 ? (
+                    sortedLoans.map(loan => <LoanCard key={loan.id} loan={loan}/>)
                 ) : (
                     <Card>
                         <CardContent className="pt-6 text-center text-muted-foreground">
-                           <p>You have no active loans.</p>
+                           <p>You have no active or past loans.</p>
                            <Button asChild variant="link">
                             <Link href="/loans">Apply for a loan</Link>
                            </Button>
@@ -96,7 +97,7 @@ export default function MyLoansPage() {
 }
 
 
-function LoanCard({ loan }: { loan: ActiveLoan }) {
+function LoanCard({ loan }: { loan: Loan }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -104,6 +105,7 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
 
 
   useEffect(() => {
+    // Update current time every second to check for due dates
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
@@ -158,10 +160,12 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
              return 'default';
         case 'Due': return 'destructive';
         case 'Payment Pending': return 'outline';
+        case 'Completed': return 'secondary';
         default: return 'secondary';
     }
   }
 
+  // An EMI is payable if its due date has passed and its status is still 'Pending'
   const isEmiPayable = (emi: EMI) => {
       return new Date(emi.dueDate.seconds * 1000) <= currentTime && emi.status === 'Pending';
   }
@@ -188,12 +192,14 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
             ₹{(loan.totalPayable || 0).toFixed(2)}
           </p>
         </div>
-        <div className="space-y-1">
-          <Progress value={progress} className="[&>div]:bg-red-500"/>
-          <p className="text-xs text-muted-foreground pt-1">
-            Final due date: {dueDate.toLocaleDateString()}
-          </p>
-        </div>
+        {loan.status !== 'Completed' && (
+            <div className="space-y-1">
+            <Progress value={progress} className="[&>div]:bg-red-500"/>
+            <p className="text-xs text-muted-foreground pt-1">
+                Final due date: {dueDate.toLocaleDateString()}
+            </p>
+            </div>
+        )}
         
         {loan.repaymentMethod === 'EMI' && loan.emis ? (
             <div className="space-y-2">
@@ -216,28 +222,30 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
                                     <Badge variant={getStatusVariant(emi.status)} className="capitalize">{emi.status}</Badge>
                                 </TableCell>
                                 <TableCell>
-                                    <Button size="sm" onClick={() => handlePayNow(true, index)} disabled={!isEmiPayable(emi) || emi.status === 'Payment Pending'}>
-                                        {emi.status === 'Payment Pending' ? 'Processing...' : 'Pay Now'}
-                                    </Button>
+                                    {loan.status !== 'Completed' && (
+                                         <Button size="sm" onClick={() => handlePayNow(true, index)} disabled={!isEmiPayable(emi) || emi.status !== 'Pending'}>
+                                            {emi.status === 'Payment Pending' ? 'Processing...' : emi.status === 'Paid' ? 'Paid' : 'Pay Now'}
+                                        </Button>
+                                    )}
                                 </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
             </div>
-        ) : (
+        ) : loan.status !== 'Completed' && (
              <Button 
                 className="w-full" 
                 onClick={() => handlePayNow(false)} 
                 disabled={loan.status === 'Payment Pending' || loan.status === 'Completed'}
             >
-                {loan.status === 'Payment Pending' ? 'Processing Payment...' : 'Pay Now'}
+                {loan.status === 'Payment Pending' ? 'Processing Payment...' : 'Pay Full Amount Now'}
             </Button>
         )}
 
-         <p className="text-xs text-muted-foreground text-center pt-2">
+         {loan.status !== 'Completed' && <p className="text-xs text-muted-foreground text-center pt-2">
             Note: Clicking 'Pay Now' will require admin confirmation to complete the payment.
-        </p>
+        </p>}
       </CardContent>
     </Card>
   );
