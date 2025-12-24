@@ -13,6 +13,7 @@ import {
   BarChart2,
   TrendingUp,
   Megaphone,
+  HandCoins,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -128,7 +129,7 @@ export default function Dashboard() {
 
     const now = new Date();
     const maturedInvestments = investments.filter(
-      (inv) => (inv.status === 'Active' && inv.maturityDate.toDate() <= now) && (!investmentId || inv.id === investmentId)
+      (inv) => inv.status === 'Active' && inv.maturityDate?.toDate() <= now && (!investmentId || inv.id === investmentId)
     );
 
     if (maturedInvestments.length === 0) return;
@@ -293,8 +294,8 @@ export default function Dashboard() {
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" />
                 <QuickActionButton icon={History} label="My Plans" href="/my-plans" />
+                <QuickActionButton icon={HandCoins} label="Loans" href="/loans" />
                 <QuickActionButton icon={User} label="Profile" href="/profile" />
-                <QuickActionButton icon={BarChart2} label="Team" href="/team" />
             </CardContent>
            </Card>
 
@@ -302,9 +303,10 @@ export default function Dashboard() {
       </main>
 
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" active />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
+          <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>

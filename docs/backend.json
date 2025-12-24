@@ -261,6 +261,54 @@
         }
       },
       "required": ["message", "createdAt"]
+    },
+     "loanPlan": {
+      "title": "Loan Plan",
+      "description": "Defines a template for a loan plan.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "loanAmount": { "type": "number" },
+        "interest": { "type": "number" },
+        "totalRepayment": { "type": "number" },
+        "duration": { "type": "number", "description": "Duration in months." },
+        "emiOption": { "type": "boolean" },
+        "directPayOption": { "type": "boolean" }
+      },
+      "required": ["name", "loanAmount", "interest", "totalRepayment", "duration"]
+    },
+    "loanRequest": {
+      "title": "Loan Request",
+      "description": "A user's request for a loan.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "planId": { "type": "string" },
+        "planName": { "type": "string" },
+        "loanAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "sent"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "planId", "planName", "loanAmount", "status", "createdAt"]
+    },
+    "activeLoan": {
+        "title": "Active Loan",
+        "description": "A user's active loan.",
+        "type": "object",
+        "properties": {
+            "userId": { "type": "string" },
+            "planName": { "type": "string" },
+            "loanAmount": { "type": "number" },
+            "interest": { "type": "number" },
+            "totalPayable": { "type": "number" },
+            "duration": { "type": "number", "description": "Duration in months."},
+            "startDate": { "type": "string", "format": "date-time" },
+            "dueDate": { "type": "string", "format": "date-time" },
+            "status": { "type": "string", "enum": ["Active", "Due", "Completed"] },
+            "amountPaid": { "type": "number" }
+        },
+        "required": ["userId", "planName", "loanAmount", "totalPayable", "duration", "startDate", "dueDate", "status"]
     }
   },
   "auth": {
@@ -308,6 +356,18 @@
     "/announcements/{announcementId}": {
         "schema": { "$ref": "#/entities/announcement"},
         "description": "Stores admin announcements for the user dashboard."
+    },
+    "/loanPlans/{planId}": {
+      "schema": { "$ref": "#/entities/loanPlan" },
+      "description": "Stores available loan plans for users."
+    },
+    "/loanRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/loanRequest" },
+      "description": "Stores user loan requests."
+    },
+    "/users/{userId}/loans/{loanId}": {
+        "schema": { "$ref": "#/entities/activeLoan" },
+        "description": "Stores a user's active loans."
     }
   }
 }

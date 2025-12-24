@@ -10,6 +10,7 @@ import {
   IndianRupee,
   Calendar,
   Percent,
+  Briefcase,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -57,13 +58,11 @@ export default function LoansPage() {
   const { data: loanPlans, loading: plansLoading } = useCollection<LoanPlan>('loanPlans');
   
   const { data: userLoanRequests, loading: requestsLoading } = useCollection<LoanRequest>(
-      'loanRequests',
-       where('userId', '==', user?.uid || 'placeholder'),
+      user ? query(collection(firestore, 'loanRequests'), where('userId', '==', user.uid)) : null
   );
 
   const { data: activeLoans, loading: activeLoansLoading } = useCollection<ActiveLoan>(
-    user ? `users/${user?.uid}/loans` : null,
-    where('status', '!=', 'Completed')
+    user ? query(collection(firestore, 'users', user.uid, 'loans'), where('status', '!=', 'Completed')) : null,
   );
   
   const hasPendingRequest = userLoanRequests?.some(req => req.status === 'pending');
@@ -136,7 +135,7 @@ export default function LoansPage() {
                 <Card className="bg-yellow-500/10 border-yellow-500/50">
                     <CardContent className="p-4 text-center text-yellow-300">
                         {hasActiveLoan 
-                            ? <p>You have an active loan. You must repay it before applying for a new one.</p>
+                            ? <p>You have an active loan. You must repay it before applying for a new one. <Link href="/my-loans" className="underline">View loan details.</Link></p>
                             : <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>
                         }
                     </CardContent>
@@ -148,7 +147,7 @@ export default function LoansPage() {
                     <p>Loading loan plans...</p>
                 ) : loanPlans && loanPlans.length > 0 ? (
                     loanPlans.map((plan) => (
-                        <LoanPlanCard key={plan.id} plan={plan} onApply={handleApply} disabled={hasPendingRequest || hasActiveLoan}/>
+                        <LoanPlanCard key={plan.id} plan={plan} onApply={handleApply} disabled={!!(hasPendingRequest || hasActiveLoan)}/>
                     ))
                 ) : (
                     <p>No loan plans are available at the moment.</p>
@@ -158,9 +157,10 @@ export default function LoansPage() {
       </main>
 
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
-          <BottomNavItem icon={HandCoins} label="Loans" href="/loans" active />
+          <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
+          <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" active />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>
@@ -173,11 +173,11 @@ function LoanPlanCard({ plan, onApply, disabled }: { plan: LoanPlan, onApply: (p
     <Card className="shadow-lg border-border/50 bg-gradient-to-br from-secondary/50 to-background">
       <CardHeader>
         <CardTitle className="text-primary">{plan.name}</CardTitle>
-        <CardDescription>Loan Amount: ₹{plan.loanAmount.toFixed(2)}</CardDescription>
+        <CardDescription>Loan Amount: ₹{(plan.loanAmount || 0).toFixed(2)}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <LoanDetail icon={Percent} label="Interest" value={`₹${plan.interest.toFixed(2)}`} />
-        <LoanDetail icon={IndianRupee} label="Total Repayment" value={`₹${plan.totalRepayment.toFixed(2)}`} />
+        <LoanDetail icon={Percent} label="Interest" value={`₹${(plan.interest || 0).toFixed(2)}`} />
+        <LoanDetail icon={IndianRupee} label="Total Repayment" value={`₹${(plan.totalRepayment || 0).toFixed(2)}`} />
         <LoanDetail icon={Calendar} label="Duration" value={`${plan.duration} Months`} />
         <div className="flex justify-around text-xs">
             {plan.emiOption && <span className="text-green-400">EMI Available</span>}

@@ -160,7 +160,7 @@ export default function LoanRequestsPage() {
                 <TableRow key={request.id}>
                   <TableCell>{request.userName}</TableCell>
                   <TableCell>{request.planName}</TableCell>
-                  <TableCell>₹{request.loanAmount.toFixed(2)}</TableCell>
+                  <TableCell>₹{(request.loanAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>{formatDate(request.createdAt)}</TableCell>
                   <TableCell>
                     <Badge

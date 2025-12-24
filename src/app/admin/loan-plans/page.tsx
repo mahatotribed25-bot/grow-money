@@ -152,9 +152,9 @@ export default function LoanPlansPage() {
               plans?.map((plan) => (
                 <TableRow key={plan.id}>
                   <TableCell>{plan.name}</TableCell>
-                  <TableCell>₹{plan.loanAmount?.toFixed(2)}</TableCell>
-                  <TableCell>₹{plan.interest?.toFixed(2)}</TableCell>
-                  <TableCell>₹{plan.totalRepayment?.toFixed(2)}</TableCell>
+                  <TableCell>₹{(plan.loanAmount || 0).toFixed(2)}</TableCell>
+                  <TableCell>₹{(plan.interest || 0).toFixed(2)}</TableCell>
+                  <TableCell>₹{(plan.totalRepayment || 0).toFixed(2)}</TableCell>
                   <TableCell>{plan.duration} months</TableCell>
                   <TableCell>
                     <div className="flex gap-2">

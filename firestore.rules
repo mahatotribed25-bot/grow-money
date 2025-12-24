@@ -66,5 +66,25 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
+
+    // Rules for loan plans
+    match /loanPlans/{planId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Rules for loan requests
+    match /loanRequests/{requestId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read: if isOwner(request.resource.data.userId) || isAdmin();
+      allow update: if isAdmin();
+    }
+
+    // Rules for active loans sub-collection
+    match /users/{userId}/loans/{loanId} {
+      allow read: if isOwner(userId);
+      // Loans are created/updated via admin-controlled actions.
+      allow write: if isAdmin(); 
+    }
   }
 }
