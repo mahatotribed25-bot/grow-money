@@ -94,6 +94,10 @@ export default function MyPlansPage() {
 
 
 function InvestmentCard({ investment }: { investment: Investment }) {
+  if (!investment.startDate || !investment.maturityDate) {
+    return null;
+  }
+  
   const startDate = investment.startDate.toDate();
   const maturityDate = investment.maturityDate.toDate();
   const now = new Date();
