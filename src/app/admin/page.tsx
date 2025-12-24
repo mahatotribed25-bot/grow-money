@@ -36,6 +36,7 @@ type Transaction = {
 
 type ActiveLoan = {
     id: string;
+    userId: string;
 }
 
 // Function to process data for the chart
@@ -87,8 +88,10 @@ export default function AdminDashboard() {
   const { data: withdrawals, loading: withdrawalsLoading } =
     useCollection<Transaction>('withdrawals');
     
-  const { data: investmentPlans, loading: plansLoading } =
+  const { data: investmentPlans, loading: investmentPlansLoading } =
     useCollection('investmentPlans');
+  
+  const { data: loanPlans, loading: loanPlansLoading } = useCollection('loanPlans');
 
   const { data: activeLoans, loading: loansLoading } = useCollection<ActiveLoan>('loanRequests', {
       where: ['status', 'in', ['approved', 'sent']]
@@ -96,7 +99,7 @@ export default function AdminDashboard() {
 
 
   const loading =
-    usersLoading || depositsLoading || withdrawalsLoading || plansLoading || loansLoading;
+    usersLoading || depositsLoading || withdrawalsLoading || investmentPlansLoading || loanPlansLoading || loansLoading;
 
   const totalUsers =
     users?.filter((u) => u.email !== 'admin@tribed.world').length || 0;
@@ -104,8 +107,10 @@ export default function AdminDashboard() {
     users?.reduce((sum, user) => sum + (user.walletBalance || 0), 0) || 0;
   const pendingDeposits = deposits?.filter(d => d.status === 'pending').length || 0;
   const pendingWithdrawals = withdrawals?.filter(w => w.status === 'pending').length || 0;
-  const activePlans = investmentPlans?.length || 0;
-  const totalActiveLoans = activeLoans?.length || 0;
+  const totalInvestmentPlans = investmentPlans?.length || 0;
+  const totalLoanPlans = loanPlans?.length || 0;
+  
+  const uniqueUsersWithLoans = activeLoans ? new Set(activeLoans.map(loan => loan.userId)).size : 0;
   
   const stats = [
     {
@@ -130,13 +135,18 @@ export default function AdminDashboard() {
     },
     {
       title: 'Investment Plans',
-      value: loading ? '...' : activePlans,
+      value: loading ? '...' : totalInvestmentPlans,
       icon: Briefcase,
     },
     {
-      title: 'Active Loans',
-      value: loading ? '...' : totalActiveLoans,
+      title: 'Loan Plans',
+      value: loading ? '...' : totalLoanPlans,
       icon: HandCoins,
+    },
+    {
+      title: 'Users with Loans',
+      value: loading ? '...' : uniqueUsersWithLoans,
+      icon: Users,
     },
   ];
 
@@ -144,7 +154,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
