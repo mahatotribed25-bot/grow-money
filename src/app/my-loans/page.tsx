@@ -18,6 +18,7 @@ import { Progress } from '@/components/ui/progress';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useEffect, useState } from 'react';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
@@ -99,6 +100,15 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   if (!loan.startDate || !loan.dueDate) {
     return null;
@@ -106,10 +116,9 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
   
   const startDate = loan.startDate.toDate();
   const dueDate = loan.dueDate.toDate();
-  const now = new Date();
-
+  
   const totalDuration = dueDate.getTime() - startDate.getTime();
-  const elapsedDuration = now.getTime() - startDate.getTime();
+  const elapsedDuration = currentTime.getTime() - startDate.getTime();
   const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
 
   const handlePayNow = async (isEmi: boolean, emiIndex?: number) => {
@@ -154,7 +163,7 @@ function LoanCard({ loan }: { loan: ActiveLoan }) {
   }
 
   const isEmiPayable = (emi: EMI) => {
-      return new Date(emi.dueDate.seconds * 1000) <= now && emi.status === 'Pending';
+      return new Date(emi.dueDate.seconds * 1000) <= currentTime && emi.status === 'Pending';
   }
 
   return (

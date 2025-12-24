@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Briefcase, Ban, RefreshCcw, Wallet, Download, Upload, Fingerprint, HandCoins, CheckCircle } from 'lucide-react';
+import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, writeBatch, collection, getDocs } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,6 +23,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 
 
 type UserData = {
@@ -293,7 +295,7 @@ export default function UserDetailPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <InfoBox title="User ID" value={user.id} icon={Fingerprint} />
-          <InfoBox title="PAN Card" value={user.panCard || 'Not Provided'} icon={Fingerprint} />
+          <InfoBox title="PAN Card" value={user.panCard || 'Not Provided'} icon={Briefcase} />
           <InfoBox title="Wallet Balance" value={`₹${(user.walletBalance || 0).toFixed(2)}`} icon={Wallet} />
           <InfoBox title="Total Investment" value={`₹${(user.totalInvestment || 0).toFixed(2)}`} icon={Briefcase} />
           <InfoBox title="Total Income" value={`₹${(user.totalIncome || 0).toFixed(2)}`} icon={Wallet} />
@@ -324,40 +326,15 @@ export default function UserDetailPage() {
             />
         </TabsContent>
          <TabsContent value="loans">
-           <HistoryTable
-              headers={['Plan Name', 'Loan Amount', 'Total Payable', 'Status', 'Due Date', 'Actions']}
-              items={loans}
-              renderRow={(item: ActiveLoan) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.planName}</TableCell>
-                  <TableCell>₹{(item.loanAmount || 0).toFixed(2)}</TableCell>
-                  <TableCell>₹{(item.totalPayable || 0).toFixed(2)}</TableCell>
-                  <TableCell><Badge variant={getStatusVariant(item.status)} className="capitalize">{item.status}</Badge></TableCell>
-                  <TableCell>{formatDate(item.dueDate)}</TableCell>
-                   <TableCell>
-                    {item.status === 'Payment Pending' && item.repaymentMethod === 'Direct' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleCompleteLoan(item.id, item.totalPayable)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Confirm & Complete
-                      </Button>
-                    )}
-                    {item.repaymentMethod === 'EMI' && item.emis && (
-                      <div className='flex flex-col gap-1'>
-                        {item.emis.filter(emi => emi.status === 'Payment Pending').map((emi, idx) => (
-                           <Button key={idx} size="sm" onClick={() => handleConfirmEmiPayment(item, item.emis!.findIndex(e => e.dueDate === emi.dueDate))}>
-                              Confirm EMI on {new Date(emi.dueDate.seconds * 1000).toLocaleDateString()}
-                           </Button>
-                        ))}
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              )}
-            />
+            {loans && loans.length > 0 ? loans.map(loan => (
+                <LoanDetails key={loan.id} loan={loan} onCompleteLoan={handleCompleteLoan} onConfirmEmi={handleConfirmEmiPayment} />
+            )) : (
+                <Card>
+                    <CardContent className="pt-6">
+                        <p className="text-center text-muted-foreground">No loan history found.</p>
+                    </CardContent>
+                </Card>
+            )}
         </TabsContent>
         <TabsContent value="deposits">
              <HistoryTable
@@ -366,7 +343,7 @@ export default function UserDetailPage() {
               renderRow={(item: Transaction) => (
                 <TableRow key={item.id}>
                   <TableCell>₹{(item.amount || 0).toFixed(2)}</TableCell>
-                  <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
+                  <TableCell><Badge variant={getStatusVariant(item.status)} className="capitalize">{item.status}</Badge></TableCell>
                   <TableCell>{formatDate(item.createdAt)}</TableCell>
                 </TableRow>
               )}
@@ -379,7 +356,7 @@ export default function UserDetailPage() {
               renderRow={(item: Transaction) => (
                 <TableRow key={item.id}>
                   <TableCell>₹{(item.amount || 0).toFixed(2)}</TableCell>
-                  <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
+                  <TableCell><Badge variant={getStatusVariant(item.status)} className="capitalize">{item.status}</Badge></TableCell>
                   <TableCell>{formatDate(item.createdAt)}</TableCell>
                 </TableRow>
               )}
@@ -432,3 +409,74 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
     </Card>
   )
 }
+
+function LoanDetails({ loan, onCompleteLoan, onConfirmEmi }: { loan: ActiveLoan; onCompleteLoan: (loanId: string, totalPayable: number) => void; onConfirmEmi: (loan: ActiveLoan, emiIndex: number) => void; }) {
+  return (
+    <Card className="mb-4">
+      <CardHeader>
+        <CardTitle className="flex justify-between">
+          <span>{loan.planName}</span>
+          <Badge variant={getStatusVariant(loan.status)} className="capitalize">{loan.status}</Badge>
+        </CardTitle>
+        <CardDescription>
+          Amount: ₹{loan.loanAmount.toFixed(2)} | Total Payable: ₹{loan.totalPayable.toFixed(2)}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loan.repaymentMethod === 'Direct' ? (
+          <div>
+            <p>Due Date: {formatDate(loan.dueDate)}</p>
+            {loan.status === 'Payment Pending' && (
+              <Button size="sm" onClick={() => onCompleteLoan(loan.id, loan.totalPayable)} className="mt-2">
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Confirm Payment & Complete
+              </Button>
+            )}
+          </div>
+        ) : loan.repaymentMethod === 'EMI' && loan.emis ? (
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full">
+                Show EMI Schedule
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>EMI Amount</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loan.emis.map((emi, index) => (
+                    <TableRow key={index}>
+                      <TableCell>₹{emi.emiAmount.toFixed(2)}</TableCell>
+                      <TableCell>{formatDate(emi.dueDate)}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusVariant(emi.status)} className="capitalize">{emi.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {emi.status === 'Payment Pending' && (
+                          <Button size="sm" onClick={() => onConfirmEmi(loan, index)}>
+                            <CheckCircle className="mr-2 h-4 w-4" /> Mark as Paid
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CollapsibleContent>
+          </Collapsible>
+        ) : (
+          <p>No repayment details available.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
