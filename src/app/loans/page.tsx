@@ -10,6 +10,7 @@ import {
   IndianRupee,
   Calendar,
   Percent,
+  Landmark,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ type LoanPlan = {
   name: string;
   loanAmount: number;
   interest: number;
+  tax?: number;
   totalRepayment: number;
   duration: number;
   durationType: DurationType;
@@ -217,6 +219,7 @@ function LoanPlanCard({ plan, onApply, disabled }: { plan: LoanPlan, onApply: (p
       </CardHeader>
       <CardContent className="space-y-4">
         <LoanDetail icon={Percent} label="Interest" value={`₹${(plan.interest || 0).toFixed(2)}`} />
+        <LoanDetail icon={Landmark} label="Tax" value={`₹${(plan.tax || 0).toFixed(2)}`} />
         <LoanDetail icon={IndianRupee} label="Total Repayment" value={`₹${(plan.totalRepayment || 0).toFixed(2)}`} />
         <LoanDetail icon={Calendar} label="Duration" value={`${plan.duration} ${plan.durationType}`} />
         
