@@ -23,7 +23,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { add, addDays } from 'date-fns';
+import { addDays, addWeeks, addMonths } from 'date-fns';
 
 type LoanRequest = {
   id: string;
@@ -36,13 +36,16 @@ type LoanRequest = {
   planId: string;
 };
 
+type DurationType = 'Days' | 'Weeks' | 'Months';
+
 type LoanPlan = {
     id: string;
     name: string;
     loanAmount: number;
     interest: number;
     totalRepayment: number;
-    duration: number; // in days
+    duration: number;
+    durationType: DurationType;
 };
 
 const formatDate = (timestamp: Timestamp) => {
@@ -77,7 +80,21 @@ export default function LoanRequestsPage() {
             // 2. Create an active loan document for the user
             const loanRef = doc(collection(firestore, 'users', request.userId, 'loans'));
             const startDate = new Date();
-            const dueDate = addDays(startDate, plan.duration);
+            let dueDate;
+
+            switch(plan.durationType) {
+                case 'Days':
+                    dueDate = addDays(startDate, plan.duration);
+                    break;
+                case 'Weeks':
+                    dueDate = addWeeks(startDate, plan.duration);
+                    break;
+                case 'Months':
+                    dueDate = addMonths(startDate, plan.duration);
+                    break;
+                default:
+                    dueDate = addDays(startDate, plan.duration); // Fallback to days
+            }
 
             batch.set(loanRef, {
                 userId: request.userId,
@@ -86,6 +103,7 @@ export default function LoanRequestsPage() {
                 interest: plan.interest,
                 totalPayable: plan.totalRepayment,
                 duration: plan.duration,
+                durationType: plan.durationType,
                 startDate: Timestamp.fromDate(startDate),
                 dueDate: Timestamp.fromDate(dueDate),
                 status: 'Active',
@@ -220,3 +238,5 @@ export default function LoanRequestsPage() {
     </div>
   );
 }
+
+    

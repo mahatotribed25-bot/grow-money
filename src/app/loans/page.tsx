@@ -30,6 +30,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 
+type DurationType = 'Days' | 'Weeks' | 'Months';
 
 type LoanPlan = {
   id: string;
@@ -38,6 +39,7 @@ type LoanPlan = {
   interest: number;
   totalRepayment: number;
   duration: number;
+  durationType: DurationType;
   emiOption: boolean;
   directPayOption: boolean;
 };
@@ -215,7 +217,7 @@ function LoanPlanCard({ plan, onApply, disabled }: { plan: LoanPlan, onApply: (p
       <CardContent className="space-y-4">
         <LoanDetail icon={Percent} label="Interest" value={`₹${(plan.interest || 0).toFixed(2)}`} />
         <LoanDetail icon={IndianRupee} label="Total Repayment" value={`₹${(plan.totalRepayment || 0).toFixed(2)}`} />
-        <LoanDetail icon={Calendar} label="Duration" value={`${plan.duration} Days`} />
+        <LoanDetail icon={Calendar} label="Duration" value={`${plan.duration} ${plan.durationType}`} />
         
         {showRepaymentOptions && (
           <div className="space-y-2">
@@ -286,3 +288,5 @@ function BottomNavItem({
     </Link>
   );
 }
+
+    

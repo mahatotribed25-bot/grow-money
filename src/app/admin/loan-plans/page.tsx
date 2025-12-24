@@ -31,6 +31,9 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+type DurationType = 'Days' | 'Weeks' | 'Months';
 
 type LoanPlan = {
   id: string;
@@ -38,7 +41,8 @@ type LoanPlan = {
   loanAmount: number;
   interest: number;
   totalRepayment: number;
-  duration: number; // in days
+  duration: number; 
+  durationType: DurationType;
   emiOption: boolean;
   directPayOption: boolean;
 };
@@ -49,6 +53,7 @@ const emptyPlan: Omit<LoanPlan, 'id'> = {
   interest: 0,
   totalRepayment: 0,
   duration: 1,
+  durationType: 'Days',
   emiOption: true,
   directPayOption: true,
 };
@@ -137,7 +142,7 @@ export default function LoanPlansPage() {
               <TableHead>Loan Amount</TableHead>
               <TableHead>Interest</TableHead>
               <TableHead>Total Repayment</TableHead>
-              <TableHead>Duration (Days)</TableHead>
+              <TableHead>Duration</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -155,7 +160,7 @@ export default function LoanPlansPage() {
                   <TableCell>₹{(plan.loanAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>₹{(plan.interest || 0).toFixed(2)}</TableCell>
                   <TableCell>₹{(plan.totalRepayment || 0).toFixed(2)}</TableCell>
-                  <TableCell>{plan.duration} days</TableCell>
+                  <TableCell>{plan.duration} {plan.durationType}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
@@ -229,15 +234,30 @@ export default function LoanPlansPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="duration" className="text-right">
-                Duration (Days)
+                Duration
               </Label>
               <Input
                 id="duration"
                 type="number"
                 value={editingPlan?.duration || 1}
                 onChange={(e) => handleFieldChange('duration', e.target.value)}
-                className="col-span-3"
+                className="col-span-1"
               />
+              <div className="col-span-2">
+                <Select
+                    value={editingPlan?.durationType || 'Days'}
+                    onValueChange={(value: DurationType) => handleFieldChange('durationType', value)}
+                >
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Days">Days</SelectItem>
+                        <SelectItem value="Weeks">Weeks</SelectItem>
+                        <SelectItem value="Months">Months</SelectItem>
+                    </SelectContent>
+                </Select>
+              </div>
             </div>
              <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="emiOption" className="text-right">EMI Option</Label>
@@ -269,3 +289,5 @@ export default function LoanPlansPage() {
     </div>
   );
 }
+
+    

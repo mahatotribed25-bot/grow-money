@@ -17,6 +17,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useEffect, useState } from 'react';
 
+type DurationType = 'Days' | 'Weeks' | 'Months';
+
 type ActiveLoan = {
   id: string;
   planName: string;
@@ -25,6 +27,8 @@ type ActiveLoan = {
   startDate: Timestamp;
   dueDate: Timestamp;
   status: 'Active' | 'Due' | 'Completed';
+  duration: number;
+  durationType: DurationType;
 };
 
 const CountdownTimer = ({ endDate }: { endDate: Date }) => {
@@ -185,3 +189,5 @@ function BottomNavItem({
     </Link>
   );
 }
+
+    
