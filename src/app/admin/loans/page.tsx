@@ -33,7 +33,7 @@ type LoanRequest = {
   createdAt: Timestamp;
   status: 'pending' | 'approved' | 'rejected' | 'sent';
   planId: string;
-  userUpiId?: string; // Add this field
+  userUpiId?: string;
 };
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
@@ -106,7 +106,7 @@ export default function LoanRequestsPage() {
                 interest: plan.interest,
                 totalPayable: plan.totalRepayment,
                 duration: plan.duration,
-                durationType: plan.durationType,
+                durationType: plan.durationType || 'Days',
                 startDate: Timestamp.fromDate(startDate),
                 dueDate: Timestamp.fromDate(dueDate),
                 status: 'Active',
