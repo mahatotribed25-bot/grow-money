@@ -71,6 +71,16 @@ type Investment = {
   lastIncomeDate?: Timestamp;
 };
 
+type ActiveLoan = {
+    id: string;
+    planName: string;
+    loanAmount: number;
+    totalPayable: number;
+    startDate: Timestamp;
+    dueDate: Timestamp;
+    status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
+}
+
 type Announcement = {
     id: string;
     message: string;
@@ -118,6 +128,9 @@ export default function Dashboard() {
     useCollection<Investment>(
       user ? `users/${user.uid}/investments` : null
     );
+   const { data: loans, loading: loansLoading } = useCollection<ActiveLoan>(
+    user ? `users/${user.uid}/loans` : null
+  );
   const { data: announcements, loading: announcementsLoading } = useCollection<Announcement>('announcements');
 
 
@@ -230,6 +243,7 @@ export default function Dashboard() {
 
 
   const activeInvestments = investments?.filter((inv) => inv.status === 'Active');
+  const activeLoan = loans?.find(l => l.status !== 'Completed');
 
   const sortedAnnouncements = announcements?.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
 
@@ -286,6 +300,22 @@ export default function Dashboard() {
                 </CardContent>
             </Card>
           )}
+
+          {loansLoading ? (
+              <Card><CardContent className="pt-6"><p>Loading loan status...</p></CardContent></Card>
+          ) : activeLoan ? (
+              <div>
+                  <div className="flex items-center justify-between">
+                     <h2 className="text-xl font-bold">Active Loan</h2>
+                     <Button variant="outline" size="sm" asChild>
+                      <Link href="/my-loans">
+                        View Details <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                  <ActiveLoanCard loan={activeLoan} />
+              </div>
+          ) : null}
 
            <Card>
             <CardHeader>
@@ -629,6 +659,56 @@ function ActivePlanCard({ investment, onMaturity }: { investment: Investment, on
   );
 }
 
+function ActiveLoanCard({ loan }: { loan: ActiveLoan }) {
+    if (!loan.startDate || !loan.dueDate) {
+        return null;
+    }
+    const startDate = loan.startDate.toDate();
+    const dueDate = loan.dueDate.toDate();
+    const now = new Date();
+
+    const totalDuration = dueDate.getTime() - startDate.getTime();
+    const elapsedDuration = now.getTime() - startDate.getTime();
+    const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
+    
+    const getStatusVariant = (status: string) => {
+        switch(status) {
+            case 'Active': return 'default';
+            case 'Due':
+            case 'Payment Pending': return 'destructive';
+            default: return 'secondary';
+        }
+    }
+
+    return (
+        <Card className="bg-destructive/10 border-destructive/20 mt-4">
+             <CardHeader>
+                <CardTitle className="flex justify-between items-center">
+                    <span>{loan.planName}</span>
+                    <Badge variant={getStatusVariant(loan.status)} className="capitalize">{loan.status}</Badge>
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <div className="flex justify-between">
+                    <p className="text-sm text-muted-foreground">Loan Amount</p>
+                    <p className="font-semibold">₹{(loan.loanAmount || 0).toFixed(2)}</p>
+                </div>
+                <div className="flex justify-between">
+                    <p className="text-sm text-muted-foreground">Total Repayment</p>
+                    <p className="font-semibold text-red-400">₹{(loan.totalPayable || 0).toFixed(2)}</p>
+                </div>
+                <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Time Remaining:</span>
+                        <span>Due on {dueDate.toLocaleDateString()}</span>
+                    </div>
+                    <Progress value={progress} className="[&>div]:bg-red-500" />
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 function BottomNavItem({
   icon: Icon,
   label,
@@ -663,3 +743,5 @@ function QuickActionButton({ icon: Icon, label, href }: { icon: React.ElementTyp
         </Button>
     )
 }
+
+    
