@@ -21,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCollection, useFirestore } from '@/firebase';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   addDoc,
   collection,
@@ -59,6 +59,12 @@ type Investment = {
     investorName: string;
     investedAmount: number;
     amountReceived: number;
+}
+
+type Repayment = {
+    id: string;
+    amount: number;
+    status: 'Pending Distribution' | 'Distributed';
 }
 
 const emptyPlan: Omit<GroupLoanPlan, 'id' | 'amountFunded' | 'status'> = {
@@ -249,7 +255,8 @@ export default function GroupLoansPage() {
 function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: (plan: GroupLoanPlan) => void, onDelete: (id: string) => void }) {
     const firestore = useFirestore();
     const { toast } = useToast();
-    const { data: investments, loading } = useCollection<Investment>(`groupLoanPlans/${plan.id}/investments`);
+    const { data: investments, loading: investmentsLoading } = useCollection<Investment>(`groupLoanPlans/${plan.id}/investments`);
+    const { data: repayments, loading: repaymentsLoading } = useCollection<Repayment>(`groupLoanPlans/${plan.id}/repayments`);
     
     const [payoutAmount, setPayoutAmount] = useState(0);
     const [selectedInvestor, setSelectedInvestor] = useState('');
@@ -257,6 +264,13 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
 
     const fundingProgress = (plan.amountFunded / plan.loanAmount) * 100;
     
+    const distributableAmount = useMemo(() => {
+        if (!repayments) return 0;
+        return repayments
+            .filter(r => r.status === 'Pending Distribution')
+            .reduce((sum, r) => sum + r.amount, 0);
+    }, [repayments]);
+
     const getStatusVariant = (status: string) => {
         switch(status) {
             case 'Funding': return 'secondary';
@@ -293,6 +307,11 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             return;
         }
 
+        if (payoutAmount > distributableAmount) {
+            toast({ title: 'Payout exceeds available funds', description: `You can only distribute up to ₹${distributableAmount.toFixed(2)}.`, variant: 'destructive'});
+            return;
+        }
+
         const investor = investments?.find(i => i.id === selectedInvestor);
         if (!investor) return;
 
@@ -312,15 +331,36 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             payoutDate: serverTimestamp(),
         });
         
-        // Add to user's wallet
-        const userRef = doc(firestore, 'users', investor.investorId);
-        // This part needs a transaction in a real scenario to get user doc first, but for simplicity:
-        // Assume we need to run a transaction in a cloud function for this.
-        // For client side, we might have to fetch user doc first which is less ideal.
-        // Let's just do it less safely for this UI example.
-        batch.update(userRef, {
-            walletBalance: (investor.investedAmount || 0) + payoutAmount // This is a simplification
-        });
+        let amountToDeduct = payoutAmount;
+        const pendingRepayments = (repayments || []).filter(r => r.status === 'Pending Distribution').sort((a,b) => a.amount - b.amount);
+
+        for (const repayment of pendingRepayments) {
+            if (amountToDeduct <= 0) break;
+
+            const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', repayment.id);
+            const amountInRepayment = repayment.amount;
+
+            if (amountToDeduct >= amountInRepayment) {
+                batch.update(repaymentRef, { status: 'Distributed' });
+                amountToDeduct -= amountInRepayment;
+            } else {
+                 // This logic is complex for a simple batch write.
+                 // A simpler model is to just mark as partially distributed or create a new doc.
+                 // For now, we will assume admin distributes full repayment amounts.
+                 // This part requires a more robust cloud function logic for partial distributions.
+                 // Let's keep it simple: admin should distribute amounts that match repayments.
+            }
+        }
+        
+         // Simplified logic: Find first pending repayment that can cover the payout and mark it distributed.
+         const suitableRepayment = pendingRepayments.find(r => r.amount >= payoutAmount);
+         if (suitableRepayment) {
+            const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', suitableRepayment.id);
+            batch.update(repaymentRef, { status: 'Distributed'});
+         } else {
+            toast({title: 'Payout amount does not match any single repayment.', description: 'For simplicity, please distribute amounts that match a pending repayment.', variant: 'destructive'});
+            return;
+         }
 
 
         try {
@@ -381,11 +421,11 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {loading ? <TableRow><TableCell colSpan={3}>Loading...</TableCell></TableRow>
+                                    {investmentsLoading ? <TableRow><TableCell colSpan={3}>Loading...</TableCell></TableRow>
                                     : investments?.map(inv => (
                                         <TableRow key={inv.id}>
                                             <TableCell>{inv.investorName}</TableCell>
-                                            <TableCell>₹{inv.investedAmount.toFixed(2)}</TableCell>
+                                            <TableCell>₹{(inv.investedAmount || 0).toFixed(2)}</TableCell>
                                             <TableCell className="text-green-400">₹{(inv.amountReceived || 0).toFixed(2)}</TableCell>
                                         </TableRow>
                                     ))}
@@ -393,7 +433,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                             </Table>
                         </div>
                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <h4 className="font-semibold flex items-center gap-2"><IndianRupee className="h-4 w-4"/>Record Borrower Repayment</h4>
                             <div className="flex gap-2">
@@ -404,6 +444,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
 
                         <div className="space-y-2">
                              <h4 className="font-semibold flex items-center gap-2"><IndianRupee className="h-4 w-4"/>Distribute Payout</h4>
+                            <p className='text-sm text-muted-foreground'>Available to distribute: <span className='font-bold text-primary'>₹{distributableAmount.toFixed(2)}</span></p>
                              <div className="flex gap-2">
                                 <Select onValueChange={setSelectedInvestor} value={selectedInvestor}>
                                     <SelectTrigger><SelectValue placeholder="Select Investor"/></SelectTrigger>
@@ -414,6 +455,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                                 <Input type="number" placeholder="Payout amount" value={payoutAmount || ''} onChange={e => setPayoutAmount(parseFloat(e.target.value))}/>
                                 <Button onClick={handleDistributePayout}>Pay</Button>
                              </div>
+                             <p className="text-xs text-muted-foreground">For simplicity, payout amount should match a logged repayment.</p>
                         </div>
                     </div>
                 </CollapsibleContent>
@@ -422,3 +464,5 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
       </Card>
     )
 }
+
+    
