@@ -11,7 +11,9 @@ import {
   Briefcase,
   Copy,
   Gift,
-  CreditCard
+  CreditCard,
+  Users2,
+  HandCoins
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -37,7 +39,17 @@ type Transaction = {
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Timestamp;
+  userId?: string; // Add userId to filter transactions client-side
 };
+
+type GroupInvestment = {
+    id: string;
+    planName: string;
+    investedAmount: number;
+    amountReceived: number;
+    amountPending: number;
+    createdAt: Timestamp;
+}
 
 type UserData = {
   referralCode?: string;
@@ -54,6 +66,7 @@ export default function ProfilePage() {
 
   const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null);
   const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null);
+  const { data: groupInvestments } = useCollection<GroupInvestment>(user ? `groupLoanPlans` : null, { subcollections: ['investments'], where: ['investorId', '==', user?.uid] });
   const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   
   const [upiId, setUpiId] = useState('');
@@ -201,15 +214,19 @@ export default function ProfilePage() {
         </Card>
 
         <Tabs defaultValue="deposits" className="mt-6">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="deposits">Deposit History</TabsTrigger>
                 <TabsTrigger value="withdrawals">Withdrawal History</TabsTrigger>
+                <TabsTrigger value="group-investments">Group Investments</TabsTrigger>
             </TabsList>
             <TabsContent value="deposits">
                 <TransactionTable transactions={userDeposits} />
             </TabsContent>
             <TabsContent value="withdrawals">
                 <TransactionTable transactions={userWithdrawals} />
+            </TabsContent>
+             <TabsContent value="group-investments">
+                <GroupInvestmentTable investments={groupInvestments} />
             </TabsContent>
         </Tabs>
 
@@ -219,9 +236,10 @@ export default function ProfilePage() {
         </Button>
       </main>
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
+          <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" active />
         </div>
       </nav>
@@ -268,30 +286,76 @@ function TransactionTable({ transactions }: { transactions: Transaction[] | unde
     return (
         <Card>
             <CardContent className="pt-6">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Amount</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Date</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {transactions && transactions.length > 0 ? (
-                            transactions.map(tx => (
-                                <TableRow key={tx.id}>
-                                    <TableCell>₹{tx.amount.toFixed(2)}</TableCell>
-                                    <TableCell><Badge variant={getStatusVariant(tx.status)}>{tx.status}</Badge></TableCell>
-                                    <TableCell>{formatDate(tx.createdAt)}</TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
                             <TableRow>
-                                <TableCell colSpan={3} className="text-center">No transactions found.</TableCell>
+                                <TableHead>Amount</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Date</TableHead>
                             </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {transactions && transactions.length > 0 ? (
+                                transactions.map(tx => (
+                                    <TableRow key={tx.id}>
+                                        <TableCell>₹{tx.amount.toFixed(2)}</TableCell>
+                                        <TableCell><Badge variant={getStatusVariant(tx.status)}>{tx.status}</Badge></TableCell>
+                                        <TableCell>{formatDate(tx.createdAt)}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-center">No transactions found.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
+    const formatDate = (timestamp: Timestamp) => {
+        if (!timestamp) return 'N/A';
+        return new Date(timestamp.seconds * 1000).toLocaleDateString();
+    };
+
+    return (
+        <Card>
+            <CardContent className="pt-6">
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Plan Name</TableHead>
+                                <TableHead>Invested</TableHead>
+                                <TableHead>Received</TableHead>
+                                <TableHead>Pending</TableHead>
+                                <TableHead>Date</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {investments && investments.length > 0 ? (
+                                investments.map(inv => (
+                                    <TableRow key={inv.id}>
+                                        <TableCell>{inv.planName}</TableCell>
+                                        <TableCell>₹{inv.investedAmount.toFixed(2)}</TableCell>
+                                        <TableCell className="text-green-400">₹{(inv.amountReceived || 0).toFixed(2)}</TableCell>
+                                        <TableCell className="text-yellow-400">₹{(inv.investedAmount + (inv.amountPending || 0) - (inv.amountReceived || 0)).toFixed(2)}</TableCell>
+                                        <TableCell>{formatDate(inv.createdAt)}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center">No group investments found.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </CardContent>
         </Card>
     );

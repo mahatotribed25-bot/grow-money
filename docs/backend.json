@@ -336,6 +336,65 @@
             }
         },
         "required": ["userId", "planName", "loanAmount", "totalPayable", "duration", "durationType", "startDate", "dueDate", "status", "repaymentMethod"]
+    },
+    "groupLoanPlan": {
+        "title": "Group Loan Plan",
+        "description": "An investment opportunity for a group loan.",
+        "type": "object",
+        "properties": {
+            "name": { "type": "string"},
+            "loanAmount": { "type": "number"},
+            "interest": { "type": "number" },
+            "totalRepayment": { "type": "number" },
+            "repaymentType": { "type": "string", "enum": ["EMI", "Monthly", "One-Time"]},
+            "duration": { "type": "number" },
+            "durationType": { "type": "string", "enum": ["Days", "Weeks", "Months", "Years"]},
+            "amountFunded": { "type": "number"},
+            "status": { "type": "string", "enum": ["Funding", "Active", "Completed"]}
+        },
+        "required": ["name", "loanAmount", "interest", "totalRepayment", "repaymentType", "duration", "durationType", "amountFunded", "status"]
+    },
+    "groupInvestment": {
+        "title": "Group Investment",
+        "description": "A user's investment into a group loan plan.",
+        "type": "object",
+        "properties": {
+            "investorId": { "type": "string" },
+            "investorName": { "type": "string" },
+            "planId": { "type": "string" },
+            "planName": { "type": "string" },
+            "investedAmount": { "type": "number" },
+            "amountReceived": { "type": "number", "default": 0 },
+            "amountPending": { "type": "number" },
+            "createdAt": { "type": "string", "format": "date-time"}
+        },
+        "required": ["investorId", "investorName", "planId", "planName", "investedAmount", "createdAt"]
+    },
+    "repayment": {
+      "title": "Repayment",
+      "description": "A log of a repayment made by a borrower to the admin.",
+      "type": "object",
+      "properties": {
+        "loanPlanId": { "type": "string" },
+        "amount": { "type": "number" },
+        "repaymentDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["Pending Distribution", "Distributed"]}
+      },
+      "required": ["loanPlanId", "amount", "repaymentDate", "status"]
+    },
+    "payout": {
+        "title": "Payout",
+        "description": "A record of a manual payout from admin to an investor for a group loan.",
+        "type": "object",
+        "properties": {
+            "payoutId": {"type": "string"},
+            "loanPlanId": { "type": "string" },
+            "investorId": { "type": "string" },
+            "investorName": { "type": "string" },
+            "payoutAmount": { "type": "number" },
+            "payoutDate": { "type": "string", "format": "date-time"}
+        },
+        "required": ["loanPlanId", "investorId", "payoutAmount", "payoutDate"]
     }
   },
   "auth": {
@@ -395,8 +454,22 @@
     "/users/{userId}/loans/{loanId}": {
         "schema": { "$ref": "#/entities/activeLoan" },
         "description": "Stores a user's active loans."
+    },
+    "/groupLoanPlans/{planId}": {
+        "schema": { "$ref": "#/entities/groupLoanPlan" },
+        "description": "Stores group loan investment opportunities created by the admin."
+    },
+    "/groupLoanPlans/{planId}/investments/{investmentId}": {
+        "schema": { "$ref": "#/entities/groupInvestment" },
+        "description": "Stores individual investor contributions to a specific group loan plan."
+    },
+    "/groupLoanPlans/{planId}/repayments/{repaymentId}": {
+        "schema": { "$ref": "#/entities/repayment" },
+        "description": "Logs repayments made by the borrower for a specific group loan."
+    },
+    "/groupLoanPlans/{planId}/payouts/{payoutId}": {
+        "schema": { "$ref": "#/entities/payout" },
+        "description": "Logs manual payouts distributed by the admin to investors for a group loan."
     }
   }
 }
-
-    

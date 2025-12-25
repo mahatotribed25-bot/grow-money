@@ -86,5 +86,27 @@ service cloud.firestore {
       // Loans are created/updated via admin-controlled actions.
       allow write: if isAdmin(); 
     }
+
+    // Rules for Group Loan Investment System
+    match /groupLoanPlans/{planId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin(); // Only admin can create/update plans
+    }
+
+    match /groupLoanPlans/{planId}/investments/{investmentId} {
+      allow read: if isSignedIn();
+      // Allow user to create their own investment if they are signed in
+      allow create: if isOwner(request.resource.data.investorId); 
+      // Only admin can update (e.g. for payouts) or delete
+      allow update, delete: if isAdmin();
+    }
+    
+    match /groupLoanPlans/{planId}/repayments/{repaymentId} {
+      allow read, write: if isAdmin(); // Only admin manages repayments
+    }
+
+    match /groupLoanPlans/{planId}/payouts/{payoutId} {
+      allow read, write: if isAdmin(); // Only admin manages payouts
+    }
   }
 }

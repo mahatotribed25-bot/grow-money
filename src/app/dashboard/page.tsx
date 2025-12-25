@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Megaphone,
   HandCoins,
+  Users2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,7 +91,7 @@ type Announcement = {
 
 const CountdownTimer = ({ endDate, onComplete }: { endDate: Date, onComplete: () => void }) => {
     const [timeLeft, setTimeLeft] = useState('...');
-    const memoizedOnComplete = useCallback(onComplete, []);
+    const memoizedOnComplete = useCallback(onComplete, [onComplete]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -334,6 +335,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" />
+                <QuickActionButton icon={Users2} label="Group Investing" href="/group-investing" />
                 <QuickActionButton icon={History} label="My Plans" href="/my-plans" />
                 <QuickActionButton icon={HandCoins} label="Loans" href="/loans" />
                 <QuickActionButton icon={User} label="Profile" href="/profile" />
@@ -754,5 +756,3 @@ function QuickActionButton({ icon: Icon, label, href }: { icon: React.ElementTyp
         </Button>
     )
 }
-
-    

@@ -15,6 +15,7 @@ import {
   Upload,
   Megaphone,
   HandCoins,
+  Users2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -90,6 +91,7 @@ export default function AdminLayout({
             <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
             <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
             <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
+            <AdminNavItem icon={Users2} href="/admin/group-loans">Group Loans</AdminNavItem>
             <AdminNavItem icon={HandCoins} href="/admin/loan-plans">Loan Plans</AdminNavItem>
             <AdminNavItem icon={HandCoins} href="/admin/loans">Loan Requests</AdminNavItem>
             <AdminNavItem icon={Upload} href="/admin/deposits">Deposits</AdminNavItem>
@@ -133,6 +135,7 @@ export default function AdminLayout({
                 <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
                 <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
                 <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
+                <AdminNavItem icon={Users2} href="/admin/group-loans">Group Loans</AdminNavItem>
                 <AdminNavItem icon={HandCoins} href="/admin/loan-plans">Loan Plans</AdminNavItem>
                 <AdminNavItem icon={HandCoins} href="/admin/loans">Loan Requests</AdminNavItem>
                 <AdminNavItem icon={Upload} href="/admin/deposits">Deposits</AdminNavItem>
