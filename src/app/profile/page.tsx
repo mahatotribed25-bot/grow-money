@@ -342,9 +342,9 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                                 investments.map(inv => (
                                     <TableRow key={inv.id}>
                                         <TableCell>{inv.planName}</TableCell>
-                                        <TableCell>₹{inv.investedAmount.toFixed(2)}</TableCell>
+                                        <TableCell>₹{(inv.investedAmount || 0).toFixed(2)}</TableCell>
                                         <TableCell className="text-green-400">₹{(inv.amountReceived || 0).toFixed(2)}</TableCell>
-                                        <TableCell className="text-yellow-400">₹{(inv.investedAmount + (inv.amountPending || 0) - (inv.amountReceived || 0)).toFixed(2)}</TableCell>
+                                        <TableCell className="text-yellow-400">₹{((inv.investedAmount || 0) + (inv.amountPending || 0) - (inv.amountReceived || 0)).toFixed(2)}</TableCell>
                                         <TableCell>{formatDate(inv.createdAt)}</TableCell>
                                     </TableRow>
                                 ))
