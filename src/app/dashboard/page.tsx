@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
   addDoc,
@@ -90,6 +90,7 @@ type Announcement = {
 
 const CountdownTimer = ({ endDate, onComplete }: { endDate: Date, onComplete: () => void }) => {
     const [timeLeft, setTimeLeft] = useState('...');
+    const memoizedOnComplete = useCallback(onComplete, []);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -99,7 +100,7 @@ const CountdownTimer = ({ endDate, onComplete }: { endDate: Date, onComplete: ()
             if (distance < 0) {
                 clearInterval(interval);
                 setTimeLeft("00d 00h 00m 00s");
-                if(onComplete) onComplete();
+                if(memoizedOnComplete) memoizedOnComplete();
                 return;
             }
 
@@ -112,7 +113,7 @@ const CountdownTimer = ({ endDate, onComplete }: { endDate: Date, onComplete: ()
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [endDate, onComplete]);
+    }, [endDate, memoizedOnComplete]);
 
     return <span className="font-mono">{timeLeft}</span>;
 };
@@ -246,6 +247,16 @@ export default function Dashboard() {
   const activeLoan = loans?.find(l => l.status !== 'Completed');
 
   const sortedAnnouncements = announcements?.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+
+  const loading = userLoading || userDataLoading || investmentsLoading || loansLoading || announcementsLoading;
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
