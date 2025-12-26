@@ -31,6 +31,7 @@ import {
   writeBatch,
   serverTimestamp,
   Timestamp,
+  runTransaction,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -356,60 +357,64 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             return;
         }
 
-        const investor = investments?.find(i => i.id === selectedInvestor);
-        if (!investor) return;
-
-        const batch = writeBatch(firestore);
-
-        // Update the investor's received amount
-        const investmentRef = doc(firestore, 'groupLoanPlans', plan.id, 'investments', investor.id);
-        batch.update(investmentRef, {
-            amountReceived: (investor.amountReceived || 0) + payoutAmount
-        });
-
-        // Create a record of this payout
-        const payoutRef = doc(collection(firestore, 'groupLoanPlans', plan.id, 'payouts'));
-        batch.set(payoutRef, {
-            payoutId: payoutRef.id,
-            loanPlanId: plan.id,
-            investorId: investor.id,
-            investorName: investor.investorName,
-            payoutAmount: payoutAmount,
-            payoutDate: serverTimestamp(),
-        });
-        
-        // Find the oldest repayment log that is pending and mark it as distributed.
-        // This is a simplification. A more complex system might handle partial distributions.
-        const pendingRepayments = (repayments || []).filter(r => r.status === 'Pending Distribution').sort((a,b) => (a.repaymentDate?.seconds || 0) - (b.repaymentDate?.seconds || 0));
-
-        let amountToDeduct = payoutAmount;
-        for (const repayment of pendingRepayments) {
-            if (amountToDeduct <= 0) break;
-            
-            const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', repayment.id);
-            const availableInThisRepayment = repayment.amount; 
-            
-            // If payout uses up this entire repayment log or more, mark it as fully distributed.
-            if(amountToDeduct >= availableInThisRepayment) {
-                batch.update(repaymentRef, { status: 'Distributed' });
-                amountToDeduct -= availableInThisRepayment;
-            } else {
-                 // If payout uses only part of this repayment, we'll simplify and mark the whole thing as distributed.
-                 // This avoids complex partial tracking in the repayment log itself.
-                 toast({title: 'Partial Distribution Note', description: `Distributing ₹${payoutAmount.toFixed(2)}. The oldest pending repayment log will be marked as 'Distributed'.`, variant: 'default'});
-                 batch.update(repaymentRef, {status: 'Distributed' }); 
-                 amountToDeduct = 0; // Stop deducting
-            }
-        }
+        const investorInvestment = investments?.find(i => i.id === selectedInvestor);
+        if (!investorInvestment) return;
         
         try {
-            await batch.commit();
-            toast({ title: 'Payout Distributed', description: `₹${payoutAmount} sent to ${investor.investorName}`});
+            await runTransaction(firestore, async (transaction) => {
+                const investorUserRef = doc(firestore, 'users', investorInvestment.investorId);
+                const investorUserDoc = await transaction.get(investorUserRef);
+                if (!investorUserDoc.exists()) throw new Error("Investor's user document not found.");
+                
+                // 1. Credit investor's main wallet
+                const newWalletBalance = (investorUserDoc.data().walletBalance || 0) + payoutAmount;
+                transaction.update(investorUserRef, { walletBalance: newWalletBalance });
+                
+                // 2. Update the investor's received amount in the subcollection
+                const investmentRef = doc(firestore, 'groupLoanPlans', plan.id, 'investments', investorInvestment.id);
+                transaction.update(investmentRef, {
+                    amountReceived: (investorInvestment.amountReceived || 0) + payoutAmount
+                });
+
+                // 3. Create a record of this payout
+                const payoutRef = doc(collection(firestore, 'groupLoanPlans', plan.id, 'payouts'));
+                transaction.set(payoutRef, {
+                    payoutId: payoutRef.id,
+                    loanPlanId: plan.id,
+                    investorId: investorInvestment.investorId,
+                    investorName: investorInvestment.investorName,
+                    payoutAmount: payoutAmount,
+                    payoutDate: serverTimestamp(),
+                });
+                
+                // 4. Mark oldest pending repayments as distributed
+                const pendingRepayments = (repayments || []).filter(r => r.status === 'Pending Distribution').sort((a,b) => (a.repaymentDate?.seconds || 0) - (b.repaymentDate?.seconds || 0));
+
+                let amountToDeduct = payoutAmount;
+                for (const repayment of pendingRepayments) {
+                    if (amountToDeduct <= 0) break;
+                    
+                    const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', repayment.id);
+                    const availableInThisRepayment = repayment.amount; 
+                    
+                    if(amountToDeduct >= availableInThisRepayment) {
+                        transaction.update(repaymentRef, { status: 'Distributed' });
+                        amountToDeduct -= availableInThisRepayment;
+                    } else {
+                         toast({title: 'Partial Distribution Note', description: `Distributing ₹${payoutAmount.toFixed(2)}. The oldest pending repayment log will be marked as 'Distributed'.`, variant: 'default'});
+                         transaction.update(repaymentRef, {status: 'Distributed' }); 
+                         amountToDeduct = 0;
+                    }
+                }
+            });
+
+            toast({ title: 'Payout Distributed', description: `₹${payoutAmount} sent to ${investorInvestment.investorName}'s wallet.`});
             setPayoutAmount(0);
             setSelectedInvestor('');
-        } catch(e) {
+
+        } catch(e: any) {
             console.error(e);
-            toast({title: 'Payout Failed', variant: 'destructive'});
+            toast({title: 'Payout Failed', description: e.message || 'An unknown error occurred.', variant: 'destructive'});
         }
     }
     
