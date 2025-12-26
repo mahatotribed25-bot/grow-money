@@ -171,10 +171,12 @@ export default function Dashboard() {
         });
       });
 
-      toast({
-        title: 'Investment Matured!',
-        description: 'Your investment has matured and the return has been added to your wallet.',
-      });
+      if (maturedInvestments.length > 0) {
+        toast({
+            title: 'Investment Matured!',
+            description: 'Your investment has matured and the return has been added to your wallet.',
+        });
+      }
     } catch (error) {
       console.error('Error processing maturity:', error);
     }
@@ -237,11 +239,13 @@ export default function Dashboard() {
 
 
   useEffect(() => {
+    if (investments) {
       autoCreditDailyIncome();
       handleInvestmentMaturity();
-  // We want this to run only once on load to avoid multiple credits
+    }
+  // We want this to run only when the investments data changes, not while it's loading.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [investmentsLoading]);
+  }, [investments]);
 
 
   const activeInvestments = investments?.filter((inv) => inv.status === 'Active');
