@@ -49,7 +49,6 @@ type GroupInvestment = {
     planName: string;
     investedAmount: number;
     amountReceived: number;
-    amountPending: number;
     createdAt: Timestamp;
 }
 
@@ -339,10 +338,9 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
         ? ((planData.amountRepaid || 0) / planData.totalRepayment) * 100 
         : 0;
 
-    const investorShare = (planData && planData.loanAmount > 0) ? (investment.investedAmount / planData.loanAmount) : 0;
-    const expectedReturn = investment.investedAmount + ( (planData?.interest || 0) * investorShare);
-    const pendingProfit = expectedReturn - (investment.amountReceived || 0);
-
+    const investorShare = (planData && planData.loanAmount > 0) ? ((investment.investedAmount || 0) / planData.loanAmount) : 0;
+    const expectedReturn = (investment.investedAmount || 0) + ( (planData?.interest || 0) * investorShare);
+    const pendingAmount = expectedReturn - (investment.amountReceived || 0);
 
     return (
         <TableRow>
@@ -351,8 +349,9 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
                 <div className='text-xs text-muted-foreground'>{formatDate(investment.createdAt)}</div>
             </TableCell>
             <TableCell>₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-green-400">₹{(expectedReturn || 0).toFixed(2)}</TableCell>
             <TableCell className="text-green-400">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-yellow-400">₹{(pendingProfit > 0 ? pendingProfit : 0).toFixed(2)}</TableCell>
+            <TableCell className="text-yellow-400">₹{(pendingAmount > 0 ? pendingAmount : 0).toFixed(2)}</TableCell>
             <TableCell>
                 {planData ? (
                     <div className="w-24">
@@ -379,8 +378,9 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                             <TableRow>
                                 <TableHead>Plan</TableHead>
                                 <TableHead>Invested</TableHead>
+                                <TableHead>Expected Return</TableHead>
                                 <TableHead>Received</TableHead>
-                                <TableHead>Pending Profit</TableHead>
+                                <TableHead>Pending</TableHead>
                                 <TableHead>Loan Progress</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -391,7 +391,7 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center">No group investments found.</TableCell>
+                                    <TableCell colSpan={6} className="text-center">No group investments found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
