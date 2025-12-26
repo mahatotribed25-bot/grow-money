@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2, ChevronDown, User, IndianRupee } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ChevronDown, User, IndianRupee, History } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCollection, useFirestore } from '@/firebase';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   addDoc,
   collection,
@@ -30,12 +30,13 @@ import {
   updateDoc,
   writeBatch,
   serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
@@ -65,7 +66,7 @@ type Investment = {
 type Repayment = {
     id: string;
     amount: number;
-    repaymentDate: any;
+    repaymentDate: Timestamp;
     status: 'Pending Distribution' | 'Distributed';
 }
 
@@ -265,13 +266,11 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
     const [selectedInvestor, setSelectedInvestor] = useState('');
     const [repaymentAmount, setRepaymentAmount] = useState(0);
 
-    const fundingProgress = (plan.amountFunded / plan.loanAmount) * 100;
+    const fundingProgress = useMemo(() => (plan.amountFunded / plan.loanAmount) * 100, [plan.amountFunded, plan.loanAmount]);
     
-    const totalRepaidByBorrower = useMemo(() => {
-        if (!repayments) return 0;
-        return repayments.reduce((sum, r) => sum + r.amount, 0);
-    }, [repayments]);
-
+    const totalRepaidByBorrower = useMemo(() => plan.amountRepaid || 0, [plan.amountRepaid]);
+    const repaymentProgress = useMemo(() => (totalRepaidByBorrower / plan.totalRepayment) * 100, [totalRepaidByBorrower, plan.totalRepayment]);
+    
     const remainingRepayment = plan.totalRepayment - totalRepaidByBorrower;
 
     const distributableAmount = useMemo(() => {
@@ -281,6 +280,8 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             .reduce((sum, r) => sum + r.amount, 0);
     }, [repayments]);
 
+    const isFullyRepaid = remainingRepayment <= 0;
+
     const getStatusVariant = (status: string) => {
         switch(status) {
             case 'Funding': return 'secondary';
@@ -289,10 +290,19 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             default: return 'secondary';
         }
     }
+    
+    const formatDate = (timestamp: Timestamp | undefined) => {
+        if (!timestamp) return 'N/A';
+        return new Date(timestamp.seconds * 1000).toLocaleString();
+    };
 
     const handleRecordRepayment = async () => {
         if (repaymentAmount <= 0) {
             toast({ title: 'Invalid Amount', description: 'Please enter a positive amount.', variant: 'destructive'});
+            return;
+        }
+        if (repaymentAmount > remainingRepayment) {
+            toast({ title: 'Amount Exceeds Balance', description: `Cannot log more than the remaining ₹${remainingRepayment.toFixed(2)}.`, variant: 'destructive'});
             return;
         }
 
@@ -309,8 +319,13 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
 
         // Update the total amount repaid on the plan itself
         const planRef = doc(firestore, 'groupLoanPlans', plan.id);
-        const newAmountRepaid = (plan.amountRepaid || 0) + repaymentAmount;
-        batch.update(planRef, { amountRepaid: newAmountRepaid });
+        const newAmountRepaid = totalRepaidByBorrower + repaymentAmount;
+        const isCompleted = newAmountRepaid >= plan.totalRepayment;
+
+        batch.update(planRef, { 
+            amountRepaid: newAmountRepaid,
+            ...(isCompleted && { status: 'Completed' })
+         });
 
         try {
             await batch.commit();
@@ -362,18 +377,16 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             if (amountToDeduct <= 0) break;
 
             const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', repayment.id);
-            const amountInRepayment = repayment.amount;
+            const availableInThisRepayment = repayment.amount; // Simplified assumption
 
-            // This logic is simplified: we assume we can find a repayment to mark as distributed
-            // A more complex system would handle partial distributions from a repayment log.
-            if (amountToDeduct >= amountInRepayment) {
+            // This logic is simplified for demo. A real app would need to handle partial distributions
+            // from a single repayment log or consolidate them.
+            if(amountToDeduct >= availableInThisRepayment) {
                 batch.update(repaymentRef, { status: 'Distributed' });
-                amountToDeduct -= amountInRepayment;
+                amountToDeduct -= availableInThisRepayment;
             } else {
-                 // For simplicity, we are not handling partial distributions from a single repayment log.
-                 // This toast will guide the admin.
                  toast({title: 'Partial Distribution Logic Simplified', description: `Distributing ₹${payoutAmount}. Please ensure this aligns with your logged repayments.`, variant: 'default'});
-                 break; // Exit loop after first partial use.
+                 break; 
             }
         }
         
@@ -397,9 +410,9 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                     <span>{plan.name}</span>
                     <Badge variant={getStatusVariant(plan.status)}>{plan.status}</Badge>
                 </CardTitle>
-                <div className="text-sm text-muted-foreground mt-1">
-                    Goal: ₹{plan.loanAmount.toFixed(2)} | Repayment Pending: <span className="font-bold text-destructive">₹{remainingRepayment.toFixed(2)}</span>
-                </div>
+                <CardDescription>
+                    Goal: ₹{plan.loanAmount.toFixed(2)} | Total Repayment: ₹{plan.totalRepayment.toFixed(2)}
+                </CardDescription>
             </div>
             <div className="flex gap-2">
               <Button variant="ghost" size="icon" onClick={() => onEdit(plan)}><Edit className="h-4 w-4" /></Button>
@@ -407,14 +420,24 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-            <div className="mb-4">
-                <div className="flex justify-between text-sm mb-1">
-                    <span>Funded: ₹{plan.amountFunded.toFixed(2)}</span>
-                    <span>{fundingProgress.toFixed(1)}%</span>
+        <CardContent className="space-y-4">
+            <div>
+                <div className="flex justify-between text-sm mb-1 text-muted-foreground">
+                    <span>Funding Progress</span>
+                    <span>₹{plan.amountFunded.toFixed(2)}</span>
                 </div>
                 <Progress value={fundingProgress} />
             </div>
+            
+            {plan.status !== 'Funding' && (
+                <div>
+                     <div className="flex justify-between text-sm mb-1 text-muted-foreground">
+                        <span>Repayment Progress</span>
+                        <span>Repaid: ₹{totalRepaidByBorrower.toFixed(2)} | Pending: ₹{remainingRepayment.toFixed(2)}</span>
+                    </div>
+                    <Progress value={repaymentProgress} className='[&>div]:bg-green-500'/>
+                </div>
+            )}
 
             <Collapsible>
                 <CollapsibleTrigger asChild>
@@ -425,7 +448,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                 <CollapsibleContent className="py-4 space-y-6">
                     <div className="space-y-2">
                         <h4 className="font-semibold flex items-center gap-2"><User className="h-4 w-4"/>Investors</h4>
-                        <div className="border rounded-md">
+                        <div className="border rounded-md max-h-60 overflow-y-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -436,13 +459,13 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                                 </TableHeader>
                                 <TableBody>
                                     {investmentsLoading ? <TableRow><TableCell colSpan={3}>Loading...</TableCell></TableRow>
-                                    : investments?.map(inv => (
+                                    : investments && investments.length > 0 ? investments.map(inv => (
                                         <TableRow key={inv.id}>
                                             <TableCell>{inv.investorName}</TableCell>
                                             <TableCell>₹{(inv.investedAmount || 0).toFixed(2)}</TableCell>
                                             <TableCell className="text-green-400">₹{(inv.amountReceived || 0).toFixed(2)}</TableCell>
                                         </TableRow>
-                                    ))}
+                                    )) : <TableRow><TableCell colSpan={3} className='text-center'>No investors yet.</TableCell></TableRow>}
                                 </TableBody>
                             </Table>
                         </div>
@@ -450,10 +473,14 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <h4 className="font-semibold flex items-center gap-2"><IndianRupee className="h-4 w-4"/>Record Borrower Repayment</h4>
-                            <div className="flex gap-2">
-                                <Input type="number" placeholder="Amount received" value={repaymentAmount || ''} onChange={e => setRepaymentAmount(parseFloat(e.target.value))} />
-                                <Button onClick={handleRecordRepayment}>Log</Button>
-                            </div>
+                            {isFullyRepaid ? (
+                                <div className='text-center text-green-500 font-bold p-4 border rounded-md'>Loan Fully Repaid!</div>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <Input type="number" placeholder="Amount received" value={repaymentAmount || ''} onChange={e => setRepaymentAmount(parseFloat(e.target.value))} />
+                                    <Button onClick={handleRecordRepayment}>Log</Button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -467,8 +494,32 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                                     </SelectContent>
                                 </Select>
                                 <Input type="number" placeholder="Payout amount" value={payoutAmount || ''} onChange={e => setPayoutAmount(parseFloat(e.target.value))}/>
-                                <Button onClick={handleDistributePayout}>Pay</Button>
+                                <Button onClick={handleDistributePayout} disabled={payoutAmount <= 0 || !selectedInvestor}>Pay</Button>
                              </div>
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                        <h4 className="font-semibold flex items-center gap-2"><History className="h-4 w-4"/>Borrower Repayment History</h4>
+                        <div className="border rounded-md max-h-60 overflow-y-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Amount</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {repaymentsLoading ? <TableRow><TableCell colSpan={3}>Loading...</TableCell></TableRow> 
+                                    : repayments && repayments.length > 0 ? repayments.map(rep => (
+                                        <TableRow key={rep.id}>
+                                            <TableCell>₹{rep.amount.toFixed(2)}</TableCell>
+                                            <TableCell>{formatDate(rep.repaymentDate)}</TableCell>
+                                            <TableCell><Badge variant={rep.status === 'Distributed' ? 'outline' : 'secondary'}>{rep.status}</Badge></TableCell>
+                                        </TableRow>
+                                    )) : <TableRow><TableCell colSpan={3} className='text-center'>No repayments logged yet.</TableCell></TableRow>}
+                                </TableBody>
+                            </Table>
                         </div>
                     </div>
                 </CollapsibleContent>
