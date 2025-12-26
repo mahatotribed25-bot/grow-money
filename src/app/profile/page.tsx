@@ -339,9 +339,9 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
         : 0;
 
     const investorShare = (planData && planData.loanAmount > 0) ? ((investment.investedAmount || 0) / planData.loanAmount) : 0;
-    const expectedReturn = (investment.investedAmount || 0) + ( (planData?.interest || 0) * investorShare);
-    const profit = expectedReturn - (investment.investedAmount || 0);
-    const pendingAmount = expectedReturn - (investment.amountReceived || 0);
+    const totalProfitShare = (planData?.interest || 0) * investorShare;
+    const expectedReturn = (investment.investedAmount || 0) + totalProfitShare;
+    const remainingAmount = expectedReturn - (investment.amountReceived || 0);
 
     return (
         <TableRow>
@@ -350,9 +350,9 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
                 <div className='text-xs text-muted-foreground'>{formatDate(investment.createdAt)}</div>
             </TableCell>
             <TableCell>₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-cyan-400">₹{(profit || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-cyan-400">₹{(totalProfitShare || 0).toFixed(2)}</TableCell>
             <TableCell className="text-green-400">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-yellow-400">₹{(pendingAmount > 0 ? pendingAmount : 0).toFixed(2)}</TableCell>
+            <TableCell className="text-yellow-400">₹{(remainingAmount > 0 ? remainingAmount : 0).toFixed(2)}</TableCell>
             <TableCell>
                 {planData ? (
                     <div className="w-24">
