@@ -49,6 +49,7 @@ type GroupLoanPlan = {
   durationType: string;
   amountFunded: number;
   status: 'Funding' | 'Active' | 'Completed';
+  amountRepaid?: number;
 };
 
 type UserData = {
@@ -61,7 +62,7 @@ export default function GroupInvestingPage() {
   const { data: plans, loading } = useCollection<GroupLoanPlan>('groupLoanPlans');
   const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}`: null);
   
-  const fundingPlans = plans?.filter(p => p.status === 'Funding');
+  const activeAndFundingPlans = plans?.filter(p => p.status === 'Funding' || p.status === 'Active');
 
 
   return (
@@ -80,14 +81,14 @@ export default function GroupInvestingPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {loading ? (
             <p>Loading plans...</p>
-          ) : fundingPlans && fundingPlans.length > 0 ? (
-            fundingPlans.map((plan) => (
+          ) : activeAndFundingPlans && activeAndFundingPlans.length > 0 ? (
+            activeAndFundingPlans.map((plan) => (
                 <PlanCard key={plan.id} plan={plan} userBalance={userData?.walletBalance || 0} />
             ))
           ) : (
              <Card className="col-span-full">
                 <CardContent className="pt-6 text-center text-muted-foreground">
-                    <h3 className="text-xl font-semibold mb-2">No Active Funding</h3>
+                    <h3 className="text-xl font-semibold mb-2">No Active Opportunities</h3>
                     <p>There are no group loans open for investment right now. Check back later!</p>
                 </CardContent>
             </Card>
@@ -114,6 +115,7 @@ function PlanCard({ plan, userBalance }: { plan: GroupLoanPlan, userBalance: num
     const [investmentAmount, setInvestmentAmount] = useState(0);
 
     const fundingProgress = (plan.amountFunded / plan.loanAmount) * 100;
+    const repaymentProgress = plan.totalRepayment > 0 ? ((plan.amountRepaid || 0) / plan.totalRepayment) * 100 : 0;
     const amountRemaining = plan.loanAmount - plan.amountFunded;
     const canAfford = userBalance >= investmentAmount;
 
@@ -189,40 +191,52 @@ function PlanCard({ plan, userBalance }: { plan: GroupLoanPlan, userBalance: num
       </CardHeader>
       <CardContent className="space-y-4">
         
-        <div className="space-y-2">
-            <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Funded: ₹{plan.amountFunded.toFixed(2)}</span>
-                <span>{fundingProgress.toFixed(1)}%</span>
+        {plan.status === 'Funding' ? (
+             <div className="space-y-2">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Funded: ₹{plan.amountFunded.toFixed(2)}</span>
+                    <span>{fundingProgress.toFixed(1)}%</span>
+                </div>
+                <Progress value={fundingProgress} />
             </div>
-            <Progress value={fundingProgress} />
-        </div>
+        ) : (
+             <div className="space-y-2">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Borrower Repayment</span>
+                    <span>{repaymentProgress.toFixed(1)}%</span>
+                </div>
+                <Progress value={repaymentProgress} className='[&>div]:bg-green-500' />
+            </div>
+        )}
 
         <PlanDetail label="Total Interest" value={`₹${(plan.interest || 0).toFixed(2)}`} />
         <PlanDetail label="Duration" value={`${plan.duration || 0} ${plan.durationType}`} />
-        <PlanDetail label="Repayment" value={`${plan.totalRepayment.toFixed(2)} (${plan.repaymentType})`} />
+        <PlanDetail label="Repayment" value={`${plan.totalRepayment.toFixed(2)}`} />
 
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button className="w-full">Invest Now</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Invest in {plan.name}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                    <p>Amount remaining to be funded: <span className="font-bold">₹{amountRemaining.toFixed(2)}</span></p>
-                    <div className="space-y-2">
-                        <Label htmlFor="invest-amount">Investment Amount</Label>
-                        <Input id="invest-amount" type="number" value={investmentAmount || ''} onChange={(e) => setInvestmentAmount(parseFloat(e.target.value))} placeholder="Enter amount"/>
+        {plan.status === 'Funding' && (
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button className="w-full">Invest Now</Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Invest in {plan.name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <p>Amount remaining to be funded: <span className="font-bold">₹{amountRemaining.toFixed(2)}</span></p>
+                        <div className="space-y-2">
+                            <Label htmlFor="invest-amount">Investment Amount</Label>
+                            <Input id="invest-amount" type="number" value={investmentAmount || ''} onChange={(e) => setInvestmentAmount(parseFloat(e.target.value))} placeholder="Enter amount"/>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Your wallet balance: ₹{userBalance.toFixed(2)}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground">Your wallet balance: ₹{userBalance.toFixed(2)}</p>
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                    <Button onClick={handleInvest} disabled={!canAfford || investmentAmount <= 0}>Confirm Investment</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button onClick={handleInvest} disabled={!canAfford || investmentAmount <= 0}>Confirm Investment</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        )}
 
       </CardContent>
     </Card>

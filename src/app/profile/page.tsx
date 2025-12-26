@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -55,6 +56,7 @@ type GroupInvestment = {
 type GroupLoanPlan = {
     id: string;
     loanAmount: number;
+    interest: number;
     totalRepayment: number;
     amountRepaid: number;
 }
@@ -337,6 +339,11 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
         ? ((planData.amountRepaid || 0) / planData.totalRepayment) * 100 
         : 0;
 
+    const investorShare = (planData && planData.loanAmount > 0) ? (investment.investedAmount / planData.loanAmount) : 0;
+    const expectedReturn = investment.investedAmount + ( (planData?.interest || 0) * investorShare);
+    const pendingProfit = expectedReturn - (investment.amountReceived || 0);
+
+
     return (
         <TableRow>
             <TableCell>
@@ -345,7 +352,7 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
             </TableCell>
             <TableCell>₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
             <TableCell className="text-green-400">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-yellow-400">₹{((investment.investedAmount || 0) + (investment.amountPending || 0) - (investment.amountReceived || 0)).toFixed(2)}</TableCell>
+            <TableCell className="text-yellow-400">₹{(pendingProfit > 0 ? pendingProfit : 0).toFixed(2)}</TableCell>
             <TableCell>
                 {planData ? (
                     <div className="w-24">
