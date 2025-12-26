@@ -45,6 +45,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type UserData = {
   id: string;
@@ -110,7 +111,7 @@ const CountdownTimer = ({ endDate, onComplete }: { endDate: Date, onComplete: ()
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-            setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+            setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}`);
         }, 1000);
 
         return () => clearInterval(interval);
@@ -243,9 +244,9 @@ export default function Dashboard() {
       autoCreditDailyIncome();
       handleInvestmentMaturity();
     }
-  // We want this to run only when the investments data changes, not while it's loading.
+  // We want this to run only when the component mounts or user changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [investments]);
+  }, [user, investments]);
 
 
   const activeInvestments = investments?.filter((inv) => inv.status === 'Active');
@@ -548,6 +549,7 @@ function WithdrawButton({ minWithdrawal, currentBalance }: { minWithdrawal?: num
   const { user } = useUser();
   const firestore = useFirestore();
   const [amount, setAmount] = useState('');
+  const [withdrawalType, setWithdrawalType] = useState('');
   const {data: userData} = useDoc<UserData>(user ? `users/${user.uid}`: null);
   const { toast } = useToast();
 
@@ -555,6 +557,10 @@ function WithdrawButton({ minWithdrawal, currentBalance }: { minWithdrawal?: num
     const withdrawAmount = parseFloat(amount);
     if (!user || !userData || !amount || !userData.upiId) {
         toast({ variant: 'destructive', title: 'Missing Information', description: 'Please ensure you have a saved UPI ID in your profile and enter an amount.' });
+        return;
+    }
+     if (!withdrawalType) {
+        toast({ variant: 'destructive', title: 'Withdrawal Type Required', description: 'Please select the source of the funds you are withdrawing.' });
         return;
     }
     if (withdrawAmount < (minWithdrawal || 0)) {
@@ -584,6 +590,7 @@ function WithdrawButton({ minWithdrawal, currentBalance }: { minWithdrawal?: num
                 name: user.displayName,
                 amount: withdrawAmount,
                 upiId: userData.upiId,
+                type: withdrawalType,
                 status: 'pending',
                 createdAt: serverTimestamp(),
             });
@@ -618,6 +625,23 @@ function WithdrawButton({ minWithdrawal, currentBalance }: { minWithdrawal?: num
                 <div className="space-y-2">
                     <Label htmlFor="amount">Amount (INR)</Label>
                     <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Minimum ₹${minWithdrawal || 0}`}/>
+                </div>
+                 <div className="space-y-2">
+                    <Label>Withdrawal From</Label>
+                    <RadioGroup onValueChange={setWithdrawalType} value={withdrawalType}>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Investment Plan" id="type-investment" />
+                            <Label htmlFor="type-investment">Investment Plan</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Group Investment" id="type-group" />
+                            <Label htmlFor="type-group">Group Investment</Label>
+                        </div>
+                         <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="General" id="type-general" />
+                            <Label htmlFor="type-general">General Wallet Balance</Label>
+                        </div>
+                    </RadioGroup>
                 </div>
              </div>
              <DialogFooter>
@@ -760,3 +784,5 @@ function QuickActionButton({ icon: Icon, label, href }: { icon: React.ElementTyp
         </Button>
     )
 }
+
+    

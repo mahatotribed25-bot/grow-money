@@ -210,6 +210,11 @@
         "upiId": {
             "type": "string"
         },
+        "type": {
+          "type": "string",
+          "enum": ["Investment Plan", "Group Investment", "General"],
+          "description": "The source of the funds being withdrawn."
+        },
         "status": {
           "type": "string",
           "enum": [
@@ -228,6 +233,7 @@
         "name",
         "amount",
         "upiId",
+        "type",
         "status",
         "createdAt"
       ]
@@ -474,3 +480,5 @@
     }
   }
 }
+
+    

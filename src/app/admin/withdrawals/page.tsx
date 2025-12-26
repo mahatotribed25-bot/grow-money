@@ -23,6 +23,7 @@ type WithdrawalRequest = {
   name: string;
   amount: number;
   upiId: string;
+  type: 'Investment Plan' | 'Group Investment' | 'General';
   createdAt: Timestamp;
   status: 'pending' | 'approved' | 'rejected';
 };
@@ -90,6 +91,7 @@ export default function WithdrawalsPage() {
               <TableHead>User Name</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>UPI ID</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
@@ -98,7 +100,7 @@ export default function WithdrawalsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -108,6 +110,9 @@ export default function WithdrawalsPage() {
                   <TableCell>{withdrawal.name || 'N/A'}</TableCell>
                   <TableCell>₹{withdrawal.amount.toFixed(2)}</TableCell>
                   <TableCell>{withdrawal.upiId}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{withdrawal.type || 'N/A'}</Badge>
+                  </TableCell>
                   <TableCell>{formatDate(withdrawal.createdAt)}</TableCell>
                   <TableCell>
                     <Badge
@@ -153,3 +158,5 @@ export default function WithdrawalsPage() {
     </div>
   );
 }
+
+    
