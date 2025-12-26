@@ -7,6 +7,7 @@ import {
   HandCoins,
   Download,
   Upload,
+  Users2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCollection } from '@/firebase';
@@ -37,6 +38,11 @@ type Transaction = {
 type ActiveLoan = {
     id: string;
     userId: string;
+}
+
+type GroupLoanPlan = {
+    id: string;
+    status: 'Funding' | 'Active' | 'Completed';
 }
 
 // Function to process data for the chart
@@ -92,6 +98,9 @@ export default function AdminDashboard() {
     useCollection('investmentPlans');
   
   const { data: loanPlans, loading: loanPlansLoading } = useCollection('loanPlans');
+  
+  const { data: groupLoanPlans, loading: groupLoanPlansLoading } = useCollection<GroupLoanPlan>('groupLoanPlans');
+
 
   const { data: activeLoans, loading: loansLoading } = useCollection<ActiveLoan>('loanRequests', {
       where: ['status', 'in', ['approved', 'sent']]
@@ -99,7 +108,7 @@ export default function AdminDashboard() {
 
 
   const loading =
-    usersLoading || depositsLoading || withdrawalsLoading || investmentPlansLoading || loanPlansLoading || loansLoading;
+    usersLoading || depositsLoading || withdrawalsLoading || investmentPlansLoading || loanPlansLoading || loansLoading || groupLoanPlansLoading;
 
   const totalUsers =
     users?.filter((u) => u.email !== 'admin@tribed.world').length || 0;
@@ -109,6 +118,7 @@ export default function AdminDashboard() {
   const pendingWithdrawals = withdrawals?.filter(w => w.status === 'pending').length || 0;
   const totalInvestmentPlans = investmentPlans?.length || 0;
   const totalLoanPlans = loanPlans?.length || 0;
+  const activeGroupLoans = groupLoanPlans?.filter(p => p.status === 'Active').length || 0;
   
   const uniqueUsersWithLoans = activeLoans ? new Set(activeLoans.map(loan => loan.userId)).size : 0;
   
@@ -142,6 +152,11 @@ export default function AdminDashboard() {
       title: 'Loan Plans',
       value: loading ? '...' : totalLoanPlans,
       icon: HandCoins,
+    },
+     {
+      title: 'Active Group Loans',
+      value: loading ? '...' : activeGroupLoans,
+      icon: Users2,
     },
     {
       title: 'Users with Loans',

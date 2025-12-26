@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle } from 'lucide-react';
+import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2 } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, writeBatch, collection, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Progress } from '@/components/ui/progress';
 
 
 type UserData = {
@@ -73,6 +75,63 @@ type ActiveLoan = {
     emis?: EMI[];
 }
 
+type GroupInvestment = {
+    id: string;
+    planId: string;
+    planName: string;
+    investedAmount: number;
+    amountReceived: number;
+    createdAt: Timestamp;
+    investorId: string;
+}
+
+type GroupLoanPlan = {
+    id: string;
+    loanAmount: number;
+    interest: number;
+    totalRepayment: number;
+    amountRepaid?: number;
+}
+
+
+function useUserGroupInvestments(userId?: string) {
+    const [investments, setInvestments] = useState<GroupInvestment[]>([]);
+    const [loading, setLoading] = useState(true);
+    const firestore = useFirestore();
+
+    useEffect(() => {
+        if (!userId) {
+            setLoading(false);
+            return;
+        }
+
+        const fetchInvestments = async () => {
+            setLoading(true);
+            const allInvestments: GroupInvestment[] = [];
+            const q = query(collection(firestore, 'groupLoanPlans'));
+            const plansSnapshot = await getDocs(q);
+
+            for (const planDoc of plansSnapshot.docs) {
+                const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
+                const iq = query(investmentsRef, where('investorId', '==', userId));
+                const investmentSnapshot = await getDocs(iq);
+
+                investmentSnapshot.forEach(invDoc => {
+                    allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
+                });
+            }
+
+            setInvestments(allInvestments);
+            setLoading(false);
+        };
+
+        fetchInvestments();
+    }, [userId, firestore]);
+
+    return { data: investments, loading };
+}
+
+
 const formatDate = (timestamp: Timestamp) => {
   if (!timestamp) return 'N/A';
   return new Date(timestamp.seconds * 1000).toLocaleString();
@@ -107,13 +166,11 @@ export default function UserDetailPage() {
   const { data: user, loading: userLoading } = useDoc<UserData>(userId ? `users/${userId}` : null);
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
   const { data: loans, loading: loansLoading } = useCollection<ActiveLoan>(userId ? `users/${userId}/loans` : null);
-  const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(`deposits`);
-  const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(`withdrawals`);
+  const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(`deposits`, { where: ['userId', '==', userId] });
+  const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(`withdrawals`, { where: ['userId', '==', userId] });
+  const { data: groupInvestments, loading: groupInvestmentsLoading } = useUserGroupInvestments(userId);
   
-  const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading || loansLoading;
-
-  const userDeposits = deposits?.filter(d => d.userId === userId);
-  const userWithdrawals = withdrawals?.filter(w => w.userId === userId);
+  const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading || loansLoading || groupInvestmentsLoading;
 
   const handleToggleStatus = async () => {
     if (!user) return;
@@ -304,8 +361,9 @@ export default function UserDetailPage() {
       </Card>
 
       <Tabs defaultValue="investments">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="investments">Investment History</TabsTrigger>
+          <TabsTrigger value="group-investments">Group Investments</TabsTrigger>
           <TabsTrigger value="loans">Loan History</TabsTrigger>
           <TabsTrigger value="deposits">Deposit History</TabsTrigger>
           <TabsTrigger value="withdrawals">Withdrawal History</TabsTrigger>
@@ -325,6 +383,9 @@ export default function UserDetailPage() {
               )}
             />
         </TabsContent>
+         <TabsContent value="group-investments">
+            <GroupInvestmentTable investments={groupInvestments} />
+        </TabsContent>
          <TabsContent value="loans">
             {loans && loans.length > 0 ? loans.map(loan => (
                 <LoanDetails key={loan.id} loan={loan} onCompleteLoan={handleCompleteLoan} onConfirmEmi={handleConfirmEmiPayment} />
@@ -339,7 +400,7 @@ export default function UserDetailPage() {
         <TabsContent value="deposits">
              <HistoryTable
               headers={['Amount', 'Status', 'Date']}
-              items={userDeposits}
+              items={deposits}
               renderRow={(item: Transaction) => (
                 <TableRow key={item.id}>
                   <TableCell>₹{(item.amount || 0).toFixed(2)}</TableCell>
@@ -352,7 +413,7 @@ export default function UserDetailPage() {
         <TabsContent value="withdrawals">
              <HistoryTable
               headers={['Amount', 'Status', 'Date']}
-              items={userWithdrawals}
+              items={withdrawals}
               renderRow={(item: Transaction) => (
                 <TableRow key={item.id}>
                   <TableCell>₹{(item.amount || 0).toFixed(2)}</TableCell>
@@ -480,3 +541,77 @@ function LoanDetails({ loan, onCompleteLoan, onConfirmEmi }: { loan: ActiveLoan;
   );
 }
 
+function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }) {
+    const { data: planData } = useDoc<GroupLoanPlan>(investment ? `groupLoanPlans/${investment.planId}`: null);
+    
+    const formatDate = (timestamp: Timestamp) => {
+        if (!timestamp) return 'N/A';
+        return new Date(timestamp.seconds * 1000).toLocaleDateString();
+    };
+    
+    const repaymentProgress = planData && planData.totalRepayment > 0 
+        ? ((planData.amountRepaid || 0) / planData.totalRepayment) * 100 
+        : 0;
+
+    const investorShare = (planData && planData.loanAmount > 0) ? ((investment.investedAmount || 0) / planData.loanAmount) : 0;
+    const totalProfitShare = (planData?.interest || 0) * investorShare;
+    const expectedReturn = (investment.investedAmount || 0) + totalProfitShare;
+    const remainingAmount = expectedReturn - (investment.amountReceived || 0);
+
+    return (
+        <TableRow>
+            <TableCell>
+                <div className='font-medium'>{investment.planName}</div>
+                <div className='text-xs text-muted-foreground'>{formatDate(investment.createdAt)}</div>
+            </TableCell>
+            <TableCell>₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-cyan-400">₹{(totalProfitShare || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-green-400">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-yellow-400">₹{(remainingAmount > 0 ? remainingAmount : 0).toFixed(2)}</TableCell>
+            <TableCell>
+                {planData ? (
+                    <div className="w-24">
+                        <Progress value={repaymentProgress} className="h-2" />
+                        <span className="text-xs text-muted-foreground">{repaymentProgress.toFixed(0)}% Repaid</span>
+                    </div>
+                ) : (
+                    <span className="text-xs text-muted-foreground">Loading...</span>
+                )}
+            </TableCell>
+        </TableRow>
+    );
+}
+
+function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
+    return (
+        <Card>
+            <CardContent className="pt-6">
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Plan</TableHead>
+                                <TableHead>Invested</TableHead>
+                                <TableHead>Profit</TableHead>
+                                <TableHead>Received</TableHead>
+                                <TableHead>Remaining</TableHead>
+                                <TableHead>Loan Progress</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {investments && investments.length > 0 ? (
+                                investments.map(inv => (
+                                    <GroupInvestmentTableRow key={inv.id} investment={inv} />
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center">No group investments found.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
