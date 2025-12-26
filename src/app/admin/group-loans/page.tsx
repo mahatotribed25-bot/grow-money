@@ -51,6 +51,7 @@ type GroupLoanPlan = {
   durationType: DurationType;
   amountFunded: number;
   status: 'Funding' | 'Active' | 'Completed';
+  amountRepaid?: number;
 };
 
 type Investment = {
@@ -64,10 +65,11 @@ type Investment = {
 type Repayment = {
     id: string;
     amount: number;
+    repaymentDate: any;
     status: 'Pending Distribution' | 'Distributed';
 }
 
-const emptyPlan: Omit<GroupLoanPlan, 'id' | 'amountFunded' | 'status'> = {
+const emptyPlan: Omit<GroupLoanPlan, 'id' | 'amountFunded' | 'status' | 'amountRepaid'> = {
   name: '',
   loanAmount: 0,
   interest: 0,
@@ -116,6 +118,7 @@ export default function GroupLoansPage() {
       totalRepayment: (editingPlan.loanAmount || 0) + (editingPlan.interest || 0),
       amountFunded: editingPlan.amountFunded || 0,
       status: editingPlan.status || 'Funding',
+      amountRepaid: editingPlan.amountRepaid || 0,
     };
 
     try {
@@ -264,6 +267,13 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
 
     const fundingProgress = (plan.amountFunded / plan.loanAmount) * 100;
     
+    const totalRepaidByBorrower = useMemo(() => {
+        if (!repayments) return 0;
+        return repayments.reduce((sum, r) => sum + r.amount, 0);
+    }, [repayments]);
+
+    const remainingRepayment = plan.totalRepayment - totalRepaidByBorrower;
+
     const distributableAmount = useMemo(() => {
         if (!repayments) return 0;
         return repayments
@@ -285,14 +295,25 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             toast({ title: 'Invalid Amount', description: 'Please enter a positive amount.', variant: 'destructive'});
             return;
         }
+
+        const batch = writeBatch(firestore);
+        
+        // Log the repayment
+        const repaymentRef = doc(collection(firestore, 'groupLoanPlans', plan.id, 'repayments'));
+        batch.set(repaymentRef, {
+            loanPlanId: plan.id,
+            amount: repaymentAmount,
+            repaymentDate: serverTimestamp(),
+            status: 'Pending Distribution'
+        });
+
+        // Update the total amount repaid on the plan itself
+        const planRef = doc(firestore, 'groupLoanPlans', plan.id);
+        const newAmountRepaid = (plan.amountRepaid || 0) + repaymentAmount;
+        batch.update(planRef, { amountRepaid: newAmountRepaid });
+
         try {
-            const repaymentRef = collection(firestore, 'groupLoanPlans', plan.id, 'repayments');
-            await addDoc(repaymentRef, {
-                loanPlanId: plan.id,
-                amount: repaymentAmount,
-                repaymentDate: serverTimestamp(),
-                status: 'Pending Distribution'
-            });
+            await batch.commit();
             toast({ title: 'Repayment Logged', description: 'Repayment is now pending for distribution.'});
             setRepaymentAmount(0);
         } catch (e) {
@@ -317,13 +338,16 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
 
         const batch = writeBatch(firestore);
 
+        // Update investor's received amount
         const investmentRef = doc(firestore, 'groupLoanPlans', plan.id, 'investments', investor.id);
         batch.update(investmentRef, {
             amountReceived: (investor.amountReceived || 0) + payoutAmount
         });
 
+        // Log the payout
         const payoutRef = doc(collection(firestore, 'groupLoanPlans', plan.id, 'payouts'));
         batch.set(payoutRef, {
+            payoutId: payoutRef.id,
             loanPlanId: plan.id,
             investorId: investor.id,
             investorName: investor.investorName,
@@ -332,7 +356,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
         });
         
         let amountToDeduct = payoutAmount;
-        const pendingRepayments = (repayments || []).filter(r => r.status === 'Pending Distribution').sort((a,b) => a.amount - b.amount);
+        const pendingRepayments = (repayments || []).filter(r => r.status === 'Pending Distribution').sort((a,b) => a.repaymentDate?.seconds - b.repaymentDate?.seconds);
 
         for (const repayment of pendingRepayments) {
             if (amountToDeduct <= 0) break;
@@ -340,29 +364,19 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', repayment.id);
             const amountInRepayment = repayment.amount;
 
+            // This logic is simplified: we assume we can find a repayment to mark as distributed
+            // A more complex system would handle partial distributions from a repayment log.
             if (amountToDeduct >= amountInRepayment) {
                 batch.update(repaymentRef, { status: 'Distributed' });
                 amountToDeduct -= amountInRepayment;
             } else {
-                 // This logic is complex for a simple batch write.
-                 // A simpler model is to just mark as partially distributed or create a new doc.
-                 // For now, we will assume admin distributes full repayment amounts.
-                 // This part requires a more robust cloud function logic for partial distributions.
-                 // Let's keep it simple: admin should distribute amounts that match repayments.
+                 // For simplicity, we are not handling partial distributions from a single repayment log.
+                 // This toast will guide the admin.
+                 toast({title: 'Partial Distribution Logic Simplified', description: `Distributing ₹${payoutAmount}. Please ensure this aligns with your logged repayments.`, variant: 'default'});
+                 break; // Exit loop after first partial use.
             }
         }
         
-         // Simplified logic: Find first pending repayment that can cover the payout and mark it distributed.
-         const suitableRepayment = pendingRepayments.find(r => r.amount >= payoutAmount);
-         if (suitableRepayment) {
-            const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', suitableRepayment.id);
-            batch.update(repaymentRef, { status: 'Distributed'});
-         } else {
-            toast({title: 'Payout amount does not match any single repayment.', description: 'For simplicity, please distribute amounts that match a pending repayment.', variant: 'destructive'});
-            return;
-         }
-
-
         try {
             await batch.commit();
             toast({ title: 'Payout Distributed', description: `₹${payoutAmount} sent to ${investor.investorName}`});
@@ -384,7 +398,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                     <Badge variant={getStatusVariant(plan.status)}>{plan.status}</Badge>
                 </CardTitle>
                 <div className="text-sm text-muted-foreground mt-1">
-                    Goal: ₹{plan.loanAmount.toFixed(2)} | Repayment: ₹{plan.totalRepayment.toFixed(2)}
+                    Goal: ₹{plan.loanAmount.toFixed(2)} | Repayment Pending: <span className="font-bold text-destructive">₹{remainingRepayment.toFixed(2)}</span>
                 </div>
             </div>
             <div className="flex gap-2">
@@ -455,7 +469,6 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                                 <Input type="number" placeholder="Payout amount" value={payoutAmount || ''} onChange={e => setPayoutAmount(parseFloat(e.target.value))}/>
                                 <Button onClick={handleDistributePayout}>Pay</Button>
                              </div>
-                             <p className="text-xs text-muted-foreground">For simplicity, payout amount should match a logged repayment.</p>
                         </div>
                     </div>
                 </CollapsibleContent>
@@ -464,5 +477,3 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
       </Card>
     )
 }
-
-    

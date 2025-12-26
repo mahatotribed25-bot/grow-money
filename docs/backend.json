@@ -350,6 +350,7 @@
             "duration": { "type": "number" },
             "durationType": { "type": "string", "enum": ["Days", "Weeks", "Months", "Years"]},
             "amountFunded": { "type": "number"},
+            "amountRepaid": { "type": "number", "default": 0 },
             "status": { "type": "string", "enum": ["Funding", "Active", "Completed"]}
         },
         "required": ["name", "loanAmount", "interest", "totalRepayment", "repaymentType", "duration", "durationType", "amountFunded", "status"]
