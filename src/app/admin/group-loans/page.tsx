@@ -361,11 +361,13 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
 
         const batch = writeBatch(firestore);
 
+        // Update the investor's received amount
         const investmentRef = doc(firestore, 'groupLoanPlans', plan.id, 'investments', investor.id);
         batch.update(investmentRef, {
             amountReceived: (investor.amountReceived || 0) + payoutAmount
         });
 
+        // Create a record of this payout
         const payoutRef = doc(collection(firestore, 'groupLoanPlans', plan.id, 'payouts'));
         batch.set(payoutRef, {
             payoutId: payoutRef.id,
@@ -376,25 +378,27 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             payoutDate: serverTimestamp(),
         });
         
-        let amountToDeduct = payoutAmount;
+        // Find the oldest repayment log that is pending and mark it as distributed.
+        // This is a simplification. A more complex system might handle partial distributions.
         const pendingRepayments = (repayments || []).filter(r => r.status === 'Pending Distribution').sort((a,b) => (a.repaymentDate?.seconds || 0) - (b.repaymentDate?.seconds || 0));
 
+        let amountToDeduct = payoutAmount;
         for (const repayment of pendingRepayments) {
             if (amountToDeduct <= 0) break;
-
+            
             const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', repayment.id);
             const availableInThisRepayment = repayment.amount; 
-
+            
+            // If payout uses up this entire repayment log or more, mark it as fully distributed.
             if(amountToDeduct >= availableInThisRepayment) {
                 batch.update(repaymentRef, { status: 'Distributed' });
                 amountToDeduct -= availableInThisRepayment;
             } else {
-                 toast({title: 'Partial Distribution Logic Simplified', description: `Distributing ₹${payoutAmount}. Please ensure this aligns with your logged repayments.`, variant: 'default'});
-                 // This part needs more complex logic for partial distribution, which we are simplifying for now.
-                 // We will mark the oldest pending repayment as distributed if we use part of it.
-                 // A better system would track remaining amount in each repayment log.
-                 batch.update(repaymentRef, {status: 'Distributed' }); // Simplified
-                 break; 
+                 // If payout uses only part of this repayment, we'll simplify and mark the whole thing as distributed.
+                 // This avoids complex partial tracking in the repayment log itself.
+                 toast({title: 'Partial Distribution Note', description: `Distributing ₹${payoutAmount.toFixed(2)}. The oldest pending repayment log will be marked as 'Distributed'.`, variant: 'default'});
+                 batch.update(repaymentRef, {status: 'Distributed' }); 
+                 amountToDeduct = 0; // Stop deducting
             }
         }
         
@@ -560,3 +564,5 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
       </Card>
     )
 }
+
+    
