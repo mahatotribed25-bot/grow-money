@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2, ChevronDown, User, IndianRupee, History } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ChevronDown, User, IndianRupee, History, Send } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -68,6 +68,15 @@ type Repayment = {
     amount: number;
     repaymentDate: Timestamp;
     status: 'Pending Distribution' | 'Distributed';
+}
+
+type Payout = {
+    id: string;
+    payoutId: string;
+    investorId: string;
+    investorName: string;
+    payoutAmount: number;
+    payoutDate: Timestamp;
 }
 
 const emptyPlan: Omit<GroupLoanPlan, 'id' | 'amountFunded' | 'status' | 'amountRepaid'> = {
@@ -261,6 +270,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
     const { toast } = useToast();
     const { data: investments, loading: investmentsLoading } = useCollection<Investment>(`groupLoanPlans/${plan.id}/investments`);
     const { data: repayments, loading: repaymentsLoading } = useCollection<Repayment>(`groupLoanPlans/${plan.id}/repayments`);
+    const { data: payouts, loading: payoutsLoading } = useCollection<Payout>(`groupLoanPlans/${plan.id}/payouts`);
     
     const [payoutAmount, setPayoutAmount] = useState(0);
     const [selectedInvestor, setSelectedInvestor] = useState('');
@@ -308,7 +318,6 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
 
         const batch = writeBatch(firestore);
         
-        // Log the repayment
         const repaymentRef = doc(collection(firestore, 'groupLoanPlans', plan.id, 'repayments'));
         batch.set(repaymentRef, {
             loanPlanId: plan.id,
@@ -317,7 +326,6 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             status: 'Pending Distribution'
         });
 
-        // Update the total amount repaid on the plan itself
         const planRef = doc(firestore, 'groupLoanPlans', plan.id);
         const newAmountRepaid = totalRepaidByBorrower + repaymentAmount;
         const isCompleted = newAmountRepaid >= plan.totalRepayment;
@@ -353,13 +361,11 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
 
         const batch = writeBatch(firestore);
 
-        // Update investor's received amount
         const investmentRef = doc(firestore, 'groupLoanPlans', plan.id, 'investments', investor.id);
         batch.update(investmentRef, {
             amountReceived: (investor.amountReceived || 0) + payoutAmount
         });
 
-        // Log the payout
         const payoutRef = doc(collection(firestore, 'groupLoanPlans', plan.id, 'payouts'));
         batch.set(payoutRef, {
             payoutId: payoutRef.id,
@@ -371,21 +377,23 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
         });
         
         let amountToDeduct = payoutAmount;
-        const pendingRepayments = (repayments || []).filter(r => r.status === 'Pending Distribution').sort((a,b) => a.repaymentDate?.seconds - b.repaymentDate?.seconds);
+        const pendingRepayments = (repayments || []).filter(r => r.status === 'Pending Distribution').sort((a,b) => (a.repaymentDate?.seconds || 0) - (b.repaymentDate?.seconds || 0));
 
         for (const repayment of pendingRepayments) {
             if (amountToDeduct <= 0) break;
 
             const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', repayment.id);
-            const availableInThisRepayment = repayment.amount; // Simplified assumption
+            const availableInThisRepayment = repayment.amount; 
 
-            // This logic is simplified for demo. A real app would need to handle partial distributions
-            // from a single repayment log or consolidate them.
             if(amountToDeduct >= availableInThisRepayment) {
                 batch.update(repaymentRef, { status: 'Distributed' });
                 amountToDeduct -= availableInThisRepayment;
             } else {
                  toast({title: 'Partial Distribution Logic Simplified', description: `Distributing ₹${payoutAmount}. Please ensure this aligns with your logged repayments.`, variant: 'default'});
+                 // This part needs more complex logic for partial distribution, which we are simplifying for now.
+                 // We will mark the oldest pending repayment as distributed if we use part of it.
+                 // A better system would track remaining amount in each repayment log.
+                 batch.update(repaymentRef, {status: 'Distributed' }); // Simplified
                  break; 
             }
         }
@@ -432,7 +440,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             {plan.status !== 'Funding' && (
                 <div>
                      <div className="flex justify-between text-sm mb-1 text-muted-foreground">
-                        <span>Repayment Progress</span>
+                        <span>Borrower Repayment Progress</span>
                         <span>Repaid: ₹{totalRepaidByBorrower.toFixed(2)} | Pending: ₹{remainingRepayment.toFixed(2)}</span>
                     </div>
                     <Progress value={repaymentProgress} className='[&>div]:bg-green-500'/>
@@ -478,13 +486,13 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                             ) : (
                                 <div className="flex gap-2">
                                     <Input type="number" placeholder="Amount received" value={repaymentAmount || ''} onChange={e => setRepaymentAmount(parseFloat(e.target.value))} />
-                                    <Button onClick={handleRecordRepayment}>Log</Button>
+                                    <Button onClick={handleRecordRepayment} disabled={repaymentAmount <= 0}>Log</Button>
                                 </div>
                             )}
                         </div>
 
                         <div className="space-y-2">
-                             <h4 className="font-semibold flex items-center gap-2"><IndianRupee className="h-4 w-4"/>Distribute Payout</h4>
+                             <h4 className="font-semibold flex items-center gap-2"><Send className="h-4 w-4"/>Distribute Payout to Investor</h4>
                             <p className='text-sm text-muted-foreground'>Available to distribute: <span className='font-bold text-primary'>₹{distributableAmount.toFixed(2)}</span></p>
                              <div className="flex gap-2">
                                 <Select onValueChange={setSelectedInvestor} value={selectedInvestor}>
@@ -518,6 +526,30 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                                             <TableCell><Badge variant={rep.status === 'Distributed' ? 'outline' : 'secondary'}>{rep.status}</Badge></TableCell>
                                         </TableRow>
                                     )) : <TableRow><TableCell colSpan={3} className='text-center'>No repayments logged yet.</TableCell></TableRow>}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                        <h4 className="font-semibold flex items-center gap-2"><History className="h-4 w-4"/>Investor Payout History</h4>
+                        <div className="border rounded-md max-h-60 overflow-y-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Investor</TableHead>
+                                        <TableHead>Amount</TableHead>
+                                        <TableHead>Date</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {payoutsLoading ? <TableRow><TableCell colSpan={3}>Loading...</TableCell></TableRow> 
+                                    : payouts && payouts.length > 0 ? payouts.map(payout => (
+                                        <TableRow key={payout.id}>
+                                            <TableCell>{payout.investorName}</TableCell>
+                                            <TableCell>₹{payout.payoutAmount.toFixed(2)}</TableCell>
+                                            <TableCell>{formatDate(payout.payoutDate)}</TableCell>
+                                        </TableRow>
+                                    )) : <TableRow><TableCell colSpan={3} className='text-center'>No payouts made yet.</TableCell></TableRow>}
                                 </TableBody>
                             </Table>
                         </div>

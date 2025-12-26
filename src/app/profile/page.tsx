@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -26,12 +25,13 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection } from '@/firebase';
-import { Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc, collection } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
+import { Progress } from '@/components/ui/progress';
 
 type Transaction = {
   id: string;
@@ -44,11 +44,19 @@ type Transaction = {
 
 type GroupInvestment = {
     id: string;
+    planId: string;
     planName: string;
     investedAmount: number;
     amountReceived: number;
     amountPending: number;
     createdAt: Timestamp;
+}
+
+type GroupLoanPlan = {
+    id: string;
+    loanAmount: number;
+    totalRepayment: number;
+    amountRepaid: number;
 }
 
 type UserData = {
@@ -317,11 +325,43 @@ function TransactionTable({ transactions }: { transactions: Transaction[] | unde
     );
 }
 
-function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
+function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }) {
+    const { data: planData } = useDoc<GroupLoanPlan>(`groupLoanPlans/${investment.planId}`);
+    
     const formatDate = (timestamp: Timestamp) => {
         if (!timestamp) return 'N/A';
         return new Date(timestamp.seconds * 1000).toLocaleDateString();
     };
+    
+    const repaymentProgress = planData && planData.totalRepayment > 0 
+        ? ((planData.amountRepaid || 0) / planData.totalRepayment) * 100 
+        : 0;
+
+    return (
+        <TableRow>
+            <TableCell>
+                <div className='font-medium'>{investment.planName}</div>
+                <div className='text-xs text-muted-foreground'>{formatDate(investment.createdAt)}</div>
+            </TableCell>
+            <TableCell>₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-green-400">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-yellow-400">₹{((investment.investedAmount || 0) + (investment.amountPending || 0) - (investment.amountReceived || 0)).toFixed(2)}</TableCell>
+            <TableCell>
+                {planData ? (
+                    <div className="w-24">
+                        <Progress value={repaymentProgress} className="h-2" />
+                        <span className="text-xs text-muted-foreground">{repaymentProgress.toFixed(0)}% Repaid</span>
+                    </div>
+                ) : (
+                    <span className="text-xs text-muted-foreground">Loading...</span>
+                )}
+            </TableCell>
+        </TableRow>
+    );
+}
+
+
+function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
 
     return (
         <Card>
@@ -330,23 +370,17 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Plan Name</TableHead>
+                                <TableHead>Plan</TableHead>
                                 <TableHead>Invested</TableHead>
                                 <TableHead>Received</TableHead>
-                                <TableHead>Pending</TableHead>
-                                <TableHead>Date</TableHead>
+                                <TableHead>Pending Profit</TableHead>
+                                <TableHead>Loan Progress</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {investments && investments.length > 0 ? (
                                 investments.map(inv => (
-                                    <TableRow key={inv.id}>
-                                        <TableCell>{inv.planName}</TableCell>
-                                        <TableCell>₹{(inv.investedAmount || 0).toFixed(2)}</TableCell>
-                                        <TableCell className="text-green-400">₹{(inv.amountReceived || 0).toFixed(2)}</TableCell>
-                                        <TableCell className="text-yellow-400">₹{((inv.investedAmount || 0) + (inv.amountPending || 0) - (inv.amountReceived || 0)).toFixed(2)}</TableCell>
-                                        <TableCell>{formatDate(inv.createdAt)}</TableCell>
-                                    </TableRow>
+                                    <GroupInvestmentTableRow key={inv.id} investment={inv} />
                                 ))
                             ) : (
                                 <TableRow>
