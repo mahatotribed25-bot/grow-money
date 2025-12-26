@@ -1,3 +1,4 @@
+
 'use client';
 import { useEffect, useState, useMemo } from 'react';
 import {
@@ -46,7 +47,7 @@ export function useCollection<T>(pathOrQuery: string | Query | null, options?: U
     } else if (options?.subcollections) {
         let subcollectionQuery: Query<DocumentData> = collectionGroup(firestore, pathOrQuery);
         if(options.where) {
-            subcollectionQuery = query(subcollectionQuery, where(options.where[0], '==', options.where[2]));
+            subcollectionQuery = query(subcollectionQuery, where(options.where[0], options.where[1], options.where[2]));
         }
         q = query(subcollectionQuery, ...queryConstraints);
     }

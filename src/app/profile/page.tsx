@@ -26,7 +26,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection } from '@/firebase';
-import { Timestamp, doc, updateDoc, collection } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -50,6 +50,7 @@ type GroupInvestment = {
     investedAmount: number;
     amountReceived: number;
     createdAt: Timestamp;
+    investorId: string;
 }
 
 type GroupLoanPlan = {
@@ -66,6 +67,46 @@ type UserData = {
   panCard?: string;
 };
 
+function useUserGroupInvestments(userId?: string) {
+    const [investments, setInvestments] = useState<GroupInvestment[]>([]);
+    const [loading, setLoading] = useState(true);
+    const firestore = useFirestore();
+
+    useEffect(() => {
+        if (!userId) {
+            setLoading(false);
+            return;
+        }
+
+        const fetchInvestments = async () => {
+            setLoading(true);
+            const allInvestments: GroupInvestment[] = [];
+            
+            // 1. Get all group loan plans
+            const plansSnapshot = await getDocs(collection(firestore, 'groupLoanPlans'));
+
+            // 2. For each plan, query for the user's specific investment
+            for (const planDoc of plansSnapshot.docs) {
+                const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
+                const q = query(investmentsRef, where('investorId', '==', userId));
+                const investmentSnapshot = await getDocs(q);
+
+                investmentSnapshot.forEach(invDoc => {
+                    allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
+                });
+            }
+            
+            setInvestments(allInvestments);
+            setLoading(false);
+        };
+
+        fetchInvestments();
+    }, [userId, firestore]);
+
+    return { data: investments, loading };
+}
+
+
 export default function ProfilePage() {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -75,7 +116,7 @@ export default function ProfilePage() {
 
   const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null, { where: ['userId', '==', user?.uid]});
   const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null, { where: ['userId', '==', user?.uid]});
-  const { data: groupInvestments } = useCollection<GroupInvestment>(user ? 'investments' : null, { subcollections: true, where: ['investorId', '==', user?.uid] });
+  const { data: groupInvestments } = useUserGroupInvestments(user?.uid);
 
   const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   
