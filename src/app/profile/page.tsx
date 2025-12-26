@@ -73,9 +73,10 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null);
-  const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null);
-  const { data: groupInvestments } = useCollection<GroupInvestment>(user ? `groupLoanPlans` : null, { subcollections: ['investments'], where: ['investorId', '==', user?.uid] });
+  const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null, { where: ['userId', '==', user?.uid]});
+  const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null, { where: ['userId', '==', user?.uid]});
+  const { data: groupInvestments } = useCollection<GroupInvestment>(user ? 'investments' : null, { subcollections: true, where: ['investorId', '==', user?.uid] });
+
   const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   
   const [upiId, setUpiId] = useState('');
@@ -90,8 +91,6 @@ export default function ProfilePage() {
     }
   }, [userData]);
 
-  const userDeposits = deposits?.filter((d) => d.userId === user?.uid);
-  const userWithdrawals = withdrawals?.filter((w) => w.userId === user?.uid);
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -229,10 +228,10 @@ export default function ProfilePage() {
                 <TabsTrigger value="group-investments">Group Investments</TabsTrigger>
             </TabsList>
             <TabsContent value="deposits">
-                <TransactionTable transactions={userDeposits} />
+                <TransactionTable transactions={deposits} />
             </TabsContent>
             <TabsContent value="withdrawals">
-                <TransactionTable transactions={userWithdrawals} />
+                <TransactionTable transactions={withdrawals} />
             </TabsContent>
              <TabsContent value="group-investments">
                 <GroupInvestmentTable investments={groupInvestments} />
@@ -327,7 +326,7 @@ function TransactionTable({ transactions }: { transactions: Transaction[] | unde
 }
 
 function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }) {
-    const { data: planData } = useDoc<GroupLoanPlan>(`groupLoanPlans/${investment.planId}`);
+    const { data: planData } = useDoc<GroupLoanPlan>(investment ? `groupLoanPlans/${investment.planId}`: null);
     
     const formatDate = (timestamp: Timestamp) => {
         if (!timestamp) return 'N/A';

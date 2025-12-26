@@ -1,26 +1,39 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   collection,
   query,
   onSnapshot,
   Query,
   DocumentData,
-  QueryConstraint
+  QueryConstraint,
+  collectionGroup,
+  where,
+  getDocs,
+  getDoc,
+  doc
 } from 'firebase/firestore';
 import { useFirestore } from '../provider';
 
-export function useCollection<T>(pathOrQuery: string | Query | null, ...queryConstraints: QueryConstraint[]) {
+type UseCollectionOptions = {
+    subcollections?: boolean;
+    where?: [string, '==', any]
+}
+
+export function useCollection<T>(pathOrQuery: string | Query | null, options?: UseCollectionOptions, ...queryConstraints: QueryConstraint[]) {
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState(true);
   const firestore = useFirestore();
   
-  // Basic serialization for the query to use in dependency array
   const queryKey = typeof pathOrQuery === 'string' 
       ? pathOrQuery 
       : pathOrQuery ? pathOrQuery.path + JSON.stringify(pathOrQuery) : 'null';
+  
+  const optionsKey = useMemo(() => JSON.stringify(options), [options]);
+
 
   useEffect(() => {
+    setLoading(true);
     if (!pathOrQuery) {
       setData([]);
       setLoading(false);
@@ -28,10 +41,17 @@ export function useCollection<T>(pathOrQuery: string | Query | null, ...queryCon
     }
 
     let q: Query<DocumentData>;
-    if (typeof pathOrQuery === 'string') {
-        q = query(collection(firestore, pathOrQuery), ...queryConstraints);
-    } else {
+    if (typeof pathOrQuery !== 'string') {
         q = pathOrQuery;
+    } else if (options?.subcollections) {
+        let subcollectionQuery: Query<DocumentData> = collectionGroup(firestore, pathOrQuery);
+        if(options.where) {
+            subcollectionQuery = query(subcollectionQuery, where(options.where[0], '==', options.where[2]));
+        }
+        q = query(subcollectionQuery, ...queryConstraints);
+    }
+    else {
+        q = query(collection(firestore, pathOrQuery), ...queryConstraints);
     }
 
 
@@ -49,7 +69,7 @@ export function useCollection<T>(pathOrQuery: string | Query | null, ...queryCon
 
     return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firestore, queryKey]);
+  }, [firestore, queryKey, optionsKey]);
 
   return { data, loading };
 }
