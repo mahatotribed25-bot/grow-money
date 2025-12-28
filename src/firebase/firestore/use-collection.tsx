@@ -35,24 +35,26 @@ export function useCollection<T>(pathOrQuery: string | Query | null, options?: U
 
   useEffect(() => {
     setLoading(true);
-    if (!pathOrQuery) {
+    if (!pathOrQuery || (options?.where && options.where[2] === undefined)) {
       setData([]);
       setLoading(false);
       return;
     }
 
     let q: Query<DocumentData>;
+    let allConstraints = [...queryConstraints];
+    if (options?.where) {
+      allConstraints.push(where(options.where[0], options.where[1], options.where[2]));
+    }
+
     if (typeof pathOrQuery !== 'string') {
-        q = pathOrQuery;
+        q = query(pathOrQuery, ...allConstraints);
     } else if (options?.subcollections) {
-        let subcollectionQuery: Query<DocumentData> = collectionGroup(firestore, pathOrQuery);
-        if(options.where) {
-            subcollectionQuery = query(subcollectionQuery, where(options.where[0], options.where[1], options.where[2]));
-        }
-        q = query(subcollectionQuery, ...queryConstraints);
+        const subcollectionQuery: Query<DocumentData> = collectionGroup(firestore, pathOrQuery);
+        q = query(subcollectionQuery, ...allConstraints);
     }
     else {
-        q = query(collection(firestore, pathOrQuery), ...queryConstraints);
+        q = query(collection(firestore, pathOrQuery), ...allConstraints);
     }
 
 
