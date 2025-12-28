@@ -67,6 +67,7 @@ type Investment = {
 type Repayment = {
     id: string;
     amount: number;
+    amountDistributed: number;
     repaymentDate: Timestamp;
     status: 'Pending Distribution' | 'Distributed';
 }
@@ -288,7 +289,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
         if (!repayments) return 0;
         return repayments
             .filter(r => r.status === 'Pending Distribution')
-            .reduce((sum, r) => sum + r.amount, 0);
+            .reduce((sum, r) => sum + (r.amount - (r.amountDistributed || 0)), 0);
     }, [repayments]);
 
     const isFullyRepaid = remainingRepayment <= 0;
@@ -325,6 +326,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
         batch.set(repaymentRef, {
             loanPlanId: plan.id,
             amount: repaymentAmount,
+            amountDistributed: 0,
             repaymentDate: serverTimestamp(),
             status: 'Pending Distribution'
         });
@@ -384,24 +386,28 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                     payoutDate: serverTimestamp(),
                 });
                 
-                // 4. Mark oldest pending repayments as distributed
-                const pendingRepayments = (repayments || []).filter(r => r.status === 'Pending Distribution').sort((a,b) => (a.repaymentDate?.seconds || 0) - (b.repaymentDate?.seconds || 0));
+                // 4. Update repayment logs
+                const pendingRepayments = (repayments || [])
+                    .filter(r => r.status === 'Pending Distribution' && r.amount > (r.amountDistributed || 0))
+                    .sort((a,b) => (a.repaymentDate?.seconds || 0) - (b.repaymentDate?.seconds || 0));
 
-                let amountToDeduct = payoutAmount;
+                let amountToAttribute = payoutAmount;
                 for (const repayment of pendingRepayments) {
-                    if (amountToDeduct <= 0) break;
+                    if (amountToAttribute <= 0) break;
                     
                     const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', repayment.id);
-                    const availableInThisRepayment = repayment.amount; 
-                    
-                    if(amountToDeduct >= availableInThisRepayment) {
-                        transaction.update(repaymentRef, { status: 'Distributed' });
-                        amountToDeduct -= availableInThisRepayment;
-                    } else {
-                         toast({title: 'Partial Distribution Note', description: `Distributing ₹${payoutAmount.toFixed(2)}. The oldest pending repayment log will be marked as 'Distributed'.`, variant: 'default'});
-                         transaction.update(repaymentRef, {status: 'Distributed' }); 
-                         amountToDeduct = 0;
-                    }
+                    const distributableFromThisLog = repayment.amount - (repayment.amountDistributed || 0);
+                    const amountToTake = Math.min(amountToAttribute, distributableFromThisLog);
+
+                    const newAmountDistributed = (repayment.amountDistributed || 0) + amountToTake;
+                    const newStatus = newAmountDistributed >= repayment.amount ? 'Distributed' : 'Pending Distribution';
+
+                    transaction.update(repaymentRef, {
+                        amountDistributed: newAmountDistributed,
+                        status: newStatus,
+                    });
+
+                    amountToAttribute -= amountToTake;
                 }
             });
 
@@ -521,19 +527,21 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Amount</TableHead>
+                                        <TableHead>Distributed</TableHead>
                                         <TableHead>Date</TableHead>
                                         <TableHead>Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {repaymentsLoading ? <TableRow><TableCell colSpan={3}>Loading...</TableCell></TableRow> 
+                                    {repaymentsLoading ? <TableRow><TableCell colSpan={4}>Loading...</TableCell></TableRow> 
                                     : repayments && repayments.length > 0 ? repayments.map(rep => (
                                         <TableRow key={rep.id}>
                                             <TableCell>₹{rep.amount.toFixed(2)}</TableCell>
+                                            <TableCell>₹{(rep.amountDistributed || 0).toFixed(2)}</TableCell>
                                             <TableCell>{formatDate(rep.repaymentDate)}</TableCell>
                                             <TableCell><Badge variant={rep.status === 'Distributed' ? 'outline' : 'secondary'}>{rep.status}</Badge></TableCell>
                                         </TableRow>
-                                    )) : <TableRow><TableCell colSpan={3} className='text-center'>No repayments logged yet.</TableCell></TableRow>}
+                                    )) : <TableRow><TableCell colSpan={4} className='text-center'>No repayments logged yet.</TableCell></TableRow>}
                                 </TableBody>
                             </Table>
                         </div>
