@@ -292,6 +292,8 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
     }, [repayments]);
 
     const isFullyRepaid = remainingRepayment <= 0;
+    const canDistribute = payoutAmount > 0 && selectedInvestor && payoutAmount <= distributableAmount;
+
 
     const getStatusVariant = (status: string) => {
         switch(status) {
@@ -347,16 +349,11 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
     }
 
     const handleDistributePayout = async () => {
-        if (payoutAmount <= 0 || !selectedInvestor) {
-            toast({ title: 'Invalid Input', description: 'Select an investor and enter a valid amount.', variant: 'destructive'});
+        if (!canDistribute) {
+             toast({ title: 'Invalid Payout', description: 'Please check the investor and amount.', variant: 'destructive'});
             return;
         }
-
-        if (payoutAmount > distributableAmount) {
-            toast({ title: 'Payout exceeds available funds', description: `You can only distribute up to ₹${distributableAmount.toFixed(2)}.`, variant: 'destructive'});
-            return;
-        }
-
+       
         const investorInvestment = investments?.find(i => i.id === selectedInvestor);
         if (!investorInvestment) return;
         
@@ -488,17 +485,19 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                         </div>
                     </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <h4 className="font-semibold flex items-center gap-2"><IndianRupee className="h-4 w-4"/>Record Borrower Repayment</h4>
-                            {isFullyRepaid ? (
-                                <div className='text-center text-green-500 font-bold p-4 border rounded-md'>Loan Fully Repaid!</div>
-                            ) : (
-                                <div className="flex gap-2">
-                                    <Input type="number" placeholder="Amount received" value={repaymentAmount || ''} onChange={e => setRepaymentAmount(parseFloat(e.target.value))} />
-                                    <Button onClick={handleRecordRepayment} disabled={repaymentAmount <= 0}>Log</Button>
-                                </div>
-                            )}
-                        </div>
+                        {plan.status !== 'Funding' && (
+                            <div className="space-y-2">
+                                <h4 className="font-semibold flex items-center gap-2"><IndianRupee className="h-4 w-4"/>Record Borrower Repayment</h4>
+                                {isFullyRepaid ? (
+                                    <div className='text-center text-green-500 font-bold p-4 border rounded-md'>Loan Fully Repaid!</div>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        <Input type="number" placeholder="Amount received" value={repaymentAmount || ''} onChange={e => setRepaymentAmount(parseFloat(e.target.value))} />
+                                        <Button onClick={handleRecordRepayment} disabled={repaymentAmount <= 0}>Log</Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                              <h4 className="font-semibold flex items-center gap-2"><Send className="h-4 w-4"/>Distribute Payout to Investor</h4>
@@ -511,7 +510,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
                                     </SelectContent>
                                 </Select>
                                 <Input type="number" placeholder="Payout amount" value={payoutAmount || ''} onChange={e => setPayoutAmount(parseFloat(e.target.value))}/>
-                                <Button onClick={handleDistributePayout} disabled={payoutAmount <= 0 || !selectedInvestor}>Pay</Button>
+                                <Button onClick={handleDistributePayout} disabled={!canDistribute}>Pay</Button>
                              </div>
                         </div>
                     </div>
