@@ -54,6 +54,7 @@ type UserData = {
   totalIncome: number;
   name?: string;
   email?: string;
+  upiId?: string;
 };
 
 type AdminSettings = {
@@ -90,9 +91,8 @@ type Announcement = {
     createdAt: Timestamp;
 }
 
-const CountdownTimer = ({ endDate, onComplete }: { endDate: Date, onComplete: () => void }) => {
+const CountdownTimer = ({ endDate }: { endDate: Date }) => {
     const [timeLeft, setTimeLeft] = useState('...');
-    const memoizedOnComplete = useCallback(onComplete, [onComplete]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -102,7 +102,6 @@ const CountdownTimer = ({ endDate, onComplete }: { endDate: Date, onComplete: ()
             if (distance < 0) {
                 clearInterval(interval);
                 setTimeLeft("00d 00h 00m 00s");
-                if(memoizedOnComplete) memoizedOnComplete();
                 return;
             }
 
@@ -115,7 +114,7 @@ const CountdownTimer = ({ endDate, onComplete }: { endDate: Date, onComplete: ()
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [endDate, memoizedOnComplete]);
+    }, [endDate]);
 
     return <span className="font-mono">{timeLeft}</span>;
 };
@@ -139,49 +138,50 @@ export default function Dashboard() {
 
   const firestore = useFirestore();
   const { toast } = useToast();
+  
+  const handleClaimReturn = async (investment: Investment) => {
+     if (!user) return;
 
-  const handleInvestmentMaturity = async (investmentId?: string) => {
-    if (!user || !investments) return;
+     try {
+       await runTransaction(firestore, async (transaction) => {
+         const userRef = doc(firestore, 'users', user.uid);
+         const invRef = doc(firestore, 'users', user.uid, 'investments', investment.id);
+         
+         const userDoc = await transaction.get(userRef);
+         const invDoc = await transaction.get(invRef);
 
-    const now = new Date();
-    const maturedInvestments = investments.filter(
-      (inv) => inv.status === 'Active' && inv.maturityDate?.toDate() <= now && (!investmentId || inv.id === investmentId)
-    );
+         if (!userDoc.exists() || !invDoc.exists()) throw new Error("Document not found.");
+         
+         // Ensure we don't claim twice
+         if (invDoc.data().status === 'Matured') {
+            toast({ title: "Already Claimed", description: "This investment has already been claimed.", variant: "destructive" });
+            return; // Exit transaction
+         }
 
-    if (maturedInvestments.length === 0) return;
+         let newWalletBalance = userDoc.data().walletBalance || 0;
+         let newTotalInvestment = userDoc.data().totalInvestment || 0;
+         
+         transaction.update(invRef, { status: 'Matured' });
+         newWalletBalance += investment.returnAmount;
+         newTotalInvestment -= investment.investedAmount;
 
-    try {
-      await runTransaction(firestore, async (transaction) => {
-        const userRef = doc(firestore, 'users', user.uid);
-        const userDoc = await transaction.get(userRef);
-        if (!userDoc.exists()) throw 'User document does not exist!';
-        
-        let newWalletBalance = userDoc.data().walletBalance || 0;
-        let newTotalInvestment = userDoc.data().totalInvestment || 0;
+         transaction.update(userRef, {
+           walletBalance: newWalletBalance,
+           totalInvestment: newTotalInvestment < 0 ? 0 : newTotalInvestment,
+         });
+       });
 
-        for (const inv of maturedInvestments) {
-          const invRef = doc(firestore, `users/${user.uid}/investments`, inv.id);
-          transaction.update(invRef, { status: 'Matured' });
-          newWalletBalance += inv.returnAmount;
-          newTotalInvestment -= inv.investedAmount;
-        }
+       toast({
+         title: 'Investment Claimed!',
+         description: `₹${investment.returnAmount} has been added to your wallet.`,
+       });
 
-        transaction.update(userRef, { 
-            walletBalance: newWalletBalance,
-            totalInvestment: newTotalInvestment < 0 ? 0 : newTotalInvestment,
-        });
-      });
-
-      if (maturedInvestments.length > 0) {
-        toast({
-            title: 'Investment Matured!',
-            description: 'Your investment has matured and the return has been added to your wallet.',
-        });
-      }
-    } catch (error) {
-      console.error('Error processing maturity:', error);
-    }
+     } catch (error: any) {
+       console.error('Error processing claim:', error);
+       toast({ title: "Claim Failed", description: error.message, variant: "destructive"});
+     }
   };
+
 
   const autoCreditDailyIncome = async () => {
      if (!user || !investments) return;
@@ -242,9 +242,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (investments) {
       autoCreditDailyIncome();
-      handleInvestmentMaturity();
     }
-  // We want this to run only when the component mounts or user changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, investments]);
 
@@ -287,6 +285,7 @@ export default function Dashboard() {
             adminUpi={adminSettings?.adminUpi}
             minWithdrawal={adminSettings?.minWithdrawal}
             loading={userDataLoading}
+            upiId={userData?.upiId}
           />
           
           <div className="flex items-center justify-between">
@@ -307,7 +306,7 @@ export default function Dashboard() {
           ) : activeInvestments && activeInvestments.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {activeInvestments.map((investment) => (
-                <ActivePlanCard key={investment.id} investment={investment} onMaturity={() => handleInvestmentMaturity(investment.id)} />
+                <ActivePlanCard key={investment.id} investment={investment} onClaim={handleClaimReturn} />
               ))}
             </div>
           ) : (
@@ -408,7 +407,8 @@ function WalletSummary({
   totalIncome,
   adminUpi,
   minWithdrawal,
-  loading
+  loading,
+  upiId,
 }: {
   walletBalance?: number;
   totalInvestment?: number;
@@ -416,6 +416,7 @@ function WalletSummary({
   adminUpi?: string;
   minWithdrawal?: number;
   loading: boolean;
+  upiId?: string;
 }) {
   return (
     <Card className="shadow-lg">
@@ -446,7 +447,7 @@ function WalletSummary({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <DepositButton adminUpi={adminUpi} />
-            <WithdrawButton minWithdrawal={minWithdrawal} currentBalance={walletBalance} />
+            <WithdrawButton minWithdrawal={minWithdrawal} currentBalance={walletBalance} upiId={upiId} />
           </div>
         </div>
       </CardContent>
@@ -545,17 +546,16 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
   );
 }
 
-function WithdrawButton({ minWithdrawal, currentBalance }: { minWithdrawal?: number, currentBalance?: number }) {
+function WithdrawButton({ minWithdrawal, currentBalance, upiId }: { minWithdrawal?: number, currentBalance?: number, upiId?: string }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const [amount, setAmount] = useState('');
   const [withdrawalType, setWithdrawalType] = useState('');
-  const {data: userData} = useDoc<UserData>(user ? `users/${user.uid}`: null);
   const { toast } = useToast();
 
   const handleWithdraw = async () => {
     const withdrawAmount = parseFloat(amount);
-    if (!user || !userData || !amount || !userData.upiId) {
+    if (!user || !amount || !upiId) {
         toast({ variant: 'destructive', title: 'Missing Information', description: 'Please ensure you have a saved UPI ID in your profile and enter an amount.' });
         return;
     }
@@ -589,7 +589,7 @@ function WithdrawButton({ minWithdrawal, currentBalance }: { minWithdrawal?: num
                 userId: user.uid,
                 name: user.displayName,
                 amount: withdrawAmount,
-                upiId: userData.upiId,
+                upiId: upiId,
                 type: withdrawalType,
                 status: 'pending',
                 createdAt: serverTimestamp(),
@@ -620,26 +620,33 @@ function WithdrawButton({ minWithdrawal, currentBalance }: { minWithdrawal?: num
             </DialogHeader>
              <div className="space-y-4">
                 <p className="text-sm">
-                    Enter the amount you wish to withdraw. Funds will be sent to your saved UPI ID.
+                    Enter the amount you wish to withdraw. Funds will be sent to your saved UPI ID: <span className="font-mono">{upiId || 'Not Set'}</span>
                 </p>
+                {!upiId && <p className="text-xs text-destructive">Please set your UPI ID in your profile before withdrawing.</p>}
                 <div className="space-y-2">
                     <Label htmlFor="amount">Amount (INR)</Label>
                     <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Minimum ₹${minWithdrawal || 0}`}/>
                 </div>
                  <div className="space-y-2">
                     <Label>Withdrawal From</Label>
-                    <RadioGroup onValueChange={setWithdrawalType} value={withdrawalType}>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Investment Plan" id="type-investment" />
-                            <Label htmlFor="type-investment">Investment Plan</Label>
+                    <RadioGroup onValueChange={setWithdrawalType} value={withdrawalType} className="grid grid-cols-2 gap-4">
+                        <div>
+                            <RadioGroupItem value="Investment Plan" id="type-investment" className="peer sr-only" />
+                            <Label htmlFor="type-investment" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                Investment Plan
+                            </Label>
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Group Investment" id="type-group" />
-                            <Label htmlFor="type-group">Group Investment</Label>
+                         <div>
+                            <RadioGroupItem value="Group Investment" id="type-group" className="peer sr-only" />
+                            <Label htmlFor="type-group" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                Group Investment
+                            </Label>
                         </div>
-                         <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="General" id="type-general" />
-                            <Label htmlFor="type-general">General Wallet Balance</Label>
+                         <div>
+                            <RadioGroupItem value="General" id="type-general" className="peer sr-only" />
+                            <Label htmlFor="type-general" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                General Balance
+                            </Label>
                         </div>
                     </RadioGroup>
                 </div>
@@ -648,7 +655,7 @@ function WithdrawButton({ minWithdrawal, currentBalance }: { minWithdrawal?: num
                 <DialogClose asChild>
                     <Button variant="outline">Cancel</Button>
                 </DialogClose>
-                <Button onClick={handleWithdraw}>Request Withdrawal</Button>
+                <Button onClick={handleWithdraw} disabled={!upiId}>Request Withdrawal</Button>
              </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -656,7 +663,10 @@ function WithdrawButton({ minWithdrawal, currentBalance }: { minWithdrawal?: num
 }
 
 
-function ActivePlanCard({ investment, onMaturity }: { investment: Investment, onMaturity: () => void }) {
+function ActivePlanCard({ investment, onClaim }: { investment: Investment, onClaim: (investment: Investment) => void }) {
+  const [isMatured, setIsMatured] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+
   if (!investment.startDate || !investment.maturityDate) {
     return null;
   }
@@ -669,12 +679,24 @@ function ActivePlanCard({ investment, onMaturity }: { investment: Investment, on
   const elapsedDuration = now.getTime() - startDate.getTime();
   const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
 
+  useEffect(() => {
+    if (now >= maturityDate) {
+      setIsMatured(true);
+    }
+  }, [now, maturityDate]);
+
+  const handleClaimClick = async () => {
+    setIsClaiming(true);
+    await onClaim(investment);
+    setIsClaiming(false);
+  }
+
   return (
     <Card className="bg-secondary/30">
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>{investment.planName}</span>
-          <Badge>Active</Badge>
+          <Badge>{isMatured ? "Matured" : "Active"}</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -688,13 +710,20 @@ function ActivePlanCard({ investment, onMaturity }: { investment: Investment, on
             ₹{(investment.returnAmount || 0).toFixed(2)}
           </p>
         </div>
-        <div className="space-y-1">
-          <div className="flex justify-between text-xs text-muted-foreground">
-             <span>Time Remaining:</span>
-             <CountdownTimer endDate={maturityDate} onComplete={onMaturity} />
-          </div>
-          <Progress value={progress} />
-        </div>
+        
+        {isMatured ? (
+            <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full">
+                {isClaiming ? 'Claiming...' : 'Claim Return'}
+            </Button>
+        ) : (
+            <div className="space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Time Remaining:</span>
+                    <CountdownTimer endDate={maturityDate} />
+                </div>
+                <Progress value={progress} />
+            </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -784,5 +813,3 @@ function QuickActionButton({ icon: Icon, label, href }: { icon: React.ElementTyp
         </Button>
     )
 }
-
-    
