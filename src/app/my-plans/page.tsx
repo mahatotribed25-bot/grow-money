@@ -28,7 +28,8 @@ type Investment = {
   returnAmount: number;
   startDate: Timestamp;
   maturityDate: Timestamp;
-  status: 'Active' | 'Matured';
+  status: 'Active' | 'Matured' | 'Stopped';
+  finalReturn?: number;
 };
 
 export default function MyPlansPage() {
@@ -54,27 +55,38 @@ export default function MyPlansPage() {
 
          if (!userDoc.exists() || !invDoc.exists()) throw new Error("Document not found.");
          
-         if (invDoc.data().status === 'Matured') {
+         const invData = invDoc.data();
+         if (invData.status === 'Matured') {
             toast({ title: "Already Claimed", description: "This investment has already been claimed.", variant: "destructive" });
             return;
          }
 
+         let amountToClaim = 0;
+         if (invData.status === 'Stopped' && invData.finalReturn) {
+             amountToClaim = invData.finalReturn;
+         } else if (invData.status === 'Active') {
+             amountToClaim = investment.returnAmount;
+         } else {
+             throw new Error("Investment is not in a claimable state.");
+         }
+         
          let newWalletBalance = userDoc.data().walletBalance || 0;
          let newTotalInvestment = userDoc.data().totalInvestment || 0;
          
          transaction.update(invRef, { status: 'Matured' });
-         newWalletBalance += investment.returnAmount;
+         newWalletBalance += amountToClaim;
          newTotalInvestment -= investment.investedAmount;
 
          transaction.update(userRef, {
            walletBalance: newWalletBalance,
            totalInvestment: newTotalInvestment < 0 ? 0 : newTotalInvestment,
+           totalIncome: (userDoc.data().totalIncome || 0) + (amountToClaim - investment.investedAmount)
          });
        });
 
        toast({
          title: 'Investment Claimed!',
-         description: `₹${investment.returnAmount} has been added to your wallet.`,
+         description: `Your return has been added to your wallet.`,
        });
 
      } catch (error: any) {
@@ -86,7 +98,7 @@ export default function MyPlansPage() {
 
   const loading = userLoading || investmentsLoading;
 
-  const activeInvestments = investments?.filter((inv) => inv.status === 'Active') || [];
+  const activeInvestments = investments?.filter((inv) => inv.status === 'Active' || inv.status === 'Stopped') || [];
   const maturedInvestments = investments?.filter((inv) => inv.status === 'Matured') || [];
 
   return (
@@ -104,8 +116,8 @@ export default function MyPlansPage() {
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
          <Tabs defaultValue="active">
             <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="active">Active</TabsTrigger>
-                <TabsTrigger value="matured">Matured</TabsTrigger>
+                <TabsTrigger value="active">Active & Claimable</TabsTrigger>
+                <TabsTrigger value="matured">History</TabsTrigger>
             </TabsList>
             <TabsContent value="active">
                 {loading ? <p>Loading...</p> : 
@@ -114,7 +126,7 @@ export default function MyPlansPage() {
                             {activeInvestments.map(inv => <InvestmentCard key={inv.id} investment={inv} onClaim={handleClaimReturn} />)}
                         </div>
                     ) : (
-                        <p className="text-center text-muted-foreground mt-4">No active investments.</p>
+                        <p className="text-center text-muted-foreground mt-4">No active or claimable investments.</p>
                     )
                 }
             </TabsContent>
@@ -146,7 +158,7 @@ export default function MyPlansPage() {
 
 
 function InvestmentCard({ investment, onClaim }: { investment: Investment, onClaim: (investment: Investment) => void }) {
-  const [isMatured, setIsMatured] = useState(false);
+  const [isClaimable, setIsClaimable] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
 
   if (!investment.startDate || !investment.maturityDate) {
@@ -162,8 +174,8 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
   const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
 
   useEffect(() => {
-    if (investment.status === 'Active' && now >= maturityDate) {
-        setIsMatured(true);
+    if (investment.status === 'Stopped' || (investment.status === 'Active' && now >= maturityDate)) {
+      setIsClaimable(true);
     }
   }, [now, maturityDate, investment.status]);
 
@@ -174,14 +186,19 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
     setIsClaiming(false);
   }
 
+  const getBadge = () => {
+    if (investment.status === 'Matured') return <Badge variant="outline">Matured</Badge>;
+    if (investment.status === 'Stopped') return <Badge variant="destructive">Stopped</Badge>;
+    if (isClaimable) return <Badge>Matured</Badge>;
+    return <Badge>Active</Badge>;
+  }
+
   return (
     <Card className="bg-secondary/30">
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>{investment.planName}</span>
-          <Badge variant={investment.status === 'Active' ? 'default': 'outline'}>
-            {investment.status}
-          </Badge>
+          {getBadge()}
         </CardTitle>
         <CardDescription>Invested on: {startDate.toLocaleDateString()}</CardDescription>
       </CardHeader>
@@ -197,7 +214,7 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
           </p>
         </div>
         {investment.status === 'Active' && (
-            isMatured ? (
+            isClaimable ? (
                  <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full">
                     {isClaiming ? 'Claiming...' : 'Claim Return'}
                 </Button>
@@ -209,6 +226,11 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
                     </p>
                 </div>
             )
+        )}
+        {investment.status === 'Stopped' && (
+             <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full">
+                {isClaiming ? 'Claiming...' : 'Claim Premature Return'}
+            </Button>
         )}
       </CardContent>
     </Card>

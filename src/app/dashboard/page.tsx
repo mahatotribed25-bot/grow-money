@@ -69,9 +69,10 @@ type Investment = {
   returnAmount: number;
   startDate: Timestamp;
   maturityDate: Timestamp;
-  status: 'Active' | 'Matured';
+  status: 'Active' | 'Matured' | 'Stopped';
   dailyIncome: number;
   lastIncomeDate?: Timestamp;
+  finalReturn?: number;
 };
 
 type ActiveLoan = {
@@ -152,28 +153,41 @@ export default function Dashboard() {
 
          if (!userDoc.exists() || !invDoc.exists()) throw new Error("Document not found.");
          
-         // Ensure we don't claim twice
-         if (invDoc.data().status === 'Matured') {
+         const invData = invDoc.data();
+         if (invData.status === 'Matured') {
             toast({ title: "Already Claimed", description: "This investment has already been claimed.", variant: "destructive" });
             return; // Exit transaction
          }
+         
+         // Determine the amount to claim
+         let amountToClaim = 0;
+         if (invData.status === 'Stopped' && invData.finalReturn) {
+             amountToClaim = invData.finalReturn;
+         } else if (invData.status === 'Active') {
+             // For naturally matured plans
+             amountToClaim = investment.returnAmount;
+         } else {
+             throw new Error("Investment is not in a claimable state.");
+         }
+
 
          let newWalletBalance = userDoc.data().walletBalance || 0;
          let newTotalInvestment = userDoc.data().totalInvestment || 0;
          
          transaction.update(invRef, { status: 'Matured' });
-         newWalletBalance += investment.returnAmount;
+         newWalletBalance += amountToClaim;
          newTotalInvestment -= investment.investedAmount;
 
          transaction.update(userRef, {
            walletBalance: newWalletBalance,
            totalInvestment: newTotalInvestment < 0 ? 0 : newTotalInvestment,
+           totalIncome: (userDoc.data().totalIncome || 0) + (amountToClaim - investment.investedAmount)
          });
        });
 
        toast({
          title: 'Investment Claimed!',
-         description: `₹${investment.returnAmount} has been added to your wallet.`,
+         description: `Your return has been added to your wallet.`,
        });
 
      } catch (error: any) {
@@ -182,72 +196,7 @@ export default function Dashboard() {
      }
   };
 
-
-  const autoCreditDailyIncome = async () => {
-     if (!user || !investments) return;
-
-     const now = new Date();
-     let totalIncomeToAdd = 0;
-     
-     try {
-       await runTransaction(firestore, async (transaction) => {
-           const userRef = doc(firestore, 'users', user.uid);
-           const userDoc = await transaction.get(userRef);
-
-           if (!userDoc.exists()) throw "User document does not exist!";
-           
-           for (const inv of investments) {
-               if (inv.status !== 'Active') continue;
-
-               const lastIncomeDate = inv.lastIncomeDate?.toDate() || inv.startDate.toDate();
-               const hoursDiff = (now.getTime() - lastIncomeDate.getTime()) / (1000 * 60 * 60);
-               
-               const cyclesToCredit = Math.floor(hoursDiff / 24);
-
-               if (cyclesToCredit > 0) {
-                   const incomeToAdd = cyclesToCredit * inv.dailyIncome;
-                   totalIncomeToAdd += incomeToAdd;
-                   
-                   const newLastIncomeDate = new Date(lastIncomeDate.getTime() + cyclesToCredit * 24 * 60 * 60 * 1000);
-                   
-                   const invRef = doc(firestore, 'users', user.uid, 'investments', inv.id);
-                   transaction.update(invRef, { lastIncomeDate: newLastIncomeDate });
-               }
-           }
-           
-           if (totalIncomeToAdd > 0) {
-                const currentWallet = userDoc.data().walletBalance || 0;
-                const currentTotalIncome = userDoc.data().totalIncome || 0;
-                
-                transaction.update(userRef, {
-                    walletBalance: currentWallet + totalIncomeToAdd,
-                    totalIncome: currentTotalIncome + totalIncomeToAdd,
-                });
-           }
-       });
-
-       if (totalIncomeToAdd > 0) {
-            toast({
-              title: "Income Credited",
-              description: `₹${totalIncomeToAdd.toFixed(2)} has been automatically added to your wallet.`
-            });
-       }
-
-     } catch(e) {
-         console.error("Failed to auto-credit income", e);
-     }
-  }
-
-
-  useEffect(() => {
-    if (investments) {
-      autoCreditDailyIncome();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, investments]);
-
-
-  const activeInvestments = investments?.filter((inv) => inv.status === 'Active');
+  const activeInvestments = investments?.filter((inv) => inv.status === 'Active' || inv.status === 'Stopped');
   const activeLoan = loans?.find(l => l.status !== 'Completed');
 
   const sortedAnnouncements = announcements?.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
@@ -664,7 +613,7 @@ function WithdrawButton({ minWithdrawal, currentBalance, upiId }: { minWithdrawa
 
 
 function ActivePlanCard({ investment, onClaim }: { investment: Investment, onClaim: (investment: Investment) => void }) {
-  const [isMatured, setIsMatured] = useState(false);
+  const [isClaimable, setIsClaimable] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
 
   if (!investment.startDate || !investment.maturityDate) {
@@ -680,15 +629,25 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
   const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
 
   useEffect(() => {
-    if (now >= maturityDate) {
-      setIsMatured(true);
+    if (investment.status === 'Stopped' || (investment.status === 'Active' && now >= maturityDate)) {
+      setIsClaimable(true);
     }
-  }, [now, maturityDate]);
+  }, [now, maturityDate, investment.status]);
 
   const handleClaimClick = async () => {
     setIsClaiming(true);
     await onClaim(investment);
     setIsClaiming(false);
+  }
+  
+  const getBadge = () => {
+    if (investment.status === 'Stopped') {
+        return <Badge variant="destructive">Stopped</Badge>;
+    }
+    if (isClaimable) {
+        return <Badge>Matured</Badge>;
+    }
+    return <Badge>Active</Badge>;
   }
 
   return (
@@ -696,7 +655,7 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>{investment.planName}</span>
-          <Badge>{isMatured ? "Matured" : "Active"}</Badge>
+          {getBadge()}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -711,7 +670,7 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
           </p>
         </div>
         
-        {isMatured ? (
+        {isClaimable ? (
             <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full">
                 {isClaiming ? 'Claiming...' : 'Claim Return'}
             </Button>

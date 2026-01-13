@@ -139,8 +139,13 @@
           "type": "string",
           "enum": [
             "Active",
-            "Matured"
+            "Matured",
+            "Stopped"
           ]
+        },
+        "finalReturn": {
+            "type": "number",
+            "description": "The calculated return if a plan is stopped prematurely."
         }
       },
       "required": [
@@ -481,5 +486,3 @@
     }
   }
 }
-
-    

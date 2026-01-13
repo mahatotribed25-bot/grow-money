@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2 } from 'lucide-react';
+import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,8 +45,10 @@ type Investment = {
   planName: string;
   investedAmount: number;
   maturityDate: Timestamp;
+  startDate: Timestamp;
+  dailyIncome: number;
   returnAmount: number;
-  status: 'Active' | 'Matured';
+  status: 'Active' | 'Matured' | 'Stopped';
 }
 
 type Transaction = {
@@ -148,6 +150,7 @@ const getStatusVariant = (status: string) => {
     case 'rejected':
     case 'Blocked':
     case 'Due':
+    case 'Stopped':
       return 'destructive';
     case 'Payment Pending':
         return 'outline'
@@ -191,6 +194,35 @@ export default function UserDetailPage() {
       });
     }
   };
+  
+   const handleStopInvestment = async (investment: Investment) => {
+    if (!user || !investment || investment.status !== 'Active') return;
+    
+    try {
+        const investmentRef = doc(firestore, 'users', userId, 'investments', investment.id);
+        
+        // Calculate the income earned until now
+        const startDate = investment.startDate.toDate();
+        const now = new Date();
+        const daysActive = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        const earnedIncome = daysActive * investment.dailyIncome;
+        const finalReturn = investment.investedAmount + earnedIncome;
+        
+        await updateDoc(investmentRef, {
+            status: 'Stopped',
+            finalReturn: finalReturn
+        });
+
+        toast({
+            title: 'Investment Stopped',
+            description: `The plan is now stopped. The user can claim ₹${finalReturn.toFixed(2)}.`,
+        });
+
+    } catch (e: any) {
+        console.error(e);
+        toast({ title: 'Error', description: 'Could not stop the investment.', variant: 'destructive'});
+    }
+  }
 
   const handleResetData = async () => {
     if (!user) return;
@@ -370,7 +402,7 @@ export default function UserDetailPage() {
         </TabsList>
         <TabsContent value="investments">
            <HistoryTable
-              headers={['Plan Name', 'Invested', 'Return', 'Status', 'Maturity Date']}
+              headers={['Plan Name', 'Invested', 'Return', 'Status', 'Maturity Date', 'Action']}
               items={investments}
               renderRow={(item: Investment) => (
                 <TableRow key={item.id}>
@@ -379,6 +411,13 @@ export default function UserDetailPage() {
                   <TableCell>₹{(item.returnAmount || 0).toFixed(2)}</TableCell>
                   <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
                   <TableCell>{formatDate(item.maturityDate)}</TableCell>
+                  <TableCell>
+                      {item.status === 'Active' && (
+                          <Button variant="destructive" size="sm" onClick={() => handleStopInvestment(item)}>
+                              <PowerOff className="mr-2 h-4 w-4" /> Stop
+                          </Button>
+                      )}
+                  </TableCell>
                 </TableRow>
               )}
             />
