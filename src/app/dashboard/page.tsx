@@ -46,6 +46,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { BannerCarousel } from '@/components/dashboard/BannerCarousel';
 
 type UserData = {
   id: string;
@@ -227,6 +228,8 @@ export default function Dashboard() {
 
           <Announcements announcements={sortedAnnouncements} loading={announcementsLoading} />
 
+          <BannerCarousel />
+
           <WalletSummary
             walletBalance={userData?.walletBalance}
             totalInvestment={userData?.totalInvestment}
@@ -292,6 +295,7 @@ export default function Dashboard() {
                 <QuickActionButton icon={History} label="My Plans" href="/my-plans" />
                 <QuickActionButton icon={HandCoins} label="Loans" href="/loans" />
                 <QuickActionButton icon={User} label="Profile" href="/profile" />
+                <QuickActionButton icon={Users} label="My Team" href="/team" />
             </CardContent>
            </Card>
 
@@ -299,9 +303,10 @@ export default function Dashboard() {
       </main>
 
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" active />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
+          <BottomNavItem icon={Users} label="Team" href="/team" />
           <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>

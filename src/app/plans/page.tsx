@@ -7,6 +7,8 @@ import {
   User,
   Briefcase,
   TrendingUp,
+  Users as UsersIcon,
+  HandCoins,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -199,9 +201,11 @@ export default function PlansPage() {
       </main>
 
       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-3 items-center px-4 text-xs">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" active />
+          <BottomNavItem icon={UsersIcon} label="Team" href="/team" />
+          <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>
@@ -273,5 +277,3 @@ function BottomNavItem({
     </Link>
   );
 }
-
-    
