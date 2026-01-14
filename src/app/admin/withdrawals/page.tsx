@@ -26,6 +26,8 @@ type WithdrawalRequest = {
   type: 'Investment Plan' | 'Group Investment' | 'General';
   createdAt: Timestamp;
   status: 'pending' | 'approved' | 'rejected';
+  gstAmount?: number;
+  finalAmount?: number;
 };
 
 const formatDate = (timestamp: Timestamp) => {
@@ -67,7 +69,7 @@ export default function WithdrawalsPage() {
             await updateDoc(withdrawalRef, { status: newStatus });
             toast({
                 title: 'Withdrawal Approved',
-                description: `Please manually send ₹${withdrawal.amount.toFixed(2)} to ${withdrawal.name} at UPI ID: ${withdrawal.upiId}`,
+                description: `Please manually send ₹${(withdrawal.finalAmount || withdrawal.amount).toFixed(2)} to ${withdrawal.name} at UPI ID: ${withdrawal.upiId}`,
             });
         }
 
@@ -89,7 +91,9 @@ export default function WithdrawalsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>User Name</TableHead>
-              <TableHead>Amount</TableHead>
+              <TableHead>Requested</TableHead>
+              <TableHead>GST</TableHead>
+              <TableHead>Final Payout</TableHead>
               <TableHead>UPI ID</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Date</TableHead>
@@ -100,7 +104,7 @@ export default function WithdrawalsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={9} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -109,6 +113,8 @@ export default function WithdrawalsPage() {
                 <TableRow key={withdrawal.id}>
                   <TableCell>{withdrawal.name || 'N/A'}</TableCell>
                   <TableCell>₹{withdrawal.amount.toFixed(2)}</TableCell>
+                  <TableCell className="text-destructive">₹{(withdrawal.gstAmount || 0).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold">₹{(withdrawal.finalAmount || withdrawal.amount).toFixed(2)}</TableCell>
                   <TableCell>{withdrawal.upiId}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{withdrawal.type || 'N/A'}</Badge>
@@ -158,5 +164,3 @@ export default function WithdrawalsPage() {
     </div>
   );
 }
-
-    

@@ -239,6 +239,14 @@
         "createdAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "gstAmount": {
+            "type": "number",
+            "description": "The amount of GST deducted from the withdrawal."
+        },
+        "finalAmount": {
+            "type": "number",
+            "description": "The final amount to be paid to the user after GST deduction."
         }
       },
       "required": [
@@ -248,7 +256,9 @@
         "upiId",
         "type",
         "status",
-        "createdAt"
+        "createdAt",
+        "gstAmount",
+        "finalAmount"
       ]
     },
     "adminSettings": {
@@ -267,6 +277,10 @@
         "referralBonus": {
           "type": "number",
           "description": "Bonus amount for the referrer when the referred user makes their first investment."
+        },
+        "withdrawalGstPercentage": {
+          "type": "number",
+          "description": "The percentage of GST to be deducted from withdrawal requests."
         }
       }
     },

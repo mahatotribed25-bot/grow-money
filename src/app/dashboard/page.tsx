@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   collection,
   addDoc,
@@ -62,6 +62,7 @@ type UserData = {
 type AdminSettings = {
   adminUpi?: string;
   minWithdrawal?: number;
+  withdrawalGstPercentage?: number;
 };
 
 type Investment = {
@@ -235,8 +236,7 @@ export default function Dashboard() {
             walletBalance={userData?.walletBalance}
             totalInvestment={userData?.totalInvestment}
             totalIncome={userData?.totalIncome}
-            adminUpi={adminSettings?.adminUpi}
-            minWithdrawal={adminSettings?.minWithdrawal}
+            adminSettings={adminSettings}
             loading={userDataLoading}
             upiId={userData?.upiId}
           />
@@ -360,16 +360,14 @@ function WalletSummary({
   walletBalance,
   totalInvestment,
   totalIncome,
-  adminUpi,
-  minWithdrawal,
+  adminSettings,
   loading,
   upiId,
 }: {
   walletBalance?: number;
   totalInvestment?: number;
   totalIncome?: number;
-  adminUpi?: string;
-  minWithdrawal?: number;
+  adminSettings?: AdminSettings | null;
   loading: boolean;
   upiId?: string;
 }) {
@@ -401,8 +399,8 @@ function WalletSummary({
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <DepositButton adminUpi={adminUpi} />
-            <WithdrawButton minWithdrawal={minWithdrawal} currentBalance={walletBalance} upiId={upiId} />
+            <DepositButton adminUpi={adminSettings?.adminUpi} />
+            <WithdrawButton adminSettings={adminSettings} currentBalance={walletBalance} upiId={upiId} />
           </div>
         </div>
       </CardContent>
@@ -501,12 +499,25 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
   );
 }
 
-function WithdrawButton({ minWithdrawal, currentBalance, upiId }: { minWithdrawal?: number, currentBalance?: number, upiId?: string }) {
+function WithdrawButton({ adminSettings, currentBalance, upiId }: { adminSettings?: AdminSettings | null, currentBalance?: number, upiId?: string }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const [amount, setAmount] = useState('');
   const [withdrawalType, setWithdrawalType] = useState('');
   const { toast } = useToast();
+
+  const minWithdrawal = adminSettings?.minWithdrawal || 0;
+  const gstPercentage = adminSettings?.withdrawalGstPercentage || 0;
+
+  const { gstAmount, finalAmount } = useMemo(() => {
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return { gstAmount: 0, finalAmount: 0 };
+    }
+    const gst = (numAmount * gstPercentage) / 100;
+    const final = numAmount - gst;
+    return { gstAmount: gst, finalAmount: final };
+  }, [amount, gstPercentage]);
 
   const handleWithdraw = async () => {
     const withdrawAmount = parseFloat(amount);
@@ -518,7 +529,7 @@ function WithdrawButton({ minWithdrawal, currentBalance, upiId }: { minWithdrawa
         toast({ variant: 'destructive', title: 'Withdrawal Type Required', description: 'Please select the source of the funds you are withdrawing.' });
         return;
     }
-    if (withdrawAmount < (minWithdrawal || 0)) {
+    if (withdrawAmount < minWithdrawal) {
         toast({ variant: 'destructive', title: 'Amount Too Low', description: `The minimum withdrawal amount is ₹${minWithdrawal}.` });
         return;
     }
@@ -548,6 +559,8 @@ function WithdrawButton({ minWithdrawal, currentBalance, upiId }: { minWithdrawa
                 type: withdrawalType,
                 status: 'pending',
                 createdAt: serverTimestamp(),
+                gstAmount: gstAmount,
+                finalAmount: finalAmount,
             });
         });
 
@@ -575,11 +588,11 @@ function WithdrawButton({ minWithdrawal, currentBalance, upiId }: { minWithdrawa
             </DialogHeader>
              <div className="space-y-4">
                 <p className="text-sm">
-                    Enter the amount you wish to withdraw. Funds will be sent to your saved UPI ID: <span className="font-mono">{upiId || 'Not Set'}</span>
+                    Funds will be sent to your saved UPI ID: <span className="font-mono">{upiId || 'Not Set'}</span>.
                 </p>
                 {!upiId && <p className="text-xs text-destructive">Please set your UPI ID in your profile before withdrawing.</p>}
                 <div className="space-y-2">
-                    <Label htmlFor="amount">Amount (INR)</Label>
+                    <Label htmlFor="amount">Amount to Withdraw (INR)</Label>
                     <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Minimum ₹${minWithdrawal || 0}`}/>
                 </div>
                  <div className="space-y-2">
@@ -605,6 +618,18 @@ function WithdrawButton({ minWithdrawal, currentBalance, upiId }: { minWithdrawa
                         </div>
                     </RadioGroup>
                 </div>
+                {amount && (
+                  <Card className="bg-muted/50 p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>GST ({gstPercentage}%):</span>
+                      <span className="text-destructive">- ₹{gstAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold">
+                      <span>You will receive:</span>
+                      <span>₹{finalAmount.toFixed(2)}</span>
+                    </div>
+                  </Card>
+                )}
              </div>
              <DialogFooter>
                 <DialogClose asChild>
@@ -778,5 +803,3 @@ function QuickActionButton({ icon: Icon, label, href }: { icon: React.ElementTyp
         </Button>
     )
 }
-
-    

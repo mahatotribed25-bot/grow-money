@@ -15,6 +15,7 @@ type AdminSettings = {
   adminUpi?: string;
   minWithdrawal?: number;
   referralBonus?: number;
+  withdrawalGstPercentage?: number;
 };
 
 export default function SettingsPage() {
@@ -25,6 +26,7 @@ export default function SettingsPage() {
   const [adminUpi, setAdminUpi] = useState('');
   const [minWithdrawal, setMinWithdrawal] = useState(0);
   const [referralBonus, setReferralBonus] = useState(0);
+  const [withdrawalGstPercentage, setWithdrawalGstPercentage] = useState(0);
 
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export default function SettingsPage() {
       setAdminUpi(settings.adminUpi || '');
       setMinWithdrawal(settings.minWithdrawal || 0);
       setReferralBonus(settings.referralBonus || 0);
+      setWithdrawalGstPercentage(settings.withdrawalGstPercentage || 0);
     }
   },[settings]);
 
@@ -42,6 +45,7 @@ export default function SettingsPage() {
         adminUpi, 
         minWithdrawal: Number(minWithdrawal),
         referralBonus: Number(referralBonus),
+        withdrawalGstPercentage: Number(withdrawalGstPercentage),
       }, { merge: true });
       toast({ title: 'Settings Saved', description: 'Your settings have been updated.' });
     } catch (error) {
@@ -86,6 +90,19 @@ export default function SettingsPage() {
                             />
                              <p className="text-sm text-muted-foreground">
                                 The minimum amount a user can request to withdraw.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="withdrawal-gst">Withdrawal GST (%)</Label>
+                            <Input
+                            id="withdrawal-gst"
+                            type="number"
+                            placeholder="5"
+                            value={withdrawalGstPercentage}
+                            onChange={(e) => setWithdrawalGstPercentage(Number(e.target.value))}
+                            />
+                             <p className="text-sm text-muted-foreground">
+                                The percentage of tax to deduct from withdrawal requests.
                             </p>
                         </div>
                     </div>
