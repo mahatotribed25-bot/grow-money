@@ -2,12 +2,12 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useDoc, useCollection, useFirestore } from '@/firebase';
+import { useDoc, useCollection, useFirestore, useAuth } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff } from 'lucide-react';
+import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -27,6 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronDown } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 
 type UserData = {
@@ -167,6 +168,7 @@ export default function UserDetailPage() {
   const params = useParams();
   const userId = params.userId as string;
   const firestore = useFirestore();
+  const auth = useAuth();
   const { toast } = useToast();
 
   const { data: user, loading: userLoading } = useDoc<UserData>(userId ? `users/${userId}` : null);
@@ -282,6 +284,23 @@ export default function UserDetailPage() {
         });
     }
   }
+  
+  const handlePasswordReset = async () => {
+    if (!user || !user.email) {
+      toast({ title: 'Error', description: 'User email not found.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, user.email);
+      toast({
+        title: 'Password Reset Email Sent',
+        description: `An email has been sent to ${user.email} with instructions to reset their password.`,
+      });
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+      toast({ title: 'Error', description: 'Failed to send password reset email.', variant: 'destructive' });
+    }
+  };
 
   const handleConfirmEmiPayment = async (loan: ActiveLoan, emiIndex: number) => {
     if (!user || !loan.emis) return;
@@ -346,13 +365,17 @@ export default function UserDetailPage() {
             </Button>
             <h2 className="text-2xl font-bold">User Details</h2>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
             <Button
                 variant={user.status === 'Blocked' ? 'default' : 'destructive'}
                 onClick={handleToggleStatus}
             >
                 <Ban className="mr-2 h-4 w-4" />
                 {user.status === 'Blocked' ? 'Unblock User' : 'Block User'}
+            </Button>
+             <Button variant="outline" onClick={handlePasswordReset}>
+              <Mail className="mr-2 h-4 w-4" />
+              Send Password Reset
             </Button>
             <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -658,3 +681,5 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
         </Card>
     );
 }
+
+    
