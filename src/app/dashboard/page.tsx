@@ -32,6 +32,14 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -138,11 +146,23 @@ export default function Dashboard() {
     user ? `users/${user.uid}/loans` : null
   );
   const { data: announcements, loading: announcementsLoading } = useCollection<Announcement>('announcements');
+  
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
 
 
   const firestore = useFirestore();
   const { toast } = useToast();
   
+  useEffect(() => {
+    if (!userLoading) {
+        const hasSeenPopup = sessionStorage.getItem('welcomePopupShown');
+        if (!hasSeenPopup) {
+            setShowWelcomePopup(true);
+            sessionStorage.setItem('welcomePopupShown', 'true');
+        }
+    }
+  }, [userLoading]);
+
   const handleClaimReturn = async (investment: Investment) => {
      if (!user) return;
 
@@ -216,6 +236,20 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+       <AlertDialog open={showWelcomePopup} onOpenChange={setShowWelcomePopup}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-center text-2xl">Welcome to TM world 🌎🌎</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              Your journey to financial growth starts now!
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogAction onClick={() => setShowWelcomePopup(false)} className="w-full">
+            Let's Go!
+          </AlertDialogAction>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/50 px-4 backdrop-blur-md sm:px-6">
         <div className="flex items-center gap-2">
           <Briefcase className="h-6 w-6 text-primary" />
