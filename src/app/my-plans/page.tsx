@@ -31,6 +31,8 @@ type Investment = {
   maturityDate: Timestamp;
   status: 'Active' | 'Matured' | 'Stopped';
   finalReturn?: number;
+  daysActive?: number;
+  earnedIncome?: number;
 };
 
 export default function MyPlansPage() {
@@ -209,12 +211,33 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
           <p className="text-sm text-muted-foreground">Invested Amount</p>
           <p className="font-semibold">₹{(investment.investedAmount || 0).toFixed(2)}</p>
         </div>
-        <div className="flex justify-between">
-          <p className="text-sm text-muted-foreground">Maturity Return</p>
-          <p className="font-semibold text-green-400">
-            ₹{(investment.returnAmount || 0).toFixed(2)}
-          </p>
-        </div>
+
+        {investment.status === 'Stopped' ? (
+          <>
+            <div className="flex justify-between text-sm">
+                <p className="text-muted-foreground">Active Duration</p>
+                <p className="font-semibold">{investment.daysActive} days</p>
+            </div>
+            <div className="flex justify-between text-sm">
+                <p className="text-muted-foreground">Interest Earned</p>
+                <p className="font-semibold text-green-400">₹{(investment.earnedIncome || 0).toFixed(2)}</p>
+            </div>
+             <div className="flex justify-between">
+              <p className="text-sm text-muted-foreground">Final Return (Claimable)</p>
+              <p className="font-semibold text-green-400">
+                ₹{(investment.finalReturn || 0).toFixed(2)}
+              </p>
+            </div>
+          </>
+        ) : (
+           <div className="flex justify-between">
+            <p className="text-sm text-muted-foreground">Maturity Return</p>
+            <p className="font-semibold text-green-400">
+              ₹{(investment.returnAmount || 0).toFixed(2)}
+            </p>
+          </div>
+        )}
+
         {investment.status === 'Active' && (
             isClaimable ? (
                  <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full">

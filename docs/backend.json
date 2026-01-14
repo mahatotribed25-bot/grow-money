@@ -146,6 +146,14 @@
         "finalReturn": {
             "type": "number",
             "description": "The calculated return if a plan is stopped prematurely."
+        },
+        "daysActive": {
+            "type": "number",
+            "description": "The number of days the plan was active before being stopped."
+        },
+        "earnedIncome": {
+            "type": "number",
+            "description": "The interest earned before the plan was stopped."
         }
       },
       "required": [

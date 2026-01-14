@@ -49,6 +49,9 @@ type Investment = {
   dailyIncome: number;
   returnAmount: number;
   status: 'Active' | 'Matured' | 'Stopped';
+  finalReturn?: number;
+  daysActive?: number;
+  earnedIncome?: number;
 }
 
 type Transaction = {
@@ -170,7 +173,7 @@ export default function UserDetailPage() {
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
   const { data: loans, loading: loansLoading } = useCollection<ActiveLoan>(userId ? `users/${userId}/loans` : null);
   const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(`deposits`, { where: ['userId', '==', userId] });
-  const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(`withdrawals`, { where: ['userId', '==', userId] });
+  const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(`withdrawals`, { where: ['userId', '==', userId]});
   const { data: groupInvestments, loading: groupInvestmentsLoading } = useUserGroupInvestments(userId);
   
   const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading || loansLoading || groupInvestmentsLoading;
@@ -201,16 +204,17 @@ export default function UserDetailPage() {
     try {
         const investmentRef = doc(firestore, 'users', userId, 'investments', investment.id);
         
-        // Calculate the income earned until now
         const startDate = investment.startDate.toDate();
         const now = new Date();
-        const daysActive = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        const daysActive = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
         const earnedIncome = daysActive * investment.dailyIncome;
         const finalReturn = investment.investedAmount + earnedIncome;
         
         await updateDoc(investmentRef, {
             status: 'Stopped',
-            finalReturn: finalReturn
+            finalReturn: finalReturn,
+            daysActive: daysActive,
+            earnedIncome: earnedIncome
         });
 
         toast({
