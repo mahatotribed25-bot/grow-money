@@ -20,6 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full dark">
       <head>
+        <meta name="monetag" content="bd3b3e022f9931862345738513c7161c" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
