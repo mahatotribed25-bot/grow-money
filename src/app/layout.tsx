@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -21,11 +22,6 @@ export default function RootLayout({
     <html lang="en" className="h-full dark">
       <head>
         <meta name="monetag" content="bd3b3e022f9931862345738513c7161c" />
-        <script src="https://quge5.com/88/tag.min.js" 
-          data-zone="202435" 
-          async 
-          data-cfasync="false">
-        </script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -35,6 +31,12 @@ export default function RootLayout({
           {children}
         </FirebaseClientProvider>
         <Toaster />
+        <Script 
+          src="https://quge5.com/88/tag.min.js"
+          strategy="afterInteractive"
+          data-zone="202435" 
+          data-cfasync="false"
+        />
       </body>
     </html>
   );
