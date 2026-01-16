@@ -102,10 +102,13 @@ service cloud.firestore {
 
     // Rules for a user's active 'loans' sub-collection.
     match /users/{userId}/loans/{loanId} {
-      // A user can only read their own active loans. Admin can read any.
+      // A user can read their own loan data.
       allow read: if isOwner(userId) || isAdmin();
-      // Active loans are managed via admin actions, so only admin can write.
-      allow write: if isAdmin(); 
+      // Admin can create or delete loan records.
+      allow create, delete: if isAdmin();
+      // User can update status (e.g. to 'Payment Pending') or an admin can manage the record.
+      // The system (running on client) can also update to 'Due'.
+      allow update: if isOwner(userId) || isAdmin();
     }
 
     // Rules for Group Loan Investment System
@@ -141,3 +144,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

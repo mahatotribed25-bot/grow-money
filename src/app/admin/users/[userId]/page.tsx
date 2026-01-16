@@ -75,6 +75,7 @@ type ActiveLoan = {
     planName: string;
     loanAmount: number;
     totalPayable: number;
+    penalty?: number;
     dueDate: Timestamp;
     status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
     repaymentMethod: 'EMI' | 'Direct';
@@ -538,6 +539,7 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
 }
 
 function LoanDetails({ loan, onCompleteLoan, onConfirmEmi }: { loan: ActiveLoan; onCompleteLoan: (loanId: string, totalPayable: number) => void; onConfirmEmi: (loan: ActiveLoan, emiIndex: number) => void; }) {
+  const totalRepayment = loan.totalPayable + (loan.penalty || 0);
   return (
     <Card className="mb-4">
       <CardHeader>
@@ -546,15 +548,18 @@ function LoanDetails({ loan, onCompleteLoan, onConfirmEmi }: { loan: ActiveLoan;
           <Badge variant={getStatusVariant(loan.status)} className="capitalize">{loan.status}</Badge>
         </CardTitle>
         <CardDescription>
-          Amount: ₹{loan.loanAmount.toFixed(2)} | Total Payable: ₹{loan.totalPayable.toFixed(2)}
+          Amount: ₹{loan.loanAmount.toFixed(2)} | Total Payable: ₹{totalRepayment.toFixed(2)}
         </CardDescription>
+        {loan.status === 'Due' && (
+            <p className='text-destructive text-sm'>Penalty of ₹{(loan.penalty || 0).toFixed(2)} has been applied for overdue payment.</p>
+        )}
       </CardHeader>
       <CardContent>
         {loan.repaymentMethod === 'Direct' ? (
           <div>
             <p>Due Date: {formatDate(loan.dueDate)}</p>
             {loan.status === 'Payment Pending' && (
-              <Button size="sm" onClick={() => onCompleteLoan(loan.id, loan.totalPayable)} className="mt-2">
+              <Button size="sm" onClick={() => onCompleteLoan(loan.id, totalRepayment)} className="mt-2">
                 <CheckCircle className="mr-2 h-4 w-4" />
                 Confirm Payment & Complete
               </Button>
@@ -681,5 +686,7 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
         </Card>
     );
 }
+
+    
 
     

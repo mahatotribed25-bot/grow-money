@@ -281,6 +281,10 @@
         "withdrawalGstPercentage": {
           "type": "number",
           "description": "The percentage of GST to be deducted from withdrawal requests."
+        },
+        "loanPenalty": {
+          "type": "number",
+          "description": "Default penalty for overdue loans."
         }
       }
     },
@@ -347,6 +351,7 @@
             "loanAmount": { "type": "number" },
             "interest": { "type": "number" },
             "totalPayable": { "type": "number" },
+            "penalty": { "type": "number", "description": "Penalty applied for overdue loan." },
             "duration": { "type": "number" },
             "durationType": { "type": "string", "enum": ["Days", "Weeks", "Months", "Years"]},
             "startDate": { "type": "string", "format": "date-time" },
@@ -508,3 +513,5 @@
     }
   }
 }
+
+    

@@ -16,6 +16,7 @@ type AdminSettings = {
   minWithdrawal?: number;
   referralBonus?: number;
   withdrawalGstPercentage?: number;
+  loanPenalty?: number;
 };
 
 export default function SettingsPage() {
@@ -27,6 +28,7 @@ export default function SettingsPage() {
   const [minWithdrawal, setMinWithdrawal] = useState(0);
   const [referralBonus, setReferralBonus] = useState(0);
   const [withdrawalGstPercentage, setWithdrawalGstPercentage] = useState(0);
+  const [loanPenalty, setLoanPenalty] = useState(0);
 
 
   useEffect(() => {
@@ -35,6 +37,7 @@ export default function SettingsPage() {
       setMinWithdrawal(settings.minWithdrawal || 0);
       setReferralBonus(settings.referralBonus || 0);
       setWithdrawalGstPercentage(settings.withdrawalGstPercentage || 0);
+      setLoanPenalty(settings.loanPenalty || 0);
     }
   },[settings]);
 
@@ -46,6 +49,7 @@ export default function SettingsPage() {
         minWithdrawal: Number(minWithdrawal),
         referralBonus: Number(referralBonus),
         withdrawalGstPercentage: Number(withdrawalGstPercentage),
+        loanPenalty: Number(loanPenalty),
       }, { merge: true });
       toast({ title: 'Settings Saved', description: 'Your settings have been updated.' });
     } catch (error) {
@@ -108,6 +112,25 @@ export default function SettingsPage() {
                     </div>
                 </div>
                 <Separator />
+                 <div>
+                    <CardTitle>Loan Settings</CardTitle>
+                     <div className="space-y-4 mt-4">
+                         <div className="space-y-2">
+                            <Label htmlFor="loan-penalty">Loan Overdue Penalty</Label>
+                            <Input
+                            id="loan-penalty"
+                            type="number"
+                            placeholder="e.g., 100"
+                            value={loanPenalty}
+                            onChange={(e) => setLoanPenalty(Number(e.target.value))}
+                            />
+                             <p className="text-sm text-muted-foreground">
+                                The flat penalty amount to apply when a loan becomes overdue.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <Separator />
                 <div>
                     <CardTitle>Referral Settings</CardTitle>
                      <div className="space-y-4 mt-4">
@@ -137,3 +160,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    

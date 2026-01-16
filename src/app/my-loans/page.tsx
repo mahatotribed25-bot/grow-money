@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser } from '@/firebase/auth/use-user';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useDoc } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -34,6 +34,7 @@ type Loan = {
   planName: string;
   loanAmount: number;
   totalPayable: number;
+  penalty?: number;
   startDate: Timestamp;
   dueDate: Timestamp;
   status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
@@ -42,6 +43,10 @@ type Loan = {
   repaymentMethod: 'EMI' | 'Direct';
   emis?: EMI[];
 };
+
+type AdminSettings = {
+    loanPenalty?: number;
+}
 
 export default function MyLoansPage() {
   const { user, loading: userLoading } = useUser();
@@ -103,6 +108,7 @@ function LoanCard({ loan }: { loan: Loan }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
   const [currentTime, setCurrentTime] = useState(new Date());
 
 
@@ -111,8 +117,35 @@ function LoanCard({ loan }: { loan: Loan }) {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
+
+    const checkOverdue = async () => {
+        const dueDate = new Date(loan.dueDate.seconds * 1000);
+        if (new Date() > dueDate && loan.status === 'Active' && user && adminSettings) {
+            const penalty = adminSettings.loanPenalty || 0;
+            const loanRef = doc(firestore, 'users', user.uid, 'loans', loan.id);
+            try {
+                await updateDoc(loanRef, {
+                    status: 'Due',
+                    penalty: penalty
+                });
+                toast({
+                    title: 'Loan Overdue',
+                    description: `A penalty of ₹${penalty} has been added.`,
+                    variant: 'destructive'
+                });
+            } catch (e) {
+                console.error("Error updating loan to Due:", e);
+            }
+        }
+    };
+    
+    // Only run check if loan is active to prevent unnecessary writes
+    if(loan.status === 'Active') {
+        checkOverdue();
+    }
+    
     return () => clearInterval(timer);
-  }, []);
+  }, [currentTime, loan, user, firestore, adminSettings, toast]);
 
   if (!loan.startDate || !loan.dueDate) {
     return null;
@@ -124,6 +157,7 @@ function LoanCard({ loan }: { loan: Loan }) {
   const totalDuration = dueDate.getTime() - startDate.getTime();
   const elapsedDuration = currentTime.getTime() - startDate.getTime();
   const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
+  const totalRepayment = loan.totalPayable + (loan.penalty || 0);
 
   const handlePayNow = async (isEmi: boolean, emiIndex?: number) => {
     if (!user) return;
@@ -188,10 +222,22 @@ function LoanCard({ loan }: { loan: Loan }) {
           <p className="text-sm text-muted-foreground">Loan Amount</p>
           <p className="font-semibold">₹{(loan.loanAmount || 0).toFixed(2)}</p>
         </div>
+        {loan.status === 'Due' && loan.penalty ? (
+            <>
+                <div className="flex justify-between">
+                  <p className="text-sm text-muted-foreground">Original Repayment</p>
+                  <p className="font-semibold">₹{(loan.totalPayable || 0).toFixed(2)}</p>
+                </div>
+                 <div className="flex justify-between text-destructive">
+                  <p className="text-sm font-semibold">Overdue Penalty</p>
+                  <p className="font-semibold">₹{(loan.penalty || 0).toFixed(2)}</p>
+                </div>
+            </>
+        ) : null}
         <div className="flex justify-between">
           <p className="text-sm text-muted-foreground">Total Repayment Due</p>
           <p className="font-semibold text-red-400">
-            ₹{(loan.totalPayable || 0).toFixed(2)}
+            ₹{totalRepayment.toFixed(2)}
           </p>
         </div>
         {loan.status !== 'Completed' && (
@@ -277,3 +323,5 @@ function BottomNavItem({
     </Link>
   );
 }
+
+    
