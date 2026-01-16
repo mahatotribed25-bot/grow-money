@@ -196,6 +196,8 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
     if (isClaimable) return <Badge>Matured</Badge>;
     return <Badge>Active</Badge>;
   }
+  
+  const wasStoppedEarly = investment.daysActive !== undefined && investment.earnedIncome !== undefined;
 
   return (
     <Card className="bg-secondary/30">
@@ -212,7 +214,7 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
           <p className="font-semibold">₹{(investment.investedAmount || 0).toFixed(2)}</p>
         </div>
 
-        {investment.status === 'Stopped' ? (
+        {wasStoppedEarly ? (
           <>
             <div className="flex justify-between text-sm">
                 <p className="text-muted-foreground">Active Duration</p>
@@ -223,7 +225,7 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
                 <p className="font-semibold text-green-400">₹{(investment.earnedIncome || 0).toFixed(2)}</p>
             </div>
              <div className="flex justify-between">
-              <p className="text-sm text-muted-foreground">Final Return (Claimable)</p>
+              <p className="text-sm text-muted-foreground">{investment.status === 'Matured' ? 'Actual Return Received' : 'Final Return (Claimable)'}</p>
               <p className="font-semibold text-green-400">
                 ₹{(investment.finalReturn || 0).toFixed(2)}
               </p>

@@ -430,24 +430,43 @@ export default function UserDetailPage() {
         </TabsList>
         <TabsContent value="investments">
            <HistoryTable
-              headers={['Plan Name', 'Invested', 'Return', 'Status', 'Maturity Date', 'Action']}
+              headers={['Plan Name', 'Details', 'Status', 'Dates', 'Action']}
               items={investments}
-              renderRow={(item: Investment) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.planName}</TableCell>
-                  <TableCell>₹{(item.investedAmount || 0).toFixed(2)}</TableCell>
-                  <TableCell>₹{(item.returnAmount || 0).toFixed(2)}</TableCell>
-                  <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
-                  <TableCell>{formatDate(item.maturityDate)}</TableCell>
-                  <TableCell>
-                      {item.status === 'Active' && (
-                          <Button variant="destructive" size="sm" onClick={() => handleStopInvestment(item)}>
-                              <PowerOff className="mr-2 h-4 w-4" /> Stop
-                          </Button>
-                      )}
-                  </TableCell>
-                </TableRow>
-              )}
+              renderRow={(item: Investment) => {
+                const wasStopped = item.finalReturn !== undefined;
+                const returnAmount = wasStopped ? item.finalReturn : item.returnAmount;
+
+                return (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.planName}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                            <span className="font-semibold">Invested: ₹{(item.investedAmount || 0).toFixed(2)}</span>
+                            <span className="font-semibold text-green-400">Return: ₹{(returnAmount || 0).toFixed(2)}</span>
+                            {wasStopped && (
+                                <span className="text-xs text-muted-foreground">
+                                    (Active {item.daysActive} days, +₹{(item.earnedIncome || 0).toFixed(2)} interest)
+                                </span>
+                            )}
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex flex-col text-xs">
+                            <span>Start: {formatDate(item.startDate)}</span>
+                            <span>Maturity: {formatDate(item.maturityDate)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                          {item.status === 'Active' && (
+                              <Button variant="destructive" size="sm" onClick={() => handleStopInvestment(item)}>
+                                  <PowerOff className="mr-2 h-4 w-4" /> Stop
+                              </Button>
+                          )}
+                      </TableCell>
+                    </TableRow>
+                );
+              }}
             />
         </TabsContent>
          <TabsContent value="group-investments">
