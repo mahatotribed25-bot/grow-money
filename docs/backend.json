@@ -51,6 +51,18 @@
         "panCard": {
             "type": "string",
             "description": "The user's PAN card number."
+        },
+        "aadhaarNumber": {
+            "type": "string",
+            "description": "The user's 12-digit Aadhaar card number."
+        },
+        "phoneNumber": {
+            "type": "string",
+            "description": "The user's phone number."
+        },
+        "kycTermsAccepted": {
+            "type": "boolean",
+            "description": "Indicates if the user has accepted the KYC terms and conditions for loans."
         }
       },
       "required": [
@@ -513,5 +525,3 @@
     }
   }
 }
-
-    

@@ -15,10 +15,12 @@ import {
   Users2,
   HandCoins,
   Users as UsersIcon,
+  Fingerprint,
+  Phone,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useAuth, useDoc, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -34,6 +36,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type Transaction = {
   id: string;
@@ -41,7 +44,7 @@ type Transaction = {
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Timestamp;
-  userId?: string; // Add userId to filter transactions client-side
+  userId?: string;
 };
 
 type GroupInvestment = {
@@ -66,6 +69,9 @@ type UserData = {
   referralCode?: string;
   upiId?: string;
   panCard?: string;
+  aadhaarNumber?: string;
+  phoneNumber?: string;
+  kycTermsAccepted?: boolean;
 };
 
 function useUserGroupInvestments(userId?: string) {
@@ -83,10 +89,8 @@ function useUserGroupInvestments(userId?: string) {
             setLoading(true);
             const allInvestments: GroupInvestment[] = [];
             
-            // 1. Get all group loan plans
             const plansSnapshot = await getDocs(collection(firestore, 'groupLoanPlans'));
 
-            // 2. For each plan, query for the user's specific investment
             for (const planDoc of plansSnapshot.docs) {
                 const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
                 const q = query(investmentsRef, where('investorId', '==', userId));
@@ -122,14 +126,21 @@ export default function ProfilePage() {
   const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   
   const [upiId, setUpiId] = useState('');
-  const [panCard, setPanCard] = useState('');
   const [isUpiEditing, setIsUpiEditing] = useState(false);
-  const [isPanEditing, setIsPanEditing] = useState(false);
+
+  // KYC State
+  const [panCard, setPanCard] = useState('');
+  const [aadhaarNumber, setAadhaarNumber] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [kycTermsAccepted, setKycTermsAccepted] = useState(false);
   
   useEffect(() => {
     if (userData) {
       setUpiId(userData.upiId || '');
       setPanCard(userData.panCard || '');
+      setAadhaarNumber(userData.aadhaarNumber || '');
+      setPhoneNumber(userData.phoneNumber || '');
+      setKycTermsAccepted(userData.kycTermsAccepted || false);
     }
   }, [userData]);
 
@@ -169,36 +180,47 @@ export default function ProfilePage() {
           })
       }
   }
-  
-  const handleSavePan = async () => {
-      if (!user) return;
-      // Basic PAN validation
-      const panRegex = /[A-Z]{5}[0-9]{4}[A-Z]{1}/;
-      if (!panRegex.test(panCard)) {
-          toast({
-              title: "Invalid PAN",
-              description: "Please enter a valid PAN card number.",
-              variant: "destructive",
-          });
-          return;
-      }
-      const userRef = doc(firestore, 'users', user.uid);
-      try {
-          await updateDoc(userRef, { panCard: panCard });
-          toast({
-              title: "PAN Card Saved",
-              description: "Your PAN card number has been updated."
-          });
-          setIsPanEditing(false);
-      } catch (error) {
-          console.error("Error saving PAN:", error);
-          toast({
-              title: "Update Failed",
-              description: "Could not save your PAN card. Please try again.",
-              variant: "destructive",
-          })
-      }
+
+  const handleSaveKyc = async () => {
+    if (!user) return;
+    const panRegex = /[A-Z]{5}[0-9]{4}[A-Z]{1}/;
+    const aadhaarRegex = /^[0-9]{12}$/;
+    const phoneRegex = /^[0-9]{10}$/;
+
+    if (!panRegex.test(panCard)) {
+        toast({ title: "Invalid PAN", description: "Please enter a valid 10-digit PAN.", variant: "destructive" });
+        return;
+    }
+    if (!aadhaarRegex.test(aadhaarNumber)) {
+        toast({ title: "Invalid Aadhaar", description: "Please enter a valid 12-digit Aadhaar number.", variant: "destructive" });
+        return;
+    }
+    if (!phoneRegex.test(phoneNumber)) {
+        toast({ title: "Invalid Phone Number", description: "Please enter a valid 10-digit phone number.", variant: "destructive" });
+        return;
+    }
+    if (!kycTermsAccepted) {
+        toast({ title: "Terms Not Accepted", description: "You must accept the terms and conditions to proceed.", variant: "destructive" });
+        return;
+    }
+
+    const userRef = doc(firestore, 'users', user.uid);
+    try {
+        await updateDoc(userRef, { 
+            panCard: panCard,
+            aadhaarNumber: aadhaarNumber,
+            phoneNumber: phoneNumber,
+            kycTermsAccepted: kycTermsAccepted,
+        });
+        toast({ title: "KYC Details Saved", description: "Your information has been saved successfully." });
+    } catch (e) {
+        console.error(e);
+        toast({ title: "Update Failed", description: "Could not save your KYC details.", variant: "destructive" });
+    }
   }
+  
+  const isKycFilled = userData?.panCard && userData?.aadhaarNumber && userData?.phoneNumber && userData?.kycTermsAccepted;
+
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -224,15 +246,6 @@ export default function ProfilePage() {
               <InfoRow icon={Mail} label="Email" value={user?.email || 'N/A'} />
               <Separator />
               <div className="space-y-2">
-                  <Label htmlFor="panCard">Your PAN Card</Label>
-                  <div className="flex gap-2">
-                      <Input id="panCard" value={panCard} onChange={(e) => {setPanCard(e.target.value.toUpperCase()); setIsPanEditing(true);}} placeholder="ABCDE1234F" maxLength={10} />
-                      {isPanEditing && <Button onClick={handleSavePan}>Save</Button>}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Required for applying for loans.</p>
-              </div>
-              <Separator />
-              <div className="space-y-2">
                   <Label htmlFor="upiId">Your UPI ID</Label>
                   <div className="flex gap-2">
                       <Input id="upiId" value={upiId} onChange={(e) => {setUpiId(e.target.value); setIsUpiEditing(true);}} placeholder="your-upi@bank" />
@@ -245,6 +258,49 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
         
+         <Card className="shadow-lg border-border/50 mt-6">
+          <CardHeader>
+            <CardTitle>KYC Verification</CardTitle>
+            <CardDescription>This information is required to apply for loans.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {userDataloading ? <p>Loading KYC status...</p> : (
+                <>
+                    <div className="space-y-2">
+                        <Label htmlFor="panCard">PAN Card Number</Label>
+                        <Input id="panCard" value={panCard} onChange={(e) => setPanCard(e.target.value.toUpperCase())} placeholder="ABCDE1234F" maxLength={10} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="aadhaarNumber">Aadhaar Card Number</Label>
+                        <Input id="aadhaarNumber" type="number" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value)} placeholder="123456789012" maxLength={12}/>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="phoneNumber">Phone Number</Label>
+                        <Input id="phoneNumber" type="number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="9876543210" maxLength={10}/>
+                    </div>
+                     <div className="space-y-4 rounded-md border p-4">
+                        <h4 className="text-sm font-medium">Terms and Conditions</h4>
+                        <p className="text-xs text-muted-foreground">
+                          If you do not repay the loan, if for some reason you run away, or if you abscond without repaying the loan, then legal action will be taken against you.
+                        </p>
+                         <div className="flex items-center space-x-2">
+                            <Checkbox id="terms" checked={kycTermsAccepted} onCheckedChange={(checked) => setKycTermsAccepted(!!checked)} />
+                            <label
+                                htmlFor="terms"
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                                I agree to the terms and conditions
+                            </label>
+                        </div>
+                    </div>
+                    <Button onClick={handleSaveKyc} className="w-full">
+                        {isKycFilled ? 'Update KYC Information' : 'Save KYC Information'}
+                    </Button>
+                </>
+            )}
+          </CardContent>
+        </Card>
+
         <Card className="shadow-lg border-border/50 mt-6">
           <CardHeader>
             <CardTitle>Referral Code</CardTitle>

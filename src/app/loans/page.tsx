@@ -60,6 +60,9 @@ type ActiveLoan = {
 type UserData = {
     panCard?: string;
     upiId?: string;
+    aadhaarNumber?: string;
+    phoneNumber?: string;
+    kycTermsAccepted?: boolean;
 }
 
 export default function LoansPage() {
@@ -82,15 +85,16 @@ export default function LoansPage() {
   
   const hasPendingRequest = userLoanRequests?.some(req => req.status === 'pending');
   const hasActiveLoan = activeLoans && activeLoans.length > 0;
-  const hasPanCard = !!userData?.panCard;
+  const isKycComplete = !!(userData?.panCard && userData?.aadhaarNumber && userData?.phoneNumber && userData?.kycTermsAccepted);
+
 
   const handleApply = async (plan: LoanPlan, repaymentMethod: string) => {
     if (!user || !userData) {
         toast({ variant: 'destructive', title: 'You must be logged in.' });
         return;
     }
-    if (!hasPanCard) {
-        toast({ variant: 'destructive', title: 'PAN Card Required', description: "Please add your PAN card in your profile before applying for a loan." });
+    if (!isKycComplete) {
+        toast({ variant: 'destructive', title: 'KYC Required', description: "Please complete your KYC in your profile before applying for a loan." });
         return;
     }
     if (hasPendingRequest) {
@@ -144,7 +148,7 @@ export default function LoansPage() {
   
   const loading = plansLoading || requestsLoading || activeLoansLoading || userLoading;
   
-  const disableApplication = !!(hasPendingRequest || hasActiveLoan || !hasPanCard);
+  const disableApplication = !!(hasPendingRequest || hasActiveLoan || !isKycComplete);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -160,14 +164,14 @@ export default function LoansPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-4">
-            {(hasPendingRequest || hasActiveLoan || !hasPanCard) && (
+            {(hasPendingRequest || hasActiveLoan || !isKycComplete) && (
                 <Card className="bg-yellow-500/10 border-yellow-500/50">
                     <CardContent className="p-4 text-center text-yellow-300">
                         {hasActiveLoan 
                             ? <p>You have an active loan. You must repay it before applying for a new one. <Link href="/my-loans" className="underline">View loan details.</Link></p>
                             : hasPendingRequest
                             ? <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>
-                            : !hasPanCard && <p>Please update your profile with your PAN card number to be eligible for a loan. <Link href="/profile" className="underline">Go to Profile.</Link></p>
+                            : !isKycComplete && <p>Please complete your KYC in your profile to be eligible for a loan. <Link href="/profile" className="underline">Go to Profile.</Link></p>
                         }
                     </CardContent>
                 </Card>

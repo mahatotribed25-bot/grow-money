@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail } from 'lucide-react';
+import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,6 +39,9 @@ type UserData = {
   totalIncome?: number;
   status?: 'Active' | 'Blocked';
   panCard?: string;
+  aadhaarNumber?: string;
+  phoneNumber?: string;
+  kycTermsAccepted?: boolean;
 };
 
 type Investment = {
@@ -412,11 +415,14 @@ export default function UserDetailPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <InfoBox title="User ID" value={user.id} icon={Fingerprint} />
-          <InfoBox title="PAN Card" value={user.panCard || 'Not Provided'} icon={Briefcase} />
+          <InfoBox title="PAN Card" value={user.panCard || 'Not Provided'} icon={CreditCard} />
+          <InfoBox title="Aadhaar" value={user.aadhaarNumber || 'Not Provided'} icon={Fingerprint} />
+          <InfoBox title="Phone" value={user.phoneNumber || 'Not Provided'} icon={Phone} />
           <InfoBox title="Wallet Balance" value={`₹${(user.walletBalance || 0).toFixed(2)}`} icon={Wallet} />
           <InfoBox title="Total Investment" value={`₹${(user.totalInvestment || 0).toFixed(2)}`} icon={Briefcase} />
           <InfoBox title="Total Income" value={`₹${(user.totalIncome || 0).toFixed(2)}`} icon={Wallet} />
           <InfoBox title="Status" value={user.status || 'Active'} icon={User} badgeVariant={getStatusVariant(user.status || 'Active')} />
+           <InfoBox title="KYC Terms" value={user.kycTermsAccepted ? 'Accepted': 'Not Accepted'} icon={FileCheck} badgeVariant={user.kycTermsAccepted ? 'default' : 'destructive'} />
         </CardContent>
       </Card>
 
@@ -709,3 +715,4 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
     
 
     
+
