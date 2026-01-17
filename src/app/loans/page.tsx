@@ -12,6 +12,7 @@ import {
   Percent,
   Landmark,
   Users as UsersIcon,
+  AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -176,6 +177,18 @@ export default function LoansPage() {
                     </CardContent>
                 </Card>
             )}
+
+            <Card className="bg-red-500/10 border-red-500/50">
+                <CardHeader>
+                    <CardTitle className="text-red-300 flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5"/>
+                        Important Notice
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="text-red-300/90 text-sm">
+                    <p>Please be aware that if you fail to repay your loan on time and the loan becomes overdue, a penalty will be applied. Ensure you make your repayments by the due date to avoid extra charges.</p>
+                </CardContent>
+            </Card>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {loading ? (
