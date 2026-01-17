@@ -207,7 +207,7 @@ function LoanCard({ loan }: { loan: Loan }) {
   }
 
   return (
-    <Card className="bg-secondary/30">
+    <Card className="bg-gradient-to-br from-card to-secondary/30 border-primary/10">
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>{loan.planName}</span>
@@ -323,5 +323,3 @@ function BottomNavItem({
     </Link>
   );
 }
-
-    

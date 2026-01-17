@@ -86,12 +86,12 @@ export default function LoginPage() {
         <div className="flex flex-col items-center space-y-2 text-center">
           <KeyRound className="h-10 w-10 text-primary" />
           <h1 className="text-3xl font-bold tracking-tight text-primary">
-            grow money 💰💰🤑🤑
+            Grow Money 💰
           </h1>
         </div>
         <AuthCard
           title="Welcome Back"
-          description="Log in to your grow money account"
+          description="Log in to your Grow Money account"
           footer={
             <>
               <p>

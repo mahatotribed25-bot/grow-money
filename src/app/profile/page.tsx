@@ -235,7 +235,7 @@ export default function ProfilePage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-        <Card className="shadow-lg border-border/50">
+        <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20">
           <CardHeader>
             <CardTitle>My Information</CardTitle>
           </CardHeader>
@@ -258,7 +258,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
         
-         <Card className="shadow-lg border-border/50 mt-6">
+         <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
           <CardHeader>
             <CardTitle>KYC Verification</CardTitle>
             <CardDescription>This information is required to apply for loans.</CardDescription>
@@ -301,7 +301,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-border/50 mt-6">
+        <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
           <CardHeader>
             <CardTitle>Referral Code</CardTitle>
           </CardHeader>
@@ -391,7 +391,7 @@ function TransactionTable({ transactions }: { transactions: Transaction[] | unde
     };
     
     return (
-        <Card>
+        <Card className="bg-gradient-to-b from-card to-secondary/20 border-primary/10">
             <CardContent className="pt-6">
                 <div className="overflow-x-auto">
                     <Table>
@@ -469,7 +469,7 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
 function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
 
     return (
-        <Card>
+        <Card className="bg-gradient-to-b from-card to-secondary/20 border-primary/10">
             <CardContent className="pt-6">
                 <div className="overflow-x-auto">
                     <Table>

@@ -84,7 +84,7 @@ export default function AdminLayout({
           <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
             <Link href="/admin" className="flex items-center gap-2 font-semibold">
               <Briefcase className="h-6 w-6 text-primary" />
-              <span className="">Admin Panel</span>
+              <span className="">Tribed Admin</span>
             </Link>
           </div>
           <nav className="flex-1 grid items-start px-2 text-sm font-medium lg:px-4">
@@ -130,7 +130,7 @@ export default function AdminLayout({
                   className="flex items-center gap-2 text-lg font-semibold mb-4"
                 >
                   <Briefcase className="h-6 w-6 text-primary" />
-                  <span >Admin Panel</span>
+                  <span >Tribed Admin</span>
                 </Link>
                 <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
                 <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>

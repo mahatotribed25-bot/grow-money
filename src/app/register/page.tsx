@@ -141,12 +141,12 @@ export default function RegisterPage() {
         <div className="flex flex-col items-center space-y-2 text-center">
           <KeyRound className="h-10 w-10 text-primary" />
           <h1 className="text-3xl font-bold tracking-tight text-primary">
-            grow money 💰💰🤑🤑
+            Grow Money 💰
           </h1>
         </div>
         <AuthCard
           title="Create an Account"
-          description="Join grow money to get started"
+          description="Join Grow Money to get started"
           footer={
             <p>
               Already have an account?{" "}

@@ -200,7 +200,7 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
   const wasStoppedEarly = investment.daysActive !== undefined && investment.earnedIncome !== undefined;
 
   return (
-    <Card className="bg-secondary/30">
+    <Card className="bg-gradient-to-br from-card to-secondary/30 border-primary/10">
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>{investment.planName}</span>

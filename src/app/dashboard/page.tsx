@@ -254,7 +254,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/50 px-4 backdrop-blur-md sm:px-6">
         <div className="flex items-center gap-2">
           <Briefcase className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold text-primary">grow money 💰💰🤑🤑</h1>
+          <h1 className="text-xl font-bold text-primary">Grow Money 💰</h1>
         </div>
         <h1 className="text-lg font-semibold">Welcome, {userData?.name || 'User'}!</h1>
         <div className="w-9" />
@@ -369,7 +369,7 @@ function Announcements({ announcements, loading }: { announcements: Announcement
     }
 
     return (
-        <Card className="bg-blue-500/10 border-blue-500/30">
+        <Card className="bg-primary/10 border-primary/20">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-blue-300">
                     <Megaphone className="h-5 w-5"/>
@@ -409,7 +409,7 @@ function WalletSummary({
   upiId?: string;
 }) {
   return (
-    <Card className="shadow-lg">
+    <Card className="shadow-lg border-primary/20 bg-gradient-to-br from-card to-secondary/30">
       <CardHeader>
         <CardTitle>My Wallet</CardTitle>
       </CardHeader>
@@ -719,7 +719,7 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
   }
 
   return (
-    <Card className="bg-secondary/30">
+    <Card className="bg-gradient-to-br from-card via-secondary/20 to-card border-primary/10">
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>{investment.planName}</span>
@@ -778,7 +778,7 @@ function ActiveLoanCard({ loan }: { loan: ActiveLoan }) {
     }
 
     return (
-        <Card className="bg-destructive/10 border-destructive/20 mt-4">
+        <Card className="bg-gradient-to-br from-card via-destructive/20 to-card border-destructive/20 mt-4">
              <CardHeader>
                 <CardTitle className="flex justify-between items-center">
                     <span>{loan.planName}</span>
@@ -840,5 +840,3 @@ function QuickActionButton({ icon: Icon, label, href }: { icon: React.ElementTyp
         </Button>
     )
 }
-
-    
