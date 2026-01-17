@@ -164,7 +164,7 @@ export default function Dashboard() {
             sessionStorage.setItem('welcomePopupShown', 'true');
         }
     }
-  }, [userLoading]);
+  }, [userLoading, user]);
 
   const handleClaimReturn = (investment: Investment) => {
      if (!user) return;
