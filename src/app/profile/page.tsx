@@ -37,6 +37,8 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type Transaction = {
   id: string;
@@ -161,27 +163,30 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSaveUpi = async () => {
+  const handleSaveUpi = () => {
       if (!user) return;
       const userRef = doc(firestore, 'users', user.uid);
-      try {
-          await updateDoc(userRef, { upiId: upiId });
+      const dataToUpdate = { upiId: upiId };
+
+      updateDoc(userRef, dataToUpdate)
+        .then(() => {
           toast({
               title: "UPI ID Saved",
               description: "Your UPI ID has been updated successfully."
           });
           setIsUpiEditing(false);
-      } catch (error) {
-          console.error("Error saving UPI ID:", error);
-          toast({
-              title: "Update Failed",
-              description: "Could not save your UPI ID. Please try again.",
-              variant: "destructive",
-          })
-      }
+        })
+        .catch((serverError) => {
+            const permissionError = new FirestorePermissionError({
+              path: userRef.path,
+              operation: 'update',
+              requestResourceData: dataToUpdate
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
   }
 
-  const handleSaveKyc = async () => {
+  const handleSaveKyc = () => {
     if (!user) return;
     const panRegex = /[A-Z]{5}[0-9]{4}[A-Z]{1}/;
     const aadhaarRegex = /^[0-9]{12}$/;
@@ -205,18 +210,25 @@ export default function ProfilePage() {
     }
 
     const userRef = doc(firestore, 'users', user.uid);
-    try {
-        await updateDoc(userRef, { 
-            panCard: panCard,
-            aadhaarNumber: aadhaarNumber,
-            phoneNumber: phoneNumber,
-            kycTermsAccepted: kycTermsAccepted,
-        });
+    const dataToUpdate = { 
+      panCard: panCard,
+      aadhaarNumber: aadhaarNumber,
+      phoneNumber: phoneNumber,
+      kycTermsAccepted: kycTermsAccepted,
+    };
+
+    updateDoc(userRef, dataToUpdate)
+      .then(() => {
         toast({ title: "KYC Details Saved", description: "Your information has been saved successfully." });
-    } catch (e) {
-        console.error(e);
-        toast({ title: "Update Failed", description: "Could not save your KYC details.", variant: "destructive" });
-    }
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: dataToUpdate,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
   
   const isKycFilled = userData?.panCard && userData?.aadhaarNumber && userData?.phoneNumber && userData?.kycTermsAccepted;

@@ -89,7 +89,7 @@ export default function LoansPage() {
   const isKycComplete = !!(userData?.panCard && userData?.aadhaarNumber && userData?.phoneNumber && userData?.kycTermsAccepted);
 
 
-  const handleApply = async (plan: LoanPlan, repaymentMethod: string) => {
+  const handleApply = (plan: LoanPlan, repaymentMethod: string) => {
     if (!user || !userData) {
         toast({ variant: 'destructive', title: 'You must be logged in.' });
         return;
@@ -119,7 +119,7 @@ export default function LoansPage() {
         planId: plan.id,
         planName: plan.name,
         loanAmount: plan.loanAmount,
-        status: 'pending',
+        status: 'pending' as const,
         createdAt: serverTimestamp(),
         repaymentMethod: repaymentMethod,
     };
@@ -132,18 +132,13 @@ export default function LoansPage() {
                 description: `Your application for the ${plan.name} has been submitted for review.`,
             });
         })
-        .catch(() => {
+        .catch((serverError) => {
             const permissionError = new FirestorePermissionError({
                 path: requestsRef.path,
                 operation: 'create',
                 requestResourceData: requestData,
             });
             errorEmitter.emit('permission-error', permissionError);
-             toast({
-                variant: 'destructive',
-                title: 'Submission Failed',
-                description: 'Could not submit your loan request. Please try again.',
-            });
         });
   };
   

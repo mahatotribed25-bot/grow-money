@@ -25,6 +25,8 @@ import { useToast } from '@/hooks/use-toast';
 import { collection, addDoc, doc, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
 import { add, addDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type InvestmentPlan = {
   id: string;
@@ -52,8 +54,7 @@ export default function PlansPage() {
   const { data: plans, loading } = useCollection<InvestmentPlan>('investmentPlans');
   const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}`: null);
 
-  const handleInvest = async (plan: InvestmentPlan) => {
-    // This function handles the logic when a user invests in a plan.
+  const handleInvest = (plan: InvestmentPlan) => {
     if (!user || !userData) {
         toast({ variant: 'destructive', title: 'You must be logged in.' });
         return;
@@ -71,84 +72,85 @@ export default function PlansPage() {
         return;
     }
 
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const userRef = doc(firestore, 'users', user.uid);
-            const planRef = doc(firestore, 'investmentPlans', plan.id);
+    runTransaction(firestore, async (transaction) => {
+        const userRef = doc(firestore, 'users', user.uid);
+        const planRef = doc(firestore, 'investmentPlans', plan.id);
 
-            const userDoc = await transaction.get(userRef);
-            const planDoc = await transaction.get(planRef);
+        const userDoc = await transaction.get(userRef);
+        const planDoc = await transaction.get(planRef);
 
-            if (!userDoc.exists()) throw "User does not exist";
-            if (!planDoc.exists()) throw "Plan does not exist";
+        if (!userDoc.exists()) throw new Error("User does not exist");
+        if (!planDoc.exists()) throw new Error("Plan does not exist");
 
-            const currentStock = planDoc.data().stock;
-            if (currentStock !== undefined && currentStock <= 0) {
-                throw "Plan is out of stock.";
-            }
+        const currentStock = planDoc.data().stock;
+        if (currentStock !== undefined && currentStock <= 0) {
+            throw new Error("Plan is out of stock.");
+        }
 
-            // Decrement stock if it exists
-            if (currentStock !== undefined) {
-                transaction.update(planRef, { stock: currentStock - 1 });
-            }
+        if (currentStock !== undefined) {
+            transaction.update(planRef, { stock: currentStock - 1 });
+        }
 
-            const newWalletBalance = (userDoc.data().walletBalance || 0) - planPrice;
-            const newTotalInvestment = (userDoc.data().totalInvestment || 0) + planPrice;
+        const newWalletBalance = (userDoc.data().walletBalance || 0) - planPrice;
+        const newTotalInvestment = (userDoc.data().totalInvestment || 0) + planPrice;
 
-            transaction.update(userRef, {
-                walletBalance: newWalletBalance,
-                totalInvestment: newTotalInvestment,
-            });
-
-            const investmentRef = doc(collection(firestore, 'users', user.uid, 'investments'));
-            const startDate = new Date();
-            const maturityDate = addDays(startDate, plan.validity || 0);
-            
-            transaction.set(investmentRef, {
-                userId: user.uid,
-                planId: plan.id,
-                planName: plan.name,
-                investedAmount: plan.price || 0,
-                returnAmount: plan.finalReturn || 0,
-                dailyIncome: plan.dailyIncome || 0,
-                startDate: serverTimestamp(),
-                maturityDate: maturityDate,
-                lastIncomeDate: serverTimestamp(),
-                status: 'Active'
-            });
-
-             // Referral bonus logic
-            const referredBy = userDoc.data().referredBy;
-            const isFirstInvestment = (userDoc.data().totalInvestment || 0) === 0;
-
-            if (referredBy && isFirstInvestment) {
-                const settingsRef = doc(firestore, 'settings/admin');
-                const adminSettingsDoc = await transaction.get(settingsRef);
-                const bonus = adminSettingsDoc.data()?.referralBonus || 0;
-                
-                if (bonus > 0) {
-                    const referrerRef = doc(firestore, 'users', referredBy);
-                    const referrerDoc = await transaction.get(referrerRef);
-                    if (referrerDoc.exists()) {
-                        const referrerWallet = referrerDoc.data().walletBalance || 0;
-                        transaction.update(referrerRef, { walletBalance: referrerWallet + bonus });
-                    }
-                }
-            }
-
-
+        transaction.update(userRef, {
+            walletBalance: newWalletBalance,
+            totalInvestment: newTotalInvestment,
         });
 
+        const investmentRef = doc(collection(firestore, 'users', user.uid, 'investments'));
+        const startDate = new Date();
+        const maturityDate = addDays(startDate, plan.validity || 0);
+        
+        transaction.set(investmentRef, {
+            userId: user.uid,
+            planId: plan.id,
+            planName: plan.name,
+            investedAmount: plan.price || 0,
+            returnAmount: plan.finalReturn || 0,
+            dailyIncome: plan.dailyIncome || 0,
+            startDate: serverTimestamp(),
+            maturityDate: maturityDate,
+            lastIncomeDate: serverTimestamp(),
+            status: 'Active'
+        });
+
+        const referredBy = userDoc.data().referredBy;
+        const isFirstInvestment = (userDoc.data().totalInvestment || 0) === 0;
+
+        if (referredBy && isFirstInvestment) {
+            const settingsRef = doc(firestore, 'settings/admin');
+            const adminSettingsDoc = await transaction.get(settingsRef);
+            const bonus = adminSettingsDoc.data()?.referralBonus || 0;
+            
+            if (bonus > 0) {
+                const referrerRef = doc(firestore, 'users', referredBy);
+                const referrerDoc = await transaction.get(referrerRef);
+                if (referrerDoc.exists()) {
+                    const referrerWallet = referrerDoc.data().walletBalance || 0;
+                    transaction.update(referrerRef, { walletBalance: referrerWallet + bonus });
+                }
+            }
+        }
+    })
+    .then(() => {
         toast({
             title: 'Investment Successful!',
             description: `You have successfully invested in the ${plan.name}.`,
         });
-
-    } catch (e: any) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Investment Failed', description: e.message || 'Could not process your investment. Please try again.'});
-    }
-
+    })
+    .catch((error) => {
+        const permissionError = new FirestorePermissionError({
+            path: `users/${user.uid} or investmentPlans/${plan.id}`,
+            operation: 'write',
+            requestResourceData: { planId: plan.id, action: 'invest' },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        if (error.message.includes("out of stock")) {
+           toast({ variant: 'destructive', title: 'Investment Failed', description: "This plan just went out of stock."});
+        }
+    });
   };
 
   const availablePlans = plans?.filter(p => p.status === 'Available');
