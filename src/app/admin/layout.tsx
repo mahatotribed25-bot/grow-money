@@ -25,11 +25,27 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { useAuth, useUser } from '@/firebase';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { useAuth, useUser, useCollection } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import type { Timestamp } from 'firebase/firestore';
 
-const ADMIN_EMAIL = "admin@tribed.world";
+const ADMIN_EMAIL = 'admin@tribed.world';
+
+type BaseRequest = {
+  id: string;
+  createdAt: Timestamp;
+};
+
+type DepositRequest = BaseRequest & { name: string };
+type WithdrawalRequest = BaseRequest & { name: string };
+type LoanRequest = BaseRequest & { userName: string };
+
 
 export default function AdminLayout({
   children,
@@ -40,6 +56,43 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useUser();
+
+  const { data: pendingDeposits } = useCollection<DepositRequest>('deposits', {
+    where: ['status', '==', 'pending'],
+  });
+  const { data: pendingWithdrawals } = useCollection<WithdrawalRequest>(
+    'withdrawals',
+    { where: ['status', '==', 'pending'] }
+  );
+  const { data: pendingLoanRequests } = useCollection<LoanRequest>(
+    'loanRequests',
+    { where: ['status', '==', 'pending'] }
+  );
+
+  const notifications = useMemo(() => {
+    return [
+      ...(pendingDeposits?.map((d) => ({
+        ...d,
+        type: 'Deposit',
+        link: '/admin/deposits',
+        name: d.name,
+      })) || []),
+      ...(pendingWithdrawals?.map((w) => ({
+        ...w,
+        type: 'Withdrawal',
+        link: '/admin/withdrawals',
+        name: w.name,
+      })) || []),
+      ...(pendingLoanRequests?.map((l) => ({
+        ...l,
+        type: 'Loan',
+        link: '/admin/loans',
+        name: l.userName,
+      })) || []),
+    ].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+  }, [pendingDeposits, pendingWithdrawals, pendingLoanRequests]);
+
+  const notificationCount = notifications.length;
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -56,7 +109,6 @@ export default function AdminLayout({
       router.push('/admin/login');
     }
   }, [user, loading, pathname, router]);
-
 
   if (loading) {
     return (
@@ -82,22 +134,45 @@ export default function AdminLayout({
       <div className="hidden border-r bg-muted/40 md:block">
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-            <Link href="/admin" className="flex items-center gap-2 font-semibold">
+            <Link
+              href="/admin"
+              className="flex items-center gap-2 font-semibold"
+            >
               <Briefcase className="h-6 w-6 text-primary" />
-              <span className="">Tribed Admin</span>
+              <span className="">Admin Panel</span>
             </Link>
           </div>
           <nav className="flex-1 grid items-start px-2 text-sm font-medium lg:px-4">
-            <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
-            <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
-            <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
-            <AdminNavItem icon={Users2} href="/admin/group-loans">Group Loans</AdminNavItem>
-            <AdminNavItem icon={HandCoins} href="/admin/loan-plans">Loan Plans</AdminNavItem>
-            <AdminNavItem icon={HandCoins} href="/admin/loans">Loan Requests</AdminNavItem>
-            <AdminNavItem icon={Upload} href="/admin/deposits">Deposits</AdminNavItem>
-            <AdminNavItem icon={Download} href="/admin/withdrawals">Withdrawals</AdminNavItem>
-            <AdminNavItem icon={Megaphone} href="/admin/announcements">Announcements</AdminNavItem>
-            <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
+            <AdminNavItem icon={Home} href="/admin">
+              Dashboard
+            </AdminNavItem>
+            <AdminNavItem icon={Users} href="/admin/users">
+              Users
+            </AdminNavItem>
+            <AdminNavItem icon={Briefcase} href="/admin/investment-plans">
+              Investment Plans
+            </AdminNavItem>
+            <AdminNavItem icon={Users2} href="/admin/group-loans">
+              Group Loans
+            </AdminNavItem>
+            <AdminNavItem icon={HandCoins} href="/admin/loan-plans">
+              Loan Plans
+            </AdminNavItem>
+            <AdminNavItem icon={HandCoins} href="/admin/loans">
+              Loan Requests
+            </AdminNavItem>
+            <AdminNavItem icon={Upload} href="/admin/deposits">
+              Deposits
+            </AdminNavItem>
+            <AdminNavItem icon={Download} href="/admin/withdrawals">
+              Withdrawals
+            </AdminNavItem>
+            <AdminNavItem icon={Megaphone} href="/admin/announcements">
+              Announcements
+            </AdminNavItem>
+            <AdminNavItem icon={Settings} href="/admin/settings">
+              Settings
+            </AdminNavItem>
           </nav>
           <div className="mt-auto p-4">
             <Button size="sm" className="w-full" onClick={handleLogout}>
@@ -121,7 +196,7 @@ export default function AdminLayout({
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col">
-               <SheetHeader>
+              <SheetHeader>
                 <SheetTitle className="sr-only">Admin Menu</SheetTitle>
               </SheetHeader>
               <nav className="grid gap-2 text-lg font-medium">
@@ -130,33 +205,99 @@ export default function AdminLayout({
                   className="flex items-center gap-2 text-lg font-semibold mb-4"
                 >
                   <Briefcase className="h-6 w-6 text-primary" />
-                  <span >Tribed Admin</span>
+                  <span>Admin Panel</span>
                 </Link>
-                <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
-                <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
-                <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
-                <AdminNavItem icon={Users2} href="/admin/group-loans">Group Loans</AdminNavItem>
-                <AdminNavItem icon={HandCoins} href="/admin/loan-plans">Loan Plans</AdminNavItem>
-                <AdminNavItem icon={HandCoins} href="/admin/loans">Loan Requests</AdminNavItem>
-                <AdminNavItem icon={Upload} href="/admin/deposits">Deposits</AdminNavItem>
-                <AdminNavItem icon={Download} href="/admin/withdrawals">Withdrawals</AdminNavItem>
-                <AdminNavItem icon={Megaphone} href="/admin/announcements">Announcements</AdminNavItem>
-                <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
+                <AdminNavItem icon={Home} href="/admin">
+                  Dashboard
+                </AdminNavItem>
+                <AdminNavItem icon={Users} href="/admin/users">
+                  Users
+                </AdminNavItem>
+                <AdminNavItem icon={Briefcase} href="/admin/investment-plans">
+                  Investment Plans
+                </AdminNavItem>
+                <AdminNavItem icon={Users2} href="/admin/group-loans">
+                  Group Loans
+                </AdminNavItem>
+                <AdminNavItem icon={HandCoins} href="/admin/loan-plans">
+                  Loan Plans
+                </AdminNavItem>
+                <AdminNavItem icon={HandCoins} href="/admin/loans">
+                  Loan Requests
+                </AdminNavItem>
+                <AdminNavItem icon={Upload} href="/admin/deposits">
+                  Deposits
+                </AdminNavItem>
+                <AdminNavItem icon={Download} href="/admin/withdrawals">
+                  Withdrawals
+                </AdminNavItem>
+                <AdminNavItem icon={Megaphone} href="/admin/announcements">
+                  Announcements
+                </AdminNavItem>
+                <AdminNavItem icon={Settings} href="/admin/settings">
+                  Settings
+                </AdminNavItem>
               </nav>
               <div className="mt-auto">
-                 <Button size="sm" className="w-full" onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
+                <Button size="sm" className="w-full" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
                 </Button>
               </div>
             </SheetContent>
           </Sheet>
           <div className="w-full flex-1">
-             <h1 className="text-lg font-semibold capitalize">{pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}</h1>
+            <h1 className="text-lg font-semibold capitalize">
+              {pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
+            </h1>
           </div>
-          <Button variant="ghost" size="icon">
-            <Bell className="h-5 w-5" />
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5" />
+                {notificationCount > 0 && (
+                  <span className="absolute top-0 right-0 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium leading-none">Notifications</h4>
+                  <p className="text-sm text-muted-foreground">
+                    You have {notificationCount} new notifications.
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  {notificationCount > 0 ? (
+                    notifications.slice(0, 5).map((notification) => (
+                      <Link
+                        key={`${notification.type}-${notification.id}`}
+                        href={notification.link}
+                        className="flex items-start gap-4 p-2 -mx-2 rounded-lg hover:bg-accent"
+                      >
+                        <div className="grid gap-1">
+                          <p className="text-sm font-medium">
+                            New {notification.type} Request
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            From: {notification.name}
+                          </p>
+                        </div>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No new notifications.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           {children}
@@ -166,7 +307,15 @@ export default function AdminLayout({
   );
 }
 
-function AdminNavItem({ href, icon: Icon, children }: { href: string; icon: React.ElementType; children: React.ReactNode }) {
+function AdminNavItem({
+  href,
+  icon: Icon,
+  children,
+}: {
+  href: string;
+  icon: React.ElementType;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
