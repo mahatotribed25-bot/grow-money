@@ -29,11 +29,11 @@ export default function DashboardLayout({
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center">
         <div className="relative h-48 w-48 mb-4">
           <Image
-            src="https://picsum.photos/seed/tools/400/400"
+            src="https://picsum.photos/seed/hammer/400/400"
             alt="Under Maintenance"
             fill
             className="object-cover rounded-full"
-            data-ai-hint="worker tools"
+            data-ai-hint="hammer tool"
           />
         </div>
         <h1 className="mt-8 text-3xl font-bold text-foreground">
