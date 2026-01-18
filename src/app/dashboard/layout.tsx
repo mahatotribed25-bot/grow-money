@@ -1,7 +1,11 @@
 'use client';
 
-import { useDoc } from '@/firebase';
+import { useDoc, useAuth } from '@/firebase';
 import { UserPresence } from '@/components/UserPresence';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import { signOut } from 'firebase/auth';
+import { LogOut } from 'lucide-react';
 
 type AdminSettings = {
   isUnderMaintenance?: boolean;
@@ -13,6 +17,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { data: settings, loading } = useDoc<AdminSettings>('settings/admin');
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    await signOut(auth);
+    router.push('/login');
+  };
 
   if (loading) {
     return (
@@ -35,6 +47,10 @@ export default function DashboardLayout({
           The application is currently undergoing scheduled maintenance. We'll be
           back shortly. Thank you for your patience.
         </p>
+        <Button onClick={handleLogout} variant="outline" className="mt-8">
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
       </div>
     );
   }
