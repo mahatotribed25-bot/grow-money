@@ -17,6 +17,7 @@ import {
   Users as UsersIcon,
   Fingerprint,
   Phone,
+  FileUp,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -76,6 +77,10 @@ type UserData = {
   kycTermsAccepted?: boolean;
 };
 
+type AdminSettings = {
+    kycGoogleFormUrl?: string;
+};
+
 function useUserGroupInvestments(userId?: string) {
     const [investments, setInvestments] = useState<GroupInvestment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -126,6 +131,7 @@ export default function ProfilePage() {
   const { data: groupInvestments } = useUserGroupInvestments(user?.uid);
 
   const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
   
   const [upiId, setUpiId] = useState('');
   const [isUpiEditing, setIsUpiEditing] = useState(false);
@@ -273,11 +279,22 @@ export default function ProfilePage() {
          <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
           <CardHeader>
             <CardTitle>KYC Verification</CardTitle>
-            <CardDescription>This information is required to apply for loans.</CardDescription>
+            <CardDescription>This information is required to apply for loans. Please fill all fields and submit your documents.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {userDataloading ? <p>Loading KYC status...</p> : (
                 <>
+                    {adminSettings?.kycGoogleFormUrl && (
+                        <Button asChild className='w-full'>
+                            <a href={adminSettings.kycGoogleFormUrl} target="_blank" rel="noopener noreferrer">
+                                <FileUp className="mr-2 h-4 w-4" />
+                                Submit Documents via Google Form
+                            </a>
+                        </Button>
+                    )}
+                    <p className='text-center text-sm text-muted-foreground'>Step 1: Submit your documents using the button above.</p>
+                    <p className='text-center text-sm text-muted-foreground'>Step 2: Fill in the matching details below and save.</p>
+                    <Separator />
                     <div className="space-y-2">
                         <Label htmlFor="panCard">PAN Card Number</Label>
                         <Input id="panCard" value={panCard} onChange={(e) => setPanCard(e.target.value.toUpperCase())} placeholder="ABCDE1234F" maxLength={10} />

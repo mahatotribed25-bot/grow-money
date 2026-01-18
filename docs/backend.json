@@ -297,6 +297,10 @@
         "loanPenalty": {
           "type": "number",
           "description": "Default penalty for overdue loans."
+        },
+        "kycGoogleFormUrl": {
+            "type": "string",
+            "description": "The URL for the Google Form to be used for KYC document submission."
         }
       }
     },

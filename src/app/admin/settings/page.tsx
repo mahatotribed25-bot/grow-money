@@ -17,6 +17,7 @@ type AdminSettings = {
   referralBonus?: number;
   withdrawalGstPercentage?: number;
   loanPenalty?: number;
+  kycGoogleFormUrl?: string;
 };
 
 export default function SettingsPage() {
@@ -29,6 +30,7 @@ export default function SettingsPage() {
   const [referralBonus, setReferralBonus] = useState(0);
   const [withdrawalGstPercentage, setWithdrawalGstPercentage] = useState(0);
   const [loanPenalty, setLoanPenalty] = useState(0);
+  const [kycGoogleFormUrl, setKycGoogleFormUrl] = useState('');
 
 
   useEffect(() => {
@@ -38,6 +40,7 @@ export default function SettingsPage() {
       setReferralBonus(settings.referralBonus || 0);
       setWithdrawalGstPercentage(settings.withdrawalGstPercentage || 0);
       setLoanPenalty(settings.loanPenalty || 0);
+      setKycGoogleFormUrl(settings.kycGoogleFormUrl || '');
     }
   },[settings]);
 
@@ -50,6 +53,7 @@ export default function SettingsPage() {
         referralBonus: Number(referralBonus),
         withdrawalGstPercentage: Number(withdrawalGstPercentage),
         loanPenalty: Number(loanPenalty),
+        kycGoogleFormUrl: kycGoogleFormUrl,
       }, { merge: true });
       toast({ title: 'Settings Saved', description: 'Your settings have been updated.' });
     } catch (error) {
@@ -130,6 +134,25 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 </div>
+                 <Separator />
+                 <div>
+                    <CardTitle>KYC Settings</CardTitle>
+                     <div className="space-y-4 mt-4">
+                         <div className="space-y-2">
+                            <Label htmlFor="kyc-google-form-url">KYC Google Form URL</Label>
+                            <Input
+                            id="kyc-google-form-url"
+                            type="url"
+                            placeholder="https://docs.google.com/forms/..."
+                            value={kycGoogleFormUrl}
+                            onChange={(e) => setKycGoogleFormUrl(e.target.value)}
+                            />
+                             <p className="text-sm text-muted-foreground">
+                                Link to the Google Form for users to submit their KYC documents.
+                            </p>
+                        </div>
+                    </div>
+                </div>
                 <Separator />
                 <div>
                     <CardTitle>Referral Settings</CardTitle>
@@ -160,5 +183,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
