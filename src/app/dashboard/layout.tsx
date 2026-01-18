@@ -27,7 +27,7 @@ export default function DashboardLayout({
   if (settings?.isUnderMaintenance) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center">
-        <Wrench className="h-20 w-20 animate-bounce text-primary" />
+        <span className="text-8xl animate-bounce">🛠️</span>
         <h1 className="mt-8 text-3xl font-bold text-foreground">
           Under Maintenance
         </h1>
