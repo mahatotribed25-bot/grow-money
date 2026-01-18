@@ -1,6 +1,6 @@
 
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ChevronLeft,
   Home,
@@ -26,7 +26,7 @@ import {
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { collection, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, type Timestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -51,6 +51,8 @@ type LoanRequest = {
   id: string;
   userId: string;
   status: 'pending' | 'approved' | 'rejected' | 'sent';
+  createdAt: Timestamp;
+  rejectionReason?: string;
 }
 
 type ActiveLoan = {
@@ -83,10 +85,16 @@ export default function LoansPage() {
   
   const { data: userData, loading: userLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
 
-  
-  const hasPendingRequest = userLoanRequests?.some(req => req.status === 'pending');
+  const sortedRequests = useMemo(() => {
+    if (!userLoanRequests) return [];
+    return [...userLoanRequests].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+  }, [userLoanRequests]);
+
+  const latestRequest = sortedRequests[0];
   const hasActiveLoan = activeLoans && activeLoans.length > 0;
   const isKycComplete = !!(userData?.panCard && userData?.aadhaarNumber && userData?.phoneNumber && userData?.kycTermsAccepted);
+
+  const canApply = !hasActiveLoan && latestRequest?.status !== 'pending' && latestRequest?.status !== 'approved' && latestRequest?.status !== 'sent' && isKycComplete;
 
 
   const handleApply = (plan: LoanPlan, repaymentMethod: string) => {
@@ -94,16 +102,8 @@ export default function LoansPage() {
         toast({ variant: 'destructive', title: 'You must be logged in.' });
         return;
     }
-    if (!isKycComplete) {
-        toast({ variant: 'destructive', title: 'KYC Required', description: "Please complete your KYC in your profile before applying for a loan." });
-        return;
-    }
-    if (hasPendingRequest) {
-        toast({ variant: 'destructive', title: 'You already have a pending loan request.' });
-        return;
-    }
-    if (hasActiveLoan) {
-        toast({ variant: 'destructive', title: 'You already have an active loan.' });
+    if (!canApply) {
+        toast({ variant: 'destructive', title: 'Cannot Apply', description: "You are not eligible to apply for a loan at this time. Please check the notice above." });
         return;
     }
     if ((plan.emiOption && plan.directPayOption) && !repaymentMethod) {
@@ -144,8 +144,6 @@ export default function LoansPage() {
   
   const loading = plansLoading || requestsLoading || activeLoansLoading || userLoading;
   
-  const disableApplication = !!(hasPendingRequest || hasActiveLoan || !isKycComplete);
-
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
@@ -160,13 +158,15 @@ export default function LoansPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-4">
-            {(hasPendingRequest || hasActiveLoan || !isKycComplete) && (
+            {(!canApply) && (
                 <Card className="bg-yellow-500/10 border-yellow-500/50">
                     <CardContent className="p-4 text-center text-yellow-300">
                         {hasActiveLoan 
                             ? <p>You have an active loan. You must repay it before applying for a new one. <Link href="/my-loans" className="underline">View loan details.</Link></p>
-                            : hasPendingRequest
+                            : latestRequest?.status === 'pending'
                             ? <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>
+                            : latestRequest?.status === 'rejected'
+                            ? <p>Your last loan request was rejected. Reason: &quot;{latestRequest.rejectionReason}&quot;. You may apply for a new loan.</p>
                             : !isKycComplete && <p>Please complete your KYC in your profile to be eligible for a loan. <Link href="/profile" className="underline">Go to Profile.</Link></p>
                         }
                     </CardContent>
@@ -190,7 +190,7 @@ export default function LoansPage() {
                     <p>Loading loan plans...</p>
                 ) : loanPlans && loanPlans.length > 0 ? (
                     loanPlans.map((plan) => (
-                        <LoanPlanCard key={plan.id} plan={plan} onApply={handleApply} disabled={disableApplication}/>
+                        <LoanPlanCard key={plan.id} plan={plan} onApply={handleApply} disabled={!canApply}/>
                     ))
                 ) : (
                     <p>No loan plans are available at the moment.</p>
@@ -306,3 +306,5 @@ function BottomNavItem({
     </Link>
   );
 }
+
+    

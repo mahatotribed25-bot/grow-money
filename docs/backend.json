@@ -353,7 +353,8 @@
         "loanAmount": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected", "sent"] },
         "createdAt": { "type": "string", "format": "date-time" },
-        "repaymentMethod": { "type": "string", "enum": ["EMI", "Direct"] }
+        "repaymentMethod": { "type": "string", "enum": ["EMI", "Direct"] },
+        "rejectionReason": { "type": "string", "description": "The reason why the loan request was rejected by the admin." }
       },
       "required": ["userId", "userName", "planId", "planName", "loanAmount", "status", "createdAt", "repaymentMethod"]
     },
@@ -529,3 +530,5 @@
     }
   }
 }
+
+    

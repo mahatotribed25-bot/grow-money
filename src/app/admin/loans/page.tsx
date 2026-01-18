@@ -23,6 +23,16 @@ import {
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { addDays, addWeeks, addMonths, addYears } from 'date-fns';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 type LoanRequest = {
   id: string;
@@ -35,6 +45,7 @@ type LoanRequest = {
   planId: string;
   userUpiId?: string;
   repaymentMethod: 'EMI' | 'Direct';
+  rejectionReason?: string;
 };
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
@@ -63,9 +74,14 @@ export default function LoanRequestsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [requestToReject, setRequestToReject] = useState<LoanRequest | null>(null);
+
   const handleUpdateStatus = async (
     request: LoanRequest,
-    newStatus: 'approved' | 'rejected'
+    newStatus: 'approved' | 'rejected',
+    reason?: string
   ) => {
     const requestRef = doc(firestore, 'loanRequests', request.id);
     
@@ -121,14 +137,8 @@ export default function LoanRequestsPage() {
                     // Weekly EMIs if duration is in weeks
                     numberOfEmis = plan.duration;
                     addEmiDuration = addWeeks;
-                } else if (plan.durationType === 'Days') {
-                    // This is unusual, but handle daily EMIs if needed
-                    // For simplicity, let's assume EMI is not for daily plans, but if so:
-                    // numberOfEmis = plan.duration;
-                    // addEmiDuration = addDays;
                 }
-
-
+                
                 if (numberOfEmis > 0) {
                     const emiAmount = plan.totalRepayment / numberOfEmis;
                     for (let i = 1; i <= numberOfEmis; i++) {
@@ -151,7 +161,7 @@ export default function LoanRequestsPage() {
                 description: `Loan for ${request.userName} is approved. Please send the funds manually.`,
             });
         } else { // 'rejected'
-            await updateDoc(requestRef, { status: newStatus });
+            await updateDoc(requestRef, { status: newStatus, rejectionReason: reason });
             toast({
                 title: 'Loan Rejected',
                 variant: 'destructive',
@@ -184,6 +194,22 @@ export default function LoanRequestsPage() {
           });
       }
   }
+  
+  const openRejectDialog = (request: LoanRequest) => {
+    setRequestToReject(request);
+    setIsRejectDialogOpen(true);
+  };
+
+  const handleConfirmRejection = async () => {
+    if (!requestToReject || !rejectionReason) {
+      toast({ title: 'Reason is required', variant: 'destructive' });
+      return;
+    }
+    await handleUpdateStatus(requestToReject, 'rejected', rejectionReason);
+    setIsRejectDialogOpen(false);
+    setRejectionReason('');
+    setRequestToReject(null);
+  };
 
 
   return (
@@ -199,13 +225,14 @@ export default function LoanRequestsPage() {
               <TableHead>User UPI</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Reason</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={8} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -231,6 +258,7 @@ export default function LoanRequestsPage() {
                       {request.status}
                     </Badge>
                   </TableCell>
+                  <TableCell>{request.rejectionReason || 'N/A'}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                        {request.status === 'pending' && (
@@ -247,7 +275,7 @@ export default function LoanRequestsPage() {
                                 variant="outline"
                                 size="sm"
                                 className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                                onClick={() => handleUpdateStatus(request, 'rejected')}
+                                onClick={() => openRejectDialog(request)}
                               >
                                 <X className="h-4 w-4 mr-1" /> Reject
                               </Button>
@@ -272,6 +300,31 @@ export default function LoanRequestsPage() {
           </TableBody>
         </Table>
       </div>
+       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reason for Rejection</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this loan request. The user will see this reason.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="Enter reason here..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" onClick={() => {setIsRejectDialogOpen(false); setRejectionReason('');}}>Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={handleConfirmRejection}>Confirm Rejection</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+    
