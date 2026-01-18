@@ -15,6 +15,8 @@ import {
   doc
 } from 'firebase/firestore';
 import { useFirestore } from '../provider';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type UseCollectionOptions = {
     subcollections?: boolean;
@@ -28,7 +30,7 @@ export function useCollection<T>(pathOrQuery: string | Query | null, options?: U
   
   const queryKey = typeof pathOrQuery === 'string' 
       ? pathOrQuery 
-      : pathOrQuery ? pathOrQuery.path + JSON.stringify(pathOrQuery) : 'null';
+      : pathOrQuery ? 'complex_query_key' : 'null';
   
   const optionsKey = useMemo(() => JSON.stringify(options), [options]);
 
@@ -66,7 +68,12 @@ export function useCollection<T>(pathOrQuery: string | Query | null, options?: U
       setData(docs);
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching collection: ", error);
+      const path = typeof pathOrQuery === 'string' ? pathOrQuery : 'complex_query';
+      const permissionError = new FirestorePermissionError({
+          path: path,
+          operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
       setLoading(false);
     });
 

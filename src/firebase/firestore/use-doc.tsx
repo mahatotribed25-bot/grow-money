@@ -1,11 +1,15 @@
+
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import { doc, onSnapshot, DocumentReference, DocumentData } from 'firebase/firestore';
 import { useFirestore } from '../provider';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export function useDoc<T>(path: string | null) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refetch, setRefetch] = useState(0);
   const firestore = useFirestore();
   
   useEffect(() => {
@@ -29,12 +33,21 @@ export function useDoc<T>(path: string | null) {
       }
       setLoading(false);
     }, (error) => {
-        console.error("Error fetching document:", error);
+        const permissionError = new FirestorePermissionError({
+            path: path,
+            operation: 'get'
+        });
+        errorEmitter.emit('permission-error', permissionError);
         setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [firestore, path]);
+  }, [firestore, path, refetch]);
 
-  return { data, loading };
+  const refetchData = () => {
+    setLoading(true);
+    setRefetch(prev => prev + 1);
+  }
+
+  return { data, loading, refetch: refetchData };
 }
