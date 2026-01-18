@@ -65,7 +65,8 @@ type UserData = {
     upiId?: string;
     aadhaarNumber?: string;
     phoneNumber?: string;
-    kycTermsAccepted?: boolean;
+    kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
+    kycRejectionReason?: string;
 }
 
 export default function LoansPage() {
@@ -92,10 +93,36 @@ export default function LoansPage() {
 
   const latestRequest = sortedRequests[0];
   const hasActiveLoan = activeLoans && activeLoans.length > 0;
-  const isKycComplete = !!(userData?.panCard && userData?.aadhaarNumber && userData?.phoneNumber && userData?.kycTermsAccepted);
+  const isKycVerified = userData?.kycStatus === 'Verified';
 
-  const canApply = !hasActiveLoan && latestRequest?.status !== 'pending' && latestRequest?.status !== 'approved' && latestRequest?.status !== 'sent' && isKycComplete;
+  const canApply = !hasActiveLoan && latestRequest?.status !== 'pending' && latestRequest?.status !== 'approved' && latestRequest?.status !== 'sent' && isKycVerified;
 
+  const getEligibilityMessage = () => {
+    if (loading) return null;
+    if (isKycVerified) {
+      if (hasActiveLoan) {
+        return <p>You have an active loan. You must repay it before applying for a new one. <Link href="/my-loans" className="underline">View loan details.</Link></p>;
+      }
+      if (latestRequest?.status === 'pending') {
+        return <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>;
+      }
+      if (latestRequest?.status === 'rejected') {
+        return <p>Your last loan request was rejected. Reason: &quot;{latestRequest.rejectionReason}&quot;. You may apply for a new loan.</p>;
+      }
+    } else {
+      switch (userData?.kycStatus) {
+        case 'Pending':
+          return <p>Your KYC is pending approval. You can apply for a loan once it is verified. <Link href="/profile" className="underline">Check status.</Link></p>;
+        case 'Rejected':
+          return <p>Your KYC submission was rejected. Please correct your details to apply for a loan. <Link href="/profile" className="underline">Update KYC.</Link></p>;
+        default:
+          return <p>Please complete your KYC in your profile to be eligible for a loan. <Link href="/profile" className="underline">Go to Profile.</Link></p>;
+      }
+    }
+    return null;
+  }
+  
+  const eligibilityMessage = getEligibilityMessage();
 
   const handleApply = (plan: LoanPlan, repaymentMethod: string) => {
     if (!user || !userData) {
@@ -158,17 +185,10 @@ export default function LoansPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-4">
-            {(!canApply) && (
+            {eligibilityMessage && (
                 <Card className="bg-yellow-500/10 border-yellow-500/50">
                     <CardContent className="p-4 text-center text-yellow-300">
-                        {hasActiveLoan 
-                            ? <p>You have an active loan. You must repay it before applying for a new one. <Link href="/my-loans" className="underline">View loan details.</Link></p>
-                            : latestRequest?.status === 'pending'
-                            ? <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>
-                            : latestRequest?.status === 'rejected'
-                            ? <p>Your last loan request was rejected. Reason: &quot;{latestRequest.rejectionReason}&quot;. You may apply for a new loan.</p>
-                            : !isKycComplete && <p>Please complete your KYC in your profile to be eligible for a loan. <Link href="/profile" className="underline">Go to Profile.</Link></p>
-                        }
+                        {eligibilityMessage}
                     </CardContent>
                 </Card>
             )}
@@ -306,5 +326,3 @@ function BottomNavItem({
     </Link>
   );
 }
-
-    

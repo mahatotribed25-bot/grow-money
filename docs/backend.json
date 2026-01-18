@@ -63,6 +63,15 @@
         "kycTermsAccepted": {
             "type": "boolean",
             "description": "Indicates if the user has accepted the KYC terms and conditions for loans."
+        },
+        "kycStatus": {
+            "type": "string",
+            "enum": ["Not Submitted", "Pending", "Verified", "Rejected"],
+            "description": "The verification status of the user's KYC documents."
+        },
+        "kycRejectionReason": {
+            "type": "string",
+            "description": "The reason provided by the admin for rejecting a KYC submission."
         }
       },
       "required": [
@@ -530,5 +539,3 @@
     }
   }
 }
-
-    

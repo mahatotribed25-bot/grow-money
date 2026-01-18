@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck } from 'lucide-react';
+import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,6 +30,8 @@ import { Progress } from '@/components/ui/progress';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 
 type UserData = {
@@ -43,7 +45,8 @@ type UserData = {
   panCard?: string;
   aadhaarNumber?: string;
   phoneNumber?: string;
-  kycTermsAccepted?: boolean;
+  kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
+  kycRejectionReason?: string;
 };
 
 type Investment = {
@@ -156,6 +159,7 @@ const getStatusVariant = (status: string) => {
     case 'Matured':
     case 'Completed':
     case 'Paid':
+    case 'Verified':
       return 'default';
     case 'rejected':
     case 'Blocked':
@@ -177,7 +181,10 @@ export default function UserDetailPage() {
   const auth = useAuth();
   const { toast } = useToast();
 
-  const { data: user, loading: userLoading } = useDoc<UserData>(userId ? `users/${userId}` : null);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+
+  const { data: user, loading: userLoading, refetch: refetchUser } = useDoc<UserData>(userId ? `users/${userId}` : null);
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
   const { data: loans, loading: loansLoading } = useCollection<ActiveLoan>(userId ? `users/${userId}/loans` : null);
   const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(`deposits`, { where: ['userId', '==', userId] });
@@ -377,6 +384,43 @@ export default function UserDetailPage() {
       });
   };
 
+  const handleKycApproval = (newStatus: 'Verified' | 'Rejected', reason?: string) => {
+    if (!user) return;
+    const userRef = doc(firestore, 'users', userId);
+    const updateData: any = { kycStatus: newStatus };
+    if (newStatus === 'Rejected') {
+      updateData.kycRejectionReason = reason;
+    }
+    
+    updateDoc(userRef, updateData)
+      .then(() => {
+        toast({
+          title: `KYC ${newStatus}`,
+          description: `User KYC status has been updated.`,
+        });
+        if (refetchUser) refetchUser();
+      })
+      .catch((error) => {
+        console.error('Error updating KYC status:', error);
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+  };
+
+  const handleConfirmRejection = () => {
+    if (!rejectionReason) {
+      toast({ title: 'Reason is required', variant: 'destructive' });
+      return;
+    }
+    handleKycApproval('Rejected', rejectionReason);
+    setIsRejectDialogOpen(false);
+    setRejectionReason('');
+  };
+
 
   if (loading) {
     return (
@@ -445,16 +489,38 @@ export default function UserDetailPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <InfoBox title="User ID" value={user.id} icon={Fingerprint} />
-          <InfoBox title="PAN Card" value={user.panCard || 'Not Provided'} icon={CreditCard} />
-          <InfoBox title="Aadhaar" value={user.aadhaarNumber || 'Not Provided'} icon={Fingerprint} />
-          <InfoBox title="Phone" value={user.phoneNumber || 'Not Provided'} icon={Phone} />
           <InfoBox title="Wallet Balance" value={`₹${(user.walletBalance || 0).toFixed(2)}`} icon={Wallet} />
           <InfoBox title="Total Investment" value={`₹${(user.totalInvestment || 0).toFixed(2)}`} icon={Briefcase} />
           <InfoBox title="Total Income" value={`₹${(user.totalIncome || 0).toFixed(2)}`} icon={Wallet} />
           <InfoBox title="Status" value={user.status || 'Active'} icon={User} badgeVariant={getStatusVariant(user.status || 'Active')} />
-           <InfoBox title="KYC Terms" value={user.kycTermsAccepted ? 'Accepted': 'Not Accepted'} icon={FileCheck} badgeVariant={user.kycTermsAccepted ? 'default' : 'destructive'} />
+           <InfoBox title="KYC Status" value={user.kycStatus || 'Not Submitted'} icon={FileCheck} badgeVariant={getStatusVariant(user.kycStatus || 'Not Submitted')} />
         </CardContent>
       </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>KYC Management</CardTitle>
+          <CardDescription>Review and manage the user's KYC submission.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <InfoBox title="PAN Card" value={user.panCard || 'Not Provided'} icon={CreditCard} />
+          <InfoBox title="Aadhaar" value={user.aadhaarNumber || 'Not Provided'} icon={Fingerprint} />
+          <InfoBox title="Phone" value={user.phoneNumber || 'Not Provided'} icon={Phone} />
+          {user.kycStatus === 'Pending' ? (
+            <div className="flex gap-4 pt-4">
+              <Button onClick={() => handleKycApproval('Verified')}>
+                <ShieldCheck className="mr-2 h-4 w-4" /> Approve KYC
+              </Button>
+              <Button variant="destructive" onClick={() => setIsRejectDialogOpen(true)}>
+                 <ShieldX className="mr-2 h-4 w-4" /> Reject KYC
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Current KYC status: <span className="font-bold">{user.kycStatus || 'Not Submitted'}</span></p>
+          )}
+        </CardContent>
+      </Card>
+
 
       <Tabs defaultValue="investments">
         <TabsList className="grid w-full grid-cols-5">
@@ -546,6 +612,30 @@ export default function UserDetailPage() {
             />
         </TabsContent>
       </Tabs>
+      
+      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reason for KYC Rejection</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this KYC submission. The user will see this.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="e.g., PAN card details do not match submitted documents."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" onClick={() => {setIsRejectDialogOpen(false); setRejectionReason('');}}>Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={handleConfirmRejection}>Confirm Rejection</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -741,9 +831,3 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
         </Card>
     );
 }
-
-    
-
-    
-
-

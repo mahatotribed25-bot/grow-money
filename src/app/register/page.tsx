@@ -119,6 +119,7 @@ export default function RegisterPage() {
         referralCode: generateReferralCode(),
         referredBy: referredBy,
         status: 'Active',
+        kycStatus: 'Not Submitted',
       });
 
       router.push("/");

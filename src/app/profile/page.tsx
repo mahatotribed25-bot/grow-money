@@ -18,6 +18,7 @@ import {
   Fingerprint,
   Phone,
   FileUp,
+  AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,8 @@ type UserData = {
   aadhaarNumber?: string;
   phoneNumber?: string;
   kycTermsAccepted?: boolean;
+  kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
+  kycRejectionReason?: string;
 };
 
 type AdminSettings = {
@@ -142,13 +145,16 @@ export default function ProfilePage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [kycTermsAccepted, setKycTermsAccepted] = useState(false);
   
+  const kycStatus = userData?.kycStatus || 'Not Submitted';
+  const isKycFormDisabled = kycStatus === 'Pending' || kycStatus === 'Verified';
+
   useEffect(() => {
     if (userData) {
       setUpiId(userData.upiId || '');
       setPanCard(userData.panCard || '');
       setAadhaarNumber(userData.aadhaarNumber || '');
       setPhoneNumber(userData.phoneNumber || '');
-      setKycTermsAccepted(userData.kycTermsAccepted || false);
+      // We don't set kycTermsAccepted from userData, it must be re-checked for each submission
     }
   }, [userData]);
 
@@ -192,7 +198,7 @@ export default function ProfilePage() {
         });
   }
 
-  const handleSaveKyc = () => {
+  const handleSubmitKyc = () => {
     if (!user) return;
     const panRegex = /[A-Z]{5}[0-9]{4}[A-Z]{1}/;
     const aadhaarRegex = /^[0-9]{12}$/;
@@ -221,11 +227,13 @@ export default function ProfilePage() {
       aadhaarNumber: aadhaarNumber,
       phoneNumber: phoneNumber,
       kycTermsAccepted: kycTermsAccepted,
+      kycStatus: 'Pending',
+      kycRejectionReason: '', // Clear previous rejection reason
     };
 
     updateDoc(userRef, dataToUpdate)
       .then(() => {
-        toast({ title: "KYC Details Saved", description: "Your information has been saved successfully." });
+        toast({ title: "KYC Submitted", description: "Your information has been submitted for admin approval." });
       })
       .catch((serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -237,9 +245,6 @@ export default function ProfilePage() {
       });
   }
   
-  const isKycFilled = userData?.panCard && userData?.aadhaarNumber && userData?.phoneNumber && userData?.kycTermsAccepted;
-
-
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
@@ -284,6 +289,27 @@ export default function ProfilePage() {
           <CardContent className="space-y-4">
             {userDataloading ? <p>Loading KYC status...</p> : (
                 <>
+                    {kycStatus === 'Pending' && (
+                      <div className="rounded-md border border-blue-500/50 bg-blue-500/10 p-4 text-center text-blue-300">
+                        <p className="font-semibold">KYC Pending Approval</p>
+                        <p className="text-sm">Your details have been submitted and are under review by the admin.</p>
+                      </div>
+                    )}
+                    {kycStatus === 'Verified' && (
+                      <div className="rounded-md border border-green-500/50 bg-green-500/10 p-4 text-center text-green-300">
+                        <p className="font-semibold">KYC Verified</p>
+                        <p className="text-sm">You are eligible to apply for loans.</p>
+                      </div>
+                    )}
+                     {kycStatus === 'Rejected' && userData?.kycRejectionReason && (
+                        <div className="rounded-md border-destructive bg-destructive/10 p-4 text-destructive-foreground">
+                            <p className="font-semibold">KYC Rejected</p>
+                            <p className="text-sm">Reason: {userData.kycRejectionReason}</p>
+                            <p className="text-sm mt-2">Please correct your information below and resubmit.</p>
+                        </div>
+                    )}
+
+
                     {adminSettings?.kycGoogleFormUrl && (
                         <Button asChild className='w-full'>
                             <a href={adminSettings.kycGoogleFormUrl} target="_blank" rel="noopener noreferrer">
@@ -293,27 +319,27 @@ export default function ProfilePage() {
                         </Button>
                     )}
                     <p className='text-center text-sm text-muted-foreground'>Step 1: Submit your documents using the button above.</p>
-                    <p className='text-center text-sm text-muted-foreground'>Step 2: Fill in the matching details below and save.</p>
+                    <p className='text-center text-sm text-muted-foreground'>Step 2: Fill in the matching details below and submit.</p>
                     <Separator />
                     <div className="space-y-2">
                         <Label htmlFor="panCard">PAN Card Number</Label>
-                        <Input id="panCard" value={panCard} onChange={(e) => setPanCard(e.target.value.toUpperCase())} placeholder="ABCDE1234F" maxLength={10} />
+                        <Input id="panCard" value={panCard} onChange={(e) => setPanCard(e.target.value.toUpperCase())} placeholder="ABCDE1234F" maxLength={10} disabled={isKycFormDisabled} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="aadhaarNumber">Aadhaar Card Number</Label>
-                        <Input id="aadhaarNumber" type="number" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value)} placeholder="123456789012" maxLength={12}/>
+                        <Input id="aadhaarNumber" type="number" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value)} placeholder="123456789012" maxLength={12} disabled={isKycFormDisabled}/>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="phoneNumber">Phone Number</Label>
-                        <Input id="phoneNumber" type="number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="9876543210" maxLength={10}/>
+                        <Input id="phoneNumber" type="number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="9876543210" maxLength={10} disabled={isKycFormDisabled}/>
                     </div>
                      <div className="space-y-4 rounded-md border p-4">
-                        <h4 className="text-sm font-medium">Terms and Conditions</h4>
+                        <h4 className="text-sm font-medium flex items-center gap-2"><AlertTriangle className="text-yellow-400"/>Terms and Conditions</h4>
                         <p className="text-xs text-muted-foreground">
                           If you do not repay the loan, if for some reason you run away, or if you abscond without repaying the loan, then legal action will be taken against you.
                         </p>
                          <div className="flex items-center space-x-2">
-                            <Checkbox id="terms" checked={kycTermsAccepted} onCheckedChange={(checked) => setKycTermsAccepted(!!checked)} />
+                            <Checkbox id="terms" onCheckedChange={(checked) => setKycTermsAccepted(!!checked)} disabled={isKycFormDisabled}/>
                             <label
                                 htmlFor="terms"
                                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -322,8 +348,8 @@ export default function ProfilePage() {
                             </label>
                         </div>
                     </div>
-                    <Button onClick={handleSaveKyc} className="w-full">
-                        {isKycFilled ? 'Update KYC Information' : 'Save KYC Information'}
+                    <Button onClick={handleSubmitKyc} className="w-full" disabled={isKycFormDisabled}>
+                       Submit KYC for Approval
                     </Button>
                 </>
             )}
