@@ -86,6 +86,8 @@ export default function LoansPage() {
   
   const { data: userData, loading: userLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
 
+  const loading = plansLoading || requestsLoading || activeLoansLoading || userLoading;
+
   const sortedRequests = useMemo(() => {
     if (!userLoanRequests) return [];
     return [...userLoanRequests].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
@@ -168,8 +170,6 @@ export default function LoansPage() {
             errorEmitter.emit('permission-error', permissionError);
         });
   };
-  
-  const loading = plansLoading || requestsLoading || activeLoansLoading || userLoading;
   
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
