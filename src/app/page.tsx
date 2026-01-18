@@ -1,7 +1,7 @@
+
 "use client";
 import { useUser } from "@/firebase/auth/use-user";
 import { redirect } from "next/navigation";
-import Dashboard from "./dashboard/page";
 
 export default function Home() {
   const { user, loading } = useUser();
@@ -18,5 +18,6 @@ export default function Home() {
     redirect("/login");
   }
 
-  return <Dashboard />;
+  // Redirect to the dashboard which is now protected by its own layout
+  redirect("/dashboard");
 }

@@ -72,6 +72,15 @@
         "kycRejectionReason": {
             "type": "string",
             "description": "The reason provided by the admin for rejecting a KYC submission."
+        },
+        "isOnline": {
+            "type": "boolean",
+            "description": "Indicates if the user is currently online."
+        },
+        "lastSeen": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The last time the user was seen online."
         }
       },
       "required": [
@@ -310,6 +319,10 @@
         "kycGoogleFormUrl": {
             "type": "string",
             "description": "The URL for the Google Form to be used for KYC document submission."
+        },
+        "isUnderMaintenance": {
+            "type": "boolean",
+            "description": "If true, the app is in maintenance mode."
         }
       }
     },

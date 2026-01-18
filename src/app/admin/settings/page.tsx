@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Switch } from '@/components/ui/switch';
 
 type AdminSettings = {
   adminUpi?: string;
@@ -20,6 +21,7 @@ type AdminSettings = {
   withdrawalGstPercentage?: number;
   loanPenalty?: number;
   kycGoogleFormUrl?: string;
+  isUnderMaintenance?: boolean;
 };
 
 export default function SettingsPage() {
@@ -33,6 +35,7 @@ export default function SettingsPage() {
   const [withdrawalGstPercentage, setWithdrawalGstPercentage] = useState(0);
   const [loanPenalty, setLoanPenalty] = useState(0);
   const [kycGoogleFormUrl, setKycGoogleFormUrl] = useState('');
+  const [isUnderMaintenance, setIsUnderMaintenance] = useState(false);
 
 
   useEffect(() => {
@@ -43,6 +46,7 @@ export default function SettingsPage() {
       setWithdrawalGstPercentage(settings.withdrawalGstPercentage || 0);
       setLoanPenalty(settings.loanPenalty || 0);
       setKycGoogleFormUrl(settings.kycGoogleFormUrl || '');
+      setIsUnderMaintenance(settings.isUnderMaintenance || false);
     }
   },[settings]);
 
@@ -55,6 +59,7 @@ export default function SettingsPage() {
       withdrawalGstPercentage: Number(withdrawalGstPercentage),
       loanPenalty: Number(loanPenalty),
       kycGoogleFormUrl: kycGoogleFormUrl,
+      isUnderMaintenance: isUnderMaintenance,
     };
 
     setDoc(settingsRef, settingsData, { merge: true })
@@ -79,6 +84,23 @@ export default function SettingsPage() {
         <CardContent className="pt-6 space-y-6">
            {loading ? <p>Loading settings...</p> : (
             <>
+                <div>
+                    <CardTitle>Maintenance Mode</CardTitle>
+                    <CardDescription>
+                       Enable this to show a maintenance page to all users.
+                    </CardDescription>
+                    <div className="flex items-center space-x-2 mt-4">
+                        <Switch
+                            id="maintenance-mode"
+                            checked={isUnderMaintenance}
+                            onCheckedChange={setIsUnderMaintenance}
+                        />
+                        <Label htmlFor="maintenance-mode">
+                           {isUnderMaintenance ? 'Application is under maintenance' : 'Application is live'}
+                        </Label>
+                    </div>
+                </div>
+                <Separator />
                 <div>
                     <CardTitle>Payment Settings</CardTitle>
                     <CardDescription>

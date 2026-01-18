@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -38,6 +38,8 @@ type User = {
   email: string;
   walletBalance?: number;
   status?: 'Active' | 'Blocked';
+  isOnline?: boolean;
+  lastSeen?: Timestamp;
 };
 
 const ADMIN_EMAIL = "admin@tribed.world";
@@ -71,6 +73,12 @@ export default function UsersPage() {
         errorEmitter.emit('permission-error', permissionError);
       });
   };
+  
+  const isUserOnline = (user: User) => {
+    if (!user.isOnline || !user.lastSeen) return false;
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    return user.lastSeen.toMillis() > fiveMinutesAgo;
+  };
 
 
   return (
@@ -83,14 +91,15 @@ export default function UsersPage() {
               <TableHead>User Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Wallet Balance</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Account Status</TableHead>
+              <TableHead>Online Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center">
+                <TableCell colSpan={6} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -104,6 +113,12 @@ export default function UsersPage() {
                     <Badge variant={user.status !== 'Blocked' ? 'default' : 'destructive'}>
                       {user.status || 'Active'}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                        <span className={`h-2.5 w-2.5 rounded-full ${isUserOnline(user) ? 'bg-green-500' : 'bg-gray-500'}`} />
+                        <span>{isUserOnline(user) ? 'Online' : 'Offline'}</span>
+                    </div>
                   </TableCell>
                   <TableCell className="flex gap-2">
                     <Button asChild variant="ghost" size="icon">
