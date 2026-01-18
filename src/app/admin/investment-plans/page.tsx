@@ -38,6 +38,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 
 type InvestmentPlan = {
@@ -81,20 +83,23 @@ export default function InvestmentPlansPage() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (planId: string) => {
-    try {
-      await deleteDoc(doc(firestore, 'investmentPlans', planId));
-      toast({ title: 'Plan deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting plan: ', error);
-      toast({
-        title: 'Error deleting plan',
-        variant: 'destructive',
+  const handleDelete = (planId: string) => {
+    const docRef = doc(firestore, 'investmentPlans', planId);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: 'Plan deleted successfully' });
+      })
+      .catch((error) => {
+        console.error('Error deleting plan: ', error);
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-    }
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!editingPlan) return;
     
     // Auto-calculate totalIncome and finalReturn
@@ -112,21 +117,41 @@ export default function InvestmentPlansPage() {
         stock: Number(editingPlan.stock || 0),
     };
 
-    try {
-      if ('id' in planToSave && planToSave.id) {
-        const planRef = doc(firestore, 'investmentPlans', planToSave.id);
-        const { id, ...planData } = planToSave;
-        await updateDoc(planRef, planData);
-        toast({ title: 'Plan updated successfully' });
-      } else {
-        await addDoc(collection(firestore, 'investmentPlans'), planToSave);
-        toast({ title: 'Plan created successfully' });
-      }
-      setIsDialogOpen(false);
-      setEditingPlan(null);
-    } catch (error) {
-      console.error('Error saving plan: ', error);
-      toast({ title: 'Error saving plan', variant: 'destructive' });
+    if ('id' in planToSave && planToSave.id) {
+      const planRef = doc(firestore, 'investmentPlans', planToSave.id);
+      const { id, ...planData } = planToSave;
+      updateDoc(planRef, planData)
+        .then(() => {
+          toast({ title: 'Plan updated successfully' });
+          setIsDialogOpen(false);
+          setEditingPlan(null);
+        })
+        .catch((error) => {
+          console.error('Error updating plan: ', error);
+          const permissionError = new FirestorePermissionError({
+            path: planRef.path,
+            operation: 'update',
+            requestResourceData: planData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
+    } else {
+      const collectionRef = collection(firestore, 'investmentPlans');
+      addDoc(collectionRef, planToSave)
+        .then(() => {
+          toast({ title: 'Plan created successfully' });
+          setIsDialogOpen(false);
+          setEditingPlan(null);
+        })
+        .catch((error) => {
+          console.error('Error creating plan: ', error);
+          const permissionError = new FirestorePermissionError({
+            path: collectionRef.path,
+            operation: 'create',
+            requestResourceData: planToSave,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     }
   };
 
@@ -310,5 +335,3 @@ export default function InvestmentPlansPage() {
     </div>
   );
 }
-
-    

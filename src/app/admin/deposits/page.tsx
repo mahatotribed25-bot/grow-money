@@ -17,6 +17,8 @@ import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type DepositRequest = {
   id: string;
@@ -38,43 +40,56 @@ export default function DepositsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const handleUpdateStatus = async (
+  const handleUpdateStatus = (
     deposit: DepositRequest,
     newStatus: 'approved' | 'rejected'
   ) => {
     const depositRef = doc(firestore, 'deposits', deposit.id);
     const userRef = doc(firestore, 'users', deposit.userId);
 
-    try {
-      if (newStatus === 'approved') {
-        await runTransaction(firestore, async (transaction) => {
-          const userDoc = await transaction.get(userRef);
-          if (!userDoc.exists()) {
-            throw 'User does not exist!';
-          }
+    if (newStatus === 'approved') {
+      runTransaction(firestore, async (transaction) => {
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists()) {
+          throw 'User does not exist!';
+        }
 
-          const newBalance = (userDoc.data().walletBalance || 0) + deposit.amount;
-          transaction.update(userRef, { walletBalance: newBalance });
-          transaction.update(depositRef, { status: newStatus });
-        });
-        toast({
-          title: 'Deposit Approved',
-          description: `₹${deposit.amount} has been added to ${deposit.name}'s wallet.`,
-        });
-      } else {
-        // Just reject the request
-        await updateDoc(depositRef, { status: newStatus });
-        toast({
-          title: 'Deposit Rejected',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      console.error('Error updating deposit status:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update deposit status.',
-        variant: 'destructive',
+        const newBalance = (userDoc.data().walletBalance || 0) + deposit.amount;
+        transaction.update(userRef, { walletBalance: newBalance });
+        transaction.update(depositRef, { status: newStatus });
+      })
+      .then(() => {
+          toast({
+            title: 'Deposit Approved',
+            description: `₹${deposit.amount} has been added to ${deposit.name}'s wallet.`,
+          });
+      })
+      .catch((error) => {
+          console.error('Error updating deposit status:', error);
+          const permissionError = new FirestorePermissionError({
+            path: `users/${deposit.userId} or deposits/${deposit.id}`,
+            operation: 'write',
+            requestResourceData: { status: newStatus, amount: deposit.amount },
+          });
+          errorEmitter.emit('permission-error', permissionError);
+      });
+    } else {
+      // Just reject the request
+      updateDoc(depositRef, { status: newStatus })
+      .then(() => {
+          toast({
+            title: 'Deposit Rejected',
+            variant: 'destructive',
+          });
+      })
+      .catch((error) => {
+          console.error('Error updating deposit status:', error);
+          const permissionError = new FirestorePermissionError({
+            path: depositRef.path,
+            operation: 'update',
+            requestResourceData: { status: newStatus },
+          });
+          errorEmitter.emit('permission-error', permissionError);
       });
     }
   };

@@ -39,6 +39,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
@@ -109,20 +111,23 @@ export default function GroupLoansPage() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (planId: string) => {
-    try {
-      await deleteDoc(doc(firestore, 'groupLoanPlans', planId));
-      toast({ title: 'Group Loan Plan deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting plan: ', error);
-      toast({
-        title: 'Error deleting plan',
-        variant: 'destructive',
+  const handleDelete = (planId: string) => {
+    const docRef = doc(firestore, 'groupLoanPlans', planId);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: 'Group Loan Plan deleted successfully' });
+      })
+      .catch((error) => {
+        console.error('Error deleting plan: ', error);
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-    }
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!editingPlan) return;
 
     const planToSave = {
@@ -133,21 +138,41 @@ export default function GroupLoansPage() {
       amountRepaid: editingPlan.amountRepaid || 0,
     };
 
-    try {
-      if ('id' in planToSave && planToSave.id) {
-        const planRef = doc(firestore, 'groupLoanPlans', planToSave.id);
-        const { id, ...planData } = planToSave;
-        await updateDoc(planRef, planData);
-        toast({ title: 'Group Loan Plan updated successfully' });
-      } else {
-        await addDoc(collection(firestore, 'groupLoanPlans'), planToSave);
-        toast({ title: 'Group Loan Plan created successfully' });
-      }
-      setIsDialogOpen(false);
-      setEditingPlan(null);
-    } catch (error) {
-      console.error('Error saving plan: ', error);
-      toast({ title: 'Error saving plan', variant: 'destructive' });
+    if ('id' in planToSave && planToSave.id) {
+      const planRef = doc(firestore, 'groupLoanPlans', planToSave.id);
+      const { id, ...planData } = planToSave;
+      updateDoc(planRef, planData)
+        .then(() => {
+          toast({ title: 'Group Loan Plan updated successfully' });
+          setIsDialogOpen(false);
+          setEditingPlan(null);
+        })
+        .catch((error) => {
+          console.error('Error updating plan: ', error);
+          const permissionError = new FirestorePermissionError({
+            path: planRef.path,
+            operation: 'update',
+            requestResourceData: planData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
+    } else {
+      const collectionRef = collection(firestore, 'groupLoanPlans');
+      addDoc(collectionRef, planToSave)
+        .then(() => {
+          toast({ title: 'Group Loan Plan created successfully' });
+          setIsDialogOpen(false);
+          setEditingPlan(null);
+        })
+        .catch((error) => {
+          console.error('Error creating plan: ', error);
+          const permissionError = new FirestorePermissionError({
+            path: collectionRef.path,
+            operation: 'create',
+            requestResourceData: planToSave,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     }
   };
 
@@ -310,7 +335,7 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
         return new Date(timestamp.seconds * 1000).toLocaleString();
     };
 
-    const handleRecordRepayment = async () => {
+    const handleRecordRepayment = () => {
         if (repaymentAmount <= 0) {
             toast({ title: 'Invalid Amount', description: 'Please enter a positive amount.', variant: 'destructive'});
             return;
@@ -323,13 +348,14 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
         const batch = writeBatch(firestore);
         
         const repaymentRef = doc(collection(firestore, 'groupLoanPlans', plan.id, 'repayments'));
-        batch.set(repaymentRef, {
+        const repaymentData = {
             loanPlanId: plan.id,
             amount: repaymentAmount,
             amountDistributed: 0,
             repaymentDate: serverTimestamp(),
             status: 'Pending Distribution'
-        });
+        };
+        batch.set(repaymentRef, repaymentData);
 
         const planRef = doc(firestore, 'groupLoanPlans', plan.id);
         const newAmountRepaid = totalRepaidByBorrower + repaymentAmount;
@@ -340,17 +366,23 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
             ...(isCompleted && { status: 'Completed' })
          });
 
-        try {
-            await batch.commit();
-            toast({ title: 'Repayment Logged', description: 'Repayment is now pending for distribution.'});
-            setRepaymentAmount(0);
-        } catch (e) {
-            console.error(e);
-            toast({title: 'Error', variant: 'destructive'});
-        }
+        batch.commit()
+            .then(() => {
+                toast({ title: 'Repayment Logged', description: 'Repayment is now pending for distribution.'});
+                setRepaymentAmount(0);
+            })
+            .catch((e) => {
+                console.error(e);
+                const permissionError = new FirestorePermissionError({
+                  path: `groupLoanPlans/${plan.id}/repayments`,
+                  operation: 'write',
+                  requestResourceData: repaymentData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
     }
 
-    const handleDistributePayout = async () => {
+    const handleDistributePayout = () => {
         if (!canDistribute) {
              toast({ title: 'Invalid Payout', description: 'Please check the investor and amount.', variant: 'destructive'});
             return;
@@ -359,66 +391,73 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
         const investorInvestment = investments?.find(i => i.id === selectedInvestor);
         if (!investorInvestment) return;
         
-        try {
-            await runTransaction(firestore, async (transaction) => {
-                const investorUserRef = doc(firestore, 'users', investorInvestment.investorId);
-                const investorUserDoc = await transaction.get(investorUserRef);
-                if (!investorUserDoc.exists()) throw new Error("Investor's user document not found.");
-                
-                // 1. Credit investor's main wallet
-                const newWalletBalance = (investorUserDoc.data().walletBalance || 0) + payoutAmount;
-                transaction.update(investorUserRef, { walletBalance: newWalletBalance });
-                
-                // 2. Update the investor's received amount in the subcollection
-                const investmentRef = doc(firestore, 'groupLoanPlans', plan.id, 'investments', investorInvestment.id);
-                transaction.update(investmentRef, {
-                    amountReceived: (investorInvestment.amountReceived || 0) + payoutAmount
-                });
-
-                // 3. Create a record of this payout
-                const payoutRef = doc(collection(firestore, 'groupLoanPlans', plan.id, 'payouts'));
-                transaction.set(payoutRef, {
-                    payoutId: payoutRef.id,
-                    loanPlanId: plan.id,
-                    investorId: investorInvestment.investorId,
-                    investorName: investorInvestment.investorName,
-                    payoutAmount: payoutAmount,
-                    payoutDate: serverTimestamp(),
-                });
-                
-                // 4. Update repayment logs
-                const pendingRepayments = (repayments || [])
-                    .filter(r => r.status === 'Pending Distribution' && r.amount > (r.amountDistributed || 0))
-                    .sort((a,b) => (a.repaymentDate?.seconds || 0) - (b.repaymentDate?.seconds || 0));
-
-                let amountToAttribute = payoutAmount;
-                for (const repayment of pendingRepayments) {
-                    if (amountToAttribute <= 0) break;
-                    
-                    const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', repayment.id);
-                    const distributableFromThisLog = repayment.amount - (repayment.amountDistributed || 0);
-                    const amountToTake = Math.min(amountToAttribute, distributableFromThisLog);
-
-                    const newAmountDistributed = (repayment.amountDistributed || 0) + amountToTake;
-                    const newStatus = newAmountDistributed >= repayment.amount ? 'Distributed' : 'Pending Distribution';
-
-                    transaction.update(repaymentRef, {
-                        amountDistributed: newAmountDistributed,
-                        status: newStatus,
-                    });
-
-                    amountToAttribute -= amountToTake;
-                }
+        const payoutData = {
+            payoutId: '', // will be set inside transaction
+            loanPlanId: plan.id,
+            investorId: investorInvestment.investorId,
+            investorName: investorInvestment.investorName,
+            payoutAmount: payoutAmount,
+            payoutDate: serverTimestamp(),
+        };
+        
+        runTransaction(firestore, async (transaction) => {
+            const investorUserRef = doc(firestore, 'users', investorInvestment.investorId);
+            const investorUserDoc = await transaction.get(investorUserRef);
+            if (!investorUserDoc.exists()) throw new Error("Investor's user document not found.");
+            
+            // 1. Credit investor's main wallet
+            const newWalletBalance = (investorUserDoc.data().walletBalance || 0) + payoutAmount;
+            transaction.update(investorUserRef, { walletBalance: newWalletBalance });
+            
+            // 2. Update the investor's received amount in the subcollection
+            const investmentRef = doc(firestore, 'groupLoanPlans', plan.id, 'investments', investorInvestment.id);
+            transaction.update(investmentRef, {
+                amountReceived: (investorInvestment.amountReceived || 0) + payoutAmount
             });
 
+            // 3. Create a record of this payout
+            const payoutRef = doc(collection(firestore, 'groupLoanPlans', plan.id, 'payouts'));
+            payoutData.payoutId = payoutRef.id;
+            transaction.set(payoutRef, payoutData);
+            
+            // 4. Update repayment logs
+            const pendingRepayments = (repayments || [])
+                .filter(r => r.status === 'Pending Distribution' && r.amount > (r.amountDistributed || 0))
+                .sort((a,b) => (a.repaymentDate?.seconds || 0) - (b.repaymentDate?.seconds || 0));
+
+            let amountToAttribute = payoutAmount;
+            for (const repayment of pendingRepayments) {
+                if (amountToAttribute <= 0) break;
+                
+                const repaymentRef = doc(firestore, 'groupLoanPlans', plan.id, 'repayments', repayment.id);
+                const distributableFromThisLog = repayment.amount - (repayment.amountDistributed || 0);
+                const amountToTake = Math.min(amountToAttribute, distributableFromThisLog);
+
+                const newAmountDistributed = (repayment.amountDistributed || 0) + amountToTake;
+                const newStatus = newAmountDistributed >= repayment.amount ? 'Distributed' : 'Pending Distribution';
+
+                transaction.update(repaymentRef, {
+                    amountDistributed: newAmountDistributed,
+                    status: newStatus,
+                });
+
+                amountToAttribute -= amountToTake;
+            }
+        })
+        .then(() => {
             toast({ title: 'Payout Distributed', description: `₹${payoutAmount} sent to ${investorInvestment.investorName}'s wallet.`});
             setPayoutAmount(0);
             setSelectedInvestor('');
-
-        } catch(e: any) {
+        })
+        .catch((e: any) => {
             console.error(e);
-            toast({title: 'Payout Failed', description: e.message || 'An unknown error occurred.', variant: 'destructive'});
-        }
+            const permissionError = new FirestorePermissionError({
+                path: `users or groupLoanPlans subcollections`,
+                operation: 'write',
+                requestResourceData: payoutData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
     }
     
     return (
@@ -576,5 +615,3 @@ function PlanDetails({ plan, onEdit, onDelete }: { plan: GroupLoanPlan, onEdit: 
       </Card>
     )
 }
-
-    

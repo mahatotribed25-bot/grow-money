@@ -10,6 +10,8 @@ import { useDoc, useFirestore } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type AdminSettings = {
   adminUpi?: string;
@@ -44,22 +46,30 @@ export default function SettingsPage() {
     }
   },[settings]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const settingsRef = doc(firestore, 'settings', 'admin');
-    try {
-      await setDoc(settingsRef, { 
-        adminUpi, 
-        minWithdrawal: Number(minWithdrawal),
-        referralBonus: Number(referralBonus),
-        withdrawalGstPercentage: Number(withdrawalGstPercentage),
-        loanPenalty: Number(loanPenalty),
-        kycGoogleFormUrl: kycGoogleFormUrl,
-      }, { merge: true });
-      toast({ title: 'Settings Saved', description: 'Your settings have been updated.' });
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      toast({ title: 'Error', description: 'Failed to save settings.', variant: 'destructive' });
-    }
+    const settingsData = { 
+      adminUpi, 
+      minWithdrawal: Number(minWithdrawal),
+      referralBonus: Number(referralBonus),
+      withdrawalGstPercentage: Number(withdrawalGstPercentage),
+      loanPenalty: Number(loanPenalty),
+      kycGoogleFormUrl: kycGoogleFormUrl,
+    };
+
+    setDoc(settingsRef, settingsData, { merge: true })
+      .then(() => {
+        toast({ title: 'Settings Saved', description: 'Your settings have been updated.' });
+      })
+      .catch((error) => {
+        console.error('Error saving settings:', error);
+        const permissionError = new FirestorePermissionError({
+            path: settingsRef.path,
+            operation: 'write',
+            requestResourceData: settingsData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   return (

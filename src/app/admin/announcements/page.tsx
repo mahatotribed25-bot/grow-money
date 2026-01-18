@@ -33,6 +33,8 @@ import {
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { Timestamp } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type Announcement = {
   id: string;
@@ -64,47 +66,70 @@ export default function AnnouncementsPage() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (announcementId: string) => {
-    try {
-      await deleteDoc(doc(firestore, 'announcements', announcementId));
-      toast({ title: 'Announcement deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting announcement: ', error);
-      toast({
-        title: 'Error deleting announcement',
-        variant: 'destructive',
+  const handleDelete = (announcementId: string) => {
+    const docRef = doc(firestore, 'announcements', announcementId);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: 'Announcement deleted successfully' });
+      })
+      .catch((error) => {
+        console.error('Error deleting announcement: ', error);
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-    }
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!editingAnnouncement || !editingAnnouncement.message) {
-        toast({title: 'Message is required', variant: 'destructive'});
-        return;
-    };
-    
-    const announcementToSave = {
-        ...editingAnnouncement
-    };
+      toast({ title: 'Message is required', variant: 'destructive' });
+      return;
+    }
 
-    try {
-      if ('id' in announcementToSave && announcementToSave.id) {
-        const annRef = doc(firestore, 'announcements', announcementToSave.id);
-        const { id, ...annData } = announcementToSave;
-        await updateDoc(annRef, annData);
-        toast({ title: 'Announcement updated successfully' });
-      } else {
-        await addDoc(collection(firestore, 'announcements'), {
-            ...announcementToSave,
-            createdAt: serverTimestamp(),
+    const { id, ...annData } = editingAnnouncement;
+
+    if (id) {
+      // Update existing
+      const docRef = doc(firestore, 'announcements', id);
+      updateDoc(docRef, annData)
+        .then(() => {
+          toast({ title: 'Announcement updated successfully' });
+          setIsDialogOpen(false);
+          setEditingAnnouncement(null);
+        })
+        .catch((error) => {
+          console.error('Error updating announcement: ', error);
+          const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: annData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
         });
-        toast({ title: 'Announcement created successfully' });
-      }
-      setIsDialogOpen(false);
-      setEditingAnnouncement(null);
-    } catch (error) {
-      console.error('Error saving announcement: ', error);
-      toast({ title: 'Error saving announcement', variant: 'destructive' });
+    } else {
+      // Create new
+      const collectionRef = collection(firestore, 'announcements');
+      const dataToCreate = {
+        ...annData,
+        createdAt: serverTimestamp(),
+      };
+      addDoc(collectionRef, dataToCreate)
+        .then(() => {
+          toast({ title: 'Announcement created successfully' });
+          setIsDialogOpen(false);
+          setEditingAnnouncement(null);
+        })
+        .catch((error) => {
+          console.error('Error creating announcement: ', error);
+          const permissionError = new FirestorePermissionError({
+            path: collectionRef.path,
+            operation: 'create',
+            requestResourceData: dataToCreate,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     }
   };
 

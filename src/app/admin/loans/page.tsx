@@ -33,6 +33,8 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type LoanRequest = {
   id: string;
@@ -78,121 +80,140 @@ export default function LoanRequestsPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [requestToReject, setRequestToReject] = useState<LoanRequest | null>(null);
 
-  const handleUpdateStatus = async (
+  const handleUpdateStatus = (
     request: LoanRequest,
     newStatus: 'approved' | 'rejected',
     reason?: string
   ) => {
     const requestRef = doc(firestore, 'loanRequests', request.id);
     
-    try {
-        if (newStatus === 'approved') {
-            const plan = loanPlans?.find(p => p.id === request.planId);
-            if (!plan) {
-                throw new Error("Could not find the associated loan plan.");
-            }
-
-            const batch = writeBatch(firestore);
-            batch.update(requestRef, { status: newStatus });
-            
-            const loanRef = doc(collection(firestore, 'users', request.userId, 'loans'));
-            const startDate = new Date();
-            let dueDate;
-            let addDuration;
-
-            switch(plan.durationType) {
-                case 'Days': addDuration = addDays; break;
-                case 'Weeks': addDuration = addWeeks; break;
-                case 'Months': addDuration = addMonths; break;
-                case 'Years': addDuration = addYears; break;
-                default: addDuration = addDays;
-            }
-            dueDate = addDuration(startDate, plan.duration);
-
-            const activeLoanData: any = {
-                userId: request.userId,
-                planName: plan.name,
-                loanAmount: plan.loanAmount,
-                interest: plan.interest,
-                totalPayable: plan.totalRepayment,
-                duration: plan.duration,
-                durationType: plan.durationType,
-                startDate: Timestamp.fromDate(startDate),
-                dueDate: Timestamp.fromDate(dueDate),
-                status: 'Active',
-                amountPaid: 0,
-                repaymentMethod: request.repaymentMethod,
-            };
-
-            if (request.repaymentMethod === 'EMI') {
-                const emis = [];
-                let numberOfEmis = 0;
-                let addEmiDuration: (date: Date, num: number) => Date = addMonths; // Default to monthly for EMI
-
-                if (plan.durationType === 'Months') {
-                    numberOfEmis = plan.duration;
-                } else if (plan.durationType === 'Years') {
-                    numberOfEmis = plan.duration * 12;
-                } else if (plan.durationType === 'Weeks') {
-                    // Weekly EMIs if duration is in weeks
-                    numberOfEmis = plan.duration;
-                    addEmiDuration = addWeeks;
-                }
-                
-                if (numberOfEmis > 0) {
-                    const emiAmount = plan.totalRepayment / numberOfEmis;
-                    for (let i = 1; i <= numberOfEmis; i++) {
-                        emis.push({
-                            emiAmount: emiAmount,
-                            dueDate: Timestamp.fromDate(addEmiDuration(startDate, i)),
-                            status: 'Pending',
-                        });
-                    }
-                    activeLoanData.emis = emis;
-                }
-            }
-
-
-            batch.set(loanRef, activeLoanData);
-
-            await batch.commit();
-            toast({
-                title: 'Loan Approved',
-                description: `Loan for ${request.userName} is approved. Please send the funds manually.`,
-            });
-        } else { // 'rejected'
-            await updateDoc(requestRef, { status: newStatus, rejectionReason: reason });
-            toast({
-                title: 'Loan Rejected',
-                variant: 'destructive',
-            });
+    if (newStatus === 'approved') {
+        const plan = loanPlans?.find(p => p.id === request.planId);
+        if (!plan) {
+            toast({ title: 'Error', description: 'Could not find the associated loan plan.', variant: 'destructive' });
+            return;
         }
-    } catch (error) {
-      console.error('Error updating loan request status:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update loan request status.',
-        variant: 'destructive',
-      });
+
+        const batch = writeBatch(firestore);
+        batch.update(requestRef, { status: newStatus });
+        
+        const loanRef = doc(collection(firestore, 'users', request.userId, 'loans'));
+        const startDate = new Date();
+        let dueDate;
+        let addDuration;
+
+        switch(plan.durationType) {
+            case 'Days': addDuration = addDays; break;
+            case 'Weeks': addDuration = addWeeks; break;
+            case 'Months': addDuration = addMonths; break;
+            case 'Years': addDuration = addYears; break;
+            default: addDuration = addDays;
+        }
+        dueDate = addDuration(startDate, plan.duration);
+
+        const activeLoanData: any = {
+            userId: request.userId,
+            planName: plan.name,
+            loanAmount: plan.loanAmount,
+            interest: plan.interest,
+            totalPayable: plan.totalRepayment,
+            duration: plan.duration,
+            durationType: plan.durationType,
+            startDate: Timestamp.fromDate(startDate),
+            dueDate: Timestamp.fromDate(dueDate),
+            status: 'Active',
+            amountPaid: 0,
+            repaymentMethod: request.repaymentMethod,
+        };
+
+        if (request.repaymentMethod === 'EMI') {
+            const emis = [];
+            let numberOfEmis = 0;
+            let addEmiDuration: (date: Date, num: number) => Date = addMonths; // Default to monthly for EMI
+
+            if (plan.durationType === 'Months') {
+                numberOfEmis = plan.duration;
+            } else if (plan.durationType === 'Years') {
+                numberOfEmis = plan.duration * 12;
+            } else if (plan.durationType === 'Weeks') {
+                // Weekly EMIs if duration is in weeks
+                numberOfEmis = plan.duration;
+                addEmiDuration = addWeeks;
+            }
+            
+            if (numberOfEmis > 0) {
+                const emiAmount = plan.totalRepayment / numberOfEmis;
+                for (let i = 1; i <= numberOfEmis; i++) {
+                    emis.push({
+                        emiAmount: emiAmount,
+                        dueDate: Timestamp.fromDate(addEmiDuration(startDate, i)),
+                        status: 'Pending',
+                    });
+                }
+                activeLoanData.emis = emis;
+            }
+        }
+
+
+        batch.set(loanRef, activeLoanData);
+
+        batch.commit()
+            .then(() => {
+                toast({
+                    title: 'Loan Approved',
+                    description: `Loan for ${request.userName} is approved. Please send the funds manually.`,
+                });
+            })
+            .catch((error) => {
+                console.error('Error approving loan request:', error);
+                const permissionError = new FirestorePermissionError({
+                    path: `loanRequests or users subcollections`,
+                    operation: 'write',
+                    requestResourceData: { requestId: request.id, status: newStatus },
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
+
+    } else { // 'rejected'
+        const updateData = { status: newStatus, rejectionReason: reason };
+        updateDoc(requestRef, updateData)
+            .then(() => {
+                toast({
+                    title: 'Loan Rejected',
+                    variant: 'destructive',
+                });
+            })
+            .catch((error) => {
+                 console.error('Error rejecting loan request:', error);
+                const permissionError = new FirestorePermissionError({
+                    path: requestRef.path,
+                    operation: 'update',
+                    requestResourceData: updateData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
     }
   };
 
-  const handleMarkAsSent = async (request: LoanRequest) => {
+  const handleMarkAsSent = (request: LoanRequest) => {
       const requestRef = doc(firestore, 'loanRequests', request.id);
-      try {
-          await updateDoc(requestRef, { status: 'sent' });
+      const updateData = { status: 'sent' };
+      updateDoc(requestRef, updateData)
+        .then(() => {
           toast({
               title: 'Amount Sent',
               description: `Loan amount for ${request.userName} has been marked as sent.`,
           });
-      } catch (error) {
-          console.error("Error marking as sent:", error);
-          toast({
-              title: "Error",
-              description: "Could not mark the loan as sent.",
-              variant: "destructive"
-          });
-      }
+        })
+        .catch((error) => {
+            console.error("Error marking as sent:", error);
+            const permissionError = new FirestorePermissionError({
+                path: requestRef.path,
+                operation: 'update',
+                requestResourceData: updateData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
   }
   
   const openRejectDialog = (request: LoanRequest) => {
@@ -200,12 +221,12 @@ export default function LoanRequestsPage() {
     setIsRejectDialogOpen(true);
   };
 
-  const handleConfirmRejection = async () => {
+  const handleConfirmRejection = () => {
     if (!requestToReject || !rejectionReason) {
       toast({ title: 'Reason is required', variant: 'destructive' });
       return;
     }
-    await handleUpdateStatus(requestToReject, 'rejected', rejectionReason);
+    handleUpdateStatus(requestToReject, 'rejected', rejectionReason);
     setIsRejectDialogOpen(false);
     setRejectionReason('');
     setRequestToReject(null);
@@ -326,5 +347,3 @@ export default function LoanRequestsPage() {
     </div>
   );
 }
-
-    

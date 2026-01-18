@@ -28,6 +28,8 @@ import { doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import Link from 'next/link';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 
 type User = {
@@ -48,23 +50,26 @@ export default function UsersPage() {
 
   const filteredUsers = users?.filter(user => user.email !== ADMIN_EMAIL);
 
-  const handleDeleteUser = async () => {
+  const handleDeleteUser = () => {
     if (!selectedUser) return;
-    try {
-      await deleteDoc(doc(firestore, 'users', selectedUser.id));
-      toast({
-        title: 'User Deleted',
-        description: `User ${selectedUser.name} has been successfully deleted.`,
+    
+    const userRef = doc(firestore, 'users', selectedUser.id);
+    deleteDoc(userRef)
+      .then(() => {
+        toast({
+          title: 'User Deleted',
+          description: `User ${selectedUser.name} has been successfully deleted.`,
+        });
+        setSelectedUser(null);
+      })
+      .catch((error) => {
+        console.error('Error deleting user:', error);
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-      setSelectedUser(null);
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete user.',
-        variant: 'destructive',
-      });
-    }
   };
 
 

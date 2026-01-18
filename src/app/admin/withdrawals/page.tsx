@@ -16,6 +16,8 @@ import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type WithdrawalRequest = {
   id: string;
@@ -40,46 +42,58 @@ export default function WithdrawalsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const handleUpdateStatus = async (
+  const handleUpdateStatus = (
     withdrawal: WithdrawalRequest,
     newStatus: 'approved' | 'rejected'
   ) => {
     const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
     const userRef = doc(firestore, 'users', withdrawal.userId);
 
-    try {
-        if (newStatus === 'rejected') {
-            // If rejecting, add the amount back to the user's wallet
-             await runTransaction(firestore, async (transaction) => {
-                const userDoc = await transaction.get(userRef);
-                if (!userDoc.exists()) {
-                    throw 'User does not exist!';
-                }
-                const newBalance = (userDoc.data().walletBalance || 0) + withdrawal.amount;
-                transaction.update(userRef, { walletBalance: newBalance });
-                transaction.update(withdrawalRef, { status: 'rejected' });
-            });
-
+    if (newStatus === 'rejected') {
+        // If rejecting, add the amount back to the user's wallet
+        runTransaction(firestore, async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists()) {
+                throw 'User does not exist!';
+            }
+            const newBalance = (userDoc.data().walletBalance || 0) + withdrawal.amount;
+            transaction.update(userRef, { walletBalance: newBalance });
+            transaction.update(withdrawalRef, { status: 'rejected' });
+        })
+        .then(() => {
             toast({
                 title: 'Withdrawal Rejected',
                 description: `The withdrawal request for ${withdrawal.name} has been rejected and the amount returned to their wallet.`,
                 variant: 'destructive',
             });
-        } else { // approved
-            await updateDoc(withdrawalRef, { status: newStatus });
-            toast({
-                title: 'Withdrawal Approved',
-                description: `Please manually send ₹${(withdrawal.finalAmount || withdrawal.amount).toFixed(2)} to ${withdrawal.name} at UPI ID: ${withdrawal.upiId}`,
+        })
+        .catch((error) => {
+            console.error('Error rejecting withdrawal:', error);
+            const permissionError = new FirestorePermissionError({
+              path: `users/${withdrawal.userId} or withdrawals/${withdrawal.id}`,
+              operation: 'write',
+              requestResourceData: { status: 'rejected' },
             });
-        }
-
-    } catch (error) {
-      console.error('Error updating withdrawal status:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update withdrawal status.',
-        variant: 'destructive',
-      });
+            errorEmitter.emit('permission-error', permissionError);
+        });
+    } else { // approved
+        const updateData = { status: newStatus };
+        updateDoc(withdrawalRef, updateData)
+            .then(() => {
+                toast({
+                    title: 'Withdrawal Approved',
+                    description: `Please manually send ₹${(withdrawal.finalAmount || withdrawal.amount).toFixed(2)} to ${withdrawal.name} at UPI ID: ${withdrawal.upiId}`,
+                });
+            })
+            .catch((error) => {
+                console.error('Error approving withdrawal:', error);
+                const permissionError = new FirestorePermissionError({
+                  path: withdrawalRef.path,
+                  operation: 'update',
+                  requestResourceData: updateData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
     }
   };
 

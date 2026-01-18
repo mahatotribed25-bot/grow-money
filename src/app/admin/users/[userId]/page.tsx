@@ -28,6 +28,8 @@ import { ChevronDown } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 
 type UserData = {
@@ -184,54 +186,64 @@ export default function UserDetailPage() {
   
   const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading || loansLoading || groupInvestmentsLoading;
 
-  const handleToggleStatus = async () => {
+  const handleToggleStatus = () => {
     if (!user) return;
     const newStatus = user.status === 'Blocked' ? 'Active' : 'Blocked';
-    try {
-      const userRef = doc(firestore, 'users', userId);
-      await updateDoc(userRef, { status: newStatus });
-      toast({
-        title: 'Status Updated',
-        description: `User has been ${newStatus}.`,
+    const userRef = doc(firestore, 'users', userId);
+    const updateData = { status: newStatus };
+
+    updateDoc(userRef, updateData)
+      .then(() => {
+        toast({
+          title: 'Status Updated',
+          description: `User has been ${newStatus}.`,
+        });
+      })
+      .catch((error) => {
+        console.error("Error updating user status:", error);
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-    } catch (error) {
-      console.error("Error updating user status:", error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update user status.',
-        variant: 'destructive',
-      });
-    }
   };
   
-   const handleStopInvestment = async (investment: Investment) => {
+   const handleStopInvestment = (investment: Investment) => {
     if (!user || !investment || investment.status !== 'Active') return;
     
-    try {
-        const investmentRef = doc(firestore, 'users', userId, 'investments', investment.id);
-        
-        const startDate = investment.startDate.toDate();
-        const now = new Date();
-        const daysActive = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-        const earnedIncome = daysActive * investment.dailyIncome;
-        const finalReturn = investment.investedAmount + earnedIncome;
-        
-        await updateDoc(investmentRef, {
-            status: 'Stopped',
-            finalReturn: finalReturn,
-            daysActive: daysActive,
-            earnedIncome: earnedIncome
-        });
+    const investmentRef = doc(firestore, 'users', userId, 'investments', investment.id);
+    
+    const startDate = investment.startDate.toDate();
+    const now = new Date();
+    const daysActive = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const earnedIncome = daysActive * investment.dailyIncome;
+    const finalReturn = investment.investedAmount + earnedIncome;
+    
+    const updateData = {
+        status: 'Stopped',
+        finalReturn: finalReturn,
+        daysActive: daysActive,
+        earnedIncome: earnedIncome
+    };
 
+    updateDoc(investmentRef, updateData)
+      .then(() => {
         toast({
             title: 'Investment Stopped',
             description: `The plan is now stopped. The user can claim ₹${finalReturn.toFixed(2)}.`,
         });
-
-    } catch (e: any) {
+      })
+      .catch((e: any) => {
         console.error(e);
-        toast({ title: 'Error', description: 'Could not stop the investment.', variant: 'destructive'});
-    }
+        const permissionError = new FirestorePermissionError({
+          path: investmentRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
 
   const handleResetData = async () => {
@@ -259,31 +271,36 @@ export default function UserDetailPage() {
         loansSnapshot.forEach(doc => batch.delete(doc.ref));
 
         // Delete all deposit and withdrawal requests
-        const depositsSnapshot = await getDocs(collection(firestore, 'deposits'));
-        depositsSnapshot.forEach(doc => {
-            if(doc.data().userId === userId) batch.delete(doc.ref);
-        });
-        const withdrawalsSnapshot = await getDocs(collection(firestore, 'withdrawals'));
-        withdrawalsSnapshot.forEach(doc => {
-            if(doc.data().userId === userId) batch.delete(doc.ref);
-        });
-        const loanRequestsSnapshot = await getDocs(collection(firestore, 'loanRequests'));
-        loanRequestsSnapshot.forEach(doc => {
-            if(doc.data().userId === userId) batch.delete(doc.ref);
-        });
+        const depositsSnapshot = await getDocs(query(collection(firestore, 'deposits'), where('userId', '==', userId)));
+        depositsSnapshot.forEach(doc => batch.delete(doc.ref));
+        
+        const withdrawalsSnapshot = await getDocs(query(collection(firestore, 'withdrawals'), where('userId', '==', userId)));
+        withdrawalsSnapshot.forEach(doc => batch.delete(doc.ref));
 
-        await batch.commit();
+        const loanRequestsSnapshot = await getDocs(query(collection(firestore, 'loanRequests'), where('userId', '==', userId)));
+        loanRequestsSnapshot.forEach(doc => batch.delete(doc.ref));
 
-        toast({
-            title: 'User Data Reset',
-            description: `All financial data for ${user.name} has been reset.`,
+        batch.commit()
+          .then(() => {
+            toast({
+                title: 'User Data Reset',
+                description: `All financial data for ${user.name} has been reset.`,
+            });
+          })
+          .catch((error) => {
+            console.error("Error resetting user data:", error);
+            const permissionError = new FirestorePermissionError({
+                path: `users/${userId} and subcollections`,
+                operation: 'write',
+                requestResourceData: { action: 'reset-user-data' },
+            });
+            errorEmitter.emit('permission-error', permissionError);
         });
 
     } catch (error) {
-        console.error("Error resetting user data:", error);
         toast({
-            title: 'Error Resetting Data',
-            description: 'Could not reset user data. Please try again.',
+            title: 'Error Preparing Reset',
+            description: 'Could not prepare the data reset operation.',
             variant: 'destructive',
         });
     }
@@ -306,45 +323,58 @@ export default function UserDetailPage() {
     }
   };
 
-  const handleConfirmEmiPayment = async (loan: ActiveLoan, emiIndex: number) => {
+  const handleConfirmEmiPayment = (loan: ActiveLoan, emiIndex: number) => {
     if (!user || !loan.emis) return;
-    try {
-      const loanRef = doc(firestore, 'users', userId, 'loans', loan.id);
-      const updatedEmis = loan.emis.map((emi, index) => 
-        index === emiIndex ? { ...emi, status: 'Paid' } : emi
-      );
-      
-      const allPaid = updatedEmis.every(emi => emi.status === 'Paid');
-      const newLoanStatus = allPaid ? 'Completed' : loan.status;
+    
+    const loanRef = doc(firestore, 'users', userId, 'loans', loan.id);
+    const updatedEmis = loan.emis.map((emi, index) => 
+      index === emiIndex ? { ...emi, status: 'Paid' } : emi
+    );
+    
+    const allPaid = updatedEmis.every(emi => emi.status === 'Paid');
+    const newLoanStatus = allPaid ? 'Completed' : loan.status;
 
-      await updateDoc(loanRef, { emis: updatedEmis, status: newLoanStatus });
-      toast({
-        title: 'EMI Payment Confirmed',
-        description: `EMI for ${loan.planName} has been marked as paid.`,
+    const updateData = { emis: updatedEmis, status: newLoanStatus };
+
+    updateDoc(loanRef, updateData)
+      .then(() => {
+        toast({
+          title: 'EMI Payment Confirmed',
+          description: `EMI for ${loan.planName} has been marked as paid.`,
+        });
+      })
+      .catch((e) => {
+        console.error(e);
+        const permissionError = new FirestorePermissionError({
+          path: loanRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-    } catch(e) {
-      console.error(e);
-      toast({ title: 'Error', variant: 'destructive'});
-    }
   }
 
-  const handleCompleteLoan = async (loanId: string, totalPayable: number) => {
+  const handleCompleteLoan = (loanId: string, totalPayable: number) => {
     if (!user) return;
-    try {
-      const loanRef = doc(firestore, 'users', userId, 'loans', loanId);
-      await updateDoc(loanRef, { status: 'Completed', amountPaid: totalPayable });
-      toast({
-        title: 'Loan Completed',
-        description: 'The loan has been marked as completed.',
+    const loanRef = doc(firestore, 'users', userId, 'loans', loanId);
+    const updateData = { status: 'Completed', amountPaid: totalPayable };
+    
+    updateDoc(loanRef, updateData)
+      .then(() => {
+        toast({
+          title: 'Loan Completed',
+          description: 'The loan has been marked as completed.',
+        });
+      })
+      .catch((error) => {
+        console.error('Error completing loan:', error);
+        const permissionError = new FirestorePermissionError({
+          path: loanRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-    } catch (error) {
-      console.error('Error completing loan:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to complete the loan.',
-        variant: 'destructive',
-      });
-    }
   };
 
 
@@ -715,4 +745,5 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
     
 
     
+
 
