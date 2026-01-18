@@ -20,6 +20,9 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useEffect, useState } from 'react';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
@@ -123,19 +126,27 @@ function LoanCard({ loan }: { loan: Loan }) {
         if (new Date() > dueDate && loan.status === 'Active' && user && adminSettings) {
             const penalty = adminSettings.loanPenalty || 0;
             const loanRef = doc(firestore, 'users', user.uid, 'loans', loan.id);
-            try {
-                await updateDoc(loanRef, {
-                    status: 'Due',
-                    penalty: penalty
-                });
+            const dataToUpdate = {
+                status: 'Due',
+                penalty: penalty
+            };
+
+            updateDoc(loanRef, dataToUpdate)
+            .then(() => {
                 toast({
                     title: 'Loan Overdue',
                     description: `A penalty of ₹${penalty} has been added.`,
                     variant: 'destructive'
                 });
-            } catch (e) {
-                console.error("Error updating loan to Due:", e);
-            }
+            })
+            .catch((e) => {
+                const permissionError = new FirestorePermissionError({
+                    path: loanRef.path,
+                    operation: 'update',
+                    requestResourceData: dataToUpdate
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
         }
     };
     
@@ -162,31 +173,35 @@ function LoanCard({ loan }: { loan: Loan }) {
   const handlePayNow = async (isEmi: boolean, emiIndex?: number) => {
     if (!user) return;
     const loanRef = doc(firestore, 'users', user.uid, 'loans', loan.id);
-    try {
-        if(isEmi && emiIndex !== undefined && loan.emis) {
-            const updatedEmis = loan.emis.map((emi, index) => {
-                if(index === emiIndex) {
-                    return {...emi, status: 'Payment Pending'};
-                }
-                return emi;
-            });
-            await updateDoc(loanRef, { emis: updatedEmis });
-        } else {
-            await updateDoc(loanRef, { status: 'Payment Pending' });
-        }
-      
+    let dataToUpdate: { emis: EMI[] } | { status: string };
+
+    if(isEmi && emiIndex !== undefined && loan.emis) {
+        const updatedEmis = loan.emis.map((emi, index) => {
+            if(index === emiIndex) {
+                return {...emi, status: 'Payment Pending'};
+            }
+            return emi;
+        });
+        dataToUpdate = { emis: updatedEmis };
+    } else {
+        dataToUpdate = { status: 'Payment Pending' };
+    }
+  
+    updateDoc(loanRef, dataToUpdate)
+    .then(() => {
       toast({
         title: 'Payment Initiated',
         description: 'Your payment is being processed. The admin will confirm it shortly.',
       });
-    } catch (error) {
-      console.error('Error initiating payment:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not initiate payment. Please try again.',
-        variant: 'destructive',
-      });
-    }
+    })
+    .catch((error) => {
+        const permissionError = new FirestorePermissionError({
+            path: loanRef.path,
+            operation: 'update',
+            requestResourceData: dataToUpdate,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    });
   };
 
   const getStatusVariant = (status: string) => {

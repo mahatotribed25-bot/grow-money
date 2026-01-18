@@ -38,6 +38,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 
 type GroupLoanPlan = {
@@ -122,7 +124,7 @@ function PlanCard({ plan, userBalance }: { plan: GroupLoanPlan, userBalance: num
     const canAfford = userBalance >= investmentAmount;
 
     const handleInvest = async () => {
-        if (!user) {
+        if (!user || !user.displayName) {
             toast({ title: 'Please log in to invest.', variant: 'destructive'});
             return;
         }
@@ -139,46 +141,51 @@ function PlanCard({ plan, userBalance }: { plan: GroupLoanPlan, userBalance: num
             return;
         }
 
-        try {
-            await runTransaction(firestore, async (transaction) => {
-                const planRef = doc(firestore, 'groupLoanPlans', plan.id);
-                const userRef = doc(firestore, 'users', user.uid);
-                
-                const planDoc = await transaction.get(planRef);
-                const userDoc = await transaction.get(userRef);
+        const investmentData = {
+            investorId: user.uid,
+            investorName: user.displayName,
+            planId: plan.id,
+            planName: plan.name,
+            investedAmount: investmentAmount,
+            amountReceived: 0,
+            createdAt: serverTimestamp()
+        };
 
-                if (!planDoc.exists() || !userDoc.exists()) throw new Error("Document not found.");
+        runTransaction(firestore, async (transaction) => {
+            const planRef = doc(firestore, 'groupLoanPlans', plan.id);
+            const userRef = doc(firestore, 'users', user.uid);
+            
+            const planDoc = await transaction.get(planRef);
+            const userDoc = await transaction.get(userRef);
 
-                const newAmountFunded = (planDoc.data().amountFunded || 0) + investmentAmount;
-                
-                transaction.update(planRef, { amountFunded: newAmountFunded });
+            if (!planDoc.exists() || !userDoc.exists()) throw new Error("Document not found.");
 
-                const newBalance = (userDoc.data().walletBalance || 0) - investmentAmount;
-                transaction.update(userRef, { walletBalance: newBalance });
+            const newAmountFunded = (planDoc.data().amountFunded || 0) + investmentAmount;
+            
+            transaction.update(planRef, { amountFunded: newAmountFunded });
 
-                const investmentRef = doc(collection(firestore, `groupLoanPlans/${plan.id}/investments`));
-                transaction.set(investmentRef, {
-                    investorId: user.uid,
-                    investorName: user.displayName,
-                    planId: plan.id,
-                    planName: plan.name,
-                    investedAmount: investmentAmount,
-                    amountReceived: 0,
-                    createdAt: serverTimestamp()
-                });
-                
-                if (newAmountFunded >= plan.loanAmount) {
-                    transaction.update(planRef, { status: 'Active' });
-                }
-            });
+            const newBalance = (userDoc.data().walletBalance || 0) - investmentAmount;
+            transaction.update(userRef, { walletBalance: newBalance });
 
+            const investmentRef = doc(collection(firestore, `groupLoanPlans/${plan.id}/investments`));
+            transaction.set(investmentRef, investmentData);
+            
+            if (newAmountFunded >= plan.loanAmount) {
+                transaction.update(planRef, { status: 'Active' });
+            }
+        })
+        .then(() => {
             toast({ title: 'Investment Successful!', description: `You invested ₹${investmentAmount.toFixed(2)} in ${plan.name}.` });
             setInvestmentAmount(0);
-
-        } catch (e: any) {
-            console.error(e);
-            toast({ title: 'Investment Failed', description: e.message, variant: 'destructive' });
-        }
+        })
+        .catch((e: any) => {
+            const permissionError = new FirestorePermissionError({
+                path: `groupLoanPlans/${plan.id}/investments`,
+                operation: 'create',
+                requestResourceData: investmentData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
     }
 
 
