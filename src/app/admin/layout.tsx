@@ -56,20 +56,24 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useUser();
+  
+  const isAdmin = !loading && user && user.email === ADMIN_EMAIL;
 
-  const { data: pendingDeposits } = useCollection<DepositRequest>('deposits', {
-    where: ['status', '==', 'pending'],
-  });
+  const { data: pendingDeposits } = useCollection<DepositRequest>(
+    isAdmin ? 'deposits' : null, 
+    { where: ['status', '==', 'pending'] }
+  );
   const { data: pendingWithdrawals } = useCollection<WithdrawalRequest>(
-    'withdrawals',
+    isAdmin ? 'withdrawals' : null,
     { where: ['status', '==', 'pending'] }
   );
   const { data: pendingLoanRequests } = useCollection<LoanRequest>(
-    'loanRequests',
+    isAdmin ? 'loanRequests' : null,
     { where: ['status', '==', 'pending'] }
   );
 
   const notifications = useMemo(() => {
+    if (!isAdmin) return [];
     return [
       ...(pendingDeposits?.map((d) => ({
         ...d,
@@ -90,7 +94,7 @@ export default function AdminLayout({
         name: l.userName,
       })) || []),
     ].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-  }, [pendingDeposits, pendingWithdrawals, pendingLoanRequests]);
+  }, [isAdmin, pendingDeposits, pendingWithdrawals, pendingLoanRequests]);
 
   const notificationCount = notifications.length;
 
