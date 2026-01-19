@@ -69,9 +69,8 @@ service cloud.firestore {
     // Rules for admin-specific settings.
     match /settings/admin {
       // This document contains public configuration for the app.
-      allow get: if true;
-      // Listing the collection is not necessary.
-      allow list: if false;
+      // All users (including unauthenticated ones) can read it.
+      allow read: if true;
       // Only an admin can change the settings.
       allow write: if isAdmin();
     }
