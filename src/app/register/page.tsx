@@ -32,12 +32,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { AuthCard } from "@/components/auth/auth-card";
-import { useAuth, useFirestore, useDoc } from "@/firebase";
+import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-
-type AdminSettings = {
-  referralBonus?: number;
-};
 
 
 const formSchema = z.object({
@@ -58,8 +54,6 @@ export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
   
-  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
-
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
