@@ -1,6 +1,6 @@
 'use client';
 
-import { useDoc, useAuth } from '@/firebase';
+import { useDoc, useAuth, useUser } from '@/firebase';
 import { UserPresence } from '@/components/UserPresence';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -16,7 +16,8 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { data: settings, loading } = useDoc<AdminSettings>('settings/admin');
+  const { user, loading: userLoading } = useUser();
+  const { data: settings, loading: settingsLoading } = useDoc<AdminSettings>(!userLoading ? 'settings/admin' : null);
   const auth = useAuth();
   const router = useRouter();
 
@@ -26,6 +27,8 @@ export default function DashboardLayout({
     router.push('/login');
   };
 
+  const loading = userLoading || settingsLoading;
+
   if (loading) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
@@ -34,7 +37,7 @@ export default function DashboardLayout({
     );
   }
 
-  if (settings?.isUnderMaintenance) {
+  if (settings?.isUnderMaintenance && user?.email !== 'admin@tribed.world') {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center">
         <div className="text-8xl mb-4 animate-bounce">
