@@ -69,7 +69,7 @@ service cloud.firestore {
     // Rules for admin-specific settings.
     match /settings/admin {
       // These settings are public for app configuration (e.g., UPI ID, min withdrawal).
-      allow read: if isSignedIn();
+      allow read: if true;
       // Only an admin can change the settings.
       allow write: if isAdmin();
     }
