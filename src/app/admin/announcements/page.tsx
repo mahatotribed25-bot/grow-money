@@ -143,7 +143,7 @@ export default function AnnouncementsPage() {
     return new Date(timestamp.seconds * 1000).toLocaleString();
   };
 
-  const sortedAnnouncements = announcements?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds);
+  const sortedAnnouncements = announcements?.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
   return (
     <div>
