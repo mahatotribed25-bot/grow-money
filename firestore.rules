@@ -4,6 +4,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Publicly readable data
+    match /settings/admin {
+      // This document contains public configuration for the app.
+      // All users (including unauthenticated ones) must be able to read it.
+      allow read: if true;
+      // Only an admin can change the settings.
+      allow write: if request.auth != null && request.auth.token.email == "admin@tribed.world";
+    }
+
     // Helper functions to make rules more readable and reusable.
     function isSignedIn() {
       return request.auth != null;
@@ -58,15 +67,6 @@ service cloud.firestore {
       allow read: if isOwner(resource.data.userId) || (request.auth != null && request.auth.token.email == "admin@tribed.world");
       // Only an admin can approve or reject a withdrawal request.
       allow update: if request.auth != null && request.auth.token.email == "admin@tribed.world";
-    }
-
-    // Rules for admin-specific settings.
-    match /settings/admin {
-      // This document contains public configuration for the app.
-      // All users (including unauthenticated ones) can read it.
-      allow read: if true;
-      // Only an admin can change the settings.
-      allow write: if request.auth != null && request.auth.token.email == "admin@tribed.world";
     }
     
     // Rules for announcements.
