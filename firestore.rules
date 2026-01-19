@@ -16,7 +16,7 @@ service cloud.firestore {
     function isAdmin() {
       // In a production app, this should be based on custom claims,
       // but for now, we will identify the admin by a specific email address.
-      return request.auth.token.email == "admin@tribed.world";
+      return isSignedIn() && request.auth.token.email == "admin@tribed.world";
     }
 
     // Rules for the 'users' collection.
@@ -68,8 +68,10 @@ service cloud.firestore {
 
     // Rules for admin-specific settings.
     match /settings/admin {
-      // These settings are public for app configuration (e.g., UPI ID, min withdrawal).
-      allow read: if true;
+      // This document contains public configuration for the app.
+      allow get: if true;
+      // Listing the collection is not necessary.
+      allow list: if false;
       // Only an admin can change the settings.
       allow write: if isAdmin();
     }
