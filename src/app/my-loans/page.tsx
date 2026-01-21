@@ -139,7 +139,7 @@ function LoanCard({ loan }: { loan: Loan }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
+  const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
 

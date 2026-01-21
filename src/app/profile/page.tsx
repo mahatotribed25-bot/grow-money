@@ -134,7 +134,7 @@ export default function ProfilePage() {
   const { data: groupInvestments } = useUserGroupInvestments(user?.uid);
 
   const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
-  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
+  const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   
   const [upiId, setUpiId] = useState('');
   const [isUpiEditing, setIsUpiEditing] = useState(false);

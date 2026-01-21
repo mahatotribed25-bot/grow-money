@@ -140,7 +140,7 @@ export default function Dashboard() {
   const { data: userData, loading: userDataLoading } = useDoc<UserData>(
     user ? `users/${user.uid}` : null
   );
-  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
+  const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   const { data: investments, loading: investmentsLoading } =
     useCollection<Investment>(
       user ? `users/${user.uid}/investments` : null
