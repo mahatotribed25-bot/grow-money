@@ -4,19 +4,16 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions to make rules more readable and reusable.
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Settings can be read by any authenticated user.
+    // Settings can be read by any user, authenticated or not.
+    // Writing is restricted to admin.
     match /settings/admin {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if request.auth != null && request.auth.token.email == "admin@tribed.world";
     }
 
+    // Helper functions to make rules more readable and reusable.
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return request.auth != null && request.auth.uid == userId;
     }
 
     // Rules for the 'users' collection.
@@ -32,7 +29,7 @@ service cloud.firestore {
     // Rules for 'investmentPlans' collection.
     match /investmentPlans/{planId} {
       // Any signed-in user can view the available plans.
-      allow read: if isSignedIn();
+      allow read: if request.auth != null;
       // Only an admin can create, update, or delete investment plans.
       allow write: if request.auth != null && request.auth.token.email == "admin@tribed.world";
     }
@@ -49,9 +46,9 @@ service cloud.firestore {
     // Rules for 'deposits' collection.
     match /deposits/{depositId} {
       // A user can only create a deposit request for themselves.
-      allow create: if isOwner(request.resource.data.userId);
+      allow create: if request.auth != null && isOwner(request.resource.data.userId);
       // A user can read their own deposit history. Admin can read all.
-      allow read: if isOwner(resource.data.userId) || (request.auth != null && request.auth.token.email == "admin@tribed.world");
+      allow read: if (request.auth != null && isOwner(resource.data.userId)) || (request.auth != null && request.auth.token.email == "admin@tribed.world");
       // Only an admin can approve or reject a deposit request.
       allow update: if request.auth != null && request.auth.token.email == "admin@tribed.world";
     }
@@ -59,9 +56,9 @@ service cloud.firestore {
     // Rules for 'withdrawals' collection.
     match /withdrawals/{withdrawalId} {
       // A user can only create a withdrawal request for themselves.
-      allow create: if isOwner(request.resource.data.userId);
+      allow create: if request.auth != null && isOwner(request.resource.data.userId);
       // A user can read their own withdrawal history. Admin can read all.
-      allow read: if isOwner(resource.data.userId) || (request.auth != null && request.auth.token.email == "admin@tribed.world");
+      allow read: if (request.auth != null && isOwner(resource.data.userId)) || (request.auth != null && request.auth.token.email == "admin@tribed.world");
       // Only an admin can approve or reject a withdrawal request.
       allow update: if request.auth != null && request.auth.token.email == "admin@tribed.world";
     }
@@ -69,7 +66,7 @@ service cloud.firestore {
     // Rules for announcements.
     match /announcements/{announcementId} {
       // All signed-in users can read announcements.
-      allow read: if isSignedIn();
+      allow read: if request.auth != null;
       // Only an admin can create or delete announcements.
       allow write: if request.auth != null && request.auth.token.email == "admin@tribed.world";
     }
@@ -77,7 +74,7 @@ service cloud.firestore {
     // Rules for 'loanPlans' collection.
     match /loanPlans/{planId} {
       // Any signed-in user can view available loan plans.
-      allow read: if isSignedIn();
+      allow read: if request.auth != null;
       // Only an admin can create, update, or delete loan plans.
       allow write: if request.auth != null && request.auth.token.email == "admin@tribed.world";
     }
@@ -85,9 +82,9 @@ service cloud.firestore {
     // Rules for 'loanRequests' collection.
     match /loanRequests/{requestId} {
        // A user can only create a loan request for themselves.
-      allow create: if isOwner(request.resource.data.userId);
+      allow create: if request.auth != null && isOwner(request.resource.data.userId);
       // A user can read their own request. Admin can read all.
-      allow read: if isOwner(resource.data.userId) || (request.auth != null && request.auth.token.email == "admin@tribed.world");
+      allow read: if (request.auth != null && isOwner(resource.data.userId)) || (request.auth != null && request.auth.token.email == "admin@tribed.world");
       // Only an admin can approve or reject loan requests.
       allow update: if request.auth != null && request.auth.token.email == "admin@tribed.world";
     }
@@ -106,16 +103,16 @@ service cloud.firestore {
     // Rules for Group Loan Investment System
     match /groupLoanPlans/{planId} {
       // Any signed-in user can view group loan plans.
-      allow read: if isSignedIn();
+      allow read: if request.auth != null;
       // Only an admin can create or update the plans.
       allow write: if request.auth != null && request.auth.token.email == "admin@tribed.world"; 
     }
 
     match /groupLoanPlans/{planId}/investments/{investmentId} {
       // Any signed-in user can see who has invested in a plan.
-      allow read: if isSignedIn();
+      allow read: if request.auth != null;
       // A user can only create an investment for themselves.
-      allow create: if isOwner(request.resource.data.investorId); 
+      allow create: if request.auth != null && isOwner(request.resource.data.investorId); 
       // Only an admin can update (e.g., for distributing payouts) or delete records.
       allow update, delete: if request.auth != null && request.auth.token.email == "admin@tribed.world";
     }
