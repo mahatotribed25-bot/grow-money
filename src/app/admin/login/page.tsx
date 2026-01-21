@@ -7,6 +7,7 @@ import * as z from "zod";
 import { KeyRound, Lock, Mail } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { AuthCard } from "@/components/auth/auth-card";
 import { useAuth } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import { LoginStatusAnimation } from "@/components/auth/LoginStatusAnimation";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -39,6 +40,7 @@ export default function AdminLoginPage() {
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const [loginStatus, setLoginStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -49,33 +51,40 @@ export default function AdminLoginPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    
-      if (values.email !== ADMIN_EMAIL) {
-         toast({
-            variant: "destructive",
-            title: "Authentication Failed",
-            description: "Only admin users can log in here.",
-        });
-        return;
-      }
-    
-      try {
-        await signInWithEmailAndPassword(auth, values.email, values.password);
-        router.push("/admin");
-      } catch (error: any) {
+    setLoginStatus('loading');
+    if (values.email !== ADMIN_EMAIL) {
+        setLoginStatus('error');
         toast({
           variant: "destructive",
-          title: "Admin Login Failed",
-          description: "Invalid credentials. Please try again.",
+          title: "Authentication Failed",
+          description: "Only admin users can log in here.",
         });
-      }
+        setTimeout(() => setLoginStatus('idle'), 2000);
+        return;
+    }
+    
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      setLoginStatus('success');
+      setTimeout(() => {
+        router.push("/admin");
+      }, 1500);
+    } catch (error: any) {
+      setLoginStatus('error');
+      toast({
+        variant: "destructive",
+        title: "Admin Login Failed",
+        description: "Invalid credentials. Please try again.",
+      });
+      setTimeout(() => setLoginStatus('idle'), 2000);
+    }
   }
 
   return (
     <main className="flex min-h-screen w-full items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-4">
         <div className="flex flex-col items-center space-y-2 text-center">
-          <KeyRound className="h-10 w-10 text-primary" />
+          <LoginStatusAnimation status={loginStatus} />
           <h1 className="text-3xl font-bold tracking-tight text-primary">
             Grow Money 💰
           </h1>
@@ -95,54 +104,56 @@ export default function AdminLoginPage() {
             </p>
           }
         >
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          placeholder="admin@example.com"
-                          {...field}
-                          className="pl-10"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          {...field}
-                          className="pl-10"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full">
-                Log In as Admin
-              </Button>
-            </form>
-          </Form>
+          <fieldset disabled={loginStatus === 'loading' || loginStatus === 'success'}>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            placeholder="admin@example.com"
+                            {...field}
+                            className="pl-10"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            type="password"
+                            placeholder="••••••••"
+                            {...field}
+                            className="pl-10"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={loginStatus === 'loading' || loginStatus === 'success'}>
+                  Log In as Admin
+                </Button>
+              </form>
+            </Form>
+          </fieldset>
         </AuthCard>
       </div>
     </main>

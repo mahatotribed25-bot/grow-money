@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -9,6 +8,7 @@ import { KeyRound, Lock, Mail } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { AuthCard } from "@/components/auth/auth-card";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { LoginStatusAnimation } from "@/components/auth/LoginStatusAnimation";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -38,6 +39,7 @@ export default function LoginPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const [loginStatus, setLoginStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -48,6 +50,7 @@ export default function LoginPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    setLoginStatus('loading');
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
@@ -58,25 +61,33 @@ export default function LoginPage() {
 
       if (userDoc.exists() && userDoc.data().status === 'Blocked') {
         await auth.signOut(); // Sign out the blocked user
+        setLoginStatus('error');
         toast({
           variant: "destructive",
           title: "Account Blocked",
           description: "Your account has been blocked by an administrator.",
         });
+        setTimeout(() => setLoginStatus('idle'), 2000);
         return;
       }
       
-      router.push("/");
+      setLoginStatus('success');
+      setTimeout(() => {
+        router.push("/");
+      }, 1500);
+
     } catch (error: any) {
        let errorMessage = "An unexpected error occurred. Please try again.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
             errorMessage = "Invalid email or password. Please check your credentials and try again.";
         }
+        setLoginStatus('error');
         toast({
             variant: "destructive",
             title: "Authentication Failed",
             description: errorMessage,
         });
+        setTimeout(() => setLoginStatus('idle'), 2000);
     }
   }
 
@@ -84,7 +95,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen w-full items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-4">
         <div className="flex flex-col items-center space-y-2 text-center">
-          <KeyRound className="h-10 w-10 text-primary" />
+          <LoginStatusAnimation status={loginStatus} />
           <h1 className="text-3xl font-bold tracking-tight text-primary">
             Grow Money 💰
           </h1>
@@ -115,54 +126,56 @@ export default function LoginPage() {
             </>
           }
         >
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          placeholder="name@example.com"
-                          {...field}
-                          className="pl-10"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          {...field}
-                          className="pl-10"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full">
-                Log In
-              </Button>
-            </form>
-          </Form>
+          <fieldset disabled={loginStatus === 'loading' || loginStatus === 'success'}>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            placeholder="name@example.com"
+                            {...field}
+                            className="pl-10"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            type="password"
+                            placeholder="••••••••"
+                            {...field}
+                            className="pl-10"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={loginStatus === 'loading' || loginStatus === 'success'}>
+                  Log In
+                </Button>
+              </form>
+            </Form>
+          </fieldset>
         </AuthCard>
       </div>
     </main>
