@@ -15,14 +15,13 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useEffect, useState } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-
+import { addDays } from 'date-fns';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
@@ -50,6 +49,35 @@ type Loan = {
 type AdminSettings = {
     loanPenalty?: number;
 }
+
+const CountdownTimer = ({ endDate }: { endDate: Date }) => {
+    const [timeLeft, setTimeLeft] = useState('');
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const now = new Date();
+            const distance = endDate.getTime() - now.getTime();
+
+            if (distance < 0) {
+                clearInterval(interval);
+                setTimeLeft("Due");
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [endDate]);
+
+    return <span className="font-mono">{timeLeft}</span>;
+};
+
 
 export default function MyLoansPage() {
   const { user, loading: userLoading } = useUser();
@@ -116,46 +144,57 @@ function LoanCard({ loan }: { loan: Loan }) {
 
 
   useEffect(() => {
-    // Update current time every second to check for due dates
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
+  useEffect(() => {
     const checkOverdue = async () => {
-        const dueDate = new Date(loan.dueDate.seconds * 1000);
-        if (new Date() > dueDate && loan.status === 'Active' && user && adminSettings) {
-            const penalty = adminSettings.loanPenalty || 0;
-            const loanRef = doc(firestore, 'users', user.uid, 'loans', loan.id);
-            const dataToUpdate = {
-                status: 'Due',
-                penalty: penalty
-            };
+      if (!user || !adminSettings || !['Active', 'Due'].includes(loan.status)) {
+        return;
+      }
+      
+      const dueDate = loan.dueDate.toDate();
+      const gracePeriodEndDate = addDays(dueDate, 1);
+      
+      if (currentTime > gracePeriodEndDate) {
+        const dailyPenalty = adminSettings.loanPenalty || 0;
+        if (dailyPenalty <= 0) return;
 
-            updateDoc(loanRef, dataToUpdate)
-            .then(() => {
-                toast({
-                    title: 'Loan Overdue',
-                    description: `A penalty of ₹${penalty} has been added.`,
-                    variant: 'destructive'
-                });
-            })
-            .catch((e) => {
-                const permissionError = new FirestorePermissionError({
-                    path: loanRef.path,
-                    operation: 'update',
-                    requestResourceData: dataToUpdate
-                });
-                errorEmitter.emit('permission-error', permissionError);
+        const overdueMilliseconds = currentTime.getTime() - gracePeriodEndDate.getTime();
+        const overdueDays = Math.floor(overdueMilliseconds / (1000 * 60 * 60 * 24)) + 1;
+        
+        const newPenalty = overdueDays * dailyPenalty;
+        
+        if (loan.status !== 'Due' || newPenalty > (loan.penalty || 0)) {
+          const loanRef = doc(firestore, 'users', user.uid, 'loans', loan.id);
+          const dataToUpdate = {
+            status: 'Due',
+            penalty: newPenalty
+          };
+
+          try {
+            await updateDoc(loanRef, dataToUpdate);
+            if (newPenalty > (loan.penalty || 0)) {
+              toast({
+                  title: 'Loan Overdue Penalty Applied',
+                  description: `Your penalty has been updated. Total penalty is now ₹${newPenalty.toFixed(2)}.`,
+                  variant: 'destructive'
+              });
+            }
+          } catch (e) {
+            const permissionError = new FirestorePermissionError({
+                path: loanRef.path,
+                operation: 'update',
+                requestResourceData: dataToUpdate
             });
+            errorEmitter.emit('permission-error', permissionError);
+          }
         }
+      }
     };
     
-    // Only run check if loan is active to prevent unnecessary writes
-    if(loan.status === 'Active') {
-        checkOverdue();
-    }
-    
-    return () => clearInterval(timer);
+    checkOverdue();
   }, [currentTime, loan, user, firestore, adminSettings, toast]);
 
   if (!loan.startDate || !loan.dueDate) {
@@ -165,9 +204,6 @@ function LoanCard({ loan }: { loan: Loan }) {
   const startDate = loan.startDate.toDate();
   const dueDate = loan.dueDate.toDate();
   
-  const totalDuration = dueDate.getTime() - startDate.getTime();
-  const elapsedDuration = currentTime.getTime() - startDate.getTime();
-  const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
   const totalRepayment = loan.totalPayable + (loan.penalty || 0);
 
   const handlePayNow = async (isEmi: boolean, emiIndex?: number) => {
@@ -216,7 +252,6 @@ function LoanCard({ loan }: { loan: Loan }) {
     }
   }
 
-  // An EMI is payable if its due date has passed and its status is still 'Pending'
   const isEmiPayable = (emi: EMI) => {
       return new Date(emi.dueDate.seconds * 1000) <= currentTime && emi.status === 'Pending';
   }
@@ -255,12 +290,12 @@ function LoanCard({ loan }: { loan: Loan }) {
             ₹{totalRepayment.toFixed(2)}
           </p>
         </div>
-        {loan.status !== 'Completed' && (
+        {loan.status === 'Active' && (
             <div className="space-y-1">
-            <Progress value={progress} className="[&>div]:bg-red-500"/>
-            <p className="text-xs text-muted-foreground pt-1">
-                Final due date: {dueDate.toLocaleDateString()}
-            </p>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Time Remaining:</span>
+                    <CountdownTimer endDate={dueDate} />
+                </div>
             </div>
         )}
         

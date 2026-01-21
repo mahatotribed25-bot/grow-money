@@ -253,7 +253,7 @@ export default function SettingsPage() {
                     <CardTitle>Loan Settings</CardTitle>
                      <div className="space-y-4 mt-4">
                          <div className="space-y-2">
-                            <Label htmlFor="loan-penalty">Loan Overdue Penalty</Label>
+                            <Label htmlFor="loan-penalty">Daily Loan Overdue Penalty</Label>
                             <Input
                             id="loan-penalty"
                             type="number"
@@ -262,7 +262,7 @@ export default function SettingsPage() {
                             onChange={(e) => setLoanPenalty(Number(e.target.value))}
                             />
                              <p className="text-sm text-muted-foreground">
-                                The flat penalty amount to apply when a loan becomes overdue.
+                                The penalty amount to apply for each day a loan is overdue after the 1-day grace period.
                             </p>
                         </div>
                     </div>

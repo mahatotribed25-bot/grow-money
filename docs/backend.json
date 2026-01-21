@@ -314,7 +314,7 @@
         },
         "loanPenalty": {
           "type": "number",
-          "description": "Default penalty for overdue loans."
+          "description": "Daily penalty applied for each day a loan is overdue after the grace period."
         },
         "kycGoogleFormUrl": {
             "type": "string",
