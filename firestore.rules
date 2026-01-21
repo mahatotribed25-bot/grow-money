@@ -20,8 +20,10 @@ service cloud.firestore {
     match /users/{userId} {
       // A user can create their own document.
       allow create: if isOwner(userId);
-      // A user can read or update their own data. Admin has full read/update access.
-      allow read, update: if isOwner(userId) || (request.auth != null && request.auth.token.email == "admin@tribed.world");
+      // A user can read their own data, or the data of users they referred. Admin can read all.
+      allow read: if isOwner(userId) || (resource.data.referredBy == request.auth.uid) || (request.auth != null && request.auth.token.email == "admin@tribed.world");
+      // A user can update their own data. Admin has full read/update access.
+      allow update: if isOwner(userId) || (request.auth != null && request.auth.token.email == "admin@tribed.world");
       // Only an admin can delete a user account.
       allow delete: if request.auth != null && request.auth.token.email == "admin@tribed.world";
     }

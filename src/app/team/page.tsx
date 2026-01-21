@@ -18,13 +18,11 @@ type Referral = {
 
 export default function TeamPage() {
     const { user } = useUser();
-    const { data: referrals, loading } = useCollection<Referral>(
-        user ? `users` : null,
-        // This is not a secure way to query, but it's okay for this example.
-        // In a real app, you would use a Cloud Function to get this data.
+    // Fetch only users referred by the current user
+    const { data: userReferrals, loading } = useCollection<Referral>(
+        user ? 'users' : null,
+        { where: ['referredBy', '==', user?.uid] }
     );
-    
-    const userReferrals = referrals?.filter(r => r.referredBy === user?.uid);
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
