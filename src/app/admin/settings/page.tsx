@@ -7,12 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDoc, useFirestore } from '@/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, deleteField, type Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
+import { Timer } from 'lucide-react';
 
 type AdminSettings = {
   adminUpi?: string;
@@ -22,6 +23,7 @@ type AdminSettings = {
   loanPenalty?: number;
   kycGoogleFormUrl?: string;
   isUnderMaintenance?: boolean;
+  maintenanceEndTime?: Timestamp;
 };
 
 export default function SettingsPage() {
@@ -36,7 +38,7 @@ export default function SettingsPage() {
   const [loanPenalty, setLoanPenalty] = useState(0);
   const [kycGoogleFormUrl, setKycGoogleFormUrl] = useState('');
   const [isUnderMaintenance, setIsUnderMaintenance] = useState(false);
-
+  const [maintenanceDuration, setMaintenanceDuration] = useState(5);
 
   useEffect(() => {
     if (settings) {
@@ -46,11 +48,16 @@ export default function SettingsPage() {
       setWithdrawalGstPercentage(settings.withdrawalGstPercentage || 0);
       setLoanPenalty(settings.loanPenalty || 0);
       setKycGoogleFormUrl(settings.kycGoogleFormUrl || '');
-      setIsUnderMaintenance(settings.isUnderMaintenance || false);
+      
+      const isCurrentlyUnderMaintenance = settings.maintenanceEndTime
+        ? settings.maintenanceEndTime.toDate() > new Date()
+        : settings.isUnderMaintenance || false;
+
+      setIsUnderMaintenance(isCurrentlyUnderMaintenance);
     }
   },[settings]);
 
-  const handleSave = () => {
+  const handleSaveGeneral = () => {
     const settingsRef = doc(firestore, 'settings', 'admin');
     const settingsData = { 
       adminUpi, 
@@ -59,12 +66,11 @@ export default function SettingsPage() {
       withdrawalGstPercentage: Number(withdrawalGstPercentage),
       loanPenalty: Number(loanPenalty),
       kycGoogleFormUrl: kycGoogleFormUrl,
-      isUnderMaintenance: isUnderMaintenance,
     };
 
     setDoc(settingsRef, settingsData, { merge: true })
       .then(() => {
-        toast({ title: 'Settings Saved', description: 'Your settings have been updated.' });
+        toast({ title: 'Settings Saved', description: 'Your general settings have been updated.' });
       })
       .catch((error) => {
         console.error('Error saving settings:', error);
@@ -76,6 +82,79 @@ export default function SettingsPage() {
         errorEmitter.emit('permission-error', permissionError);
       });
   };
+  
+  const handleStartMaintenance = () => {
+      const endTime = new Date(Date.now() + maintenanceDuration * 60 * 1000);
+      const settingsRef = doc(firestore, 'settings', 'admin');
+      const settingsData = {
+          isUnderMaintenance: true,
+          maintenanceEndTime: endTime,
+      };
+
+      setDoc(settingsRef, settingsData, { merge: true })
+        .then(() => {
+            toast({
+                title: 'Maintenance Mode Started',
+                description: `App will be in maintenance for ${maintenanceDuration} minutes.`
+            });
+        })
+        .catch((error) => {
+             console.error('Error starting maintenance:', error);
+             const permissionError = new FirestorePermissionError({
+                path: settingsRef.path,
+                operation: 'write',
+                requestResourceData: settingsData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
+  };
+
+  const handleStopMaintenance = () => {
+       const settingsRef = doc(firestore, 'settings', 'admin');
+        const settingsData = {
+            isUnderMaintenance: false,
+            maintenanceEndTime: deleteField()
+        };
+         setDoc(settingsRef, settingsData, { merge: true })
+        .then(() => {
+            toast({
+                title: 'Maintenance Mode Stopped',
+                description: `The application is now live.`
+            });
+        })
+        .catch((error) => {
+             console.error('Error stopping maintenance:', error);
+             const permissionError = new FirestorePermissionError({
+                path: settingsRef.path,
+                operation: 'write',
+                requestResourceData: settingsData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
+  };
+  
+  const handleToggleIndefiniteMaintenance = (checked: boolean) => {
+    const settingsRef = doc(firestore, 'settings', 'admin');
+    const settingsData = {
+        isUnderMaintenance: checked,
+        maintenanceEndTime: deleteField()
+    };
+    setDoc(settingsRef, settingsData, { merge: true })
+      .then(() => {
+        toast({ title: 'Maintenance Mode Updated' });
+      })
+      .catch((error) => {
+        console.error('Error saving settings:', error);
+        const permissionError = new FirestorePermissionError({
+            path: settingsRef.path,
+            operation: 'write',
+            requestResourceData: settingsData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+  }
+
+  const maintenanceEndsAt = settings?.maintenanceEndTime ? settings.maintenanceEndTime.toDate().toLocaleString() : null;
 
   return (
     <div>
@@ -84,21 +163,43 @@ export default function SettingsPage() {
         <CardContent className="pt-6 space-y-6">
            {loading ? <p>Loading settings...</p> : (
             <>
-                <div>
-                    <CardTitle>Maintenance Mode</CardTitle>
+                <div className="space-y-4 rounded-lg border border-amber-500/50 p-4">
+                    <CardTitle className="flex items-center gap-2"><Timer className="text-amber-400"/>Maintenance Mode</CardTitle>
                     <CardDescription>
-                       Enable this to show a maintenance page to all users.
+                       Use these controls to put the application into maintenance mode for users.
                     </CardDescription>
-                    <div className="flex items-center space-x-2 mt-4">
+
+                    {isUnderMaintenance && maintenanceEndsAt && (
+                      <div className="text-amber-400">Maintenance is active and will end at: {maintenanceEndsAt}</div>
+                    )}
+                    
+                    <div className="flex items-center space-x-2">
                         <Switch
                             id="maintenance-mode"
-                            checked={isUnderMaintenance}
-                            onCheckedChange={setIsUnderMaintenance}
+                            checked={isUnderMaintenance && !maintenanceEndsAt}
+                            onCheckedChange={handleToggleIndefiniteMaintenance}
                         />
                         <Label htmlFor="maintenance-mode">
-                           {isUnderMaintenance ? 'Application is under maintenance' : 'Application is live'}
+                           Enable Indefinite Maintenance
                         </Label>
                     </div>
+
+                    <Separator className="bg-border/50"/>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="maintenance-duration">Timed Maintenance Duration (minutes)</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="maintenance-duration"
+                          type="number"
+                          value={maintenanceDuration}
+                          onChange={(e) => setMaintenanceDuration(Number(e.target.value))}
+                          placeholder="e.g., 5"
+                        />
+                         <Button onClick={handleStartMaintenance} disabled={maintenanceDuration <= 0}>Start Timed Maintenance</Button>
+                      </div>
+                    </div>
+                     <Button onClick={handleStopMaintenance} variant="destructive">Stop All Maintenance</Button>
                 </div>
                 <Separator />
                 <div>
@@ -205,8 +306,8 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <Button onClick={handleSave} className="mt-4">
-                  Save All Settings
+                <Button onClick={handleSaveGeneral} className="mt-4">
+                  Save All General Settings
                 </Button>
             </>
            )}
