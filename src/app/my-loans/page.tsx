@@ -54,12 +54,11 @@ const CountdownTimer = ({ endDate }: { endDate: Date }) => {
     const [timeLeft, setTimeLeft] = useState('');
 
     useEffect(() => {
-        const interval = setInterval(() => {
+        const calculateTimeLeft = () => {
             const now = new Date();
             const distance = endDate.getTime() - now.getTime();
 
             if (distance < 0) {
-                clearInterval(interval);
                 setTimeLeft("Due");
                 return;
             }
@@ -70,7 +69,10 @@ const CountdownTimer = ({ endDate }: { endDate: Date }) => {
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
             setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
-        }, 1000);
+        };
+        
+        calculateTimeLeft();
+        const interval = setInterval(calculateTimeLeft, 1000);
 
         return () => clearInterval(interval);
     }, [endDate]);
@@ -85,8 +87,10 @@ export default function MyLoansPage() {
     useCollection<Loan>(
       user ? `users/${user.uid}/loans` : null
     );
+  const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
 
-  const loading = userLoading || loansLoading;
+
+  const loading = userLoading || loansLoading || settingsLoading;
   
   const sortedLoans = allLoans?.sort((a,b) => b.startDate.seconds - a.startDate.seconds);
 
@@ -106,7 +110,7 @@ export default function MyLoansPage() {
          <div className="space-y-4">
             {loading ? <p>Loading loan history...</p> : 
                 sortedLoans && sortedLoans.length > 0 ? (
-                    sortedLoans.map(loan => <LoanCard key={loan.id} loan={loan}/>)
+                    sortedLoans.map(loan => <LoanCard key={loan.id} loan={loan} adminSettings={adminSettings} />)
                 ) : (
                     <Card>
                         <CardContent className="pt-6 text-center text-muted-foreground">
@@ -135,17 +139,18 @@ export default function MyLoansPage() {
 }
 
 
-function LoanCard({ loan }: { loan: Loan }) {
+function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSettings | null }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
 
   useEffect(() => {
-    setCurrentTime(new Date());
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    // This effect runs only on the client, preventing hydration mismatch
+    const updateCurrentTime = () => setCurrentTime(new Date());
+    updateCurrentTime();
+    const timer = setInterval(updateCurrentTime, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -291,7 +296,7 @@ function LoanCard({ loan }: { loan: Loan }) {
             ₹{totalRepayment.toFixed(2)}
           </p>
         </div>
-        {loan.status === 'Active' && (
+        {loan.status === 'Active' && currentTime && (
             <div className="space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Time Remaining:</span>
