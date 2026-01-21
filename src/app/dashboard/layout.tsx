@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useDoc, useAuth, useUser } from '@/firebase';
@@ -25,7 +24,7 @@ const CountdownTimer = ({ endTime }: { endTime: Date }) => {
 
       if (distance < 0) {
         clearInterval(intervalId);
-        setTimeLeft('Maintenance is over. The page will reload shortly.');
+        setTimeLeft('Back Online!');
         setTimeout(() => window.location.reload(), 3000);
         return;
       }
@@ -35,10 +34,14 @@ const CountdownTimer = ({ endTime }: { endTime: Date }) => {
       const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((distance % (1000 * 60)) / 1000);
       
-      let timeString = '';
-      if (days > 0) timeString += `${days}d `;
-      if (hours > 0 || days > 0) timeString += `${hours}h `;
-      timeString += `${minutes}m ${seconds}s`;
+      const hoursStr = String(hours).padStart(2, '0');
+      const minutesStr = String(minutes).padStart(2, '0');
+      const secondsStr = String(seconds).padStart(2, '0');
+
+      let timeString = `${hoursStr}:${minutesStr}:${secondsStr}`;
+      if (days > 0) {
+          timeString = `${days}d : ${timeString}`;
+      }
 
       setTimeLeft(timeString);
     }, 1000);
@@ -46,7 +49,11 @@ const CountdownTimer = ({ endTime }: { endTime: Date }) => {
     return () => clearInterval(intervalId);
   }, [endTime]);
 
-  return <p className="mt-4 text-xl font-mono text-yellow-300">{timeLeft}</p>;
+  if (timeLeft === 'Back Online!') {
+      return <p className="mt-4 text-2xl font-semibold text-green-400">{timeLeft}</p>
+  }
+
+  return <p className="mt-2 text-4xl font-mono text-yellow-300 tracking-wider">{timeLeft}</p>;
 };
 
 export default function DashboardLayout({
@@ -74,15 +81,11 @@ export default function DashboardLayout({
   const loading = userLoading || (user && settingsLoading);
 
   const isUnderMaintenance = useMemo(() => {
-    if (!settings?.isUnderMaintenance) return false;
-    
-    // If there's an end time, check if it's in the future
+    if (!settings) return false;
     if (settings.maintenanceEndTime) {
       return settings.maintenanceEndTime.toDate() > new Date();
     }
-    
-    // If no end time, maintenance is on indefinitely
-    return true;
+    return settings.isUnderMaintenance || false;
   }, [settings]);
 
   if (loading || !user) {
@@ -107,11 +110,11 @@ export default function DashboardLayout({
         </p>
         {settings?.maintenanceEndTime && (
           <>
-            <p className="mt-4 text-muted-foreground">Service will resume in:</p>
+            <p className="mt-6 text-lg text-muted-foreground">Service will resume in:</p>
             <CountdownTimer endTime={settings.maintenanceEndTime.toDate()} />
           </>
         )}
-         <p className="mt-2 text-muted-foreground">
+         <p className="mt-6 text-muted-foreground">
           Thank you for your patience.
         </p>
         <Button onClick={handleLogout} variant="outline" className="mt-8">
