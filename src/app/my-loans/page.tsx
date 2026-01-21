@@ -140,17 +140,18 @@ function LoanCard({ loan }: { loan: Loan }) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
 
   useEffect(() => {
+    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
     const checkOverdue = async () => {
-      if (!user || !adminSettings || !['Active', 'Due'].includes(loan.status)) {
+      if (!user || !adminSettings || !['Active', 'Due'].includes(loan.status) || !currentTime) {
         return;
       }
       
@@ -253,7 +254,7 @@ function LoanCard({ loan }: { loan: Loan }) {
   }
 
   const isEmiPayable = (emi: EMI) => {
-      return new Date(emi.dueDate.seconds * 1000) <= currentTime && emi.status === 'Pending';
+      return currentTime && (new Date(emi.dueDate.seconds * 1000) <= currentTime) && emi.status === 'Pending';
   }
 
   return (
