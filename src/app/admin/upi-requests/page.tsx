@@ -12,12 +12,13 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X } from 'lucide-react';
+import { Check, X, Send } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import {
   doc,
   runTransaction,
   Timestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -30,6 +31,8 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -40,8 +43,9 @@ type UpiRequest = {
   upiId: string;
   upiProvider: string;
   createdAt: Timestamp;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'awaiting_confirmation' | 'approved' | 'rejected';
   rejectionReason?: string;
+  confirmationAmount?: number;
 };
 
 const formatDate = (timestamp: Timestamp) => {
@@ -57,47 +61,41 @@ export default function UpiRequestsPage() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [requestToUpdate, setRequestToUpdate] = useState<UpiRequest | null>(null);
+  
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [confirmationAmount, setConfirmationAmount] = useState<number | ''>('');
 
-  const handleUpdateStatus = (
-    request: UpiRequest,
-    newStatus: 'approved' | 'rejected',
-    reason?: string
-  ) => {
+
+  const handleRejectRequest = (reason?: string) => {
+    if (!requestToUpdate) return;
     
     runTransaction(firestore, async (transaction) => {
-        const requestRef = doc(firestore, 'upiRequests', request.id);
-        const userRef = doc(firestore, 'users', request.userId);
+        const requestRef = doc(firestore, 'upiRequests', requestToUpdate.id);
+        const userRef = doc(firestore, 'users', requestToUpdate.userId);
 
-        const userDoc = await transaction.get(userRef);
-        if (!userDoc.exists()) throw 'User does not exist!';
-
-        if (newStatus === 'approved') {
-            transaction.update(requestRef, { status: 'approved' });
-            transaction.update(userRef, {
-                upiId: request.upiId,
-                upiProvider: request.upiProvider,
-                upiStatus: 'Verified',
-            });
-        } else { // rejected
-            transaction.update(requestRef, { status: 'rejected', rejectionReason: reason });
-            transaction.update(userRef, { upiStatus: 'Rejected' });
-        }
+        transaction.update(requestRef, { status: 'rejected', rejectionReason: reason || 'Rejected by admin' });
+        transaction.update(userRef, { upiStatus: 'Rejected' });
     })
     .then(() => {
       toast({
-        title: `UPI Request ${newStatus === 'approved' ? 'Approved' : 'Rejected'}`,
-        description: `The request for ${request.userName} has been updated.`,
-        variant: newStatus === 'rejected' ? 'destructive' : 'default',
+        title: `UPI Request Rejected`,
+        description: `The request for ${requestToUpdate.userName} has been rejected.`,
+        variant: 'destructive',
       });
     })
     .catch((error) => {
-      console.error('Error updating UPI request status:', error);
-      const permissionError = new FirestorePermissionError({
-        path: `upiRequests/${request.id} or users/${request.userId}`,
+      console.error('Error rejecting UPI request:', error);
+       const permissionError = new FirestorePermissionError({
+        path: `upiRequests/${requestToUpdate.id} or users/${requestToUpdate.userId}`,
         operation: 'write',
-        requestResourceData: { status: newStatus },
+        requestResourceData: { status: 'rejected' },
       });
       errorEmitter.emit('permission-error', permissionError);
+    })
+    .finally(() => {
+        setIsRejectDialogOpen(false);
+        setRejectionReason('');
+        setRequestToUpdate(null);
     });
   };
 
@@ -107,18 +105,52 @@ export default function UpiRequestsPage() {
     setIsRejectDialogOpen(true);
   };
 
-  const handleConfirmRejection = () => {
-    if (!requestToUpdate || !rejectionReason) {
-      toast({ title: 'Reason is required', variant: 'destructive' });
-      return;
+  const openConfirmDialog = (request: UpiRequest) => {
+    setRequestToUpdate(request);
+    setIsConfirmDialogOpen(true);
+  };
+  
+  const handleSendConfirmation = () => {
+    if (!requestToUpdate || !confirmationAmount) {
+        toast({ title: 'Invalid amount', description: 'Please enter a valid confirmation amount.', variant: 'destructive'});
+        return;
     }
-    handleUpdateStatus(requestToUpdate, 'rejected', rejectionReason);
-    setIsRejectDialogOpen(false);
-    setRejectionReason('');
-    setRequestToUpdate(null);
+
+    const requestRef = doc(firestore, 'upiRequests', requestToUpdate.id);
+    const updateData = {
+        status: 'awaiting_confirmation',
+        confirmationAmount: Number(confirmationAmount),
+    };
+    updateDoc(requestRef, updateData)
+    .then(() => {
+        toast({ title: 'Confirmation Sent', description: 'Request is now waiting for user to confirm the amount.'});
+    })
+    .catch((error) => {
+        console.error('Error sending confirmation:', error);
+        const permissionError = new FirestorePermissionError({
+            path: requestRef.path,
+            operation: 'update',
+            requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    })
+    .finally(() => {
+        setIsConfirmDialogOpen(false);
+        setConfirmationAmount('');
+        setRequestToUpdate(null);
+    });
   };
 
-  const pendingRequests = upiRequests?.filter(r => r.status === 'pending');
+  const getStatusBadge = (status: UpiRequest['status']) => {
+    switch (status) {
+        case 'pending': return <Badge variant="secondary">Pending Admin</Badge>;
+        case 'awaiting_confirmation': return <Badge variant="outline" className="border-blue-500 text-blue-400">Awaiting User</Badge>;
+        case 'approved': return <Badge variant="default">Approved</Badge>;
+        case 'rejected': return <Badge variant="destructive">Rejected</Badge>;
+        default: return <Badge variant="secondary">{status}</Badge>;
+    }
+  }
+
 
   return (
     <div>
@@ -142,8 +174,8 @@ export default function UpiRequestsPage() {
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : pendingRequests && pendingRequests.length > 0 ? (
-              pendingRequests.map((request) => (
+            ) : upiRequests && upiRequests.length > 0 ? (
+              upiRequests.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell>{request.userName}</TableCell>
                   <TableCell>{request.upiId}</TableCell>
@@ -152,12 +184,7 @@ export default function UpiRequestsPage() {
                   </TableCell>
                   <TableCell>{formatDate(request.createdAt)}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant={ request.status === 'approved' ? 'default' : request.status === 'rejected' ? 'destructive' : 'secondary'}
-                      className="capitalize"
-                    >
-                      {request.status}
-                    </Badge>
+                    {getStatusBadge(request.status)}
                   </TableCell>
                   <TableCell>
                     {request.status === 'pending' && (
@@ -165,10 +192,10 @@ export default function UpiRequestsPage() {
                         <Button
                             variant="outline"
                             size="sm"
-                            className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                            onClick={() => handleUpdateStatus(request, 'approved')}
+                            className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                            onClick={() => openConfirmDialog(request)}
                         >
-                            <Check className="h-4 w-4 mr-1" /> Approve
+                            <Send className="h-4 w-4 mr-1" /> Send Confirmation
                         </Button>
                         <Button
                             variant="outline"
@@ -180,30 +207,34 @@ export default function UpiRequestsPage() {
                         </Button>
                       </div>
                     )}
+                     {request.status === 'awaiting_confirmation' && (
+                        <span className="text-xs text-muted-foreground">Waiting for user...</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
                  <TableRow>
                     <TableCell colSpan={6} className="text-center">
-                      No pending UPI requests.
+                      No UPI requests found.
                     </TableCell>
                 </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
+
        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reason for Rejection</DialogTitle>
             <DialogDescription>
-              Please provide a reason for rejecting this UPI request. The user will see this reason.
+              Provide a reason for rejecting this UPI request. The user will see this. (Optional)
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Textarea
-              placeholder="Enter reason here..."
+              placeholder="e.g., UPI ID is invalid"
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
             />
@@ -212,10 +243,43 @@ export default function UpiRequestsPage() {
             <DialogClose asChild>
               <Button variant="outline" onClick={() => {setIsRejectDialogOpen(false); setRejectionReason('');}}>Cancel</Button>
             </DialogClose>
-            <Button variant="destructive" onClick={handleConfirmRejection}>Confirm Rejection</Button>
+            <Button variant="destructive" onClick={() => handleRejectRequest(rejectionReason)}>Confirm Rejection</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Confirmation Amount</DialogTitle>
+            <DialogDescription>
+             Send a small, random amount (e.g., ₹1.07) to the user's UPI ID. Then, enter the exact amount you sent below to proceed.
+            </DialogDescription>
+          </DialogHeader>
+           <div className="py-4 space-y-4">
+             <p>Send payment to: <span className="font-mono p-1 bg-muted rounded">{requestToUpdate?.upiId}</span></p>
+            <div className="space-y-2">
+                <Label htmlFor="confirmationAmount">Amount Sent (e.g., 1.07)</Label>
+                <Input
+                    id="confirmationAmount"
+                    type="number"
+                    step="0.01"
+                    placeholder="Enter the exact amount"
+                    value={confirmationAmount}
+                    onChange={(e) => setConfirmationAmount(Number(e.target.value))}
+                />
+            </div>
+           </div>
+           <DialogFooter>
+             <DialogClose asChild>
+              <Button variant="outline" onClick={() => {setIsConfirmDialogOpen(false); setConfirmationAmount('');}}>Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleSendConfirmation}>Submit Amount</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
+
+    

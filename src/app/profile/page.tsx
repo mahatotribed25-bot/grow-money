@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Send,
   Handshake,
+  ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -53,6 +54,15 @@ type Transaction = {
   createdAt: Timestamp;
   userId?: string;
 };
+
+type UpiRequest = {
+  id: string;
+  status: 'pending' | 'awaiting_confirmation' | 'approved' | 'rejected';
+  confirmationAmount?: number;
+  upiId: string;
+  upiProvider: string;
+};
+
 
 type GroupInvestment = {
     id: string;
@@ -109,7 +119,7 @@ function useUserGroupInvestments(userId?: string) {
             for (const planDoc of plansSnapshot.docs) {
                 const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
                 const q = query(investmentsRef, where('investorId', '==', userId));
-                const investmentSnapshot = await getDocs(q);
+                const investmentSnapshot = await getDocs(iq);
 
                 investmentSnapshot.forEach(invDoc => {
                     allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
@@ -137,6 +147,7 @@ export default function ProfilePage() {
   const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null, { where: ['userId', '==', user?.uid]});
   const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null, { where: ['userId', '==', user?.uid]});
   const { data: groupInvestments } = useUserGroupInvestments(user?.uid);
+  const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
 
   const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
@@ -156,6 +167,10 @@ export default function ProfilePage() {
   
   const upiStatus = userData?.upiStatus || 'Unverified';
   const isUpiFormDisabled = upiStatus === 'Pending' || upiStatus === 'Verified';
+  
+  const awaitingConfirmationRequest = useMemo(() => {
+    return upiRequests?.find(req => req.status === 'awaiting_confirmation');
+  }, [upiRequests]);
 
 
   useEffect(() => {
@@ -302,63 +317,67 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
-            <CardHeader>
-                <CardTitle>UPI Verification</CardTitle>
-                <CardDescription>Your UPI ID must be verified to make withdrawals.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                {userDataloading ? <p>Loading UPI Status...</p> : (
-                    <>
-                        {upiStatus === 'Verified' && (
-                             <div className="rounded-md border border-green-500/50 bg-green-500/10 p-4 text-green-300 space-y-2">
-                                <p className="font-semibold text-center">UPI ID Verified</p>
-                                <p className="text-sm">Provider: {userData?.upiProvider}</p>
-                                <p className="text-sm">ID: {userData?.upiId}</p>
-                            </div>
-                        )}
-                         {upiStatus === 'Pending' && (
-                             <div className="rounded-md border border-blue-500/50 bg-blue-500/10 p-4 text-center text-blue-300">
-                                <p className="font-semibold">UPI Pending Verification</p>
-                                <p className="text-sm">Your UPI ID is under review by the admin.</p>
-                            </div>
-                        )}
-                        {upiStatus === 'Unverified' || upiStatus === 'Rejected' ? (
-                             <div className="space-y-4">
-                                {upiStatus === 'Rejected' && (
-                                    <div className="rounded-md border-destructive bg-destructive/10 p-4 text-destructive-foreground">
-                                        <p className="font-semibold">UPI Submission Rejected</p>
-                                        <p className="text-sm">Please correct your information below and resubmit.</p>
+        {awaitingConfirmationRequest ? (
+            <AmountVerificationCard request={awaitingConfirmationRequest}/>
+        ) : (
+             <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
+                <CardHeader>
+                    <CardTitle>UPI Verification</CardTitle>
+                    <CardDescription>Your UPI ID must be verified to make withdrawals.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {userDataloading ? <p>Loading UPI Status...</p> : (
+                        <>
+                            {upiStatus === 'Verified' && (
+                                <div className="rounded-md border border-green-500/50 bg-green-500/10 p-4 text-green-300 space-y-2">
+                                    <p className="font-semibold text-center">UPI ID Verified</p>
+                                    <p className="text-sm">Provider: {userData?.upiProvider}</p>
+                                    <p className="text-sm">ID: {userData?.upiId}</p>
+                                </div>
+                            )}
+                            {upiStatus === 'Pending' && (
+                                <div className="rounded-md border border-blue-500/50 bg-blue-500/10 p-4 text-center text-blue-300">
+                                    <p className="font-semibold">UPI Pending Verification</p>
+                                    <p className="text-sm">Your UPI ID is under review by the admin.</p>
+                                </div>
+                            )}
+                            {upiStatus === 'Unverified' || upiStatus === 'Rejected' ? (
+                                <div className="space-y-4">
+                                    {upiStatus === 'Rejected' && (
+                                        <div className="rounded-md border-destructive bg-destructive/10 p-4 text-destructive-foreground">
+                                            <p className="font-semibold">UPI Submission Rejected</p>
+                                            <p className="text-sm">Please correct your information below and resubmit.</p>
+                                        </div>
+                                    )}
+                                    <div className="space-y-2">
+                                        <Label>UPI App</Label>
+                                        <Select onValueChange={(value: 'PhonePe' | 'Google Pay' | 'Paytm') => setUpiProvider(value)} value={upiProvider} disabled={isUpiFormDisabled}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a provider" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="PhonePe">PhonePe</SelectItem>
+                                                <SelectItem value="Google Pay">Google Pay</SelectItem>
+                                                <SelectItem value="Paytm">Paytm</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
-                                )}
-                                <div className="space-y-2">
-                                    <Label>UPI App</Label>
-                                    <Select onValueChange={(value: 'PhonePe' | 'Google Pay' | 'Paytm') => setUpiProvider(value)} value={upiProvider} disabled={isUpiFormDisabled}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a provider" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="PhonePe">PhonePe</SelectItem>
-                                            <SelectItem value="Google Pay">Google Pay</SelectItem>
-                                            <SelectItem value="Paytm">Paytm</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="upiId">Your UPI ID</Label>
+                                        <Input id="upiId" value={upiId} onChange={(e) => setUpiId(e.target.value)} placeholder="your-name@oksbi" disabled={isUpiFormDisabled} />
+                                    </div>
+                                    <Button onClick={handleSubmitUpi} className="w-full" disabled={isUpiFormDisabled}>
+                                        <Handshake className="mr-2 h-4 w-4" />
+                                        Submit for Verification
+                                    </Button>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="upiId">Your UPI ID</Label>
-                                    <Input id="upiId" value={upiId} onChange={(e) => setUpiId(e.target.value)} placeholder="your-name@oksbi" disabled={isUpiFormDisabled} />
-                                </div>
-                                <Button onClick={handleSubmitUpi} className="w-full" disabled={isUpiFormDisabled}>
-                                    <Handshake className="mr-2 h-4 w-4" />
-                                    Submit for Verification
-                                </Button>
-                             </div>
-                        ): null}
-                    </>
-                )}
-            </CardContent>
-        </Card>
-        
+                            ): null}
+                        </>
+                    )}
+                </CardContent>
+            </Card>
+        )}
+       
          <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
           <CardHeader>
             <CardTitle>KYC Verification</CardTitle>
@@ -486,6 +505,68 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+function AmountVerificationCard({ request }: { request: UpiRequest }) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [amount, setAmount] = useState('');
+
+  const handleVerifyAmount = async () => {
+    if (!user) return;
+    const userInputAmount = parseFloat(amount);
+    
+    if (isNaN(userInputAmount)) {
+      toast({ title: 'Invalid Amount', description: 'Please enter a valid number.', variant: 'destructive' });
+      return;
+    }
+
+    if (userInputAmount === request.confirmationAmount) {
+      // Amounts match, run transaction to approve
+      try {
+        await runTransaction(firestore, async (transaction) => {
+          const userRef = doc(firestore, 'users', user.uid);
+          const requestRef = doc(firestore, 'upiRequests', request.id);
+
+          transaction.update(userRef, {
+            upiStatus: 'Verified',
+            upiId: request.upiId,
+            upiProvider: request.upiProvider,
+          });
+          transaction.update(requestRef, { status: 'approved' });
+        });
+        toast({ title: 'UPI Verified!', description: 'Your UPI ID has been successfully verified.' });
+      } catch (error) {
+        console.error("Verification transaction failed: ", error);
+        toast({ title: 'Verification Failed', description: 'An error occurred. Please try again.', variant: 'destructive' });
+      }
+    } else {
+      // Amounts do not match
+      toast({ title: 'Incorrect Amount', description: 'The amount you entered does not match. Please check and try again.', variant: 'destructive' });
+    }
+  };
+
+
+  return (
+    <Card className="shadow-lg border-yellow-500/50 bg-gradient-to-b from-card to-yellow-900/20 mt-6">
+      <CardHeader>
+        <CardTitle>Verify Your UPI ID</CardTitle>
+        <CardDescription>We have sent a small amount to your UPI ID. Please enter the exact amount you received to complete verification.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+            <Label htmlFor="verificationAmount">Amount Received</Label>
+            <Input id="verificationAmount" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g., 1.07" />
+        </div>
+        <Button className="w-full" onClick={handleVerifyAmount}>
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            Verify Amount
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string }) {
   return (
@@ -633,3 +714,5 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
         </Card>
     );
 }
+
+    
