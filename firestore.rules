@@ -25,7 +25,8 @@ service cloud.firestore {
       // A user can create their own document.
       allow create: if isOwner(userId);
       // A user can read their own data. Admin can read all.
-      allow read: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       // A user can update their own data. Admin has full update access.
       allow update: if isOwner(userId) || isAdmin();
       // Only an admin can delete a user account.

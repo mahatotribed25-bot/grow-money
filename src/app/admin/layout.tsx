@@ -47,7 +47,7 @@ type BaseRequest = {
 type DepositRequest = BaseRequest & { name: string };
 type WithdrawalRequest = BaseRequest & { name: string };
 type LoanRequest = BaseRequest & { userName: string };
-type KycRequest = BaseRequest & { userName: string };
+type KycRequest = { id: string, name: string, kycSubmissionDate: Timestamp };
 type UpiRequest = BaseRequest & { userName: string };
 
 
@@ -76,8 +76,8 @@ export default function AdminLayout({
     { where: ['status', '==', 'pending'] }
   );
    const { data: pendingKycRequests } = useCollection<KycRequest>(
-    isAdmin ? 'kycRequests' : null,
-    { where: ['status', '==', 'pending'] }
+    isAdmin ? 'users' : null,
+    { where: ['kycStatus', '==', 'pending'] }
   );
    const { data: pendingUpiRequests } = useCollection<UpiRequest>(
     isAdmin ? 'upiRequests' : null,
@@ -86,6 +86,15 @@ export default function AdminLayout({
 
   const notifications = useMemo(() => {
     if (!isAdmin) return [];
+    
+    const kycNotifs = pendingKycRequests?.map(k => ({
+        id: k.id,
+        type: 'KYC',
+        link: '/admin/kyc-requests',
+        name: k.name,
+        createdAt: k.kycSubmissionDate,
+    })) || [];
+
     return [
       ...(pendingDeposits?.map((d) => ({
         ...d,
@@ -105,19 +114,14 @@ export default function AdminLayout({
         link: '/admin/loans',
         name: l.userName,
       })) || []),
-       ...(pendingKycRequests?.map((k) => ({
-        ...k,
-        type: 'KYC',
-        link: '/admin/kyc-requests',
-        name: k.userName,
-      })) || []),
+       ...kycNotifs,
        ...(pendingUpiRequests?.map((u) => ({
         ...u,
         type: 'UPI',
         link: '/admin/upi-requests',
         name: u.userName,
       })) || []),
-    ].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+    ].filter(n => n.createdAt).sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
   }, [isAdmin, pendingDeposits, pendingWithdrawals, pendingLoanRequests, pendingKycRequests, pendingUpiRequests]);
 
   const notificationCount = notifications.length;

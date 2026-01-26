@@ -83,6 +83,11 @@
             "type": "string",
             "description": "The reason provided by the admin for rejecting a KYC submission."
         },
+        "kycSubmissionDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the user submitted their KYC details."
+        },
         "isOnline": {
             "type": "boolean",
             "description": "Indicates if the user is currently online."

@@ -258,6 +258,7 @@ export default function ProfilePage() {
       kycTermsAccepted: kycTermsAccepted,
       kycStatus: 'Pending',
       kycRejectionReason: '', // Clear previous rejection reason
+      kycSubmissionDate: serverTimestamp(),
     };
 
     updateDoc(userRef, dataToUpdate)
