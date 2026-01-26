@@ -46,7 +46,17 @@
         },
         "upiId": {
           "type": "string",
-          "description": "The user's saved UPI ID for receiving withdrawals."
+          "description": "The user's verified UPI ID for receiving withdrawals."
+        },
+        "upiProvider": {
+            "type": "string",
+            "enum": ["PhonePe", "Google Pay", "Paytm"],
+            "description": "The provider for the user's verified UPI ID."
+        },
+        "upiStatus": {
+            "type": "string",
+            "enum": ["Unverified", "Pending", "Verified", "Rejected"],
+            "description": "The verification status of the user's UPI ID."
         },
         "panCard": {
             "type": "string",
@@ -81,6 +91,11 @@
             "type": "string",
             "format": "date-time",
             "description": "The last time the user was seen online."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the user account was created."
         }
       },
       "required": [
@@ -385,6 +400,21 @@
       },
       "required": ["userId", "userName", "planId", "planName", "loanAmount", "status", "createdAt", "repaymentMethod"]
     },
+     "upiRequest": {
+      "title": "UPI Verification Request",
+      "description": "A user's request to verify their UPI ID.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "upiId": { "type": "string" },
+        "upiProvider": { "type": "string", "enum": ["PhonePe", "Google Pay", "Paytm"] },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "rejectionReason": { "type": "string", "description": "The reason why the UPI request was rejected by the admin." }
+      },
+      "required": ["userId", "userName", "upiId", "upiProvider", "status", "createdAt"]
+    },
     "activeLoan": {
         "title": "Active Loan",
         "description": "A user's active loan.",
@@ -534,6 +564,10 @@
     "/loanRequests/{requestId}": {
       "schema": { "$ref": "#/entities/loanRequest" },
       "description": "Stores user loan requests."
+    },
+    "/upiRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/upiRequest" },
+      "description": "Stores user UPI verification requests."
     },
     "/users/{userId}/loans/{loanId}": {
         "schema": { "$ref": "#/entities/activeLoan" },

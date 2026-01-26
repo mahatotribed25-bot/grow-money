@@ -16,6 +16,8 @@ import {
   Megaphone,
   HandCoins,
   Users2,
+  FileCheck,
+  Handshake,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +47,8 @@ type BaseRequest = {
 type DepositRequest = BaseRequest & { name: string };
 type WithdrawalRequest = BaseRequest & { name: string };
 type LoanRequest = BaseRequest & { userName: string };
+type KycRequest = BaseRequest & { userName: string };
+type UpiRequest = BaseRequest & { userName: string };
 
 
 export default function AdminLayout({
@@ -71,6 +75,14 @@ export default function AdminLayout({
     isAdmin ? 'loanRequests' : null,
     { where: ['status', '==', 'pending'] }
   );
+   const { data: pendingKycRequests } = useCollection<KycRequest>(
+    isAdmin ? 'kycRequests' : null,
+    { where: ['status', '==', 'pending'] }
+  );
+   const { data: pendingUpiRequests } = useCollection<UpiRequest>(
+    isAdmin ? 'upiRequests' : null,
+    { where: ['status', '==', 'pending'] }
+  );
 
   const notifications = useMemo(() => {
     if (!isAdmin) return [];
@@ -93,8 +105,20 @@ export default function AdminLayout({
         link: '/admin/loans',
         name: l.userName,
       })) || []),
+       ...(pendingKycRequests?.map((k) => ({
+        ...k,
+        type: 'KYC',
+        link: '/admin/kyc-requests',
+        name: k.userName,
+      })) || []),
+       ...(pendingUpiRequests?.map((u) => ({
+        ...u,
+        type: 'UPI',
+        link: '/admin/upi-requests',
+        name: u.userName,
+      })) || []),
     ].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-  }, [isAdmin, pendingDeposits, pendingWithdrawals, pendingLoanRequests]);
+  }, [isAdmin, pendingDeposits, pendingWithdrawals, pendingLoanRequests, pendingKycRequests, pendingUpiRequests]);
 
   const notificationCount = notifications.length;
 
@@ -165,6 +189,12 @@ export default function AdminLayout({
             <AdminNavItem icon={HandCoins} href="/admin/loans">
               Loan Requests
             </AdminNavItem>
+            <AdminNavItem icon={FileCheck} href="/admin/kyc-requests">
+              KYC Requests
+            </AdminNavItem>
+            <AdminNavItem icon={Handshake} href="/admin/upi-requests">
+              UPI Requests
+            </AdminNavItem>
             <AdminNavItem icon={Upload} href="/admin/deposits">
               Deposits
             </AdminNavItem>
@@ -228,6 +258,12 @@ export default function AdminLayout({
                 </AdminNavItem>
                 <AdminNavItem icon={HandCoins} href="/admin/loans">
                   Loan Requests
+                </AdminNavItem>
+                 <AdminNavItem icon={FileCheck} href="/admin/kyc-requests">
+                  KYC Requests
+                </AdminNavItem>
+                 <AdminNavItem icon={Handshake} href="/admin/upi-requests">
+                  UPI Requests
                 </AdminNavItem>
                 <AdminNavItem icon={Upload} href="/admin/deposits">
                   Deposits

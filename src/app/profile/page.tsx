@@ -19,6 +19,8 @@ import {
   Phone,
   FileUp,
   AlertTriangle,
+  Send,
+  Handshake,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -31,7 +33,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection } from '@/firebase';
-import { Timestamp, doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc, collection, query, where, getDocs, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -41,6 +43,7 @@ import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Transaction = {
   id: string;
@@ -72,6 +75,8 @@ type GroupLoanPlan = {
 type UserData = {
   referralCode?: string;
   upiId?: string;
+  upiProvider?: 'PhonePe' | 'Google Pay' | 'Paytm';
+  upiStatus?: 'Unverified' | 'Pending' | 'Verified' | 'Rejected';
   panCard?: string;
   aadhaarNumber?: string;
   phoneNumber?: string;
@@ -136,9 +141,6 @@ export default function ProfilePage() {
   const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   
-  const [upiId, setUpiId] = useState('');
-  const [isUpiEditing, setIsUpiEditing] = useState(false);
-
   // KYC State
   const [panCard, setPanCard] = useState('');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
@@ -148,13 +150,22 @@ export default function ProfilePage() {
   const kycStatus = userData?.kycStatus || 'Not Submitted';
   const isKycFormDisabled = kycStatus === 'Pending' || kycStatus === 'Verified';
 
+  // UPI State
+  const [upiId, setUpiId] = useState('');
+  const [upiProvider, setUpiProvider] = useState<'PhonePe' | 'Google Pay' | 'Paytm' | ''>('');
+  
+  const upiStatus = userData?.upiStatus || 'Unverified';
+  const isUpiFormDisabled = upiStatus === 'Pending' || upiStatus === 'Verified';
+
+
   useEffect(() => {
     if (userData) {
-      setUpiId(userData.upiId || '');
       setPanCard(userData.panCard || '');
       setAadhaarNumber(userData.aadhaarNumber || '');
       setPhoneNumber(userData.phoneNumber || '');
-      // We don't set kycTermsAccepted from userData, it must be re-checked for each submission
+
+      setUpiId(userData.upiId || '');
+      setUpiProvider(userData.upiProvider || '');
     }
   }, [userData]);
 
@@ -175,28 +186,46 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSaveUpi = () => {
-      if (!user) return;
-      const userRef = doc(firestore, 'users', user.uid);
-      const dataToUpdate = { upiId: upiId };
+  const handleSubmitUpi = () => {
+      if (!user || !user.displayName) {
+          toast({ title: 'User not found.', variant: 'destructive'});
+          return;
+      }
+      if (!upiId || !upiProvider) {
+          toast({ title: 'All fields required', description: 'Please select a provider and enter your UPI ID.', variant: 'destructive' });
+          return;
+      }
 
-      updateDoc(userRef, dataToUpdate)
-        .then(() => {
-          toast({
-              title: "UPI ID Saved",
-              description: "Your UPI ID has been updated successfully."
+      const upiRequestData = {
+          userId: user.uid,
+          userName: user.displayName,
+          upiId: upiId,
+          upiProvider: upiProvider,
+          status: 'pending' as const,
+          createdAt: serverTimestamp(),
+      };
+
+      runTransaction(firestore, async (transaction) => {
+          const userRef = doc(firestore, 'users', user.uid);
+          const requestRef = doc(collection(firestore, 'upiRequests'));
+
+          transaction.set(requestRef, upiRequestData);
+          transaction.update(userRef, { upiStatus: 'Pending' });
+      })
+      .then(() => {
+          toast({ title: 'UPI Submitted', description: 'Your UPI ID has been submitted for verification.' });
+      })
+      .catch((error) => {
+          console.error('Error submitting UPI request:', error);
+          const permissionError = new FirestorePermissionError({
+              path: `upiRequests or users/${user.uid}`,
+              operation: 'write',
+              requestResourceData: upiRequestData,
           });
-          setIsUpiEditing(false);
-        })
-        .catch((serverError) => {
-            const permissionError = new FirestorePermissionError({
-              path: userRef.path,
-              operation: 'update',
-              requestResourceData: dataToUpdate
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        });
+          errorEmitter.emit('permission-error', permissionError);
+      });
   }
+
 
   const handleSubmitKyc = () => {
     if (!user) return;
@@ -267,18 +296,66 @@ export default function ProfilePage() {
               <InfoRow icon={User} label="Name" value={user?.displayName || 'N/A'} />
               <Separator />
               <InfoRow icon={Mail} label="Email" value={user?.email || 'N/A'} />
-              <Separator />
-              <div className="space-y-2">
-                  <Label htmlFor="upiId">Your UPI ID</Label>
-                  <div className="flex gap-2">
-                      <Input id="upiId" value={upiId} onChange={(e) => {setUpiId(e.target.value); setIsUpiEditing(true);}} placeholder="your-upi@bank" />
-                      {isUpiEditing && <Button onClick={handleSaveUpi}>Save</Button>}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Your withdrawals will be sent to this UPI ID.</p>
-              </div>
             </>
           }
           </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
+            <CardHeader>
+                <CardTitle>UPI Verification</CardTitle>
+                <CardDescription>Your UPI ID must be verified to make withdrawals.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {userDataloading ? <p>Loading UPI Status...</p> : (
+                    <>
+                        {upiStatus === 'Verified' && (
+                             <div className="rounded-md border border-green-500/50 bg-green-500/10 p-4 text-green-300 space-y-2">
+                                <p className="font-semibold text-center">UPI ID Verified</p>
+                                <p className="text-sm">Provider: {userData?.upiProvider}</p>
+                                <p className="text-sm">ID: {userData?.upiId}</p>
+                            </div>
+                        )}
+                         {upiStatus === 'Pending' && (
+                             <div className="rounded-md border border-blue-500/50 bg-blue-500/10 p-4 text-center text-blue-300">
+                                <p className="font-semibold">UPI Pending Verification</p>
+                                <p className="text-sm">Your UPI ID is under review by the admin.</p>
+                            </div>
+                        )}
+                        {upiStatus === 'Unverified' || upiStatus === 'Rejected' ? (
+                             <div className="space-y-4">
+                                {upiStatus === 'Rejected' && (
+                                    <div className="rounded-md border-destructive bg-destructive/10 p-4 text-destructive-foreground">
+                                        <p className="font-semibold">UPI Submission Rejected</p>
+                                        <p className="text-sm">Please correct your information below and resubmit.</p>
+                                    </div>
+                                )}
+                                <div className="space-y-2">
+                                    <Label>UPI App</Label>
+                                    <Select onValueChange={(value: 'PhonePe' | 'Google Pay' | 'Paytm') => setUpiProvider(value)} value={upiProvider} disabled={isUpiFormDisabled}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a provider" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="PhonePe">PhonePe</SelectItem>
+                                            <SelectItem value="Google Pay">Google Pay</SelectItem>
+                                            <SelectItem value="Paytm">Paytm</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="upiId">Your UPI ID</Label>
+                                    <Input id="upiId" value={upiId} onChange={(e) => setUpiId(e.target.value)} placeholder="your-name@oksbi" disabled={isUpiFormDisabled} />
+                                </div>
+                                <Button onClick={handleSubmitUpi} className="w-full" disabled={isUpiFormDisabled}>
+                                    <Handshake className="mr-2 h-4 w-4" />
+                                    Submit for Verification
+                                </Button>
+                             </div>
+                        ): null}
+                    </>
+                )}
+            </CardContent>
         </Card>
         
          <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">

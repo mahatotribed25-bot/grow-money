@@ -19,6 +19,7 @@ import {
   writeBatch,
   getDoc,
   Timestamp,
+  serverTimestamp,
 } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
@@ -114,6 +115,8 @@ export default function RegisterPage() {
         referredBy: referredBy,
         status: 'Active',
         kycStatus: 'Not Submitted',
+        upiStatus: 'Unverified',
+        createdAt: serverTimestamp(),
       });
 
       router.push("/");
