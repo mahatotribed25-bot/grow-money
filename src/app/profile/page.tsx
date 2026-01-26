@@ -22,6 +22,7 @@ import {
   Send,
   Handshake,
   ShieldCheck,
+  Pencil,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -119,7 +120,7 @@ function useUserGroupInvestments(userId?: string) {
             for (const planDoc of plansSnapshot.docs) {
                 const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
                 const q = query(investmentsRef, where('investorId', '==', userId));
-                const investmentSnapshot = await getDocs(iq);
+                const investmentSnapshot = await getDocs(q);
 
                 investmentSnapshot.forEach(invDoc => {
                     allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
@@ -241,6 +242,35 @@ export default function ProfilePage() {
       });
   }
 
+  const handleChangeUpiRequest = () => {
+    if (!user) return;
+    const userRef = doc(firestore, 'users', user.uid);
+    const updateData = {
+      upiStatus: 'Unverified',
+      upiId: '',
+      upiProvider: '',
+    };
+
+    updateDoc(userRef, updateData)
+      .then(() => {
+        toast({
+          title: 'UPI Reset',
+          description: 'You can now submit a new UPI ID for verification.',
+        });
+        setUpiId('');
+        setUpiProvider('');
+      })
+      .catch((error) => {
+        console.error('Error resetting UPI:', error);
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+  };
+
 
   const handleSubmitKyc = () => {
     if (!user) return;
@@ -330,9 +360,16 @@ export default function ProfilePage() {
                         <>
                             {upiStatus === 'Verified' && (
                                 <div className="rounded-md border border-green-500/50 bg-green-500/10 p-4 text-green-300 space-y-2">
-                                    <p className="font-semibold text-center">UPI ID Verified</p>
-                                    <p className="text-sm">Provider: {userData?.upiProvider}</p>
-                                    <p className="text-sm">ID: {userData?.upiId}</p>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-semibold">UPI ID Verified</p>
+                                            <p className="text-sm">Provider: {userData?.upiProvider}</p>
+                                            <p className="text-sm">ID: {userData?.upiId}</p>
+                                        </div>
+                                        <Button variant="ghost" size="sm" onClick={handleChangeUpiRequest} className="text-green-300/80 hover:text-green-300 h-auto p-1">
+                                            <Pencil className="h-3 w-3 mr-1" /> Change
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
                             {upiStatus === 'Pending' && (
@@ -714,5 +751,7 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
         </Card>
     );
 }
+
+    
 
     
