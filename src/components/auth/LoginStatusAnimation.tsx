@@ -18,7 +18,7 @@ export function LoginStatusAnimation({ status }: LoginStatusAnimationProps) {
       )}
       {status === 'success' && (
         <div className="relative animate-in fade-in zoom-in-95">
-          <Cat size={iconSize} className="text-primary" />
+          <Cat size={iconSize} className="text-[#f472b6]" />
           <ThumbsUp
             size={iconSize / 1.8}
             className="absolute -bottom-2 -right-4 text-green-500 fill-green-500 animate-in fade-in zoom-in-50 slide-in-from-bottom-5 slide-in-from-left-2 [animation-delay:200ms]"
@@ -36,7 +36,7 @@ export function LoginStatusAnimation({ status }: LoginStatusAnimationProps) {
       )}
       {status === 'idle' && (
         <div className="animate-in fade-in">
-            <Cat size={iconSize} className="text-muted-foreground" />
+            <Cat size={iconSize} className="text-[#f472b6]" />
         </div>
       )}
     </div>
