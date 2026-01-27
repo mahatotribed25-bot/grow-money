@@ -36,7 +36,7 @@ export function LoginStatusAnimation({ status }: LoginStatusAnimationProps) {
       )}
       {status === 'idle' && (
         <div className="animate-in fade-in">
-            <Cat size={iconSize} className="text-[#f472b6]" />
+            <Cat size={iconSize} className="text-pink-300 animate-pulse" />
         </div>
       )}
     </div>
