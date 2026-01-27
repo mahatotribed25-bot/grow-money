@@ -98,12 +98,36 @@ export default {
           '0%': { transform: 'rotateX(0deg)' },
           '100%': { transform: 'rotateX(-90deg)' },
         },
+        'blink-eyes': {
+          '0%, 100%': {
+            transform: 'scaleY(1)',
+            transformOrigin: 'center',
+          },
+          '5%, 95%': {
+            transform: 'scaleY(1)',
+            transformOrigin: 'center',
+          },
+          '6%': {
+            transform: 'scaleY(0.1)',
+            transformOrigin: 'center',
+          },
+          '9%': {
+            transform: 'scaleY(0.1)',
+            transformOrigin: 'center',
+          },
+        },
+        'border-spin': {
+            'from': { transform: 'rotate(0deg)' },
+            'to': { transform: 'rotate(360deg)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'shake': 'shake 0.82s cubic-bezier(.36,.07,.19,.97) both',
         'flip-down': 'flip-down 0.5s ease-in-out',
+        'blink-eyes': 'blink-eyes 3s infinite',
+        'border-spin': 'border-spin 2s linear infinite',
       },
     },
   },
