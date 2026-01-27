@@ -1,14 +1,10 @@
 
 'use client';
 
-import { ThumbsUp, X, LoaderCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LoaderCircle } from 'lucide-react';
 
-type LoginStatusAnimationProps = {
-  status: 'idle' | 'loading' | 'success' | 'error';
-};
-
-const BlinkingCatIcon = ({
+const CatIcon = ({
   className,
   iconSize,
 }: {
@@ -33,54 +29,32 @@ const BlinkingCatIcon = ({
     <path d="M11.25 16.25h1.5L12 17l-.75-.75z" />
     <path d="M4 9h.01" />
     <path d="M20 9h.01" />
-    <g className="animate-blink-eyes">
-      <path d="M9.5 11.5c.28 0 .5-.22.5-.5s-.22-.5-.5-.5-.5.22-.5.5.22.5.5.5z" />
-      <path d="M14.5 11.5c.28 0 .5-.22.5-.5s-.22-.5-.5-.5-.5.22-.5.5.22.5.5.5z" />
-    </g>
+    <path d="M9.5 11.5c.28 0 .5-.22.5-.5s-.22-.5-.5-.5-.5.22-.5.5.22.5.5.5z" />
+    <path d="M14.5 11.5c.28 0 .5-.22.5-.5s-.22-.5-.5-.5-.5.22-.5.5.22.5.5.5z" />
   </svg>
 );
 
-export function LoginStatusAnimation({ status }: LoginStatusAnimationProps) {
+
+export function LoginStatusAnimation({ status }: { status: 'idle' | 'loading' | 'success' | 'error' }) {
   const iconSize = 80;
 
+  if (status === 'loading') {
+    return (
+        <div className="flex h-[100px] w-full items-center justify-center overflow-hidden">
+            <LoaderCircle size={iconSize} className="animate-spin text-primary" />
+        </div>
+    );
+  }
+
+  // For idle, success, error states, show a static cat icon.
   return (
     <div className="flex h-[100px] w-full items-center justify-center overflow-hidden">
-      {status === 'loading' && (
         <div className="animate-in fade-in">
-          <LoaderCircle size={iconSize} className="animate-spin text-primary" />
-        </div>
-      )}
-      {status === 'success' && (
-        <div className="relative animate-in fade-in zoom-in-95">
-          <BlinkingCatIcon className="text-[#f472b6]" iconSize={iconSize} />
-          <ThumbsUp
-            size={iconSize / 1.8}
-            className="absolute -bottom-2 -right-4 fill-green-500 text-green-500 animate-in fade-in zoom-in-50 slide-in-from-bottom-5 slide-in-from-left-2 [animation-delay:200ms]"
-          />
-        </div>
-      )}
-      {status === 'error' && (
-        <div className="relative animate-shake">
-          <BlinkingCatIcon className="text-destructive" iconSize={iconSize} />
-          <X
-            size={iconSize / 1.8}
-            className="absolute -top-2 -right-2 text-destructive animate-in fade-in zoom-in-50 [animation-delay:200ms]"
-          />
-        </div>
-      )}
-      {status === 'idle' && (
-        <div className="animate-in fade-in">
-           <div className="relative w-max">
-            <div className="absolute -inset-0.5 rounded-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] animate-border-spin"></div>
-            <div className="relative rounded-full bg-card p-1">
-              <BlinkingCatIcon
-                className="text-pink-300"
+             <CatIcon
+                className="text-primary"
                 iconSize={iconSize}
               />
-            </div>
-          </div>
         </div>
-      )}
     </div>
   );
 }
