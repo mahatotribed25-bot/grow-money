@@ -1,3 +1,4 @@
+
 'use client';
 
 import { ThumbsUp, X, LoaderCircle } from 'lucide-react';
@@ -69,8 +70,9 @@ export function LoginStatusAnimation({ status }: LoginStatusAnimationProps) {
       )}
       {status === 'idle' && (
         <div className="animate-in fade-in">
-          <div className="relative w-max rounded-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] p-1 animate-border-spin">
-            <div className="rounded-full bg-card p-1">
+           <div className="relative w-max">
+            <div className="absolute -inset-0.5 rounded-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] animate-border-spin"></div>
+            <div className="relative rounded-full bg-card p-1">
               <BlinkingCatIcon
                 className="text-pink-300"
                 iconSize={iconSize}
