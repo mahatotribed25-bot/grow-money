@@ -1,11 +1,10 @@
-
 "use client";
 
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Gift, KeyRound, Lock, Mail, User } from "lucide-react";
+import { Gift, Lock, Mail, User } from "lucide-react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import {
@@ -35,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { AuthCard } from "@/components/auth/auth-card";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { LoginStatusAnimation } from "@/components/auth/LoginStatusAnimation";
 
 
 const formSchema = z.object({
@@ -137,7 +137,7 @@ export default function RegisterPage() {
     <main className="flex min-h-screen w-full items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-4">
         <div className="flex flex-col items-center space-y-2 text-center">
-          <KeyRound className="h-10 w-10 text-primary" />
+          <LoginStatusAnimation status={'idle'} />
           <h1 className="text-3xl font-bold tracking-tight text-primary">
             Grow Money 💰
           </h1>
