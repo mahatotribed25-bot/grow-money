@@ -1,8 +1,7 @@
-
 'use client';
 
 import { cn } from '@/lib/utils';
-import { LoaderCircle, Cat } from 'lucide-react';
+import { LoaderCircle, Cat, CheckCircle, XCircle } from 'lucide-react';
 
 
 export function LoginStatusAnimation({ status }: { status: 'idle' | 'loading' | 'success' | 'error' }) {
@@ -15,8 +14,28 @@ export function LoginStatusAnimation({ status }: { status: 'idle' | 'loading' | 
         </div>
     );
   }
+  
+  if (status === 'success') {
+    return (
+        <div className="flex h-[100px] w-full items-center justify-center overflow-hidden">
+            <div className="animate-in fade-in zoom-in">
+                <CheckCircle size={iconSize} className="text-green-500" />
+            </div>
+        </div>
+    );
+  }
+  
+  if (status === 'error') {
+    return (
+        <div className="flex h-[100px] w-full items-center justify-center overflow-hidden">
+            <div className="animate-in fade-in">
+                <XCircle size={iconSize} className="text-destructive animate-shake" />
+            </div>
+        </div>
+    );
+  }
 
-  // For idle, success, error states, show a static cat icon.
+  // idle state
   return (
     <div className="flex h-[100px] w-full items-center justify-center overflow-hidden">
         <div className="animate-in fade-in">
