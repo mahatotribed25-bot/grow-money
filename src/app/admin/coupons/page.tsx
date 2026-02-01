@@ -67,6 +67,7 @@ export default function CouponsPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Partial<typeof emptyCoupon>>({});
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const handleCreateNew = () => {
     setEditingCoupon({
@@ -228,7 +229,7 @@ export default function CouponsPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="expiryDate" className="text-right">Expiry Date</Label>
-                <Popover>
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                     <PopoverTrigger asChild>
                         <Button
                         variant={"outline"}
@@ -245,7 +246,10 @@ export default function CouponsPage() {
                         <Calendar
                         mode="single"
                         selected={editingCoupon?.expiryDate}
-                        onSelect={(date) => handleFieldChange('expiryDate', date)}
+                        onSelect={(date) => {
+                            handleFieldChange('expiryDate', date);
+                            setIsCalendarOpen(false);
+                        }}
                         initialFocus
                         />
                     </PopoverContent>
