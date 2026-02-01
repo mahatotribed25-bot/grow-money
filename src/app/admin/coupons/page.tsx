@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, Eye } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,19 +36,27 @@ import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
+type Redemption = {
+    userId: string;
+    userName: string;
+    redeemedAt: Timestamp;
+}
+
 type Coupon = {
   id: string;
   code: string;
   amount: number;
-  status: 'active' | 'redeemed' | 'expired';
+  status: 'active' | 'depleted';
+  stock: number;
+  maxStock: number;
+  redemptions: Redemption[];
   createdAt: Timestamp;
-  redeemedBy?: string;
-  redeemedAt?: Timestamp;
 };
 
-const emptyCoupon: Omit<Coupon, 'id' | 'status' | 'createdAt'> = {
+const emptyCoupon: Omit<Coupon, 'id' | 'status' | 'createdAt' | 'redemptions' | 'maxStock'> = {
   code: '',
   amount: 0,
+  stock: 1,
 };
 
 function generateCouponCode() {
@@ -60,15 +69,17 @@ export default function CouponsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Partial<typeof emptyCoupon>>({});
+  const [viewingRedemptions, setViewingRedemptions] = useState<Coupon | null>(null);
 
   const handleCreateNew = () => {
     setEditingCoupon({
         ...emptyCoupon,
-        code: generateCouponCode()
+        code: generateCouponCode(),
+        stock: 1,
     });
-    setIsDialogOpen(true);
+    setIsCreateDialogOpen(true);
   };
 
   const handleDelete = (couponId: string) => {
@@ -87,15 +98,22 @@ export default function CouponsPage() {
   };
 
   const handleSave = () => {
-    if (!editingCoupon?.code || !editingCoupon?.amount) {
-      toast({ variant: 'destructive', title: 'Code and amount are required.' });
+    if (!editingCoupon?.code || !editingCoupon?.amount || !editingCoupon?.stock) {
+      toast({ variant: 'destructive', title: 'Code, amount and stock are required.' });
+      return;
+    }
+     if (Number(editingCoupon.stock) <= 0) {
+      toast({ variant: 'destructive', title: 'Stock must be greater than 0.' });
       return;
     }
     
     const couponData = {
         code: editingCoupon.code,
         amount: Number(editingCoupon.amount),
+        stock: Number(editingCoupon.stock),
+        maxStock: Number(editingCoupon.stock),
         status: 'active' as const,
+        redemptions: [],
         createdAt: serverTimestamp(),
     };
 
@@ -103,7 +121,7 @@ export default function CouponsPage() {
     addDoc(couponsCollection, couponData)
         .then(() => {
             toast({ title: 'Coupon created successfully' });
-            setIsDialogOpen(false);
+            setIsCreateDialogOpen(false);
         })
         .catch((error) => {
              const permissionError = new FirestorePermissionError({
@@ -120,10 +138,14 @@ export default function CouponsPage() {
   };
 
   const getStatusVariant = (status: Coupon['status']) => {
-    if (status === 'redeemed') return 'default';
-    if (status === 'expired') return 'destructive';
+    if (status === 'depleted') return 'destructive';
     return 'secondary';
   }
+  
+  const formatDate = (timestamp: Timestamp) => {
+    if (!timestamp) return 'N/A';
+    return new Date(timestamp.seconds * 1000).toLocaleString();
+  };
 
   const sortedCoupons = coupons?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds);
 
@@ -142,8 +164,8 @@ export default function CouponsPage() {
             <TableRow>
               <TableHead>Code</TableHead>
               <TableHead>Amount</TableHead>
+              <TableHead>Redemptions</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Redeemed By</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -160,12 +182,21 @@ export default function CouponsPage() {
                   <TableCell className="font-mono">{coupon.code}</TableCell>
                   <TableCell>₹{coupon.amount.toFixed(2)}</TableCell>
                   <TableCell>
+                    {coupon.redemptions?.length || 0} / {coupon.maxStock}
+                  </TableCell>
+                  <TableCell>
                     <Badge variant={getStatusVariant(coupon.status)} className="capitalize">
                       {coupon.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{coupon.redeemedBy || 'N/A'}</TableCell>
-                  <TableCell>
+                  <TableCell className="flex gap-2">
+                     <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setViewingRedemptions(coupon)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -182,7 +213,7 @@ export default function CouponsPage() {
         </Table>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Coupon</DialogTitle>
@@ -213,6 +244,21 @@ export default function CouponsPage() {
                 className="col-span-3"
               />
             </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="stock" className="text-right">
+                Stock
+              </Label>
+              <Input
+                id="stock"
+                type="number"
+                value={editingCoupon?.stock || 1}
+                onChange={(e) =>
+                  handleFieldChange('stock', e.target.value)
+                }
+                className="col-span-3"
+                min={1}
+              />
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -221,6 +267,46 @@ export default function CouponsPage() {
             <Button onClick={handleSave}>Save Coupon</Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
+      
+      <Dialog open={!!viewingRedemptions} onOpenChange={() => setViewingRedemptions(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>'{viewingRedemptions?.code}' Redemptions</DialogTitle>
+              <DialogDescription>
+                List of users who have redeemed this coupon.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 max-h-80 overflow-y-auto">
+              {viewingRedemptions && viewingRedemptions.redemptions.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User Name</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {viewingRedemptions.redemptions.map((redemption) => (
+                      <TableRow key={redemption.userId}>
+                        <TableCell>{redemption.userName}</TableCell>
+                        <TableCell>{formatDate(redemption.redeemedAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-center text-muted-foreground py-4">
+                  No one has redeemed this coupon yet.
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">Close</Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
       </Dialog>
     </div>
   );

@@ -36,7 +36,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection } from '@/firebase';
-import { Timestamp, doc, updateDoc, collection, query, where, getDocs, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc, collection, query, where, getDocs, runTransaction, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -69,7 +69,9 @@ type Coupon = {
   id: string;
   code: string;
   amount: number;
-  status: 'active' | 'redeemed' | 'expired';
+  status: 'active' | 'depleted';
+  stock: number;
+  redemptions: { userId: string, userName: string, redeemedAt: Date }[];
 };
 
 
@@ -561,7 +563,7 @@ function RedeemCouponCard() {
     const [isLoading, setIsLoading] = useState(false);
 
     const handleApplyCoupon = async () => {
-        if (!user) {
+        if (!user || !user.displayName) {
             toast({ title: 'Please log in to redeem a coupon.', variant: 'destructive' });
             return;
         }
@@ -572,50 +574,60 @@ function RedeemCouponCard() {
 
         setIsLoading(true);
 
+        const q = query(collection(firestore, 'coupons'), where('code', '==', couponCode.trim()));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            toast({ title: 'Invalid Coupon', description: 'This coupon code does not exist.', variant: 'destructive' });
+            setIsLoading(false);
+            return;
+        }
+
+        const couponDoc = snapshot.docs[0];
+        const couponRef = doc(firestore, 'coupons', couponDoc.id);
+
         try {
-            const q = query(collection(firestore, 'coupons'), where('code', '==', couponCode.trim()));
-            const snapshot = await getDocs(q);
-
-            if (snapshot.empty) {
-                toast({ title: 'Invalid Coupon', description: 'This coupon code does not exist.', variant: 'destructive' });
-                setIsLoading(false);
-                return;
-            }
-
-            const couponDoc = snapshot.docs[0];
-            const coupon = { id: couponDoc.id, ...couponDoc.data() } as Coupon;
-
-            if (coupon.status !== 'active') {
-                toast({ title: 'Coupon Not Active', description: 'This coupon has already been redeemed or is expired.', variant: 'destructive' });
-                setIsLoading(false);
-                return;
-            }
-
             await runTransaction(firestore, async (transaction) => {
-                const userRef = doc(firestore, 'users', user.uid);
-                const couponRef = doc(firestore, 'coupons', coupon.id);
-
-                const userDoc = await transaction.get(userRef);
-                const coupDocInTransaction = await transaction.get(couponRef);
-
-                if (!userDoc.exists() || !coupDocInTransaction.exists()) {
-                    throw new Error('User or Coupon not found');
+                const couponSnapshot = await transaction.get(couponRef);
+                if (!couponSnapshot.exists()) {
+                    throw new Error("Coupon not found.");
                 }
-                if (coupDocInTransaction.data().status !== 'active') {
-                    throw new Error('Coupon is no longer active.');
+                const coupon = couponSnapshot.data() as Coupon;
+
+                if (coupon.status !== 'active' || coupon.stock <= 0) {
+                    throw new Error('This coupon is no longer active or out of stock.');
+                }
+
+                const userHasRedeemed = coupon.redemptions?.some(r => r.userId === user.uid);
+                if (userHasRedeemed) {
+                    throw new Error('You have already redeemed this coupon code.');
+                }
+                
+                const userRef = doc(firestore, 'users', user.uid);
+                const userDoc = await transaction.get(userRef);
+                if (!userDoc.exists()) {
+                    throw new Error('User data not found.');
                 }
                 
                 const newBalance = (userDoc.data().walletBalance || 0) + coupon.amount;
                 transaction.update(userRef, { walletBalance: newBalance });
 
+                const newStock = coupon.stock - 1;
+                const newStatus = newStock === 0 ? 'depleted' : 'active';
+                const newRedemption = {
+                    userId: user.uid,
+                    userName: user.displayName || 'Anonymous',
+                    redeemedAt: new Date(),
+                };
+
                 transaction.update(couponRef, {
-                    status: 'redeemed',
-                    redeemedBy: user.uid,
-                    redeemedAt: serverTimestamp(),
+                    stock: newStock,
+                    status: newStatus,
+                    redemptions: arrayUnion(newRedemption)
                 });
             });
 
-            toast({ title: 'Coupon Redeemed!', description: `₹${coupon.amount} has been added to your wallet.` });
+            toast({ title: 'Coupon Redeemed!', description: `₹${couponDoc.data().amount} has been added to your wallet.` });
             setCouponCode('');
         } catch (error: any) {
             console.error("Coupon redemption error:", error);

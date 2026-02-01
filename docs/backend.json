@@ -518,7 +518,7 @@
     },
     "coupon": {
       "title": "Coupon",
-      "description": "A coupon that can be redeemed by a user for a wallet credit.",
+      "description": "A coupon that can be redeemed by users for a wallet credit, up to a certain number of times (stock).",
       "type": "object",
       "properties": {
         "code": {
@@ -531,17 +531,29 @@
         },
         "status": {
           "type": "string",
-          "enum": ["active", "redeemed", "expired"],
+          "enum": ["active", "depleted"],
           "description": "The status of the coupon."
         },
-        "redeemedBy": {
-          "type": "string",
-          "description": "The UID of the user who redeemed the coupon."
+        "stock": {
+            "type": "number",
+            "description": "How many times this coupon can still be redeemed."
         },
-        "redeemedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the coupon was redeemed."
+        "maxStock": {
+            "type": "number",
+            "description": "The initial number of times this coupon could be redeemed."
+        },
+        "redemptions": {
+            "type": "array",
+            "description": "A list of users who have redeemed this coupon.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "userId": { "type": "string" },
+                    "userName": { "type": "string" },
+                    "redeemedAt": { "type": "string", "format": "date-time" }
+                },
+                "required": ["userId", "userName", "redeemedAt"]
+            }
         },
         "createdAt": {
           "type": "string",
@@ -549,7 +561,7 @@
           "description": "The timestamp when the coupon was created."
         }
       },
-      "required": ["code", "amount", "status", "createdAt"]
+      "required": ["code", "amount", "status", "stock", "maxStock", "createdAt"]
     }
   },
   "auth": {
