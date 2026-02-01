@@ -278,7 +278,7 @@ export default function CouponsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4 max-h-80 overflow-y-auto">
-              {viewingRedemptions && viewingRedemptions.redemptions.length > 0 ? (
+              {viewingRedemptions?.redemptions?.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
