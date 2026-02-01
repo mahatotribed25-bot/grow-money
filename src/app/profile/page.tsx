@@ -584,22 +584,37 @@ function RedeemCouponCard() {
         }
 
         const couponDoc = snapshot.docs[0];
+        const couponData = couponDoc.data() as Coupon;
+
+        // Pre-check for redemption to provide a cleaner user experience
+        if (couponData.redemptions?.some(r => r.userId === user.uid)) {
+            toast({ title: 'Coupon Already Used', description: 'You have already redeemed this coupon code.', variant: 'destructive' });
+            setIsLoading(false);
+            return;
+        }
+
+        if (couponData.status !== 'active' || couponData.stock <= 0) {
+            toast({ title: 'Coupon Not Active', description: 'This coupon is either inactive or out of stock.', variant: 'destructive' });
+            setIsLoading(false);
+            return;
+        }
+
         const couponRef = doc(firestore, 'coupons', couponDoc.id);
 
         try {
             await runTransaction(firestore, async (transaction) => {
                 const couponSnapshot = await transaction.get(couponRef);
                 if (!couponSnapshot.exists()) {
-                    throw new Error("Coupon not found.");
+                    throw new Error("Coupon not found during transaction.");
                 }
                 const coupon = couponSnapshot.data() as Coupon;
 
+                // Re-validate inside the transaction to prevent race conditions
                 if (coupon.status !== 'active' || coupon.stock <= 0) {
                     throw new Error('This coupon is no longer active or out of stock.');
                 }
 
-                const userHasRedeemed = coupon.redemptions?.some(r => r.userId === user.uid);
-                if (userHasRedeemed) {
+                if (coupon.redemptions?.some(r => r.userId === user.uid)) {
                     throw new Error('You have already redeemed this coupon code.');
                 }
                 
@@ -613,7 +628,7 @@ function RedeemCouponCard() {
                 transaction.update(userRef, { walletBalance: newBalance });
 
                 const newStock = coupon.stock - 1;
-                const newStatus = newStock === 0 ? 'depleted' : 'active';
+                const newStatus = newStock <= 0 ? 'depleted' : 'active';
                 const newRedemption = {
                     userId: user.uid,
                     userName: user.displayName || 'Anonymous',
@@ -630,7 +645,7 @@ function RedeemCouponCard() {
             toast({ title: 'Coupon Redeemed!', description: `₹${couponDoc.data().amount} has been added to your wallet.` });
             setCouponCode('');
         } catch (error: any) {
-            console.error("Coupon redemption error:", error);
+            // The user sees the toast, no need for a console error for validation issues.
             toast({ title: 'Redemption Failed', description: error.message || 'An error occurred.', variant: 'destructive' });
         } finally {
             setIsLoading(false);
