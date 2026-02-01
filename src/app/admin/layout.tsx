@@ -18,6 +18,7 @@ import {
   Users2,
   FileCheck,
   Handshake,
+  Gift,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -205,6 +206,9 @@ export default function AdminLayout({
             <AdminNavItem icon={Download} href="/admin/withdrawals">
               Withdrawals
             </AdminNavItem>
+             <AdminNavItem icon={Gift} href="/admin/coupons">
+              Coupons
+            </AdminNavItem>
             <AdminNavItem icon={Megaphone} href="/admin/announcements">
               Announcements
             </AdminNavItem>
@@ -274,6 +278,9 @@ export default function AdminLayout({
                 </AdminNavItem>
                 <AdminNavItem icon={Download} href="/admin/withdrawals">
                   Withdrawals
+                </AdminNavItem>
+                <AdminNavItem icon={Gift} href="/admin/coupons">
+                  Coupons
                 </AdminNavItem>
                 <AdminNavItem icon={Megaphone} href="/admin/announcements">
                   Announcements

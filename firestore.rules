@@ -141,6 +141,22 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Rules for coupons
+    match /coupons/{couponId} {
+      // Admin can do everything.
+      allow write: if isAdmin();
+      // Any authenticated user can read coupons for redemption checks.
+      allow read: if request.auth != null;
+
+      // A user can only update a coupon to redeem it.
+      allow update: if request.auth.uid != null
+                    && resource.data.status == 'active'
+                    && request.resource.data.status == 'redeemed'
+                    && request.resource.data.redeemedBy == request.auth.uid
+                    && request.time < resource.data.expiryDate
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'redeemedBy', 'redeemedAt']);
+    }
+
     // KYC Requests (Collection Group Query)
     match /kycRequests/{requestId} {
       allow read, write: if isAdmin();

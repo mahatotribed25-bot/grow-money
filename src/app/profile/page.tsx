@@ -23,6 +23,7 @@ import {
   Handshake,
   ShieldCheck,
   Pencil,
+  TicketPercent,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,14 @@ type UpiRequest = {
   confirmationAmount?: number;
   upiId: string;
   upiProvider: string;
+};
+
+type Coupon = {
+  id: string;
+  code: string;
+  amount: number;
+  expiryDate: Timestamp;
+  status: 'active' | 'redeemed' | 'expired';
 };
 
 
@@ -347,6 +356,8 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
+        <RedeemCouponCard />
+
         {awaitingConfirmationRequest ? (
             <AmountVerificationCard request={awaitingConfirmationRequest}/>
         ) : (
@@ -541,6 +552,108 @@ export default function ProfilePage() {
       </nav>
     </div>
   );
+}
+
+function RedeemCouponCard() {
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [couponCode, setCouponCode] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleApplyCoupon = async () => {
+        if (!user) {
+            toast({ title: 'Please log in to redeem a coupon.', variant: 'destructive' });
+            return;
+        }
+        if (!couponCode.trim()) {
+            toast({ title: 'Please enter a coupon code.', variant: 'destructive' });
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            const q = query(collection(firestore, 'coupons'), where('code', '==', couponCode.trim()));
+            const snapshot = await getDocs(q);
+
+            if (snapshot.empty) {
+                toast({ title: 'Invalid Coupon', description: 'This coupon code does not exist.', variant: 'destructive' });
+                setIsLoading(false);
+                return;
+            }
+
+            const couponDoc = snapshot.docs[0];
+            const coupon = { id: couponDoc.id, ...couponDoc.data() } as Coupon;
+
+            if (coupon.status !== 'active') {
+                toast({ title: 'Coupon Not Active', description: 'This coupon has already been redeemed or is expired.', variant: 'destructive' });
+                setIsLoading(false);
+                return;
+            }
+
+            if (coupon.expiryDate.toDate() < new Date()) {
+                toast({ title: 'Coupon Expired', description: 'This coupon has expired.', variant: 'destructive' });
+                // Optionally, update the coupon status to 'expired' in the database here
+                setIsLoading(false);
+                return;
+            }
+
+            await runTransaction(firestore, async (transaction) => {
+                const userRef = doc(firestore, 'users', user.uid);
+                const couponRef = doc(firestore, 'coupons', coupon.id);
+
+                const userDoc = await transaction.get(userRef);
+                const coupDocInTransaction = await transaction.get(couponRef);
+
+                if (!userDoc.exists() || !coupDocInTransaction.exists()) {
+                    throw new Error('User or Coupon not found');
+                }
+                if (coupDocInTransaction.data().status !== 'active') {
+                    throw new Error('Coupon is no longer active.');
+                }
+                
+                const newBalance = (userDoc.data().walletBalance || 0) + coupon.amount;
+                transaction.update(userRef, { walletBalance: newBalance });
+
+                transaction.update(couponRef, {
+                    status: 'redeemed',
+                    redeemedBy: user.uid,
+                    redeemedAt: serverTimestamp(),
+                });
+            });
+
+            toast({ title: 'Coupon Redeemed!', description: `₹${coupon.amount} has been added to your wallet.` });
+            setCouponCode('');
+        } catch (error: any) {
+            console.error("Coupon redemption error:", error);
+            toast({ title: 'Redemption Failed', description: error.message || 'An error occurred.', variant: 'destructive' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+
+    return (
+        <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><TicketPercent /> Redeem a Coupon</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <Input 
+                        placeholder="Enter coupon code" 
+                        value={couponCode} 
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        disabled={isLoading}
+                    />
+                    <Button onClick={handleApplyCoupon} disabled={isLoading} className="w-full sm:w-auto">
+                        {isLoading ? 'Applying...' : 'Apply Coupon'}
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
 }
 
 function AmountVerificationCard({ request }: { request: UpiRequest }) {
@@ -751,7 +864,3 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
         </Card>
     );
 }
-
-    
-
-    

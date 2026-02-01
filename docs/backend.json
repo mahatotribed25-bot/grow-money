@@ -515,6 +515,46 @@
             "payoutDate": { "type": "string", "format": "date-time"}
         },
         "required": ["loanPlanId", "investorId", "payoutAmount", "payoutDate"]
+    },
+    "coupon": {
+      "title": "Coupon",
+      "description": "A coupon that can be redeemed by a user for a wallet credit.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "The unique coupon code."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The value of the coupon."
+        },
+        "expiryDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date when the coupon expires."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "redeemed", "expired"],
+          "description": "The status of the coupon."
+        },
+        "redeemedBy": {
+          "type": "string",
+          "description": "The UID of the user who redeemed the coupon."
+        },
+        "redeemedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the coupon was redeemed."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the coupon was created."
+        }
+      },
+      "required": ["code", "amount", "expiryDate", "status", "createdAt"]
     }
   },
   "auth": {
@@ -594,8 +634,12 @@
     "/groupLoanPlans/{planId}/payouts/{payoutId}": {
         "schema": { "$ref": "#/entities/payout" },
         "description": "Logs manual payouts distributed by the admin to investors for a group loan."
+    },
+    "/coupons/{couponId}": {
+      "schema": {
+        "$ref": "#/entities/coupon"
+      },
+      "description": "Stores redeemable coupons."
     }
   }
 }
-
-    
