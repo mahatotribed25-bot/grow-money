@@ -529,11 +529,6 @@
           "type": "number",
           "description": "The value of the coupon."
         },
-        "expiryDate": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The date when the coupon expires."
-        },
         "status": {
           "type": "string",
           "enum": ["active", "redeemed", "expired"],
@@ -554,7 +549,7 @@
           "description": "The timestamp when the coupon was created."
         }
       },
-      "required": ["code", "amount", "expiryDate", "status", "createdAt"]
+      "required": ["code", "amount", "status", "createdAt"]
     }
   },
   "auth": {

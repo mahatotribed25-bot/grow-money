@@ -69,7 +69,6 @@ type Coupon = {
   id: string;
   code: string;
   amount: number;
-  expiryDate: Timestamp;
   status: 'active' | 'redeemed' | 'expired';
 };
 
@@ -588,13 +587,6 @@ function RedeemCouponCard() {
 
             if (coupon.status !== 'active') {
                 toast({ title: 'Coupon Not Active', description: 'This coupon has already been redeemed or is expired.', variant: 'destructive' });
-                setIsLoading(false);
-                return;
-            }
-
-            if (coupon.expiryDate.toDate() < new Date()) {
-                toast({ title: 'Coupon Expired', description: 'This coupon has expired.', variant: 'destructive' });
-                // Optionally, update the coupon status to 'expired' in the database here
                 setIsLoading(false);
                 return;
             }

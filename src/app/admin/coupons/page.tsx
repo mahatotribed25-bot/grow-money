@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Trash2, CalendarIcon } from 'lucide-react';
+import { PlusCircle, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -32,10 +32,6 @@ import {
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -43,14 +39,13 @@ type Coupon = {
   id: string;
   code: string;
   amount: number;
-  expiryDate: Timestamp;
   status: 'active' | 'redeemed' | 'expired';
   createdAt: Timestamp;
   redeemedBy?: string;
   redeemedAt?: Timestamp;
 };
 
-const emptyCoupon: Omit<Coupon, 'id' | 'status' | 'createdAt' | 'expiryDate'> & { expiryDate?: Date } = {
+const emptyCoupon: Omit<Coupon, 'id' | 'status' | 'createdAt'> = {
   code: '',
   amount: 0,
 };
@@ -67,7 +62,6 @@ export default function CouponsPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Partial<typeof emptyCoupon>>({});
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const handleCreateNew = () => {
     setEditingCoupon({
@@ -93,15 +87,14 @@ export default function CouponsPage() {
   };
 
   const handleSave = () => {
-    if (!editingCoupon?.code || !editingCoupon?.amount || !editingCoupon?.expiryDate) {
-      toast({ variant: 'destructive', title: 'All fields are required.' });
+    if (!editingCoupon?.code || !editingCoupon?.amount) {
+      toast({ variant: 'destructive', title: 'Code and amount are required.' });
       return;
     }
     
     const couponData = {
         code: editingCoupon.code,
         amount: Number(editingCoupon.amount),
-        expiryDate: Timestamp.fromDate(editingCoupon.expiryDate),
         status: 'active' as const,
         createdAt: serverTimestamp(),
     };
@@ -124,11 +117,6 @@ export default function CouponsPage() {
 
   const handleFieldChange = (field: keyof typeof emptyCoupon, value: any) => {
     setEditingCoupon(prev => ({ ...prev, [field]: value }));
-  };
-
-  const formatDate = (timestamp?: Timestamp) => {
-    if (!timestamp) return 'N/A';
-    return new Date(timestamp.seconds * 1000).toLocaleDateString();
   };
 
   const getStatusVariant = (status: Coupon['status']) => {
@@ -154,7 +142,6 @@ export default function CouponsPage() {
             <TableRow>
               <TableHead>Code</TableHead>
               <TableHead>Amount</TableHead>
-              <TableHead>Expiry Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Redeemed By</TableHead>
               <TableHead>Actions</TableHead>
@@ -163,7 +150,7 @@ export default function CouponsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
+                <TableCell colSpan={5} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -172,7 +159,6 @@ export default function CouponsPage() {
                 <TableRow key={coupon.id}>
                   <TableCell className="font-mono">{coupon.code}</TableCell>
                   <TableCell>₹{coupon.amount.toFixed(2)}</TableCell>
-                  <TableCell>{formatDate(coupon.expiryDate)}</TableCell>
                   <TableCell>
                     <Badge variant={getStatusVariant(coupon.status)} className="capitalize">
                       {coupon.status}
@@ -226,34 +212,6 @@ export default function CouponsPage() {
                 }
                 className="col-span-3"
               />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="expiryDate" className="text-right">Expiry Date</Label>
-                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                    <PopoverTrigger asChild>
-                        <Button
-                        variant={"outline"}
-                        className={cn(
-                            "col-span-3 justify-start text-left font-normal",
-                            !editingCoupon?.expiryDate && "text-muted-foreground"
-                        )}
-                        >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {editingCoupon?.expiryDate ? format(editingCoupon.expiryDate, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                        <Calendar
-                        mode="single"
-                        selected={editingCoupon?.expiryDate}
-                        onSelect={(date) => {
-                            handleFieldChange('expiryDate', date);
-                            setIsCalendarOpen(false);
-                        }}
-                        initialFocus
-                        />
-                    </PopoverContent>
-                </Popover>
             </div>
           </div>
           <DialogFooter>
