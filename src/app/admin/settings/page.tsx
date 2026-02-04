@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,14 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useDoc, useFirestore } from '@/firebase';
+import { useDoc, useFirestore, useAuth, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp, deleteField, type Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer } from 'lucide-react';
+import { Timer, Mail } from 'lucide-react';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 type AdminSettings = {
   adminUpi?: string;
@@ -28,6 +28,8 @@ type AdminSettings = {
 
 export default function SettingsPage() {
   const firestore = useFirestore();
+  const auth = useAuth();
+  const { user: adminUser } = useUser();
   const { toast } = useToast();
   const { data: settings, loading } = useDoc<AdminSettings>('settings/admin');
 
@@ -154,6 +156,31 @@ export default function SettingsPage() {
       });
   }
 
+  const handlePasswordReset = async () => {
+    if (!adminUser || !adminUser.email) {
+      toast({
+        title: 'Error',
+        description: 'Could not find admin email address.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, adminUser.email);
+      toast({
+        title: 'Password Reset Email Sent',
+        description: `A password reset link has been sent to ${adminUser.email}.`,
+      });
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send password reset email.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const maintenanceEndsAt = settings?.maintenanceEndTime ? settings.maintenanceEndTime.toDate().toLocaleString() : null;
 
   return (
@@ -200,6 +227,27 @@ export default function SettingsPage() {
                       </div>
                     </div>
                      <Button onClick={handleStopMaintenance} variant="destructive">Stop All Maintenance</Button>
+                </div>
+                <Separator />
+                <div>
+                    <CardTitle>Admin Account</CardTitle>
+                    <CardDescription>
+                        Manage your administrator account settings.
+                    </CardDescription>
+                    <div className="space-y-4 mt-4">
+                       <div className="flex items-center justify-between rounded-lg border p-4">
+                            <div>
+                                <h4 className="font-medium">Change Password</h4>
+                                <p className="text-sm text-muted-foreground">
+                                    Send a password reset link to your email: {adminUser?.email}
+                                </p>
+                            </div>
+                            <Button onClick={handlePasswordReset}>
+                                <Mail className="mr-2 h-4 w-4" />
+                                Send Reset Link
+                            </Button>
+                        </div>
+                    </div>
                 </div>
                 <Separator />
                 <div>
