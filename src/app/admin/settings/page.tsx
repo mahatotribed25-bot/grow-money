@@ -12,8 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail } from 'lucide-react';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { Timer, Mail, KeyRound } from 'lucide-react';
+import { sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 
 type AdminSettings = {
   adminUpi?: string;
@@ -33,6 +33,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { data: settings, loading } = useDoc<AdminSettings>('settings/admin');
 
+  // General settings state
   const [adminUpi, setAdminUpi] = useState('');
   const [minWithdrawal, setMinWithdrawal] = useState(0);
   const [referralBonus, setReferralBonus] = useState(0);
@@ -41,6 +42,13 @@ export default function SettingsPage() {
   const [kycGoogleFormUrl, setKycGoogleFormUrl] = useState('');
   const [isUnderMaintenance, setIsUnderMaintenance] = useState(false);
   const [maintenanceDuration, setMaintenanceDuration] = useState(5);
+
+  // Password change state
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
 
   useEffect(() => {
     if (settings) {
@@ -156,30 +164,58 @@ export default function SettingsPage() {
       });
   }
 
-  const handlePasswordReset = async () => {
+  const handleChangePassword = async () => {
     if (!adminUser || !adminUser.email) {
-      toast({
-        title: 'Error',
-        description: 'Could not find admin email address.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Admin user not found.', variant: 'destructive'});
       return;
     }
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Passwords do not match', variant: 'destructive'});
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast({ title: 'Password too weak', description: 'New password must be at least 6 characters long.', variant: 'destructive'});
+      return;
+    }
+
+    setIsChangingPassword(true);
+
     try {
-      await sendPasswordResetEmail(auth, adminUser.email);
+      if (!oldPassword) {
+        throw new Error('Old password is required.');
+      }
+      const credential = EmailAuthProvider.credential(adminUser.email, oldPassword);
+      await reauthenticateWithCredential(adminUser, credential);
+      
+      await updatePassword(adminUser, newPassword);
+
       toast({
-        title: 'Password Reset Email Sent',
-        description: `A password reset link has been sent to ${adminUser.email}.`,
+        title: 'Password Changed Successfully',
+        description: 'Your admin password has been updated.',
       });
-    } catch (error) {
-      console.error('Error sending password reset email:', error);
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+    } catch (error: any) {
+      let errorMessage = 'An unexpected error occurred.';
+      if (error.code === 'auth/wrong-password') {
+        errorMessage = 'The old password you entered is incorrect.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many attempts. Please try again later.';
+      } else if (error.message === 'Old password is required.') {
+        errorMessage = error.message;
+      }
       toast({
-        title: 'Error',
-        description: 'Failed to send password reset email.',
+        title: 'Password Change Failed',
+        description: errorMessage,
         variant: 'destructive',
       });
+    } finally {
+      setIsChangingPassword(false);
     }
   };
+
 
   const maintenanceEndsAt = settings?.maintenanceEndTime ? settings.maintenanceEndTime.toDate().toLocaleString() : null;
 
@@ -235,18 +271,24 @@ export default function SettingsPage() {
                         Manage your administrator account settings.
                     </CardDescription>
                     <div className="space-y-4 mt-4">
-                       <div className="flex items-center justify-between rounded-lg border p-4">
-                            <div>
-                                <h4 className="font-medium">Change Password</h4>
-                                <p className="text-sm text-muted-foreground">
-                                    Send a password reset link to your email: {adminUser?.email}
-                                </p>
-                            </div>
-                            <Button onClick={handlePasswordReset}>
-                                <Mail className="mr-2 h-4 w-4" />
-                                Send Reset Link
-                            </Button>
-                        </div>
+                       <div className="rounded-lg border p-4 space-y-4">
+                           <h4 className="font-medium">Change Password</h4>
+                           <div className="space-y-2">
+                               <Label htmlFor="old-password">Old Password</Label>
+                               <Input id="old-password" type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="Enter your current password"/>
+                           </div>
+                           <div className="space-y-2">
+                               <Label htmlFor="new-password">New Password</Label>
+                               <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter a new password" />
+                           </div>
+                           <div className="space-y-2">
+                               <Label htmlFor="confirm-password">Confirm New Password</Label>
+                               <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm your new password" />
+                           </div>
+                           <Button onClick={handleChangePassword} disabled={isChangingPassword}>
+                               {isChangingPassword ? 'Changing...' : 'Change Password'}
+                           </Button>
+                       </div>
                     </div>
                 </div>
                 <Separator />
