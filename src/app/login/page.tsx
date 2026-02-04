@@ -104,7 +104,7 @@ export default function LoginPage() {
           title={
             <>
               Welcome Back
-              <p className="text-xl font-normal mt-1">नमस्ते</p>
+              <p className="text-2xl font-bold mt-1 bg-gradient-to-r from-primary via-secondary to-chart-2 text-transparent bg-clip-text">नमस्ते</p>
             </>
           }
           description="Log in to your Grow Money account"
