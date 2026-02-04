@@ -101,7 +101,12 @@ export default function LoginPage() {
           </h1>
         </div>
         <AuthCard
-          title="Welcome Back"
+          title={
+            <>
+              Welcome Back
+              <p className="text-xl font-normal mt-1">नमस्ते</p>
+            </>
+          }
           description="Log in to your Grow Money account"
           footer={
             <>
