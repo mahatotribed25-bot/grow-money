@@ -97,7 +97,7 @@ export default function LoansPage() {
   const hasActiveLoan = activeLoans && activeLoans.length > 0;
   const isKycVerified = userData?.kycStatus === 'Verified';
 
-  const canApply = !hasActiveLoan && latestRequest?.status !== 'pending' && latestRequest?.status !== 'approved' && latestRequest?.status !== 'sent' && isKycVerified;
+  const canApply = !hasActiveLoan && latestRequest?.status !== 'pending' && isKycVerified;
 
   const getEligibilityMessage = () => {
     if (loading) return null;
