@@ -90,7 +90,7 @@ export default function LoansPage() {
 
   const sortedRequests = useMemo(() => {
     if (!userLoanRequests) return [];
-    return [...userLoanRequests].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+    return [...userLoanRequests].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
   }, [userLoanRequests]);
 
   const latestRequest = sortedRequests[0];
