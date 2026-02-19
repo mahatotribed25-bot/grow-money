@@ -51,7 +51,7 @@ type LoanRequest = {
   id: string;
   userId: string;
   status: 'pending' | 'approved' | 'rejected' | 'sent';
-  createdAt: Timestamp;
+  createdAt: Timestamp | null;
   rejectionReason?: string;
 }
 
@@ -94,16 +94,16 @@ export default function LoansPage() {
   }, [userLoanRequests]);
 
   const latestRequest = sortedRequests[0];
-  const hasActiveLoan = activeLoans && activeLoans.length > 0;
+  const hasMaxLoans = activeLoans && activeLoans.length >= 2;
   const isKycVerified = userData?.kycStatus === 'Verified';
 
-  const canApply = !hasActiveLoan && latestRequest?.status !== 'pending' && isKycVerified;
+  const canApply = !hasMaxLoans && latestRequest?.status !== 'pending' && isKycVerified;
 
   const getEligibilityMessage = () => {
     if (loading) return null;
     if (isKycVerified) {
-      if (hasActiveLoan) {
-        return <p>You have an active loan. You must repay it before applying for a new one. <Link href="/my-loans" className="underline">View loan details.</Link></p>;
+      if (hasMaxLoans) {
+        return <p>You have reached the maximum of 2 active loans. You must repay one before applying for a new one. <Link href="/my-loans" className="underline">View loan details.</Link></p>;
       }
       if (latestRequest?.status === 'pending') {
         return <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>;
