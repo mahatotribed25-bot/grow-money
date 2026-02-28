@@ -147,7 +147,7 @@ export default function CouponsPage() {
     return new Date(timestamp.seconds * 1000).toLocaleString();
   };
 
-  const sortedCoupons = coupons?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds);
+  const sortedCoupons = coupons?.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
   return (
     <div>
@@ -311,5 +311,3 @@ export default function CouponsPage() {
     </div>
   );
 }
-
-    
