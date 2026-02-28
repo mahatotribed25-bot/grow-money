@@ -35,21 +35,42 @@ import { useToast } from '@/hooks/use-toast';
 import type { Timestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+
+type InvestmentPlan = {
+  id: string;
+  name: string;
+  price: number;
+  dailyIncome: number;
+  validity: number;
+  totalIncome: number;
+  finalReturn: number;
+};
 
 type Announcement = {
   id: string;
   message: string;
   link?: string;
+  planId?: string;
   createdAt: Timestamp;
 };
 
 const emptyAnnouncement: Omit<Announcement, 'id' | 'createdAt'> = {
   message: '',
   link: '',
+  planId: '',
 };
 
 export default function AnnouncementsPage() {
   const { data: announcements, loading } = useCollection<Announcement>('announcements');
+  const { data: investmentPlans, loading: plansLoading } = useCollection<InvestmentPlan>('investmentPlans');
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -57,8 +78,19 @@ export default function AnnouncementsPage() {
   const [editingAnnouncement, setEditingAnnouncement] = useState<Partial<Announcement> | null>(null);
 
   const handleShareOnWhatsApp = (announcement: Announcement) => {
-    // A more stylized message template
-    let message = `🎉 *Exciting Update from Grow Money!* 🎉\n\n✨ *${announcement.message}* ✨\n`;
+    const linkedPlan = announcement.planId ? investmentPlans?.find(p => p.id === announcement.planId) : null;
+
+    let message = `🎉 *Exciting Update from Grow Money!* 🎉\n\n✨ *${announcement.message}* ✨`;
+
+    if (linkedPlan) {
+        message += `\n\n*Featured Plan: ${linkedPlan.name}*\n`;
+        message += `-----------------------------------\n`;
+        message += `💰 *Invest:* ₹${linkedPlan.price.toFixed(2)}\n`;
+        message += `📈 *Daily Income:* ₹${linkedPlan.dailyIncome.toFixed(2)}\n`;
+        message += `⏳ *Validity:* ${linkedPlan.validity} days\n`;
+        message += `✅ *Total Return:* ₹${linkedPlan.finalReturn.toFixed(2)}\n`;
+        message += `-----------------------------------\n`;
+    }
 
     if (announcement.link) {
       message += `\n👇 *Click the link for more details:*\n${announcement.link}`;
@@ -157,6 +189,11 @@ export default function AnnouncementsPage() {
     return new Date(timestamp.seconds * 1000).toLocaleString();
   };
 
+  const getPlanName = (planId?: string) => {
+    if (!planId) return 'None';
+    return investmentPlans?.find(p => p.id === planId)?.name || 'Unknown Plan';
+  }
+
   const sortedAnnouncements = announcements?.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
   return (
@@ -174,6 +211,7 @@ export default function AnnouncementsPage() {
             <TableRow>
               <TableHead>Message</TableHead>
               <TableHead>Link</TableHead>
+              <TableHead>Linked Plan</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -181,7 +219,7 @@ export default function AnnouncementsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center">
+                <TableCell colSpan={5} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -190,6 +228,7 @@ export default function AnnouncementsPage() {
                 <TableRow key={ann.id}>
                   <TableCell className="max-w-xs truncate">{ann.message}</TableCell>
                   <TableCell className="max-w-xs truncate">{ann.link || 'None'}</TableCell>
+                  <TableCell>{getPlanName(ann.planId)}</TableCell>
                   <TableCell>{formatDate(ann.createdAt)}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
@@ -259,6 +298,28 @@ export default function AnnouncementsPage() {
                 className="col-span-3"
                 placeholder="https://example.com"
               />
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="planId" className="text-right">
+                Link Plan (Optional)
+              </Label>
+              <Select
+                value={editingAnnouncement?.planId || ''}
+                onValueChange={(value) => handleFieldChange('planId', value === 'none' ? '' : value)}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a plan to feature" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {plansLoading ? <SelectItem value="loading" disabled>Loading plans...</SelectItem> 
+                  : investmentPlans?.map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

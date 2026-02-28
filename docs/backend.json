@@ -366,6 +366,10 @@
         "link": {
             "type": "string",
             "description": "An optional URL for the announcement."
+        },
+        "planId": {
+            "type": "string",
+            "description": "Optional ID of the investment plan associated with this announcement."
         }
       },
       "required": ["message", "createdAt"]
