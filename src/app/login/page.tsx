@@ -103,7 +103,7 @@ export default function LoginPage() {
         <AuthCard
           title={
             <>
-              Welcome Back
+              Happy Holi!
               <p className="text-2xl font-bold mt-1 bg-gradient-to-r from-primary via-secondary to-chart-2 text-transparent bg-clip-text">नमस्ते</p>
             </>
           }

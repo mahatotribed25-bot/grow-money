@@ -263,7 +263,7 @@ export default function Dashboard() {
           <Briefcase className="h-6 w-6 text-primary" />
           <h1 className="text-xl font-bold text-primary">Grow Money 💰</h1>
         </div>
-        <h1 className="text-lg font-semibold">Welcome, {userData?.name || 'User'}!</h1>
+        <h1 className="text-lg font-semibold">Happy Holi, {userData?.name || 'User'}!</h1>
         <div className="w-9" />
       </header>
 
