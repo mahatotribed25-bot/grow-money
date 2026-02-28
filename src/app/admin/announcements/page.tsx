@@ -57,10 +57,15 @@ export default function AnnouncementsPage() {
   const [editingAnnouncement, setEditingAnnouncement] = useState<Partial<Announcement> | null>(null);
 
   const handleShareOnWhatsApp = (announcement: Announcement) => {
-    let message = `📢 *New Announcement!*\n\n${announcement.message}`;
+    // A more stylized message template
+    let message = `🎉 *Exciting Update from Grow Money!* 🎉\n\n✨ *${announcement.message}* ✨\n`;
+
     if (announcement.link) {
-      message += `\n\nFind out more: ${announcement.link}`;
+      message += `\n👇 *Click the link for more details:*\n${announcement.link}`;
     }
+
+    message += '\n\n🚀 Don\'t miss out on this opportunity!';
+    
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
