@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Send } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -55,6 +55,15 @@ export default function AnnouncementsPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Partial<Announcement> | null>(null);
+
+  const handleShareOnWhatsApp = (announcement: Announcement) => {
+    let message = `📢 *New Announcement!*\n\n${announcement.message}`;
+    if (announcement.link) {
+      message += `\n\nFind out more: ${announcement.link}`;
+    }
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
 
   const handleCreateNew = () => {
     setEditingAnnouncement(emptyAnnouncement);
@@ -193,6 +202,15 @@ export default function AnnouncementsPage() {
                         onClick={() => handleDelete(ann.id)}
                       >
                         <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Share on WhatsApp"
+                        className="text-green-500 hover:text-green-600"
+                        onClick={() => handleShareOnWhatsApp(ann)}
+                      >
+                        <Send className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>
