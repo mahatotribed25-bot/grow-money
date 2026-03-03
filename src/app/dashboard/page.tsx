@@ -68,6 +68,7 @@ type UserData = {
   name?: string;
   email?: string;
   upiId?: string;
+  role?: 'user' | 'subadmin';
 };
 
 type AdminSettings = {
@@ -340,6 +341,9 @@ export default function Dashboard() {
                 <QuickActionButton icon={FileText} label="Custom Loan" href="/custom-loan" />
                 <QuickActionButton icon={User} label="Profile" href="/profile" />
                 <QuickActionButton icon={Users} label="My Team" href="/team" />
+                {userData?.role === 'subadmin' && (
+                  <QuickActionButton icon={Briefcase} label="Sub-Admin Panel" href="/subadmin" />
+                )}
             </CardContent>
            </Card>
 

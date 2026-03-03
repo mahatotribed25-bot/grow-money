@@ -41,9 +41,9 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!userDataLoading && userData) {
-      if (userData.role === 'subadmin') {
-        router.push('/subadmin');
-      } else if (userData.email === 'admin@tribed.world') {
+      // We keep the redirect for the main admin, but remove it for sub-admins
+      // so they can see their user dashboard.
+      if (userData.email === 'admin@tribed.world') {
         router.push('/admin');
       }
     }
