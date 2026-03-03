@@ -427,6 +427,24 @@
         "userName": { "type": "string" },
         "requestedAmount": { "type": "number" },
         "requestedDuration": { "type": "number", "description": "Duration in days" },
+        "paymentMethod": {
+            "type": "string",
+            "enum": ["Bank", "UPI"],
+            "description": "The method for receiving the loan amount."
+        },
+        "bankDetails": {
+            "type": "object",
+            "description": "Bank account details if payment method is Bank.",
+            "properties": {
+                "accountHolderName": { "type": "string" },
+                "accountNumber": { "type": "string" },
+                "ifscCode": { "type": "string" }
+            }
+        },
+        "upiId": {
+            "type": "string",
+            "description": "UPI ID if payment method is UPI."
+        },
         "status": { "type": "string", "enum": ["pending_admin_review", "pending_user_approval", "approved_by_user", "active", "completed", "rejected_by_user", "rejected_by_admin"] },
         "interestRate": { "type": "number", "description": "Percentage set by admin" },
         "interestAmount": { "type": "number", "description": "Calculated interest amount" },
@@ -438,7 +456,7 @@
         "activatedAt": { "type": "string", "format": "date-time" },
         "dueDate": { "type": "string", "format": "date-time" }
       },
-      "required": ["userId", "userName", "requestedAmount", "requestedDuration", "status", "createdAt"]
+      "required": ["userId", "userName", "requestedAmount", "requestedDuration", "paymentMethod", "status", "createdAt"]
     },
      "upiRequest": {
       "title": "UPI Verification Request",
@@ -689,3 +707,4 @@
     }
   }
 }
+

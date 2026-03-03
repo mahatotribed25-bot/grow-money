@@ -26,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { addDoc, collection, serverTimestamp, where, query } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type AdminSettings = {
   maxCustomLoanAmount?: number;
@@ -42,6 +43,14 @@ export default function CustomLoanPage() {
   const { toast } = useToast();
   const [amount, setAmount] = useState('');
   const [duration, setDuration] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'Bank' | 'UPI' | ''>('');
+  const [upiId, setUpiId] = useState('');
+  const [bankDetails, setBankDetails] = useState({
+      accountHolderName: '',
+      accountNumber: '',
+      ifscCode: '',
+  });
+
 
   const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>('settings/admin');
   const { data: existingRequests, loading: requestsLoading } = useCollection<CustomLoanRequest>(
@@ -76,12 +85,35 @@ export default function CustomLoanPage() {
         return;
     }
 
+    if (!paymentMethod) {
+        toast({ title: 'Payment Method Required', description: 'Please select how you want to receive the funds.', variant: 'destructive' });
+        return;
+    }
+
+    let paymentDetails: any = {};
+    if (paymentMethod === 'UPI') {
+        if (!upiId.trim()) {
+            toast({ title: 'UPI ID Required', description: 'Please enter your UPI ID.', variant: 'destructive' });
+            return;
+        }
+        paymentDetails.upiId = upiId;
+    } else if (paymentMethod === 'Bank') {
+        if (!bankDetails.accountNumber.trim() || !bankDetails.ifscCode.trim() || !bankDetails.accountHolderName.trim()) {
+            toast({ title: 'Bank Details Required', description: 'Please fill in all bank details.', variant: 'destructive' });
+            return;
+        }
+        paymentDetails.bankDetails = bankDetails;
+    }
+
+
     const requestData = {
       userId: user.uid,
       userName: user.displayName,
       requestedAmount,
       requestedDuration,
-      status: 'pending_admin_review',
+      paymentMethod,
+      ...paymentDetails,
+      status: 'pending_admin_review' as const,
       createdAt: serverTimestamp(),
     };
 
@@ -94,6 +126,10 @@ export default function CustomLoanPage() {
       });
       setAmount('');
       setDuration('');
+      setUpiId('');
+      setBankDetails({ accountHolderName: '', accountNumber: '', ifscCode: ''});
+      setPaymentMethod('');
+
     } catch (error) {
       const permissionError = new FirestorePermissionError({
         path: '/customLoanRequests',
@@ -153,6 +189,49 @@ export default function CustomLoanPage() {
                         onChange={(e) => setDuration(e.target.value)}
                       />
                     </div>
+                    
+                    <div className="space-y-2">
+                        <Label>How would you like to receive the money?</Label>
+                        <RadioGroup onValueChange={(value: 'Bank' | 'UPI') => setPaymentMethod(value)} value={paymentMethod} className="grid grid-cols-2 gap-4">
+                            <div>
+                                <RadioGroupItem value="Bank" id="bank" className="peer sr-only" />
+                                <Label htmlFor="bank" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                    Bank Transfer
+                                </Label>
+                            </div>
+                            <div>
+                                <RadioGroupItem value="UPI" id="upi" className="peer sr-only" />
+                                <Label htmlFor="upi" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                    UPI
+                                </Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
+
+                    {paymentMethod === 'Bank' && (
+                        <div className="space-y-4 rounded-md border p-4 animate-in fade-in-0 zoom-in-95">
+                            <div className="space-y-2">
+                                <Label htmlFor="accountHolderName">Account Holder Name</Label>
+                                <Input id="accountHolderName" placeholder="John Doe" value={bankDetails.accountHolderName} onChange={(e) => setBankDetails({...bankDetails, accountHolderName: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="accountNumber">Account Number</Label>
+                                <Input id="accountNumber" placeholder="Your bank account number" value={bankDetails.accountNumber} onChange={(e) => setBankDetails({...bankDetails, accountNumber: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="ifscCode">IFSC Code</Label>
+                                <Input id="ifscCode" placeholder="Your bank's IFSC code" value={bankDetails.ifscCode} onChange={(e) => setBankDetails({...bankDetails, ifscCode: e.target.value})} />
+                            </div>
+                        </div>
+                    )}
+
+                    {paymentMethod === 'UPI' && (
+                        <div className="space-y-2 animate-in fade-in-0 zoom-in-95">
+                            <Label htmlFor="upiId">Your UPI ID</Label>
+                            <Input id="upiId" placeholder="yourname@oksbi" value={upiId} onChange={(e) => setUpiId(e.target.value)} />
+                        </div>
+                    )}
+
                     <Button onClick={handleSubmit} className="w-full">
                       Submit Request
                     </Button>

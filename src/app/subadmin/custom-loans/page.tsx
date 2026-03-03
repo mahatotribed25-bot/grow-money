@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, Send } from 'lucide-react';
+import { Check, X, Send, Banknote, Landmark } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import {
   doc,
@@ -44,6 +44,13 @@ type CustomLoanRequest = {
   userName: string;
   requestedAmount: number;
   requestedDuration: number;
+  paymentMethod?: 'Bank' | 'UPI';
+  bankDetails?: {
+    accountHolderName: string;
+    accountNumber: string;
+    ifscCode: string;
+  };
+  upiId?: string;
   status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin';
   interestRate?: number;
   interestAmount?: number;
@@ -300,11 +307,11 @@ export default function CustomLoansPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Approve Loan & Set Interest</DialogTitle>
-            <DialogDescription>Review KYC and set the interest rate. The offer will be sent to the user.</DialogDescription>
+            <DialogDescription>Review KYC and payment details, then set the interest rate. The offer will be sent to the user.</DialogDescription>
           </DialogHeader>
           
           {userKycData ? (
-            <div className="space-y-2 rounded-md border p-4 my-4">
+            <div className="space-y-2 rounded-md border p-4 my-2">
                 <h4 className="font-semibold">KYC Details for {requestToUpdate?.userName}</h4>
                 <p className="text-sm"><strong>Status:</strong> {userKycData.kycStatus}</p>
                 <p className="text-sm"><strong>PAN:</strong> {userKycData.panCard || 'N/A'}</p>
@@ -313,6 +320,25 @@ export default function CustomLoansPage() {
             </div>
             ) : <p>Loading KYC data...</p>
           }
+
+          {requestToUpdate?.paymentMethod && (
+            <div className="space-y-2 rounded-md border p-4 my-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                    {requestToUpdate.paymentMethod === 'Bank' ? <Landmark /> : <Banknote />}
+                    Payment Details
+                </h4>
+                <p className="text-sm"><strong>Method:</strong> {requestToUpdate.paymentMethod}</p>
+                {requestToUpdate.paymentMethod === 'Bank' && requestToUpdate.bankDetails ? (
+                    <>
+                        <p className="text-sm"><strong>Holder:</strong> {requestToUpdate.bankDetails.accountHolderName}</p>
+                        <p className="text-sm"><strong>Account No:</strong> {requestToUpdate.bankDetails.accountNumber}</p>
+                        <p className="text-sm"><strong>IFSC:</strong> {requestToUpdate.bankDetails.ifscCode}</p>
+                    </>
+                ) : requestToUpdate.paymentMethod === 'UPI' ? (
+                    <p className="text-sm"><strong>UPI ID:</strong> {requestToUpdate.upiId}</p>
+                ) : null}
+            </div>
+          )}
           
           <div className="space-y-2">
             <Label htmlFor="interestRate">Interest Rate (%)</Label>
