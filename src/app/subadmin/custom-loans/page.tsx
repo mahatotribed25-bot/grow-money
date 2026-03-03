@@ -50,6 +50,7 @@ type CustomLoanRequest = {
   totalRepayment?: number;
   rejectionReason?: string;
   createdAt: Timestamp;
+  dueDate?: Timestamp;
 };
 
 type UserData = {
@@ -60,7 +61,7 @@ type UserData = {
   kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
 };
 
-const formatDate = (timestamp: Timestamp) => {
+const formatDate = (timestamp?: Timestamp) => {
   if (!timestamp) return 'N/A';
   return new Date(timestamp.seconds * 1000).toLocaleString();
 };
@@ -189,6 +190,24 @@ export default function CustomLoansPage() {
     }
   };
 
+  const handleMarkAsCompleted = async (request: CustomLoanRequest) => {
+    const requestRef = doc(firestore, 'customLoanRequests', request.id);
+    const updateData = {
+        status: 'completed',
+    };
+    try {
+        await updateDoc(requestRef, updateData);
+        toast({ title: 'Loan Completed', description: 'Loan has been marked as completed.'});
+    } catch(e) {
+        const permissionError = new FirestorePermissionError({
+            path: requestRef.path,
+            operation: 'update',
+            requestResourceData: updateData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+  };
+
 
   const getStatusBadge = (status: CustomLoanRequest['status']) => {
     switch (status) {
@@ -209,28 +228,49 @@ export default function CustomLoansPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">Custom Loan Requests</h2>
+      <h2 className="text-2xl font-bold mb-4">Custom Loan Requests History</h2>
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>User Name</TableHead>
-              <TableHead>Requested Amount</TableHead>
-              <TableHead>Duration</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>Loan Details</TableHead>
+              <TableHead>Interest</TableHead>
+              <TableHead>Total Repayment</TableHead>
+              <TableHead>Dates</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={6} className="text-center">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center">Loading...</TableCell></TableRow>
             ) : sortedRequests?.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell>{request.userName}</TableCell>
-                  <TableCell>₹{request.requestedAmount.toFixed(2)}</TableCell>
-                  <TableCell>{request.requestedDuration} days</TableCell>
-                  <TableCell>{formatDate(request.createdAt)}</TableCell>
+                  <TableCell>
+                      <div className="font-semibold">₹{request.requestedAmount.toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">{request.requestedDuration} days</div>
+                  </TableCell>
+                  <TableCell>
+                    {request.interestRate !== undefined ? (
+                        <>
+                            <div className="font-semibold">{request.interestRate}%</div>
+                            <div className="text-xs text-muted-foreground">₹{request.interestAmount?.toFixed(2)}</div>
+                        </>
+                    ) : (
+                        'N/A'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {request.totalRepayment !== undefined ? `₹${request.totalRepayment.toFixed(2)}` : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col text-xs">
+                        <span>Created: {formatDate(request.createdAt)}</span>
+                        {request.dueDate && <span>Due: {formatDate(request.dueDate)}</span>}
+                    </div>
+                  </TableCell>
                   <TableCell>{getStatusBadge(request.status)}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
@@ -242,6 +282,9 @@ export default function CustomLoansPage() {
                         )}
                         {request.status === 'approved_by_user' && (
                             <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleMarkAsSent(request)}><Send className="mr-2 h-4 w-4"/>Mark as Sent</Button>
+                        )}
+                         {request.status === 'active' && (
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMarkAsCompleted(request)}><Check className="mr-2 h-4 w-4"/>Mark as Repaid</Button>
                         )}
                     </div>
                   </TableCell>
