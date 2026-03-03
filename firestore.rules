@@ -100,9 +100,9 @@ service cloud.firestore {
       // User can read their own request, admin can read all.
       allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin();
       // Admin can update when pending admin review or after user approval.
-      // User can update when pending user approval.
+      // User can update when pending user approval, only changing status and userApprovedAt.
       allow update: if (isAdmin() && (resource.data.status == 'pending_admin_review' || resource.data.status == 'approved_by_user')) || 
-                       (isOwner(resource.data.userId) && resource.data.status == 'pending_user_approval');
+                       (isOwner(resource.data.userId) && resource.data.status == 'pending_user_approval' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'userApprovedAt']));
       // Admin can delete requests.
       allow delete: if isAdmin();
     }
