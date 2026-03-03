@@ -1,116 +1,28 @@
 
 'use client';
-import {
-  Users,
-  Wallet,
-  Download,
-  Upload,
-  HandCoins,
-  UserCheck,
-} from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCollection, useUser, useDoc } from '@/firebase';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
-import { Timestamp } from 'firebase/firestore';
-import { subDays, format, startOfDay } from 'date-fns';
 
 type UserData = {
     role?: 'user' | 'subadmin';
     email?: string;
 }
 
-type Transaction = {
-  amount: number;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: Timestamp;
-};
-
-// Function to process data for the chart
-const processFinancialData = (
-  deposits: Transaction[] | null,
-  withdrawals: Transaction[] | null
-) => {
-  const last7Days = Array.from({ length: 7 }, (_, i) =>
-    startOfDay(subDays(new Date(), i))
-  ).reverse();
-
-  const chartData = last7Days.map((day) => {
-    const formattedDate = format(day, 'MMM d');
-
-    const dailyDeposits =
-      deposits
-        ?.filter(
-          (d) =>
-            d.status === 'approved' &&
-            d.createdAt &&
-            startOfDay(d.createdAt.toDate()).getTime() === day.getTime()
-        )
-        .reduce((sum, d) => sum + d.amount, 0) || 0;
-
-    const dailyWithdrawals =
-      withdrawals
-        ?.filter(
-          (w) =>
-            w.status === 'approved' &&
-            w.createdAt &&
-            startOfDay(w.createdAt.toDate()).getTime() === day.getTime()
-        )
-        .reduce((sum, w) => sum + w.amount, 0) || 0;
-
-    return {
-      date: formattedDate,
-      Deposits: dailyDeposits,
-      Withdrawals: dailyWithdrawals,
-    };
-  });
-
-  return chartData;
-};
-
-
 export default function SubAdminDashboard() {
   const { user, loading: userLoading } = useUser();
   const { data: userData, loading: userDataLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   const isAuthorized = !userDataLoading && (userData?.role === 'subadmin' || userData?.email === 'admin@tribed.world');
   
-  const { data: users, loading: usersLoading } = useCollection(isAuthorized ? 'users' : null);
-  const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(isAuthorized ? 'deposits' : null);
-  const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(isAuthorized ? 'withdrawals' : null);
-  const { data: loanRequests, loading: loansLoading } = useCollection(isAuthorized ? 'loanRequests' : null, { where: ['status', '==', 'pending'] });
-  const { data: kycRequests, loading: kycLoading } = useCollection(isAuthorized ? 'users' : null, { where: ['kycStatus', '==', 'pending']});
+  const { data: customLoanRequests, loading: customLoansLoading } = useCollection(isAuthorized ? 'customLoanRequests' : null, { where: ['status', '==', 'pending_admin_review']});
 
+  const loading = userLoading || userDataLoading || customLoansLoading;
 
-  const loading =
-    usersLoading || depositsLoading || withdrawalsLoading || loansLoading || kycLoading;
-
-  const totalUsers =
-    users?.filter((u: any) => u.email !== 'admin@tribed.world').length || 0;
-  const totalWalletBalance =
-    users?.reduce((sum, user: any) => sum + (user.walletBalance || 0), 0) || 0;
-  const pendingDeposits = deposits?.filter(d => d.status === 'pending').length || 0;
-  const pendingWithdrawals = withdrawals?.filter(w => w.status === 'pending').length || 0;
-  const pendingLoans = loanRequests?.length || 0;
-  const pendingKyc = kycRequests?.length || 0;
+  const pendingCustomLoans = customLoanRequests?.length || 0;
   
   const stats = [
-    { title: 'Total Users', value: loading ? '...' : totalUsers, icon: Users },
-    { title: 'Total Wallet Balance', value: loading ? '...' : `₹${totalWalletBalance.toFixed(2)}`, icon: Wallet },
-    { title: 'Pending Deposits', value: loading ? '...' : pendingDeposits, icon: Upload },
-    { title: 'Pending Withdrawals', value: loading ? '...' : pendingWithdrawals, icon: Download },
-    { title: 'Pending Loan Requests', value: loading ? '...' : pendingLoans, icon: HandCoins },
-    { title: 'Pending KYC', value: loading ? '...' : pendingKyc, icon: UserCheck },
+    { title: 'Pending Custom Loan Requests', value: loading ? '...' : pendingCustomLoans, icon: FileText },
   ];
-
-  const financialChartData = processFinancialData(deposits, withdrawals);
 
   return (
     <div className="space-y-6">
@@ -128,37 +40,6 @@ export default function SubAdminDashboard() {
             </CardContent>
           </Card>
         ))}
-      </div>
-      <div className="grid gap-6">
-        <Card>
-            <CardHeader>
-            <CardTitle>Last 7 Days Financial Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-            {loading ? (
-                <div className="h-[350px] w-full flex items-center justify-center">
-                <p>Loading chart data...</p>
-                </div>
-            ) : (
-                <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={financialChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(value) => `₹${value}`} />
-                    <Tooltip
-                    contentStyle={{
-                        backgroundColor: 'hsl(var(--background))',
-                        borderColor: 'hsl(var(--border))',
-                    }}
-                    />
-                    <Legend />
-                    <Bar dataKey="Deposits" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Withdrawals" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-                </ResponsiveContainer>
-            )}
-            </CardContent>
-        </Card>
       </div>
     </div>
   );

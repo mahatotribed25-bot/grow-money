@@ -9,10 +9,6 @@ import {
   LogOut,
   Menu,
   Briefcase,
-  Download,
-  Upload,
-  HandCoins,
-  FileCheck,
   FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -45,11 +41,6 @@ type BaseRequest = {
   createdAt: Timestamp;
 };
 
-type DepositRequest = BaseRequest & { name: string };
-type WithdrawalRequest = BaseRequest & { name: string };
-type LoanRequest = BaseRequest & { userName: string };
-type KycRequest = { id: string, name: string, kycSubmissionDate: Timestamp };
-type UpiRequest = BaseRequest & { userName: string };
 type CustomLoanRequest = BaseRequest & { userName: string };
 
 
@@ -66,22 +57,6 @@ export default function SubAdminLayout({
   
   const isAuthorized = !userDataLoading && (userData?.role === 'subadmin' || userData?.email === ADMIN_EMAIL);
 
-  const { data: pendingDeposits } = useCollection<DepositRequest>(
-    isAuthorized ? 'deposits' : null, 
-    { where: ['status', '==', 'pending'] }
-  );
-  const { data: pendingWithdrawals } = useCollection<WithdrawalRequest>(
-    isAuthorized ? 'withdrawals' : null,
-    { where: ['status', '==', 'pending'] }
-  );
-  const { data: pendingLoanRequests } = useCollection<LoanRequest>(
-    isAuthorized ? 'loanRequests' : null,
-    { where: ['status', '==', 'pending'] }
-  );
-   const { data: pendingKycRequests } = useCollection<KycRequest>(
-    isAuthorized ? 'users' : null,
-    { where: ['kycStatus', '==', 'pending'] }
-  );
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(
     isAuthorized ? 'customLoanRequests' : null,
     { where: ['status', '==', 'pending_admin_review'] }
@@ -91,34 +66,7 @@ export default function SubAdminLayout({
   const notifications = useMemo(() => {
     if (!isAuthorized) return [];
     
-    const kycNotifs = pendingKycRequests?.map(k => ({
-        id: k.id,
-        type: 'KYC',
-        link: '/subadmin/kyc-requests',
-        name: k.name,
-        createdAt: k.kycSubmissionDate,
-    })) || [];
-
     return [
-      ...(pendingDeposits?.map((d) => ({
-        ...d,
-        type: 'Deposit',
-        link: '/subadmin/deposits',
-        name: d.name,
-      })) || []),
-      ...(pendingWithdrawals?.map((w) => ({
-        ...w,
-        type: 'Withdrawal',
-        link: '/subadmin/withdrawals',
-        name: w.name,
-      })) || []),
-      ...(pendingLoanRequests?.map((l) => ({
-        ...l,
-        type: 'Loan',
-        link: '/subadmin/loans',
-        name: l.userName,
-      })) || []),
-       ...kycNotifs,
        ...(pendingCustomLoanRequests?.map((c) => ({
         ...c,
         type: 'Custom Loan',
@@ -126,7 +74,7 @@ export default function SubAdminLayout({
         name: c.userName,
       })) || []),
     ].filter(n => n.createdAt).sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-  }, [isAuthorized, pendingDeposits, pendingWithdrawals, pendingLoanRequests, pendingKycRequests, pendingCustomLoanRequests]);
+  }, [isAuthorized, pendingCustomLoanRequests]);
 
   const notificationCount = notifications.length;
 
@@ -179,20 +127,8 @@ export default function SubAdminLayout({
             <AdminNavItem icon={Home} href="/subadmin">
               Dashboard
             </AdminNavItem>
-            <AdminNavItem icon={HandCoins} href="/subadmin/loans">
-              Loan Requests
-            </AdminNavItem>
             <AdminNavItem icon={FileText} href="/subadmin/custom-loans">
               Custom Loans
-            </AdminNavItem>
-            <AdminNavItem icon={FileCheck} href="/subadmin/kyc-requests">
-              KYC Requests
-            </AdminNavItem>
-            <AdminNavItem icon={Upload} href="/subadmin/deposits">
-              Deposits
-            </AdminNavItem>
-            <AdminNavItem icon={Download} href="/subadmin/withdrawals">
-              Withdrawals
             </AdminNavItem>
           </nav>
           <div className="mt-auto p-4">
@@ -231,21 +167,9 @@ export default function SubAdminLayout({
                 <AdminNavItem icon={Home} href="/subadmin">
                   Dashboard
                 </AdminNavItem>
-                <AdminNavItem icon={HandCoins} href="/subadmin/loans">
-                  Loan Requests
-                </AdminNavItem>
                  <AdminNavItem icon={FileText} href="/subadmin/custom-loans">
                     Custom Loans
                  </AdminNavItem>
-                 <AdminNavItem icon={FileCheck} href="/subadmin/kyc-requests">
-                  KYC Requests
-                </AdminNavItem>
-                <AdminNavItem icon={Upload} href="/subadmin/deposits">
-                  Deposits
-                </AdminNavItem>
-                <AdminNavItem icon={Download} href="/subadmin/withdrawals">
-                  Withdrawals
-                </AdminNavItem>
               </nav>
               <div className="mt-auto">
                 <Button size="sm" className="w-full" onClick={handleLogout}>

@@ -19,6 +19,7 @@ import {
   updateDoc,
   Timestamp,
   serverTimestamp,
+  getDoc,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -51,6 +52,14 @@ type CustomLoanRequest = {
   createdAt: Timestamp;
 };
 
+type UserData = {
+  id: string;
+  panCard?: string;
+  aadhaarNumber?: string;
+  phoneNumber?: string;
+  kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
+};
+
 const formatDate = (timestamp: Timestamp) => {
   if (!timestamp) return 'N/A';
   return new Date(timestamp.seconds * 1000).toLocaleString();
@@ -62,14 +71,31 @@ export default function CustomLoansPage() {
   const { toast } = useToast();
 
   const [requestToUpdate, setRequestToUpdate] = useState<CustomLoanRequest | null>(null);
+  const [userKycData, setUserKycData] = useState<UserData | null>(null);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [interestRate, setInterestRate] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
-  const openApproveDialog = (request: CustomLoanRequest) => {
+  const openApproveDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
     setInterestRate('');
+    
+    // Fetch user data for KYC
+    try {
+        const userRef = doc(firestore, 'users', request.userId);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists()) {
+            setUserKycData({ id: userDoc.id, ...userDoc.data() } as UserData);
+        } else {
+            setUserKycData(null);
+            toast({ title: 'User data not found', variant: 'destructive'});
+        }
+    } catch(e) {
+        setUserKycData(null);
+        toast({ title: 'Error fetching user data', variant: 'destructive'});
+    }
+
     setIsApproveDialogOpen(true);
   };
 
@@ -228,17 +254,29 @@ export default function CustomLoansPage() {
       
       {/* Approve Dialog */}
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Approve Loan & Set Interest</DialogTitle>
-            <DialogDescription>Set the interest rate for this loan. The total repayment will be calculated and sent to the user for final approval.</DialogDescription>
+            <DialogDescription>Review KYC and set the interest rate. The offer will be sent to the user.</DialogDescription>
           </DialogHeader>
-          <div className="py-4 space-y-2">
+          
+          {userKycData ? (
+            <div className="space-y-2 rounded-md border p-4 my-4">
+                <h4 className="font-semibold">KYC Details for {requestToUpdate?.userName}</h4>
+                <p className="text-sm"><strong>Status:</strong> {userKycData.kycStatus}</p>
+                <p className="text-sm"><strong>PAN:</strong> {userKycData.panCard || 'N/A'}</p>
+                <p className="text-sm"><strong>Aadhaar:</strong> {userKycData.aadhaarNumber || 'N/A'}</p>
+                <p className="text-sm"><strong>Phone:</strong> {userKycData.phoneNumber || 'N/A'}</p>
+            </div>
+            ) : <p>Loading KYC data...</p>
+          }
+          
+          <div className="space-y-2">
             <Label htmlFor="interestRate">Interest Rate (%)</Label>
             <Input id="interestRate" type="number" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} placeholder="e.g., 5" />
           </div>
           <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+            <DialogClose asChild><Button variant="outline" onClick={() => setUserKycData(null)}>Cancel</Button></DialogClose>
             <Button onClick={handleApprove}>Send Offer</Button>
           </DialogFooter>
         </DialogContent>
