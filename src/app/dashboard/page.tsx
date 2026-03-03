@@ -57,7 +57,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { BannerCarousel } from '@/components/dashboard/BannerCarousel';
-import { AdsterraNativeBanner } from '@/components/ads/AdsterraNativeBanner';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -270,8 +269,6 @@ export default function Dashboard() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-6">
-
-          <AdsterraNativeBanner />
 
           <Announcements announcements={sortedAnnouncements} loading={announcementsLoading} />
 
