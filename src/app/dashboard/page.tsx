@@ -247,7 +247,7 @@ export default function Dashboard() {
        <AlertDialog open={showWelcomePopup} onOpenChange={setShowWelcomePopup}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-center text-2xl">Welcome to TM world 🌎🌎</AlertDialogTitle>
+            <AlertDialogTitle className="text-center text-2xl">Welcome to Grow Money 💰</AlertDialogTitle>
             <AlertDialogDescription className="text-center">
               Your journey to financial growth starts now!
             </AlertDialogDescription>
@@ -261,9 +261,9 @@ export default function Dashboard() {
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/50 px-4 backdrop-blur-md sm:px-6">
         <div className="flex items-center gap-2">
           <Briefcase className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold text-primary">Grow Money 💰</h1>
+          <h1 className="text-xl font-bold text-primary">Grow Money</h1>
         </div>
-        <h1 className="text-lg font-semibold">Happy Holi, {userData?.name || 'User'}!</h1>
+        <h1 className="text-lg font-semibold">Welcome, {userData?.name || 'User'}!</h1>
         <div className="w-9" />
       </header>
 
