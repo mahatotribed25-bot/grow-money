@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -29,8 +28,6 @@ import { signOut } from 'firebase/auth';
 import { useEffect, useMemo } from 'react';
 import type { Timestamp } from 'firebase/firestore';
 
-const ADMIN_EMAIL = 'admin@tribed.world';
-
 type UserData = {
     role?: 'user' | 'subadmin';
     email?: string;
@@ -55,16 +52,17 @@ export default function SubAdminLayout({
   const { user, loading: userLoading } = useUser();
   const { data: userData, loading: userDataLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   
-  const isAuthorized = !userDataLoading && (userData?.role === 'subadmin' || userData?.email === ADMIN_EMAIL);
+  const loading = userLoading || userDataLoading;
+  const isSubAdmin = userData?.role === 'subadmin';
 
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(
-    isAuthorized ? 'customLoanRequests' : null,
+    isSubAdmin ? 'customLoanRequests' : null,
     { where: ['status', '==', 'pending_admin_review'] }
   );
 
 
   const notifications = useMemo(() => {
-    if (!isAuthorized) return [];
+    if (!isSubAdmin) return [];
     
     return [
        ...(pendingCustomLoanRequests?.map((c) => ({
@@ -74,7 +72,7 @@ export default function SubAdminLayout({
         name: c.userName,
       })) || []),
     ].filter(n => n.createdAt).sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-  }, [isAuthorized, pendingCustomLoanRequests]);
+  }, [isSubAdmin, pendingCustomLoanRequests]);
 
   const notificationCount = notifications.length;
 
@@ -85,7 +83,6 @@ export default function SubAdminLayout({
   };
 
   useEffect(() => {
-    const loading = userLoading || userDataLoading;
     if (loading) {
       return; 
     }
@@ -95,14 +92,13 @@ export default function SubAdminLayout({
       return;
     }
     
-    if (userData?.role !== 'subadmin' && userData?.email !== ADMIN_EMAIL) {
+    if (!isSubAdmin) {
        router.push('/dashboard');
     }
-  }, [user, userData, userLoading, userDataLoading, router]);
+  }, [user, isSubAdmin, loading, router]);
 
-  const loading = userLoading || userDataLoading;
 
-  if (loading || !isAuthorized) {
+  if (loading || !isSubAdmin) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
