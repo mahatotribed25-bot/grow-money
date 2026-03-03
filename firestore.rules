@@ -93,6 +93,20 @@ service cloud.firestore {
       allow update: if isAdmin();
     }
 
+    // Rules for Custom Loan Requests
+    match /customLoanRequests/{requestId} {
+      // A user can create a request for themselves.
+      allow create: if request.auth != null && isOwner(request.resource.data.userId);
+      // User can read their own request, admin can read all.
+      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin();
+      // Admin can update when pending admin review or after user approval.
+      // User can update when pending user approval.
+      allow update: if (isAdmin() && (resource.data.status == 'pending_admin_review' || resource.data.status == 'approved_by_user')) || 
+                       (isOwner(resource.data.userId) && resource.data.status == 'pending_user_approval');
+      // Admin can delete requests.
+      allow delete: if isAdmin();
+    }
+
     // Rules for UPI Verification Requests
     match /upiRequests/{requestId} {
       // A user can create a request for themselves.
@@ -174,5 +188,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

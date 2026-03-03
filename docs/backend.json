@@ -340,6 +340,10 @@
             "type": "string",
             "description": "The URL for the Google Form to be used for KYC document submission."
         },
+        "maxCustomLoanAmount": {
+            "type": "number",
+            "description": "The maximum amount a user can request for a custom loan."
+        },
         "isUnderMaintenance": {
             "type": "boolean",
             "description": "If true, the app is in maintenance mode."
@@ -408,6 +412,28 @@
         "rejectionReason": { "type": "string", "description": "The reason why the loan request was rejected by the admin." }
       },
       "required": ["userId", "userName", "planId", "planName", "loanAmount", "status", "createdAt", "repaymentMethod"]
+    },
+    "customLoanRequest": {
+      "title": "Custom Loan Request",
+      "description": "A user's request for a loan with a custom amount and duration.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "requestedAmount": { "type": "number" },
+        "requestedDuration": { "type": "number", "description": "Duration in days" },
+        "status": { "type": "string", "enum": ["pending_admin_review", "pending_user_approval", "approved_by_user", "active", "completed", "rejected_by_user", "rejected_by_admin"] },
+        "interestRate": { "type": "number", "description": "Percentage set by admin" },
+        "interestAmount": { "type": "number", "description": "Calculated interest amount" },
+        "totalRepayment": { "type": "number", "description": "Calculated total repayment (amount + interest)" },
+        "rejectionReason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "adminApprovedAt": { "type": "string", "format": "date-time" },
+        "userApprovedAt": { "type": "string", "format": "date-time" },
+        "activatedAt": { "type": "string", "format": "date-time" },
+        "dueDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "requestedAmount", "requestedDuration", "status", "createdAt"]
     },
      "upiRequest": {
       "title": "UPI Verification Request",
@@ -622,6 +648,10 @@
       "schema": { "$ref": "#/entities/loanRequest" },
       "description": "Stores user loan requests."
     },
+    "/customLoanRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/customLoanRequest" },
+      "description": "Stores user requests for custom loans."
+    },
     "/upiRequests/{requestId}": {
       "schema": { "$ref": "#/entities/upiRequest" },
       "description": "Stores user UPI verification requests."
@@ -654,5 +684,3 @@
     }
   }
 }
-
-    

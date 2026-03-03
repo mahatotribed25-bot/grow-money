@@ -12,8 +12,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser } from '@/firebase/auth/use-user';
-import { useCollection, useFirestore, useDoc } from '@/firebase';
-import type { Timestamp } from 'firebase/firestore';
+import { useCollection, useFirestore, useDoc, query } from '@/firebase';
+import { collection, Timestamp, where } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -50,6 +50,19 @@ type AdminSettings = {
     loanPenalty?: number;
 }
 
+type CustomLoanRequest = {
+  id: string;
+  requestedAmount: number;
+  requestedDuration: number;
+  status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin';
+  interestRate?: number;
+  interestAmount?: number;
+  totalRepayment?: number;
+  rejectionReason?: string;
+  createdAt: Timestamp;
+  dueDate?: Timestamp;
+};
+
 const CountdownTimer = ({ endDate }: { endDate: Date }) => {
     const [timeLeft, setTimeLeft] = useState('');
 
@@ -83,16 +96,20 @@ const CountdownTimer = ({ endDate }: { endDate: Date }) => {
 
 export default function MyLoansPage() {
   const { user, loading: userLoading } = useUser();
+  const firestore = useFirestore();
   const { data: allLoans, loading: loansLoading } =
     useCollection<Loan>(
       user ? `users/${user.uid}/loans` : null
     );
   const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
+  const { data: customLoans, loading: customLoansLoading } = useCollection<CustomLoanRequest>(
+      user ? query(collection(firestore, 'customLoanRequests'), where('userId', '==', user.uid)) : null
+  );
 
-
-  const loading = userLoading || loansLoading || settingsLoading;
+  const loading = userLoading || loansLoading || settingsLoading || customLoansLoading;
   
   const sortedLoans = allLoans?.sort((a,b) => b.startDate.seconds - a.startDate.seconds);
+  const sortedCustomLoans = customLoans?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -108,15 +125,32 @@ export default function MyLoansPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
          <div className="space-y-4">
+            <h2 className="text-xl font-bold">Plan-Based Loans</h2>
             {loading ? <p>Loading loan history...</p> : 
                 sortedLoans && sortedLoans.length > 0 ? (
                     sortedLoans.map(loan => <LoanCard key={loan.id} loan={loan} adminSettings={adminSettings} />)
                 ) : (
                     <Card>
                         <CardContent className="pt-6 text-center text-muted-foreground">
-                           <p>You have no active or past loans.</p>
+                           <p>You have no active or past loans from plans.</p>
                            <Button asChild variant="link">
                             <Link href="/loans">Apply for a loan</Link>
+                           </Button>
+                        </CardContent>
+                    </Card>
+                )
+            }
+            
+            <h2 className="text-xl font-bold mt-8">Custom Loan Requests</h2>
+            {loading ? <p>Loading custom loans...</p> : 
+                sortedCustomLoans && sortedCustomLoans.length > 0 ? (
+                    sortedCustomLoans.map(loan => <CustomLoanCard key={loan.id} loan={loan} />)
+                ) : (
+                    <Card>
+                        <CardContent className="pt-6 text-center text-muted-foreground">
+                           <p>You have no custom loan requests.</p>
+                           <Button asChild variant="link">
+                            <Link href="/custom-loan">Request a custom loan</Link>
                            </Button>
                         </CardContent>
                     </Card>
@@ -353,6 +387,109 @@ function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSet
       </CardContent>
     </Card>
   );
+}
+
+
+function CustomLoanCard({ loan }: { loan: CustomLoanRequest }) {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const handleUpdateStatus = async (newStatus: 'approved_by_user' | 'rejected_by_user') => {
+    const requestRef = doc(firestore, 'customLoanRequests', loan.id);
+    const updateData = { 
+        status: newStatus,
+        ...(newStatus === 'approved_by_user' && { userApprovedAt: serverTimestamp() })
+    };
+    try {
+      await updateDoc(requestRef, updateData);
+      toast({ title: `Loan offer ${newStatus === 'approved_by_user' ? 'Accepted' : 'Rejected'}` });
+    } catch (e) {
+      const permissionError = new FirestorePermissionError({
+        path: requestRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    }
+  };
+
+  const getStatusBadge = (status: CustomLoanRequest['status']) => {
+     switch (status) {
+      case 'pending_admin_review': return <Badge variant="secondary">Pending Admin</Badge>;
+      case 'pending_user_approval': return <Badge variant="outline" className="border-blue-500 text-blue-400">Offer Received</Badge>;
+      case 'approved_by_user': return <Badge variant="default">You Approved</Badge>;
+      case 'active': return <Badge variant="default" className="bg-green-600">Active</Badge>;
+      case 'completed': return <Badge variant="outline">Completed</Badge>;
+      case 'rejected_by_user':
+      case 'rejected_by_admin':
+        return <Badge variant="destructive">Rejected</Badge>;
+      default: return <Badge>{status}</Badge>;
+    }
+  };
+
+  return (
+    <Card className="bg-gradient-to-br from-card to-secondary/30 border-primary/10">
+      <CardHeader>
+        <CardTitle className="flex justify-between items-center">
+            <span>Custom Loan Request</span>
+            {getStatusBadge(loan.status)}
+        </CardTitle>
+        <CardDescription>Requested on: {loan.createdAt.toDate().toLocaleDateString()}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+                <p className="text-muted-foreground">Requested Amount</p>
+                <p className="font-semibold">₹{(loan.requestedAmount || 0).toFixed(2)}</p>
+            </div>
+             <div className="flex justify-between text-sm">
+                <p className="text-muted-foreground">Requested Duration</p>
+                <p className="font-semibold">{loan.requestedDuration} days</p>
+            </div>
+            
+            {loan.status === 'pending_user_approval' && (
+                <div className="p-4 bg-muted/50 rounded-lg space-y-3 mt-4">
+                    <h4 className="font-bold text-center">Admin's Offer</h4>
+                     <div className="flex justify-between text-sm">
+                        <p className="text-muted-foreground">Interest Rate</p>
+                        <p className="font-semibold">{loan.interestRate}%</p>
+                    </div>
+                     <div className="flex justify-between text-sm">
+                        <p className="text-muted-foreground">Interest Amount</p>
+                        <p className="font-semibold text-red-400">₹{(loan.interestAmount || 0).toFixed(2)}</p>
+                    </div>
+                     <div className="flex justify-between text-sm font-bold">
+                        <p>Total Repayment</p>
+                        <p>₹{(loan.totalRepayment || 0).toFixed(2)}</p>
+                    </div>
+                    <div className="flex gap-4 pt-2">
+                        <Button className="w-full" onClick={() => handleUpdateStatus('approved_by_user')}>Accept Offer</Button>
+                        <Button className="w-full" variant="destructive" onClick={() => handleUpdateStatus('rejected_by_user')}>Reject Offer</Button>
+                    </div>
+                </div>
+            )}
+            
+            {loan.status === 'rejected_by_admin' && loan.rejectionReason && (
+                 <p className="text-sm text-destructive">Reason for rejection: {loan.rejectionReason}</p>
+            )}
+
+            {loan.status === 'approved_by_user' && (
+                <p className="text-sm text-green-400 text-center">You have approved the loan. Waiting for admin to send the funds.</p>
+            )}
+
+            {loan.status === 'active' && loan.dueDate && (
+                 <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Time Remaining:</span>
+                        <CountdownTimer endDate={loan.dueDate.toDate()} />
+                    </div>
+                 </div>
+            )}
+
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 

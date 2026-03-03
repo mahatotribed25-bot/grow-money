@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -22,6 +23,7 @@ type AdminSettings = {
   withdrawalGstPercentage?: number;
   loanPenalty?: number;
   kycGoogleFormUrl?: string;
+  maxCustomLoanAmount?: number;
   isUnderMaintenance?: boolean;
   maintenanceEndTime?: Timestamp;
 };
@@ -40,6 +42,7 @@ export default function SettingsPage() {
   const [withdrawalGstPercentage, setWithdrawalGstPercentage] = useState(0);
   const [loanPenalty, setLoanPenalty] = useState(0);
   const [kycGoogleFormUrl, setKycGoogleFormUrl] = useState('');
+  const [maxCustomLoanAmount, setMaxCustomLoanAmount] = useState(0);
   const [isUnderMaintenance, setIsUnderMaintenance] = useState(false);
   const [maintenanceDuration, setMaintenanceDuration] = useState(5);
 
@@ -58,6 +61,7 @@ export default function SettingsPage() {
       setWithdrawalGstPercentage(settings.withdrawalGstPercentage || 0);
       setLoanPenalty(settings.loanPenalty || 0);
       setKycGoogleFormUrl(settings.kycGoogleFormUrl || '');
+      setMaxCustomLoanAmount(settings.maxCustomLoanAmount || 5000);
       
       const isCurrentlyUnderMaintenance = settings.maintenanceEndTime
         ? settings.maintenanceEndTime.toDate() > new Date()
@@ -76,6 +80,7 @@ export default function SettingsPage() {
       withdrawalGstPercentage: Number(withdrawalGstPercentage),
       loanPenalty: Number(loanPenalty),
       kycGoogleFormUrl: kycGoogleFormUrl,
+      maxCustomLoanAmount: Number(maxCustomLoanAmount),
     };
 
     setDoc(settingsRef, settingsData, { merge: true })
@@ -353,6 +358,19 @@ export default function SettingsPage() {
                             />
                              <p className="text-sm text-muted-foreground">
                                 The penalty amount to apply for each day a loan is overdue after the 1-day grace period.
+                            </p>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="max-custom-loan">Max Custom Loan Amount</Label>
+                            <Input
+                            id="max-custom-loan"
+                            type="number"
+                            placeholder="e.g., 5000"
+                            value={maxCustomLoanAmount}
+                            onChange={(e) => setMaxCustomLoanAmount(Number(e.target.value))}
+                            />
+                             <p className="text-sm text-muted-foreground">
+                                The maximum amount a user can request for a custom loan.
                             </p>
                         </div>
                     </div>
