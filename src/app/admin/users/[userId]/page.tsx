@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX } from 'lucide-react';
+import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -47,6 +47,7 @@ type UserData = {
   phoneNumber?: string;
   kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
   kycRejectionReason?: string;
+  role?: 'user' | 'subadmin';
 };
 
 type Investment = {
@@ -208,6 +209,30 @@ export default function UserDetailPage() {
       })
       .catch((error) => {
         console.error("Error updating user status:", error);
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+  };
+
+  const handleToggleSubAdmin = () => {
+    if (!user) return;
+    const newRole = user.role === 'subadmin' ? 'user' : 'subadmin';
+    const userRef = doc(firestore, 'users', userId);
+    const updateData = { role: newRole };
+
+    updateDoc(userRef, updateData)
+      .then(() => {
+        toast({
+          title: 'Role Updated',
+          description: `${user.name} is now a ${newRole}.`,
+        });
+      })
+      .catch((error) => {
+        console.error("Error updating user role:", error);
         const permissionError = new FirestorePermissionError({
           path: userRef.path,
           operation: 'update',
@@ -444,6 +469,10 @@ export default function UserDetailPage() {
             <h2 className="text-2xl font-bold">User Details</h2>
         </div>
         <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={handleToggleSubAdmin}>
+                <Crown className="mr-2 h-4 w-4" />
+                {user.role === 'subadmin' ? 'Revoke Sub-Admin' : 'Make Sub-Admin'}
+            </Button>
             <Button
                 variant={user.status === 'Blocked' ? 'default' : 'destructive'}
                 onClick={handleToggleStatus}
@@ -494,6 +523,7 @@ export default function UserDetailPage() {
           <InfoBox title="Total Income" value={`₹${(user.totalIncome || 0).toFixed(2)}`} icon={Wallet} />
           <InfoBox title="Status" value={user.status || 'Active'} icon={User} badgeVariant={getStatusVariant(user.status || 'Active')} />
            <InfoBox title="KYC Status" value={user.kycStatus || 'Not Submitted'} icon={FileCheck} badgeVariant={getStatusVariant(user.kycStatus || 'Not Submitted')} />
+           <InfoBox title="Role" value={user.role || 'user'} icon={Crown} badgeVariant={user.role === 'subadmin' ? 'secondary' : 'outline'} />
         </CardContent>
       </Card>
       

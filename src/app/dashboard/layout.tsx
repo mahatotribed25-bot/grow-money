@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useDoc, useAuth, useUser } from '@/firebase';
@@ -15,6 +16,11 @@ type AdminSettings = {
   maintenanceEndTime?: Timestamp;
 };
 
+type UserData = {
+    role?: 'user' | 'subadmin';
+    email?: string;
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -22,6 +28,8 @@ export default function DashboardLayout({
 }) {
   const { user, loading: userLoading } = useUser();
   const { data: settings, loading: settingsLoading } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
+  const { data: userData, loading: userDataLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+
   const auth = useAuth();
   const router = useRouter();
 
@@ -31,13 +39,23 @@ export default function DashboardLayout({
     }
   }, [userLoading, user, router]);
 
+  useEffect(() => {
+    if (!userDataLoading && userData) {
+      if (userData.role === 'subadmin') {
+        router.push('/subadmin');
+      } else if (userData.email === 'admin@tribed.world') {
+        router.push('/admin');
+      }
+    }
+  }, [userData, userDataLoading, router]);
+
   const handleLogout = async () => {
     if (!auth) return;
     await signOut(auth);
     router.push('/login');
   };
   
-  const loading = userLoading || (user && settingsLoading);
+  const loading = userLoading || settingsLoading || userDataLoading;
 
   const isUnderMaintenance = useMemo(() => {
     if (!settings) return false;

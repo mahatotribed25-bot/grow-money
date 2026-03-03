@@ -19,6 +19,11 @@
           "type": "string",
           "description": "The user's display name."
         },
+        "role": {
+          "type": "string",
+          "enum": ["user", "subadmin"],
+          "description": "The role of the user, determining their access level."
+        },
         "walletBalance": {
           "type": "number",
           "description": "The user's current wallet balance."

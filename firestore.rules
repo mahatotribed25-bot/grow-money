@@ -8,7 +8,7 @@ service cloud.firestore {
     // Writing is restricted to admin.
     match /settings/admin {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.token.email == "admin@tribed.world";
+      allow write: if isAdmin();
     }
 
     // Helper functions to make rules more readable and reusable.
@@ -20,15 +20,20 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email == "admin@tribed.world";
     }
 
+    function isSubAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'subadmin';
+    }
+
     // Rules for the 'users' collection.
     match /users/{userId} {
       // A user can create their own document.
       allow create: if isOwner(userId);
       // A user can read their own data. Admin can read all.
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      // A user can update their own data. Admin has full update access.
-      allow update: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId) || isAdmin() || isSubAdmin();
+      allow list: if isAdmin() || isSubAdmin();
+      // A user can update their own data. Admin has full update access. Sub-admin has limited update access.
+      allow update: if isOwner(userId) || isAdmin() || 
+                   (isSubAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['kycStatus', 'kycRejectionReason', 'walletBalance', 'upiStatus', 'upiId', 'upiProvider']));
       // Only an admin can delete a user account.
       allow delete: if isAdmin();
     }
@@ -51,20 +56,20 @@ service cloud.firestore {
     match /deposits/{depositId} {
       // A user can only create a deposit request for themselves.
       allow create: if request.auth != null && isOwner(request.resource.data.userId);
-      // A user can read their own deposit history. Admin can read all.
-      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin();
-      // Only an admin can approve or reject a deposit request.
-      allow update: if isAdmin();
+      // A user can read their own deposit history. Admin/Sub-admin can read all.
+      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin() || isSubAdmin();
+      // Only an admin/sub-admin can approve or reject a deposit request.
+      allow update: if isAdmin() || isSubAdmin();
     }
     
     // Rules for 'withdrawals' collection.
     match /withdrawals/{withdrawalId} {
       // A user can only create a withdrawal request for themselves.
       allow create: if request.auth != null && isOwner(request.resource.data.userId);
-      // A user can read their own withdrawal history. Admin can read all.
-      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin();
-      // Only an admin can approve or reject a withdrawal request.
-      allow update: if isAdmin();
+      // A user can read their own withdrawal history. Admin/Sub-admin can read all.
+      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin() || isSubAdmin();
+      // Only an admin/sub-admin can approve or reject a withdrawal request.
+      allow update: if isAdmin() || isSubAdmin();
     }
     
     // Rules for announcements.
@@ -87,21 +92,21 @@ service cloud.firestore {
     match /loanRequests/{requestId} {
        // A user can only create a loan request for themselves.
       allow create: if request.auth != null && isOwner(request.resource.data.userId);
-      // A user can read their own request. Admin can read all.
-      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin();
-      // Only an admin can approve or reject loan requests.
-      allow update: if isAdmin();
+      // A user can read their own request. Admin/Sub-admin can read all.
+      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin() || isSubAdmin();
+      // Only an admin/sub-admin can approve or reject loan requests.
+      allow update: if isAdmin() || isSubAdmin();
     }
 
     // Rules for Custom Loan Requests
     match /customLoanRequests/{requestId} {
       // A user can create a request for themselves.
       allow create: if request.auth != null && isOwner(request.resource.data.userId);
-      // User can read their own request, admin can read all.
-      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin();
-      // Admin can update when pending admin review or after user approval.
+      // User can read their own request, admin/sub-admin can read all.
+      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin() || isSubAdmin();
+      // Admin/Sub-admin can update when pending admin review or after user approval.
       // User can update when pending user approval, only changing status and userApprovedAt.
-      allow update: if (isAdmin() && (resource.data.status == 'pending_admin_review' || resource.data.status == 'approved_by_user')) || 
+      allow update: if (isAdmin() || isSubAdmin()) || 
                        (isOwner(resource.data.userId) && resource.data.status == 'pending_user_approval' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'userApprovedAt']));
       // Admin can delete requests.
       allow delete: if isAdmin();
@@ -111,21 +116,21 @@ service cloud.firestore {
     match /upiRequests/{requestId} {
       // A user can create a request for themselves.
       allow create: if request.auth != null && isOwner(request.resource.data.userId);
-      // A user can read their own request. Admin can read all.
-      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin();
-      // Only an admin can update (approve/reject) requests.
-      allow update: if isAdmin();
+      // A user can read their own request. Admin/Sub-admin can read all.
+      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin() || isSubAdmin();
+      // Only an admin/sub-admin can update (approve/reject) requests.
+      allow update: if isAdmin() || isSubAdmin();
     }
 
     // Rules for a user's active 'loans' sub-collection.
     match /users/{userId}/loans/{loanId} {
       // A user can read their own loan data.
-      allow read: if isOwner(userId) || isAdmin();
+      allow read: if isOwner(userId) || isAdmin() || isSubAdmin();
       // Admin can create or delete loan records.
       allow create, delete: if isAdmin();
-      // User can update status (e.g. to 'Payment Pending') or an admin can manage the record.
+      // User can update status (e.g. to 'Payment Pending') or an admin/sub-admin can manage the record.
       // The system (running on client) can also update to 'Due'.
-      allow update: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin() || isSubAdmin();
     }
 
     // Rules for Group Loan Investment System
@@ -174,12 +179,12 @@ service cloud.firestore {
 
     // KYC Requests (Collection Group Query)
     match /kycRequests/{requestId} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAdmin() || isSubAdmin();
     }
 
      // Investments (Collection Group Query for Admin Dashboard)
     match /{path=**}/investments/{investmentId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isSubAdmin();
     }
     
     // Fallback rule: Deny all other reads/writes by default.
