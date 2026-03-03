@@ -28,6 +28,8 @@ import { signOut } from 'firebase/auth';
 import { useEffect, useMemo } from 'react';
 import type { Timestamp } from 'firebase/firestore';
 
+const ADMIN_EMAIL = 'admin@tribed.world';
+
 type UserData = {
     role?: 'user' | 'subadmin';
     email?: string;
@@ -53,16 +55,16 @@ export default function SubAdminLayout({
   const { data: userData, loading: userDataLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   
   const loading = userLoading || userDataLoading;
-  const isSubAdmin = userData?.role === 'subadmin';
+  const isAuthorized = !loading && userData && (userData.role === 'subadmin' || userData.email === ADMIN_EMAIL);
 
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(
-    isSubAdmin ? 'customLoanRequests' : null,
+    isAuthorized ? 'customLoanRequests' : null,
     { where: ['status', '==', 'pending_admin_review'] }
   );
 
 
   const notifications = useMemo(() => {
-    if (!isSubAdmin) return [];
+    if (!isAuthorized) return [];
     
     return [
        ...(pendingCustomLoanRequests?.map((c) => ({
@@ -72,7 +74,7 @@ export default function SubAdminLayout({
         name: c.userName,
       })) || []),
     ].filter(n => n.createdAt).sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-  }, [isSubAdmin, pendingCustomLoanRequests]);
+  }, [isAuthorized, pendingCustomLoanRequests]);
 
   const notificationCount = notifications.length;
 
@@ -92,13 +94,13 @@ export default function SubAdminLayout({
       return;
     }
     
-    if (!isSubAdmin) {
+    if (!isAuthorized) {
        router.push('/dashboard');
     }
-  }, [user, isSubAdmin, loading, router]);
+  }, [user, isAuthorized, loading, router]);
 
 
-  if (loading || !isSubAdmin) {
+  if (loading || !isAuthorized) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
