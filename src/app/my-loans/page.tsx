@@ -1,4 +1,3 @@
-
 'use client';
 import {
   ChevronLeft,
@@ -12,8 +11,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser } from '@/firebase/auth/use-user';
-import { useCollection, useFirestore, useDoc, query } from '@/firebase';
-import { collection, Timestamp, where } from 'firebase/firestore';
+import { useCollection, useFirestore, useDoc } from '@/firebase';
+import { collection, Timestamp, where, query } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
