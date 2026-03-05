@@ -626,6 +626,32 @@
         }
       },
       "required": ["code", "amount", "status", "stock", "maxStock", "createdAt"]
+    },
+    "chat": {
+      "title": "Chat Session",
+      "description": "Represents a chat session between a user and an admin.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "unreadByAdmin": { "type": "boolean" },
+        "unreadByUser": { "type": "boolean" }
+      },
+      "required": ["userId", "userName"]
+    },
+    "chatMessage": {
+      "title": "Chat Message",
+      "description": "A single message in a chat.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "senderId": { "type": "string", "description": "UID of the sender, or 'admin'." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isRead": { "type": "boolean", "description": "Whether the message has been read by the recipient." }
+      },
+      "required": ["text", "senderId", "createdAt"]
     }
   },
   "auth": {
@@ -715,6 +741,14 @@
         "$ref": "#/entities/coupon"
       },
       "description": "Stores redeemable coupons."
+    },
+    "/chats/{userId}": {
+      "schema": { "$ref": "#/entities/chat" },
+      "description": "Stores a chat session between a user and an admin."
+    },
+    "/chats/{userId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/chatMessage" },
+      "description": "Stores individual messages within a chat session."
     }
   }
 }

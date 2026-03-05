@@ -20,6 +20,7 @@ import {
   Handshake,
   Gift,
   FileText,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -228,6 +229,9 @@ export default function AdminLayout({
             <AdminNavItem icon={Megaphone} href="/admin/announcements">
               Announcements
             </AdminNavItem>
+            <AdminNavItem icon={MessageSquare} href="/admin/chat">
+              Chat Support
+            </AdminNavItem>
             <AdminNavItem icon={Settings} href="/admin/settings">
               Settings
             </AdminNavItem>
@@ -303,6 +307,9 @@ export default function AdminLayout({
                 </AdminNavItem>
                 <AdminNavItem icon={Megaphone} href="/admin/announcements">
                   Announcements
+                </AdminNavItem>
+                <AdminNavItem icon={MessageSquare} href="/admin/chat">
+                  Chat Support
                 </AdminNavItem>
                 <AdminNavItem icon={Settings} href="/admin/settings">
                   Settings

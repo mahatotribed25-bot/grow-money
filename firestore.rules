@@ -179,6 +179,17 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'redemptions', 'status']);
     }
 
+    // Rules for Chat
+    match /chats/{userId} {
+      // User can read/write their own chat document. Admin can read/write all.
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    match /chats/{userId}/messages/{messageId} {
+      // User can read/write messages in their own chat. Admin can read/write all.
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
     // Investments (Collection Group Query for Admin Dashboard)
     match /{path=**}/investments/{investmentId} {
       allow read: if isAdmin();

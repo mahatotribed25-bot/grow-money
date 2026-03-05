@@ -10,6 +10,7 @@ import { useEffect, useMemo } from 'react';
 import type { Timestamp } from 'firebase/firestore';
 import { FlipCountdown } from '@/components/dashboard/FlipCountdown';
 import { LogOut } from 'lucide-react';
+import { ChatSupportWidget } from '@/components/chat/ChatSupport';
 
 type AdminSettings = {
   isUnderMaintenance?: boolean;
@@ -106,6 +107,7 @@ export default function DashboardLayout({
     <>
       <UserPresence />
       {children}
+      <ChatSupportWidget />
     </>
   );
 }
