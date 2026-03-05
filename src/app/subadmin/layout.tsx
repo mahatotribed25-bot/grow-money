@@ -101,7 +101,7 @@ export default function SubAdminLayout({
   }
 
   if (!isAuthorized) {
-    // While redirecting, show a spinner.
+    // While redirecting, show a spinner. This prevents a flash of the subadmin content.
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -123,9 +123,6 @@ export default function SubAdminLayout({
             </Link>
           </div>
           <nav className="flex-1 grid items-start px-2 text-sm font-medium lg:px-4">
-            <AdminNavItem icon={Home} href="/subadmin">
-              Dashboard
-            </AdminNavItem>
             <AdminNavItem icon={FileText} href="/subadmin/custom-loans">
               Custom Loans
             </AdminNavItem>
@@ -159,15 +156,12 @@ export default function SubAdminLayout({
               </SheetHeader>
               <nav className="grid gap-2 text-lg font-medium">
                 <Link
-                  href="#"
+                  href="/subadmin"
                   className="flex items-center gap-2 text-lg font-semibold mb-4"
                 >
                   <Briefcase className="h-6 w-6 text-primary" />
                   <span>Sub-Admin Panel</span>
                 </Link>
-                <AdminNavItem icon={Home} href="/subadmin">
-                  Dashboard
-                </AdminNavItem>
                  <AdminNavItem icon={FileText} href="/subadmin/custom-loans">
                     Custom Loans
                  </AdminNavItem>
