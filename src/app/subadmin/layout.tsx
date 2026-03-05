@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -5,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Bell,
   Home,
-  LogOut,
+  ArrowLeft,
   Menu,
   Briefcase,
   FileText,
@@ -23,8 +24,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { useAuth, useUser, useCollection, useDoc } from '@/firebase';
-import { signOut } from 'firebase/auth';
+import { useUser, useCollection, useDoc } from '@/firebase';
 import { useEffect, useMemo } from 'react';
 import type { Timestamp } from 'firebase/firestore';
 
@@ -48,7 +48,6 @@ export default function SubAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading: userLoading } = useUser();
@@ -77,12 +76,6 @@ export default function SubAdminLayout({
   }, [isAuthorized, pendingCustomLoanRequests]);
 
   const notificationCount = notifications.length;
-
-  const handleLogout = async () => {
-    if (!auth) return;
-    await signOut(auth);
-    router.push('/login');
-  };
 
   useEffect(() => {
     if (loading) {
@@ -130,9 +123,11 @@ export default function SubAdminLayout({
             </AdminNavItem>
           </nav>
           <div className="mt-auto p-4">
-            <Button size="sm" className="w-full" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
+            <Button size="sm" className="w-full" asChild>
+              <Link href="/dashboard">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Dashboard
+              </Link>
             </Button>
           </div>
         </div>
@@ -170,9 +165,11 @@ export default function SubAdminLayout({
                  </AdminNavItem>
               </nav>
               <div className="mt-auto">
-                <Button size="sm" className="w-full" onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
+                <Button size="sm" className="w-full" asChild>
+                   <Link href="/dashboard">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Dashboard
+                  </Link>
                 </Button>
               </div>
             </SheetContent>
