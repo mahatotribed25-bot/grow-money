@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -9,6 +10,10 @@ import {
   Menu,
   Briefcase,
   FileText,
+  Download,
+  Upload,
+  FileCheck,
+  HandCoins,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,9 +34,18 @@ import type { Timestamp } from 'firebase/firestore';
 
 const ADMIN_EMAIL = 'admin@tribed.world';
 
+type UserPermissions = {
+    canManageDeposits?: boolean;
+    canManageWithdrawals?: boolean;
+    canManageKyc?: boolean;
+    canManagePlanLoans?: boolean;
+    canManageCustomLoans?: boolean;
+}
+
 type UserData = {
     role?: 'user' | 'subadmin';
     email?: string;
+    permissions?: UserPermissions;
 }
 
 type BaseRequest = {
@@ -39,6 +53,10 @@ type BaseRequest = {
   createdAt: Timestamp;
 };
 
+type DepositRequest = BaseRequest & { name: string };
+type WithdrawalRequest = BaseRequest & { name: string };
+type LoanRequest = BaseRequest & { userName: string };
+type KycRequest = { id: string, name: string, kycSubmissionDate: Timestamp };
 type CustomLoanRequest = BaseRequest & { userName: string };
 
 
@@ -53,10 +71,27 @@ export default function SubAdminLayout({
   const { data: userData, loading: userDataLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   
   const loading = userLoading || userDataLoading;
+  const permissions = userData?.permissions;
   const isAuthorized = userData && (userData.role === 'subadmin' || userData.email === ADMIN_EMAIL);
 
+  const { data: pendingDeposits } = useCollection<DepositRequest>(
+    isAuthorized && permissions?.canManageDeposits ? 'deposits' : null, 
+    { where: ['status', '==', 'pending'] }
+  );
+  const { data: pendingWithdrawals } = useCollection<WithdrawalRequest>(
+    isAuthorized && permissions?.canManageWithdrawals ? 'withdrawals' : null,
+    { where: ['status', '==', 'pending'] }
+  );
+  const { data: pendingLoanRequests } = useCollection<LoanRequest>(
+    isAuthorized && permissions?.canManagePlanLoans ? 'loanRequests' : null,
+    { where: ['status', '==', 'pending'] }
+  );
+   const { data: pendingKycRequests } = useCollection<KycRequest>(
+    isAuthorized && permissions?.canManageKyc ? 'users' : null,
+    { where: ['kycStatus', '==', 'pending'] }
+  );
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(
-    isAuthorized ? 'customLoanRequests' : null,
+    isAuthorized && permissions?.canManageCustomLoans ? 'customLoanRequests' : null,
     { where: ['status', '==', 'pending_admin_review'] }
   );
 
@@ -65,14 +100,13 @@ export default function SubAdminLayout({
     if (!isAuthorized) return [];
     
     return [
-       ...(pendingCustomLoanRequests?.map((c) => ({
-        ...c,
-        type: 'Custom Loan',
-        link: '/subadmin/custom-loans',
-        name: c.userName,
-      })) || []),
+       ...(pendingDeposits?.map((d) => ({ ...d, type: 'Deposit', link: '/subadmin/deposits', name: d.name })) || []),
+       ...(pendingWithdrawals?.map((w) => ({...w, type: 'Withdrawal', link: '/subadmin/withdrawals', name: w.name })) || []),
+       ...(pendingLoanRequests?.map((l) => ({ ...l, type: 'Loan', link: '/subadmin/loans', name: l.userName })) || []),
+       ...(pendingKycRequests?.map(k => ({ id: k.id, type: 'KYC', link: '/subadmin/kyc-requests', name: k.name, createdAt: k.kycSubmissionDate, })) || []),
+       ...(pendingCustomLoanRequests?.map((c) => ({ ...c, type: 'Custom Loan', link: '/subadmin/custom-loans', name: c.userName, })) || []),
     ].filter(n => n.createdAt).sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-  }, [isAuthorized, pendingCustomLoanRequests]);
+  }, [isAuthorized, pendingDeposits, pendingWithdrawals, pendingLoanRequests, pendingKycRequests, pendingCustomLoanRequests]);
 
   const notificationCount = notifications.length;
 
@@ -109,6 +143,15 @@ export default function SubAdminLayout({
     );
   }
 
+  const navLinks = [
+    { href: "/subadmin/custom-loans", icon: FileText, label: "Custom Loans", permission: permissions?.canManageCustomLoans },
+    { href: "/subadmin/kyc-requests", icon: FileCheck, label: "KYC Requests", permission: permissions?.canManageKyc },
+    { href: "/subadmin/loans", icon: HandCoins, label: "Loan Requests", permission: permissions?.canManagePlanLoans },
+    { href: "/subadmin/deposits", icon: Upload, label: "Deposits", permission: permissions?.canManageDeposits },
+    { href: "/subadmin/withdrawals", icon: Download, label: "Withdrawals", permission: permissions?.canManageWithdrawals },
+  ].filter(link => userData?.email === ADMIN_EMAIL || link.permission);
+
+
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <div className="hidden border-r bg-muted/40 md:block">
@@ -123,9 +166,11 @@ export default function SubAdminLayout({
             </Link>
           </div>
           <nav className="flex-1 grid items-start px-2 text-sm font-medium lg:px-4">
-            <AdminNavItem icon={FileText} href="/subadmin/custom-loans">
-              Custom Loans
-            </AdminNavItem>
+             {navLinks.map(link => (
+                <AdminNavItem key={link.href} icon={link.icon} href={link.href}>
+                  {link.label}
+                </AdminNavItem>
+              ))}
           </nav>
           <div className="mt-auto p-4">
             <Button size="sm" className="w-full" asChild>
@@ -162,9 +207,11 @@ export default function SubAdminLayout({
                   <Briefcase className="h-6 w-6 text-primary" />
                   <span>Sub-Admin Panel</span>
                 </Link>
-                 <AdminNavItem icon={FileText} href="/subadmin/custom-loans">
-                    Custom Loans
-                 </AdminNavItem>
+                 {navLinks.map(link => (
+                    <AdminNavItem key={link.href} icon={link.icon} href={link.href}>
+                      {link.label}
+                    </AdminNavItem>
+                  ))}
               </nav>
               <div className="mt-auto">
                 <Button size="sm" className="w-full" asChild>

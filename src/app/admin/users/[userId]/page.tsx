@@ -32,7 +32,16 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
+type UserPermissions = {
+    canManageDeposits?: boolean;
+    canManageWithdrawals?: boolean;
+    canManageKyc?: boolean;
+    canManagePlanLoans?: boolean;
+    canManageCustomLoans?: boolean;
+}
 
 type UserData = {
   id: string;
@@ -48,6 +57,7 @@ type UserData = {
   kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
   kycRejectionReason?: string;
   role?: 'user' | 'subadmin';
+  permissions?: UserPermissions;
 };
 
 type Investment = {
@@ -174,6 +184,15 @@ const getStatusVariant = (status: string) => {
   }
 };
 
+const permissionLabels: Record<keyof UserPermissions, string> = {
+    canManageDeposits: "Manage Deposits",
+    canManageWithdrawals: "Manage Withdrawals",
+    canManageKyc: "Manage KYC",
+    canManagePlanLoans: "Manage Plan Loans",
+    canManageCustomLoans: "Manage Custom Loans",
+};
+
+
 export default function UserDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -184,6 +203,16 @@ export default function UserDetailPage() {
 
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  
+  const defaultPermissions: UserPermissions = {
+    canManageDeposits: false,
+    canManageWithdrawals: false,
+    canManageKyc: false,
+    canManagePlanLoans: false,
+    canManageCustomLoans: false,
+  };
+  const [permissions, setPermissions] = useState<UserPermissions>(defaultPermissions);
+
 
   const { data: user, loading: userLoading, refetch: refetchUser } = useDoc<UserData>(userId ? `users/${userId}` : null);
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
@@ -193,6 +222,41 @@ export default function UserDetailPage() {
   const { data: groupInvestments, loading: groupInvestmentsLoading } = useUserGroupInvestments(userId);
   
   const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading || loansLoading || groupInvestmentsLoading;
+
+  useEffect(() => {
+    setPermissions(user?.permissions || defaultPermissions);
+  }, [user]);
+
+  const handlePermissionChange = (permission: keyof UserPermissions, value: boolean) => {
+    setPermissions(prev => ({ ...prev, [permission]: value }));
+  };
+
+  const handleSavePermissions = () => {
+    const userRef = doc(firestore, 'users', userId);
+    const hasAnyPermission = Object.values(permissions).some(p => p === true);
+    const newRole = hasAnyPermission ? 'subadmin' : 'user';
+
+    updateDoc(userRef, {
+        permissions,
+        role: newRole,
+    })
+    .then(() => {
+        toast({
+            title: 'Permissions Updated',
+            description: `${user?.name}'s role and permissions have been saved.`,
+        });
+        refetchUser();
+    })
+    .catch((error) => {
+        console.error("Error saving permissions:", error);
+         const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: { permissions, role: newRole },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    })
+  }
 
   const handleToggleStatus = () => {
     if (!user) return;
@@ -218,29 +282,6 @@ export default function UserDetailPage() {
       });
   };
 
-  const handleToggleSubAdmin = () => {
-    if (!user) return;
-    const newRole = user.role === 'subadmin' ? 'user' : 'subadmin';
-    const userRef = doc(firestore, 'users', userId);
-    const updateData = { role: newRole };
-
-    updateDoc(userRef, updateData)
-      .then(() => {
-        toast({
-          title: 'Role Updated',
-          description: `${user.name} is now a ${newRole}.`,
-        });
-      })
-      .catch((error) => {
-        console.error("Error updating user role:", error);
-        const permissionError = new FirestorePermissionError({
-          path: userRef.path,
-          operation: 'update',
-          requestResourceData: updateData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
-  };
   
    const handleStopInvestment = (investment: Investment) => {
     if (!user || !investment || investment.status !== 'Active') return;
@@ -469,10 +510,6 @@ export default function UserDetailPage() {
             <h2 className="text-2xl font-bold">User Details</h2>
         </div>
         <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={handleToggleSubAdmin}>
-                <Crown className="mr-2 h-4 w-4" />
-                {user.role === 'subadmin' ? 'Revoke Sub-Admin' : 'Make Sub-Admin'}
-            </Button>
             <Button
                 variant={user.status === 'Blocked' ? 'default' : 'destructive'}
                 onClick={handleToggleStatus}
@@ -524,6 +561,28 @@ export default function UserDetailPage() {
           <InfoBox title="Status" value={user.status || 'Active'} icon={User} badgeVariant={getStatusVariant(user.status || 'Active')} />
            <InfoBox title="KYC Status" value={user.kycStatus || 'Not Submitted'} icon={FileCheck} badgeVariant={getStatusVariant(user.kycStatus || 'Not Submitted')} />
            <InfoBox title="Role" value={user.role || 'user'} icon={Crown} badgeVariant={user.role === 'subadmin' ? 'secondary' : 'outline'} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sub-Admin Permissions</CardTitle>
+          <CardDescription>Grant or revoke specific permissions for this user.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {Object.entries(permissionLabels).map(([key, label]) => (
+                <div key={key} className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <Label htmlFor={key} className="font-medium">{label}</Label>
+                    <Switch
+                        id={key}
+                        checked={permissions[key as keyof UserPermissions] || false}
+                        onCheckedChange={(value) => handlePermissionChange(key as keyof UserPermissions, value)}
+                    />
+                </div>
+            ))}
+            </div>
+             <Button onClick={handleSavePermissions}>Save Permissions</Button>
         </CardContent>
       </Card>
       

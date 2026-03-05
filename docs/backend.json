@@ -24,6 +24,17 @@
           "enum": ["user", "subadmin"],
           "description": "The role of the user, determining their access level."
         },
+        "permissions": {
+            "type": "object",
+            "description": "Specific permissions for sub-admin users.",
+            "properties": {
+                "canManageDeposits": { "type": "boolean", "description": "Can approve/reject deposit requests." },
+                "canManageWithdrawals": { "type": "boolean", "description": "Can approve/reject withdrawal requests." },
+                "canManageKyc": { "type": "boolean", "description": "Can approve/reject KYC requests." },
+                "canManagePlanLoans": { "type": "boolean", "description": "Can approve/reject standard loan plan requests." },
+                "canManageCustomLoans": { "type": "boolean", "description": "Can manage the entire custom loan lifecycle." }
+            }
+        },
         "walletBalance": {
           "type": "number",
           "description": "The user's current wallet balance."
@@ -707,4 +718,3 @@
     }
   }
 }
-
