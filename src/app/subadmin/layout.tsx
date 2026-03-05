@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -54,7 +53,7 @@ export default function SubAdminLayout({
   const { data: userData, loading: userDataLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   
   const loading = userLoading || userDataLoading;
-  const isAuthorized = !loading && userData && (userData.role === 'subadmin' || userData.email === ADMIN_EMAIL);
+  const isAuthorized = userData && (userData.role === 'subadmin' || userData.email === ADMIN_EMAIL);
 
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(
     isAuthorized ? 'customLoanRequests' : null,
@@ -79,7 +78,7 @@ export default function SubAdminLayout({
 
   useEffect(() => {
     if (loading) {
-      return; 
+      return; // Wait until loading is complete
     }
 
     if (!user) {
@@ -93,7 +92,16 @@ export default function SubAdminLayout({
   }, [user, isAuthorized, loading, router]);
 
 
-  if (loading || !isAuthorized) {
+  if (loading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    // While redirecting, show a spinner.
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
