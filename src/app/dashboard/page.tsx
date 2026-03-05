@@ -19,6 +19,7 @@ import {
   FileText,
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/firebase/auth/use-user';
@@ -461,6 +462,17 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
   const [amount, setAmount] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const { toast } = useToast();
+  const [qrData, setQrData] = useState('');
+
+  useEffect(() => {
+    if (amount && parseFloat(amount) > 0 && adminUpi) {
+      const payeeName = "Grow Money".replace(/ /g, '%20');
+      const upiUrl = `upi://pay?pa=${adminUpi}&pn=${payeeName}&am=${amount}&cu=INR`;
+      setQrData(upiUrl);
+    } else {
+      setQrData('');
+    }
+  }, [amount, adminUpi]);
 
   const handleSubmit = () => {
     if (!user || !amount || !transactionId) {
@@ -500,7 +512,7 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
   };
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={(isOpen) => { if (!isOpen) { setAmount(''); setTransactionId(''); setQrData('')}}}>
       <DialogTrigger asChild>
         <Button className="w-full">
           <Upload className="mr-2 h-4 w-4" /> Recharge
@@ -511,15 +523,8 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
           <DialogTitle>Recharge Wallet</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <p className="text-sm">
-            To add funds, please send money to the UPI ID below and enter the
-            details.
-          </p>
-          <div className="rounded-md bg-muted p-3 text-center font-mono text-lg">
-            {adminUpi || 'Loading UPI...'}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount (INR)</Label>
+           <div className="space-y-2">
+            <Label htmlFor="amount">1. Enter Amount (INR)</Label>
             <Input
               id="amount"
               type="number"
@@ -528,14 +533,31 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
               placeholder="e.g., 500"
             />
           </div>
+          
+          {qrData && (
+            <div className="flex flex-col items-center gap-2 p-4 rounded-md bg-muted animate-in fade-in-50">
+                <p className="text-sm text-center font-semibold">2. Scan and Pay</p>
+                <div className="bg-white p-2 rounded-md">
+                    <Image
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`}
+                        alt="UPI QR Code"
+                        width={200}
+                        height={200}
+                    />
+                </div>
+                <p className="text-xs text-muted-foreground text-center">Or pay to UPI ID: <span className="font-mono">{adminUpi}</span></p>
+            </div>
+          )}
+
           <div className="space-y-2">
-            <Label htmlFor="transactionId">Transaction ID</Label>
+            <Label htmlFor="transactionId">3. Enter Transaction ID</Label>
             <Input
               id="transactionId"
               value={transactionId}
               onChange={(e) => setTransactionId(e.target.value)}
               placeholder="Enter the 12-digit transaction ID"
             />
+             <p className="text-xs text-muted-foreground">After payment, enter the UPI transaction ID here.</p>
           </div>
         </div>
         <DialogFooter>
