@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Wallet,
@@ -17,6 +16,7 @@ import {
   Users2,
   Users,
   FileText,
+  AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -99,6 +99,7 @@ type ActiveLoan = {
     startDate: Timestamp;
     dueDate: Timestamp;
     status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
+    penalty?: number;
 }
 
 type Announcement = {
@@ -236,6 +237,8 @@ export default function Dashboard() {
 
   const loading = userLoading || userDataLoading || investmentsLoading || loansLoading || announcementsLoading;
 
+  const overdueLoan = useMemo(() => loans?.find(l => l.status === 'Due'), [loans]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
@@ -273,6 +276,8 @@ export default function Dashboard() {
         <div className="space-y-6">
 
           <Announcements announcements={sortedAnnouncements} loading={announcementsLoading} />
+
+          {overdueLoan && <OverdueNotice loan={overdueLoan} />}
 
           <BannerCarousel />
 
@@ -402,6 +407,30 @@ function Announcements({ announcements, loading }: { announcements: Announcement
             </CardContent>
         </Card>
     )
+}
+
+function OverdueNotice({ loan }: { loan: ActiveLoan }) {
+  return (
+    <Card className="bg-destructive/10 border-destructive/50">
+        <CardHeader>
+            <CardTitle className="text-red-300 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5"/>
+                Loan Overdue Warning
+            </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+            <p className="text-sm text-red-300/90">
+               Your loan for the plan "{loan.planName}" is overdue. You have a 1-day grace period to repay the amount. After that, a daily penalty will be applied to your total payable amount.
+            </p>
+            <p className="text-sm text-red-300/90">
+               Current Penalty: <span className="font-bold">₹{(loan.penalty || 0).toFixed(2)}</span>
+            </p>
+            <Button asChild variant="secondary" size="sm" className="mt-2">
+                <Link href="/my-loans">View Loan & Pay</Link>
+            </Button>
+        </CardContent>
+    </Card>
+  )
 }
 
 function WalletSummary({
