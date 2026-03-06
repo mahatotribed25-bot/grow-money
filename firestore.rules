@@ -45,8 +45,14 @@ service cloud.firestore {
     match /investmentPlans/{planId} {
       // Any signed-in user can view the available plans.
       allow read: if request.auth != null;
-      // Only an admin can create, update, or delete investment plans.
-      allow write: if isAdmin();
+      // Admin can create and delete plans.
+      allow create, delete: if isAdmin();
+      // Admin can update anything. Users can only decrement stock by 1 when investing.
+      allow update: if isAdmin() || (
+        request.auth != null &&
+        request.resource.data.stock == resource.data.stock - 1 &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock'])
+      );
     }
     
     // Rules for a user's 'investments' sub-collection.

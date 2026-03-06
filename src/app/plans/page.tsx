@@ -115,24 +115,6 @@ export default function PlansPage() {
             lastIncomeDate: serverTimestamp(),
             status: 'Active'
         });
-
-        const referredBy = userDoc.data().referredBy;
-        const isFirstInvestment = (userDoc.data().totalInvestment || 0) === 0;
-
-        if (referredBy && isFirstInvestment) {
-            const settingsRef = doc(firestore, 'settings/admin');
-            const adminSettingsDoc = await transaction.get(settingsRef);
-            const bonus = adminSettingsDoc.data()?.referralBonus || 0;
-            
-            if (bonus > 0) {
-                const referrerRef = doc(firestore, 'users', referredBy);
-                const referrerDoc = await transaction.get(referrerRef);
-                if (referrerDoc.exists()) {
-                    const referrerWallet = referrerDoc.data().walletBalance || 0;
-                    transaction.update(referrerRef, { walletBalance: referrerWallet + bonus });
-                }
-            }
-        }
     })
     .then(() => {
         toast({
