@@ -21,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCollection, useFirestore } from '@/firebase';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   addDoc,
   collection,
@@ -72,6 +72,19 @@ export default function InvestmentPlansPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Partial<InvestmentPlan> | null>(null);
+  const [adminProfit, setAdminProfit] = useState(0);
+
+  useEffect(() => {
+    if (editingPlan) {
+        const price = editingPlan.price || 0;
+        const validity = editingPlan.validity || 0;
+        const dailyIncome = editingPlan.dailyIncome || 0;
+        const totalIncome = validity * dailyIncome;
+        const finalReturn = price + totalIncome;
+        const profit = price - finalReturn;
+        setAdminProfit(profit);
+    }
+  }, [editingPlan?.price, editingPlan?.dailyIncome, editingPlan?.validity]);
 
   const handleCreateNew = () => {
     setEditingPlan(emptyPlan);
@@ -184,7 +197,8 @@ export default function InvestmentPlansPage() {
             <TableRow>
               <TableHead>Plan Name</TableHead>
               <TableHead>Price</TableHead>
-              <TableHead>Daily Income</TableHead>
+              <TableHead>Final Return</TableHead>
+              <TableHead>Admin's Net (Loss)</TableHead>
               <TableHead>Validity</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Status</TableHead>
@@ -194,7 +208,7 @@ export default function InvestmentPlansPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={8} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -203,7 +217,12 @@ export default function InvestmentPlansPage() {
                 <TableRow key={plan.id}>
                   <TableCell>{plan.name}</TableCell>
                   <TableCell>₹{(plan.price || 0).toFixed(2)}</TableCell>
-                  <TableCell>₹{(plan.dailyIncome || 0).toFixed(2)}</TableCell>
+                  <TableCell>₹{(plan.finalReturn || 0).toFixed(2)}</TableCell>
+                  <TableCell>
+                    <span className="font-bold text-destructive">
+                      -₹{(plan.totalIncome || 0).toFixed(2)}
+                    </span>
+                  </TableCell>
                   <TableCell>{plan.validity} days</TableCell>
                   <TableCell>{plan.stock ?? 'N/A'}</TableCell>
                   <TableCell>
@@ -293,6 +312,15 @@ export default function InvestmentPlansPage() {
                 onChange={(e) => handleFieldChange('validity', e.target.value)}
                 className="col-span-3"
               />
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Admin's Net (Loss)</Label>
+                <div className="col-span-3 font-bold text-lg">
+                    <span className={adminProfit < 0 ? 'text-destructive' : 'text-green-500'}>
+                        ₹{adminProfit.toFixed(2)}
+                    </span>
+                    <p className="text-xs font-normal text-muted-foreground">This is the net amount you gain/lose per plan sold.</p>
+                </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="stock" className="text-right">

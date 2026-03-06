@@ -9,6 +9,7 @@ import {
   Upload,
   Users2,
   UserCheck,
+  TrendingUp,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCollection, useUser } from '@/firebase';
@@ -25,7 +26,8 @@ import {
   Line,
 } from 'recharts';
 import { Timestamp } from 'firebase/firestore';
-import { subDays, format, startOfDay } from 'date-fns';
+import { subDays, format, startOfDay, startOfMonth, isSameDay, isWithinInterval } from 'date-fns';
+import { useMemo } from 'react';
 
 type User = {
   walletBalance?: number;
@@ -55,23 +57,22 @@ type KycRequest = {
     id: string;
 }
 
-// Function to process data for the chart
 const processFinancialData = (
   deposits: Transaction[] | null,
-  withdrawals: Transaction[] | null
+  withdrawals: Transaction[] | null,
+  days: number
 ) => {
-  const last7Days = Array.from({ length: 7 }, (_, i) =>
+  const lastXDays = Array.from({ length: days }, (_, i) =>
     startOfDay(subDays(new Date(), i))
   ).reverse();
 
-  const chartData = last7Days.map((day) => {
+  const chartData = lastXDays.map((day) => {
     const formattedDate = format(day, 'MMM d');
 
     const dailyDeposits =
       deposits
         ?.filter(
           (d) =>
-            d.status === 'approved' &&
             d.createdAt &&
             startOfDay(d.createdAt.toDate()).getTime() === day.getTime()
         )
@@ -81,21 +82,24 @@ const processFinancialData = (
       withdrawals
         ?.filter(
           (w) =>
-            w.status === 'approved' &&
             w.createdAt &&
             startOfDay(w.createdAt.toDate()).getTime() === day.getTime()
         )
         .reduce((sum, w) => sum + w.amount, 0) || 0;
+    
+    const dailyProfit = dailyDeposits - dailyWithdrawals;
 
     return {
       date: formattedDate,
       Deposits: dailyDeposits,
       Withdrawals: dailyWithdrawals,
+      Profit: dailyProfit,
     };
   });
 
   return chartData;
 };
+
 
 const processUserSignupData = (users: User[] | null) => {
     const last7Days = Array.from({ length: 7 }, (_, i) =>
@@ -120,14 +124,45 @@ export default function AdminDashboard() {
   const isAdmin = !userIsLoading && user?.email === 'admin@tribed.world';
   
   const { data: users, loading: usersLoading } = useCollection<User>(isAdmin ? 'users' : null);
-  const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(isAdmin ? 'deposits' : null);
-  const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(isAdmin ? 'withdrawals' : null);
+  const { data: allDeposits, loading: depositsLoading } = useCollection<Transaction>(isAdmin ? 'deposits' : null);
+  const { data: allWithdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(isAdmin ? 'withdrawals' : null);
   const { data: investmentPlans, loading: investmentPlansLoading } = useCollection(isAdmin ? 'investmentPlans' : null);
   const { data: loanPlans, loading: loanPlansLoading } = useCollection(isAdmin ? 'loanPlans' : null);
   const { data: groupLoanPlans, loading: groupLoanPlansLoading } = useCollection<GroupLoanPlan>(isAdmin ? 'groupLoanPlans' : null);
   const { data: activeLoans, loading: loansLoading } = useCollection<ActiveLoan>(isAdmin ? 'loanRequests' : null, { where: ['status', 'in', ['approved', 'sent']] });
   const { data: pendingKycUsers, loading: kycLoading } = useCollection(isAdmin ? 'users' : null, { where: ['kycStatus', '==', 'pending']});
 
+  const { approvedDeposits, approvedWithdrawals, pendingDepositsCount, pendingWithdrawalsCount } = useMemo(() => {
+    const approvedDeposits = allDeposits?.filter(d => d.status === 'approved') || [];
+    const approvedWithdrawals = allWithdrawals?.filter(w => w.status === 'approved') || [];
+    return {
+      approvedDeposits,
+      approvedWithdrawals,
+      pendingDepositsCount: allDeposits?.filter(d => d.status === 'pending').length || 0,
+      pendingWithdrawalsCount: allWithdrawals?.filter(w => w.status === 'pending').length || 0,
+    };
+  }, [allDeposits, allWithdrawals]);
+  
+  const { todayProfit, monthProfit, totalProfit } = useMemo(() => {
+    const now = new Date();
+    const todayStart = startOfDay(now);
+    const monthStart = startOfMonth(now);
+    
+    const todayDeposits = approvedDeposits.filter(d => d.createdAt && isSameDay(d.createdAt.toDate(), todayStart)).reduce((sum, d) => sum + d.amount, 0);
+    const todayWithdrawals = approvedWithdrawals.filter(w => w.createdAt && isSameDay(w.createdAt.toDate(), todayStart)).reduce((sum, w) => sum + w.amount, 0);
+    
+    const monthDeposits = approvedDeposits.filter(d => d.createdAt && isWithinInterval(d.createdAt.toDate(), { start: monthStart, end: now })).reduce((sum, d) => sum + d.amount, 0);
+    const monthWithdrawals = approvedWithdrawals.filter(w => w.createdAt && isWithinInterval(w.createdAt.toDate(), { start: monthStart, end: now })).reduce((sum, w) => sum + w.amount, 0);
+
+    const totalDeposits = approvedDeposits.reduce((sum, d) => sum + d.amount, 0);
+    const totalWithdrawals = approvedWithdrawals.reduce((sum, w) => sum + w.amount, 0);
+
+    return {
+      todayProfit: todayDeposits - todayWithdrawals,
+      monthProfit: monthDeposits - monthWithdrawals,
+      totalProfit: totalDeposits - totalWithdrawals,
+    };
+  }, [approvedDeposits, approvedWithdrawals]);
 
   const loading =
     usersLoading || depositsLoading || withdrawalsLoading || investmentPlansLoading || loanPlansLoading || loansLoading || groupLoanPlansLoading || kycLoading;
@@ -136,8 +171,7 @@ export default function AdminDashboard() {
     users?.filter((u) => u.email !== 'admin@tribed.world').length || 0;
   const totalWalletBalance =
     users?.reduce((sum, user) => sum + (user.walletBalance || 0), 0) || 0;
-  const pendingDeposits = deposits?.filter(d => d.status === 'pending').length || 0;
-  const pendingWithdrawals = withdrawals?.filter(w => w.status === 'pending').length || 0;
+  
   const totalInvestmentPlans = investmentPlans?.length || 0;
   const totalLoanPlans = loanPlans?.length || 0;
   const activeGroupLoans = groupLoanPlans?.filter(p => p.status === 'Active').length || 0;
@@ -148,10 +182,13 @@ export default function AdminDashboard() {
   const uniqueUsersWithLoans = activeLoans ? new Set(activeLoans.map(loan => loan.userId)).size : 0;
   
   const stats = [
+    { title: "Today's Profit", value: loading ? '...' : `₹${todayProfit.toFixed(2)}`, icon: TrendingUp },
+    { title: "This Month's Profit", value: loading ? '...' : `₹${monthProfit.toFixed(2)}`, icon: TrendingUp },
+    { title: "All-Time Profit", value: loading ? '...' : `₹${totalProfit.toFixed(2)}`, icon: TrendingUp },
     { title: 'Total Users', value: loading ? '...' : totalUsers, icon: Users },
     { title: 'Total Wallet Balance', value: loading ? '...' : `₹${totalWalletBalance.toFixed(2)}`, icon: Wallet },
-    { title: 'Pending Deposits', value: loading ? '...' : pendingDeposits, icon: Upload },
-    { title: 'Pending Withdrawals', value: loading ? '...' : pendingWithdrawals, icon: Download },
+    { title: 'Pending Deposits', value: loading ? '...' : pendingDepositsCount, icon: Upload },
+    { title: 'Pending Withdrawals', value: loading ? '...' : pendingWithdrawalsCount, icon: Download },
     { title: 'Investment Plans', value: loading ? '...' : totalInvestmentPlans, icon: Briefcase },
     { title: 'Loan Plans', value: loading ? '...' : totalLoanPlans, icon: HandCoins },
     { title: 'Active Group Loans', value: loading ? '...' : activeGroupLoans, icon: Users2 },
@@ -160,12 +197,12 @@ export default function AdminDashboard() {
     { title: 'Online Users', value: loading ? '...' : onlineUsers, icon: Users },
   ];
 
-  const financialChartData = processFinancialData(deposits, withdrawals);
+  const financialChartData = processFinancialData(approvedDeposits, approvedWithdrawals, 30);
   const userSignupChartData = processUserSignupData(users);
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -180,10 +217,10 @@ export default function AdminDashboard() {
           </Card>
         ))}
       </div>
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 md:grid-cols-1">
+         <Card>
             <CardHeader>
-            <CardTitle>Last 7 Days Financial Overview</CardTitle>
+            <CardTitle>Last 30 Days Financial Overview</CardTitle>
             </CardHeader>
             <CardContent>
             {loading ? (
@@ -205,11 +242,14 @@ export default function AdminDashboard() {
                     <Legend />
                     <Bar dataKey="Deposits" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="Withdrawals" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Profit" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
                 </BarChart>
                 </ResponsiveContainer>
             )}
             </CardContent>
         </Card>
+      </div>
+      <div className="grid gap-6 md:grid-cols-1">
          <Card>
             <CardHeader>
             <CardTitle>Last 7 Days User Signups</CardTitle>
