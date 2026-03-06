@@ -52,6 +52,7 @@ type InvestmentPlan = {
   finalReturn: number;
   status: 'Available' | 'Coming Soon';
   stock?: number;
+  adminProfit?: number;
 };
 
 const emptyPlan: Omit<InvestmentPlan, 'id'> = {
@@ -63,6 +64,7 @@ const emptyPlan: Omit<InvestmentPlan, 'id'> = {
   finalReturn: 0,
   status: 'Available',
   stock: 100,
+  adminProfit: 0,
 };
 
 export default function InvestmentPlansPage() {
@@ -72,19 +74,6 @@ export default function InvestmentPlansPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Partial<InvestmentPlan> | null>(null);
-  const [adminProfit, setAdminProfit] = useState(0);
-
-  useEffect(() => {
-    if (editingPlan) {
-        const price = editingPlan.price || 0;
-        const validity = editingPlan.validity || 0;
-        const dailyIncome = editingPlan.dailyIncome || 0;
-        const totalIncome = validity * dailyIncome;
-        const finalReturn = price + totalIncome;
-        const profit = price - finalReturn;
-        setAdminProfit(profit);
-    }
-  }, [editingPlan?.price, editingPlan?.dailyIncome, editingPlan?.validity]);
 
   const handleCreateNew = () => {
     setEditingPlan(emptyPlan);
@@ -128,6 +117,7 @@ export default function InvestmentPlansPage() {
         finalReturn,
         status: editingPlan.status || 'Available',
         stock: Number(editingPlan.stock || 0),
+        adminProfit: Number(editingPlan.adminProfit || 0),
     };
 
     if ('id' in planToSave && planToSave.id) {
@@ -171,7 +161,7 @@ export default function InvestmentPlansPage() {
   const handleFieldChange = (field: keyof Omit<InvestmentPlan, 'id' | 'totalIncome' | 'finalReturn'>, value: any) => {
     if (!editingPlan) return;
     const parsedValue =
-      ['price', 'dailyIncome', 'validity', 'stock'].includes(field) &&
+      ['price', 'dailyIncome', 'validity', 'stock', 'adminProfit'].includes(field) &&
       typeof value === 'string'
         ? parseFloat(value)
         : value;
@@ -198,7 +188,7 @@ export default function InvestmentPlansPage() {
               <TableHead>Plan Name</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Final Return</TableHead>
-              <TableHead>Admin's Net (Loss)</TableHead>
+              <TableHead>Admin Profit</TableHead>
               <TableHead>Validity</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Status</TableHead>
@@ -219,8 +209,8 @@ export default function InvestmentPlansPage() {
                   <TableCell>₹{(plan.price || 0).toFixed(2)}</TableCell>
                   <TableCell>₹{(plan.finalReturn || 0).toFixed(2)}</TableCell>
                   <TableCell>
-                    <span className="font-bold text-destructive">
-                      -₹{(plan.totalIncome || 0).toFixed(2)}
+                    <span className="font-bold text-green-500">
+                      ₹{(plan.adminProfit || 0).toFixed(2)}
                     </span>
                   </TableCell>
                   <TableCell>{plan.validity} days</TableCell>
@@ -313,14 +303,17 @@ export default function InvestmentPlansPage() {
                 className="col-span-3"
               />
             </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Admin's Net (Loss)</Label>
-                <div className="col-span-3 font-bold text-lg">
-                    <span className={adminProfit < 0 ? 'text-destructive' : 'text-green-500'}>
-                        ₹{adminProfit.toFixed(2)}
-                    </span>
-                    <p className="text-xs font-normal text-muted-foreground">This is the net amount you gain/lose per plan sold.</p>
-                </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="adminProfit" className="text-right">
+                    Admin Profit
+                </Label>
+                <Input
+                    id="adminProfit"
+                    type="number"
+                    value={editingPlan?.adminProfit || 0}
+                    onChange={(e) => handleFieldChange('adminProfit', e.target.value)}
+                    className="col-span-3"
+                />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="stock" className="text-right">

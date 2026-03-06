@@ -157,6 +157,10 @@
         "stock": {
             "type": "number",
             "description": "Total available units of this plan."
+        },
+        "adminProfit": {
+            "type": "number",
+            "description": "The profit the admin makes from one unit of this plan being sold."
         }
       },
       "required": [
