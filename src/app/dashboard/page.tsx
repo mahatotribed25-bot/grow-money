@@ -767,11 +767,17 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
   const maturityDate = investment.maturityDate.toDate();
   const now = new Date();
 
+  // Calculations for income and progress
+  const totalPossibleIncome = investment.returnAmount - investment.investedAmount;
+  const elapsedMilliseconds = Math.max(0, now.getTime() - startDate.getTime());
+  const elapsedDays = Math.floor(elapsedMilliseconds / (1000 * 60 * 60 * 24));
+  const earnedIncome = Math.min(elapsedDays * investment.dailyIncome, totalPossibleIncome);
+  const currentTotalValue = investment.investedAmount + earnedIncome;
   const totalDuration = maturityDate.getTime() - startDate.getTime();
-  const elapsedDuration = now.getTime() - startDate.getTime();
-  const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
+  const progress = totalDuration > 0 ? Math.min((elapsedMilliseconds / totalDuration) * 100, 100) : 100;
 
   useEffect(() => {
+    // Check if the plan is claimable
     if (investment.status === 'Stopped' || (investment.status === 'Active' && now >= maturityDate)) {
       setIsClaimable(true);
     }
@@ -780,9 +786,7 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
   const handleClaimClick = () => {
     setIsClaiming(true);
     onClaim(investment);
-    // Setting isClaiming to false is tricky because onClaim is async and doesn't return a promise here
-    // For now, we rely on re-render to update the state. A better approach would be for onClaim to return a promise.
-    // For simplicity, we'll leave it as is, but this could be improved.
+    // A better approach would be for onClaim to return a promise to handle loading state.
   }
   
   const getBadge = () => {
@@ -808,11 +812,24 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
           <p className="text-sm text-muted-foreground">Invested</p>
           <p className="font-semibold">₹{(investment.investedAmount || 0).toFixed(2)}</p>
         </div>
-        <div className="flex justify-between">
-          <p className="text-sm text-muted-foreground">Maturity Return</p>
-          <p className="font-semibold text-green-400">
-            ₹{(investment.returnAmount || 0).toFixed(2)}
-          </p>
+
+        <div className="space-y-2 rounded-md bg-black/20 p-3">
+            <div className="flex justify-between">
+              <p className="text-sm text-muted-foreground">Income Earned</p>
+              <p className="font-semibold text-green-400">
+                ₹{earnedIncome.toFixed(2)}
+              </p>
+            </div>
+            <div className="flex justify-between text-xs text-green-500/80">
+              <p>Credited Daily</p>
+              <p>+ ₹{investment.dailyIncome.toFixed(2)}</p>
+            </div>
+             <div className="flex justify-between font-bold pt-2 border-t border-white/10">
+                <p className="text-sm">Current Value</p>
+                <p className="text-green-400">
+                    ₹{currentTotalValue.toFixed(2)}
+                </p>
+            </div>
         </div>
         
         {isClaimable ? (
@@ -822,7 +839,7 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
         ) : (
             <div className="space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Time Remaining:</span>
+                    <span>Maturity:</span>
                     <CountdownTimer endDate={maturityDate} />
                 </div>
                 <Progress value={progress} />
