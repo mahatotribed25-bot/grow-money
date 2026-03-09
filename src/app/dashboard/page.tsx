@@ -154,6 +154,7 @@ export default function Dashboard() {
   const { data: announcements, loading: announcementsLoading } = useCollection<Announcement>('announcements');
   
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [showDueLoanPopup, setShowDueLoanPopup] = useState(false);
 
 
   const firestore = useFirestore();
@@ -168,6 +169,21 @@ export default function Dashboard() {
         }
     }
   }, [userLoading, user]);
+  
+  const overdueLoan = useMemo(() => {
+    if (!loans) return null;
+    const now = new Date();
+    // A loan is considered due for a popup if its due date has passed and it's not yet completed.
+    return loans.find(l => l.dueDate.toDate() < now && l.status !== 'Completed');
+  }, [loans]);
+
+  useEffect(() => {
+    const popupShown = sessionStorage.getItem('dueLoanPopupShown');
+    if (overdueLoan && !popupShown) {
+      setShowDueLoanPopup(true);
+      sessionStorage.setItem('dueLoanPopupShown', 'true');
+    }
+  }, [overdueLoan]);
 
   const handleClaimReturn = (investment: Investment) => {
      if (!user) return;
@@ -237,8 +253,6 @@ export default function Dashboard() {
 
   const loading = userLoading || userDataLoading || investmentsLoading || loansLoading || announcementsLoading;
 
-  const overdueLoan = useMemo(() => loans?.find(l => l.status === 'Due'), [loans]);
-
   if (loading) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
@@ -262,6 +276,23 @@ export default function Dashboard() {
           </AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <AlertDialog open={showDueLoanPopup} onOpenChange={setShowDueLoanPopup}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-6 w-6 text-destructive"/>
+                Loan Payment Due
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Your loan payment is now due. Please repay it as soon as possible to avoid penalties. You have a 1-day grace period, after which daily penalties will be applied.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogAction asChild onClick={() => setShowDueLoanPopup(false)}>
+            <Link href="/my-loans">View Loan & Pay</Link>
+          </AlertDialogAction>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/50 px-4 backdrop-blur-md sm:px-6">
         <div className="flex items-center gap-2">
@@ -276,8 +307,6 @@ export default function Dashboard() {
         <div className="space-y-6">
 
           <Announcements announcements={sortedAnnouncements} loading={announcementsLoading} />
-
-          {overdueLoan && <OverdueNotice loan={overdueLoan} />}
 
           <BannerCarousel />
 
@@ -407,30 +436,6 @@ function Announcements({ announcements, loading }: { announcements: Announcement
             </CardContent>
         </Card>
     )
-}
-
-function OverdueNotice({ loan }: { loan: ActiveLoan }) {
-  return (
-    <Card className="bg-destructive/10 border-destructive/50">
-        <CardHeader>
-            <CardTitle className="text-red-300 flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5"/>
-                Loan Overdue Warning
-            </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-            <p className="text-sm text-red-300/90">
-               Your loan for the plan "{loan.planName}" is overdue. You have a 1-day grace period to repay the amount. After that, a daily penalty will be applied to your total payable amount.
-            </p>
-            <p className="text-sm text-red-300/90">
-               Current Penalty: <span className="font-bold">₹{(loan.penalty || 0).toFixed(2)}</span>
-            </p>
-            <Button asChild variant="secondary" size="sm" className="mt-2">
-                <Link href="/my-loans">View Loan & Pay</Link>
-            </Button>
-        </CardContent>
-    </Card>
-  )
 }
 
 function WalletSummary({
