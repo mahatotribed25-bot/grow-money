@@ -372,6 +372,11 @@
             "type": "string",
             "format": "date-time",
             "description": "The timestamp when the maintenance mode will automatically end."
+        },
+        "profitCalculationStartDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date from which to start calculating platform profit."
         }
       }
     },
@@ -756,3 +761,5 @@
     }
   }
 }
+
+    

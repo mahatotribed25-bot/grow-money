@@ -13,8 +13,20 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound } from 'lucide-react';
+import { Timer, Mail, KeyRound, RefreshCcw } from 'lucide-react';
 import { sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
 
 type AdminSettings = {
   adminUpi?: string;
@@ -26,6 +38,7 @@ type AdminSettings = {
   maxCustomLoanAmount?: number;
   isUnderMaintenance?: boolean;
   maintenanceEndTime?: Timestamp;
+  profitCalculationStartDate?: Timestamp;
 };
 
 export default function SettingsPage() {
@@ -45,6 +58,8 @@ export default function SettingsPage() {
   const [maxCustomLoanAmount, setMaxCustomLoanAmount] = useState(0);
   const [isUnderMaintenance, setIsUnderMaintenance] = useState(false);
   const [maintenanceDuration, setMaintenanceDuration] = useState(5);
+  const [profitStartDate, setProfitStartDate] = useState<Date | null>(null);
+
 
   // Password change state
   const [oldPassword, setOldPassword] = useState('');
@@ -62,6 +77,7 @@ export default function SettingsPage() {
       setLoanPenalty(settings.loanPenalty || 0);
       setKycGoogleFormUrl(settings.kycGoogleFormUrl || '');
       setMaxCustomLoanAmount(settings.maxCustomLoanAmount || 5000);
+      setProfitStartDate(settings.profitCalculationStartDate?.toDate() || null);
       
       const isCurrentlyUnderMaintenance = settings.maintenanceEndTime
         ? settings.maintenanceEndTime.toDate() > new Date()
@@ -221,6 +237,26 @@ export default function SettingsPage() {
     }
   };
 
+  const handleResetProfit = () => {
+    const settingsRef = doc(firestore, 'settings', 'admin');
+    const settingsData = {
+        profitCalculationStartDate: serverTimestamp(),
+    };
+    setDoc(settingsRef, settingsData, { merge: true })
+      .then(() => {
+        toast({ title: 'Profit Calculation Reset', description: 'Profit will now be calculated from this moment onwards.' });
+      })
+      .catch((error) => {
+         console.error('Error resetiing profit calculation:', error);
+         const permissionError = new FirestorePermissionError({
+            path: settingsRef.path,
+            operation: 'write',
+            requestResourceData: settingsData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+  };
+
 
   const maintenanceEndsAt = settings?.maintenanceEndTime ? settings.maintenanceEndTime.toDate().toLocaleString() : null;
 
@@ -294,6 +330,46 @@ export default function SettingsPage() {
                                {isChangingPassword ? 'Changing...' : 'Change Password'}
                            </Button>
                        </div>
+                    </div>
+                </div>
+                <Separator />
+                <div>
+                    <CardTitle>Profit Settings</CardTitle>
+                    <CardDescription>
+                        Manage how profit is calculated and displayed on the dashboard.
+                    </CardDescription>
+                    <div className="space-y-4 mt-4 rounded-lg border border-red-500/50 p-4">
+                        <h4 className="font-medium text-red-400">Reset Profit Calculation</h4>
+                        <p className="text-sm text-muted-foreground">
+                            This will reset the start date for all profit calculations on your dashboard to the current time. This action is irreversible. Past profit data will not be shown.
+                        </p>
+                        {profitStartDate && (
+                            <p className="text-sm">
+                                Currently calculating profit from: <span className="font-semibold">{profitStartDate.toLocaleString()}</span>
+                            </p>
+                        )}
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive">
+                                    <RefreshCcw className="mr-2 h-4 w-4" />
+                                    Reset Profit Calculation to Now
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will reset the profit calculation start date. Your dashboard profit stats (Today, Month, All-Time) will restart from zero, based on new investments from this point forward. This does not delete any user data but changes how profit is displayed.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleResetProfit} className="bg-destructive hover:bg-destructive/90">
+                                    Yes, reset calculation
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </div>
                 </div>
                 <Separator />
@@ -424,3 +500,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    

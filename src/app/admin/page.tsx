@@ -12,7 +12,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useCollection, useUser } from '@/firebase';
+import { useCollection, useUser, useDoc } from '@/firebase';
 import {
   BarChart,
   Bar,
@@ -66,6 +66,11 @@ type GroupLoanPlan = {
 type KycRequest = {
     id: string;
 }
+
+type AdminSettings = {
+    profitCalculationStartDate?: Timestamp;
+}
+
 
 const processSalesProfitData = (
   investments: Investment[] | null,
@@ -132,6 +137,7 @@ export default function AdminDashboard() {
   const { data: groupLoanPlans, loading: groupLoanPlansLoading } = useCollection<GroupLoanPlan>(isAdmin ? 'groupLoanPlans' : null);
   const { data: activeLoans, loading: loansLoading } = useCollection<ActiveLoan>(isAdmin ? 'loanRequests' : null, { where: ['status', 'in', ['approved', 'sent']] });
   const { data: pendingKycUsers, loading: kycLoading } = useCollection(isAdmin ? 'users' : null, { where: ['kycStatus', '==', 'pending']});
+  const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>(isAdmin ? 'settings/admin' : null);
 
   const { pendingDepositsCount, pendingWithdrawalsCount } = useMemo(() => {
     return {
@@ -141,7 +147,13 @@ export default function AdminDashboard() {
   }, [allDeposits, allWithdrawals]);
   
   const { todayProfit, monthProfit, totalProfit } = useMemo(() => {
-    if (!allInvestments || !investmentPlans) {
+    const calculationStartDate = adminSettings?.profitCalculationStartDate?.toDate();
+
+    const filteredInvestments = calculationStartDate 
+        ? allInvestments?.filter(inv => inv.startDate && inv.startDate.toDate() > calculationStartDate)
+        : allInvestments;
+
+    if (!filteredInvestments || !investmentPlans) {
         return { todayProfit: 0, monthProfit: 0, totalProfit: 0 };
     }
 
@@ -155,7 +167,7 @@ export default function AdminDashboard() {
     const todayStart = startOfDay(now);
     const monthStart = startOfMonth(now);
 
-    allInvestments.forEach(investment => {
+    filteredInvestments.forEach(investment => {
         if (!investment.startDate) return;
 
         const profit = planProfitMap.get(investment.planName) || 0;
@@ -173,10 +185,10 @@ export default function AdminDashboard() {
     });
 
     return { todayProfit, monthProfit, totalProfit };
-  }, [allInvestments, investmentPlans]);
+  }, [allInvestments, investmentPlans, adminSettings]);
 
   const loading =
-    usersLoading || depositsLoading || withdrawalsLoading || investmentPlansLoading || loanPlansLoading || loansLoading || groupLoanPlansLoading || kycLoading || allInvestmentsLoading;
+    usersLoading || depositsLoading || withdrawalsLoading || investmentPlansLoading || loanPlansLoading || loansLoading || groupLoanPlansLoading || kycLoading || allInvestmentsLoading || settingsLoading;
 
   const totalUsers =
     users?.filter((u) => u.email !== 'admin@tribed.world').length || 0;
@@ -191,6 +203,16 @@ export default function AdminDashboard() {
   const onlineUsers = users?.filter(u => u.isOnline && u.lastSeen && u.lastSeen.toMillis() > Date.now() - 5 * 60 * 1000).length || 0;
 
   const uniqueUsersWithLoans = activeLoans ? new Set(activeLoans.map(loan => loan.userId)).size : 0;
+  
+  const profitFromSalesChartData = useMemo(() => {
+    const calculationStartDate = adminSettings?.profitCalculationStartDate?.toDate();
+    const filteredInvestments = calculationStartDate
+      ? allInvestments?.filter(inv => inv.startDate && inv.startDate.toDate() > calculationStartDate)
+      : allInvestments;
+    return processSalesProfitData(filteredInvestments, investmentPlans, 30);
+  }, [allInvestments, investmentPlans, adminSettings]);
+
+  const userSignupChartData = processUserSignupData(users);
   
   const stats = [
     { title: "Today's Profit", value: loading ? '...' : `₹${todayProfit.toFixed(2)}`, icon: TrendingUp },
@@ -208,8 +230,6 @@ export default function AdminDashboard() {
     { title: 'Online Users', value: loading ? '...' : onlineUsers, icon: Users },
   ];
 
-  const salesProfitChartData = processSalesProfitData(allInvestments, investmentPlans, 30);
-  const userSignupChartData = processUserSignupData(users);
 
   return (
     <div className="space-y-6">
@@ -240,7 +260,7 @@ export default function AdminDashboard() {
                 </div>
             ) : (
                 <ResponsiveContainer width="100%" height={350}>
-                  <LineChart data={salesProfitChartData}>
+                  <LineChart data={profitFromSalesChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                     <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(value) => `₹${value}`} />
@@ -291,3 +311,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+    
