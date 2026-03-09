@@ -43,6 +43,16 @@ type Transaction = {
   createdAt: Timestamp;
 };
 
+type Investment = {
+  planName: string;
+  startDate: Timestamp;
+}
+
+type InvestmentPlan = {
+  name: string;
+  adminProfit?: number;
+}
+
 type ActiveLoan = {
     id: string;
     userId: string;
@@ -57,42 +67,32 @@ type KycRequest = {
     id: string;
 }
 
-const processFinancialData = (
-  deposits: Transaction[] | null,
-  withdrawals: Transaction[] | null,
+const processSalesProfitData = (
+  investments: Investment[] | null,
+  plans: InvestmentPlan[] | null,
   days: number
 ) => {
   const lastXDays = Array.from({ length: days }, (_, i) =>
     startOfDay(subDays(new Date(), i))
   ).reverse();
 
+  if (!investments || !plans) return [];
+
+  const planProfitMap = new Map(plans.map(p => [p.name, p.adminProfit || 0]));
+
   const chartData = lastXDays.map((day) => {
     const formattedDate = format(day, 'MMM d');
 
-    const dailyDeposits =
-      deposits
-        ?.filter(
-          (d) =>
-            d.createdAt &&
-            startOfDay(d.createdAt.toDate()).getTime() === day.getTime()
+    const dailyProfit = investments
+        .filter(
+          (inv) =>
+            inv.startDate &&
+            startOfDay(inv.startDate.toDate()).getTime() === day.getTime()
         )
-        .reduce((sum, d) => sum + d.amount, 0) || 0;
-
-    const dailyWithdrawals =
-      withdrawals
-        ?.filter(
-          (w) =>
-            w.createdAt &&
-            startOfDay(w.createdAt.toDate()).getTime() === day.getTime()
-        )
-        .reduce((sum, w) => sum + w.amount, 0) || 0;
-    
-    const dailyProfit = dailyDeposits - dailyWithdrawals;
+        .reduce((sum, inv) => sum + (planProfitMap.get(inv.planName) || 0), 0);
 
     return {
       date: formattedDate,
-      Deposits: dailyDeposits,
-      Withdrawals: dailyWithdrawals,
       Profit: dailyProfit,
     };
   });
@@ -126,46 +126,57 @@ export default function AdminDashboard() {
   const { data: users, loading: usersLoading } = useCollection<User>(isAdmin ? 'users' : null);
   const { data: allDeposits, loading: depositsLoading } = useCollection<Transaction>(isAdmin ? 'deposits' : null);
   const { data: allWithdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(isAdmin ? 'withdrawals' : null);
-  const { data: investmentPlans, loading: investmentPlansLoading } = useCollection(isAdmin ? 'investmentPlans' : null);
+  const { data: investmentPlans, loading: investmentPlansLoading } = useCollection<InvestmentPlan>(isAdmin ? 'investmentPlans' : null);
+  const { data: allInvestments, loading: allInvestmentsLoading } = useCollection<Investment>(isAdmin ? 'investments' : null, { subcollections: true });
   const { data: loanPlans, loading: loanPlansLoading } = useCollection(isAdmin ? 'loanPlans' : null);
   const { data: groupLoanPlans, loading: groupLoanPlansLoading } = useCollection<GroupLoanPlan>(isAdmin ? 'groupLoanPlans' : null);
   const { data: activeLoans, loading: loansLoading } = useCollection<ActiveLoan>(isAdmin ? 'loanRequests' : null, { where: ['status', 'in', ['approved', 'sent']] });
   const { data: pendingKycUsers, loading: kycLoading } = useCollection(isAdmin ? 'users' : null, { where: ['kycStatus', '==', 'pending']});
 
-  const { approvedDeposits, approvedWithdrawals, pendingDepositsCount, pendingWithdrawalsCount } = useMemo(() => {
-    const approvedDeposits = allDeposits?.filter(d => d.status === 'approved') || [];
-    const approvedWithdrawals = allWithdrawals?.filter(w => w.status === 'approved') || [];
+  const { pendingDepositsCount, pendingWithdrawalsCount } = useMemo(() => {
     return {
-      approvedDeposits,
-      approvedWithdrawals,
       pendingDepositsCount: allDeposits?.filter(d => d.status === 'pending').length || 0,
       pendingWithdrawalsCount: allWithdrawals?.filter(w => w.status === 'pending').length || 0,
     };
   }, [allDeposits, allWithdrawals]);
   
   const { todayProfit, monthProfit, totalProfit } = useMemo(() => {
+    if (!allInvestments || !investmentPlans) {
+        return { todayProfit: 0, monthProfit: 0, totalProfit: 0 };
+    }
+
+    const planProfitMap = new Map(investmentPlans.map(p => [p.name, p.adminProfit || 0]));
+    
+    let todayProfit = 0;
+    let monthProfit = 0;
+    let totalProfit = 0;
+
     const now = new Date();
     const todayStart = startOfDay(now);
     const monthStart = startOfMonth(now);
-    
-    const todayDeposits = approvedDeposits.filter(d => d.createdAt && isSameDay(d.createdAt.toDate(), todayStart)).reduce((sum, d) => sum + d.amount, 0);
-    const todayWithdrawals = approvedWithdrawals.filter(w => w.createdAt && isSameDay(w.createdAt.toDate(), todayStart)).reduce((sum, w) => sum + w.amount, 0);
-    
-    const monthDeposits = approvedDeposits.filter(d => d.createdAt && isWithinInterval(d.createdAt.toDate(), { start: monthStart, end: now })).reduce((sum, d) => sum + d.amount, 0);
-    const monthWithdrawals = approvedWithdrawals.filter(w => w.createdAt && isWithinInterval(w.createdAt.toDate(), { start: monthStart, end: now })).reduce((sum, w) => sum + w.amount, 0);
 
-    const totalDeposits = approvedDeposits.reduce((sum, d) => sum + d.amount, 0);
-    const totalWithdrawals = approvedWithdrawals.reduce((sum, w) => sum + w.amount, 0);
+    allInvestments.forEach(investment => {
+        if (!investment.startDate) return;
 
-    return {
-      todayProfit: todayDeposits - todayWithdrawals,
-      monthProfit: monthDeposits - monthWithdrawals,
-      totalProfit: totalDeposits - totalWithdrawals,
-    };
-  }, [approvedDeposits, approvedWithdrawals]);
+        const profit = planProfitMap.get(investment.planName) || 0;
+        const investmentDate = investment.startDate.toDate();
+
+        totalProfit += profit;
+
+        if (isWithinInterval(investmentDate, { start: monthStart, end: now })) {
+            monthProfit += profit;
+        }
+
+        if (isSameDay(investmentDate, todayStart)) {
+            todayProfit += profit;
+        }
+    });
+
+    return { todayProfit, monthProfit, totalProfit };
+  }, [allInvestments, investmentPlans]);
 
   const loading =
-    usersLoading || depositsLoading || withdrawalsLoading || investmentPlansLoading || loanPlansLoading || loansLoading || groupLoanPlansLoading || kycLoading;
+    usersLoading || depositsLoading || withdrawalsLoading || investmentPlansLoading || loanPlansLoading || loansLoading || groupLoanPlansLoading || kycLoading || allInvestmentsLoading;
 
   const totalUsers =
     users?.filter((u) => u.email !== 'admin@tribed.world').length || 0;
@@ -197,7 +208,7 @@ export default function AdminDashboard() {
     { title: 'Online Users', value: loading ? '...' : onlineUsers, icon: Users },
   ];
 
-  const financialChartData = processFinancialData(approvedDeposits, approvedWithdrawals, 30);
+  const salesProfitChartData = processSalesProfitData(allInvestments, investmentPlans, 30);
   const userSignupChartData = processUserSignupData(users);
 
   return (
@@ -220,7 +231,7 @@ export default function AdminDashboard() {
       <div className="grid gap-6 md:grid-cols-1">
          <Card>
             <CardHeader>
-            <CardTitle>Last 30 Days Financial Overview</CardTitle>
+            <CardTitle>Last 30 Days Profit from Plan Sales</CardTitle>
             </CardHeader>
             <CardContent>
             {loading ? (
@@ -229,21 +240,19 @@ export default function AdminDashboard() {
                 </div>
             ) : (
                 <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={financialChartData}>
+                  <LineChart data={salesProfitChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                     <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(value) => `₹${value}`} />
                     <Tooltip
-                    contentStyle={{
-                        backgroundColor: 'hsl(var(--background))',
-                        borderColor: 'hsl(var(--border))',
-                    }}
+                      contentStyle={{
+                          backgroundColor: 'hsl(var(--background))',
+                          borderColor: 'hsl(var(--border))',
+                      }}
                     />
                     <Legend />
-                    <Bar dataKey="Deposits" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Withdrawals" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Profit" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                    <Line type="monotone" dataKey="Profit" stroke="hsl(var(--chart-4))" strokeWidth={2} activeDot={{ r: 8 }} />
+                  </LineChart>
                 </ResponsiveContainer>
             )}
             </CardContent>
