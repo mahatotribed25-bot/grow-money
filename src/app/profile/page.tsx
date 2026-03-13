@@ -532,10 +532,10 @@ export default function ProfilePage() {
                 <TabsTrigger value="group-investments">Group Investments</TabsTrigger>
             </TabsList>
             <TabsContent value="deposits">
-                <TransactionTable transactions={deposits} />
+                <TransactionTable transactions={deposits} type="deposit" />
             </TabsContent>
             <TabsContent value="withdrawals">
-                <TransactionTable transactions={withdrawals} />
+                <TransactionTable transactions={withdrawals} type="withdrawal" />
             </TabsContent>
              <TabsContent value="group-investments">
                 <GroupInvestmentTable investments={groupInvestments} />
@@ -799,7 +799,7 @@ const WithdrawalStatus = ({ tx }: { tx: Transaction }) => {
     return null; // Don't show for approved/rejected
 };
 
-function TransactionTable({ transactions }: { transactions: Transaction[] | undefined | null }) {
+function TransactionTable({ transactions, type }: { transactions: Transaction[] | undefined | null, type: 'deposit' | 'withdrawal' }) {
     const formatDate = (timestamp: Timestamp) => {
         if (!timestamp) return 'N/A';
         return new Date(timestamp.seconds * 1000).toLocaleString();
@@ -833,7 +833,7 @@ function TransactionTable({ transactions }: { transactions: Transaction[] | unde
                                         <TableCell>
                                             <div className="flex flex-col gap-2">
                                                 <Badge variant={getStatusVariant(tx.status)}>{tx.status}</Badge>
-                                                {tx.type === 'withdrawal' && <WithdrawalStatus tx={tx} />}
+                                                {type === 'withdrawal' && <WithdrawalStatus tx={tx} />}
                                             </div>
                                         </TableCell>
                                         <TableCell>{formatDate(tx.createdAt)}</TableCell>
@@ -928,3 +928,4 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
         </Card>
     );
 }
+
