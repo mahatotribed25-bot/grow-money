@@ -317,6 +317,28 @@
         "finalAmount": {
             "type": "number",
             "description": "The final amount to be paid to the user after GST deduction."
+        },
+        "delayBonusActive": {
+            "type": "boolean",
+            "description": "Indicates if the delay bonus is active for this request."
+        },
+        "delayBonusAmountPerDay": {
+            "type": "number",
+            "description": "The bonus amount to be accrued per day."
+        },
+        "delayBonusStartDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the delay bonus was activated."
+        },
+        "totalDelayBonus": {
+            "type": "number",
+            "description": "The total delay bonus amount accrued at the time of payment."
+        },
+        "paidDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the withdrawal was marked as paid."
         }
       },
       "required": [
@@ -377,6 +399,18 @@
             "type": "string",
             "format": "date-time",
             "description": "The date from which to start calculating platform profit."
+        },
+        "delayCompensationEnabled": {
+            "type": "boolean",
+            "description": "Master switch to enable or disable the delay compensation feature."
+        },
+        "delayBonusPerDay": {
+            "type": "number",
+            "description": "The default bonus amount to be paid per day for delayed withdrawals."
+        },
+        "maxBonusDays": {
+            "type": "number",
+            "description": "The maximum number of days a delay bonus can be accrued for a single withdrawal."
         }
       }
     },
@@ -761,5 +795,3 @@
     }
   }
 }
-
-    

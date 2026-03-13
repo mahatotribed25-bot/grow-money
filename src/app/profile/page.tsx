@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Pencil,
   TicketPercent,
+  Timer,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,10 @@ type Transaction = {
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Timestamp;
   userId?: string;
+  delayBonusActive?: boolean;
+  delayBonusAmountPerDay?: number;
+  delayBonusStartDate?: Timestamp;
+  totalDelayBonus?: number;
 };
 
 type UpiRequest = {
@@ -326,7 +331,7 @@ export default function ProfilePage() {
           operation: 'update',
           requestResourceData: dataToUpdate,
         });
-        errorEmitter.emit('permission-error', permissionError);
+        errorEmitter.emit('permission-error', serverError);
       });
   }
   
@@ -759,6 +764,41 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
 }
 
 
+const WithdrawalStatus = ({ tx }: { tx: Transaction }) => {
+    const [waitingDays, setWaitingDays] = useState(0);
+    const [bonusEarned, setBonusEarned] = useState(0);
+
+    useEffect(() => {
+        if (tx.status === 'pending' && tx.delayBonusActive && tx.delayBonusStartDate) {
+            const interval = setInterval(() => {
+                const startDate = tx.delayBonusStartDate.toDate();
+                const now = new Date();
+                const diffTime = Math.abs(now.getTime() - startDate.getTime());
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                setWaitingDays(diffDays);
+                setBonusEarned(diffDays * (tx.delayBonusAmountPerDay || 0));
+            }, 1000); // Update every second to show a "live" timer feel
+            return () => clearInterval(interval);
+        }
+    }, [tx]);
+    
+    if (tx.status === 'pending') {
+        if (tx.delayBonusActive) {
+            return (
+                 <div className="p-2 text-xs rounded-md bg-blue-500/10 text-blue-300 space-y-1">
+                    <p className="font-semibold flex items-center gap-1"><Timer size={14}/> Delay Bonus Active</p>
+                    <p>You are earning ₹{tx.delayBonusAmountPerDay || 0}/day.</p>
+                    <p>Days Waiting: {waitingDays}</p>
+                    <p>Bonus Earned: ₹{bonusEarned.toFixed(2)}</p>
+                 </div>
+            )
+        }
+        return <p className="text-xs text-muted-foreground">Your withdrawal is under processing.</p>
+    }
+
+    return null; // Don't show for approved/rejected
+};
+
 function TransactionTable({ transactions }: { transactions: Transaction[] | undefined | null }) {
     const formatDate = (timestamp: Timestamp) => {
         if (!timestamp) return 'N/A';
@@ -790,7 +830,12 @@ function TransactionTable({ transactions }: { transactions: Transaction[] | unde
                                 transactions.map(tx => (
                                     <TableRow key={tx.id}>
                                         <TableCell>₹{tx.amount.toFixed(2)}</TableCell>
-                                        <TableCell><Badge variant={getStatusVariant(tx.status)}>{tx.status}</Badge></TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col gap-2">
+                                                <Badge variant={getStatusVariant(tx.status)}>{tx.status}</Badge>
+                                                {tx.type === 'withdrawal' && <WithdrawalStatus tx={tx} />}
+                                            </div>
+                                        </TableCell>
                                         <TableCell>{formatDate(tx.createdAt)}</TableCell>
                                     </TableRow>
                                 ))
@@ -883,5 +928,3 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
         </Card>
     );
 }
-
-    

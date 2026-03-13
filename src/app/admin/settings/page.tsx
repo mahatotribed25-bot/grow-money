@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound, RefreshCcw } from 'lucide-react';
+import { Timer, Mail, KeyRound, RefreshCcw, HandCoins } from 'lucide-react';
 import { sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
@@ -39,6 +39,9 @@ type AdminSettings = {
   isUnderMaintenance?: boolean;
   maintenanceEndTime?: Timestamp;
   profitCalculationStartDate?: Timestamp;
+  delayCompensationEnabled?: boolean;
+  delayBonusPerDay?: number;
+  maxBonusDays?: number;
 };
 
 export default function SettingsPage() {
@@ -60,6 +63,10 @@ export default function SettingsPage() {
   const [maintenanceDuration, setMaintenanceDuration] = useState(5);
   const [profitStartDate, setProfitStartDate] = useState<Date | null>(null);
 
+  // Delay Bonus State
+  const [delayCompensationEnabled, setDelayCompensationEnabled] = useState(false);
+  const [delayBonusPerDay, setDelayBonusPerDay] = useState(0);
+  const [maxBonusDays, setMaxBonusDays] = useState(0);
 
   // Password change state
   const [oldPassword, setOldPassword] = useState('');
@@ -79,6 +86,10 @@ export default function SettingsPage() {
       setMaxCustomLoanAmount(settings.maxCustomLoanAmount || 5000);
       setProfitStartDate(settings.profitCalculationStartDate?.toDate() || null);
       
+      setDelayCompensationEnabled(settings.delayCompensationEnabled || false);
+      setDelayBonusPerDay(settings.delayBonusPerDay || 0);
+      setMaxBonusDays(settings.maxBonusDays || 0);
+
       const isCurrentlyUnderMaintenance = settings.maintenanceEndTime
         ? settings.maintenanceEndTime.toDate() > new Date()
         : settings.isUnderMaintenance || false;
@@ -97,6 +108,9 @@ export default function SettingsPage() {
       loanPenalty: Number(loanPenalty),
       kycGoogleFormUrl: kycGoogleFormUrl,
       maxCustomLoanAmount: Number(maxCustomLoanAmount),
+      delayCompensationEnabled,
+      delayBonusPerDay: Number(delayBonusPerDay),
+      maxBonusDays: Number(maxBonusDays),
     };
 
     setDoc(settingsRef, settingsData, { merge: true })
@@ -372,6 +386,45 @@ export default function SettingsPage() {
                         </AlertDialog>
                     </div>
                 </div>
+                 <Separator />
+                <div>
+                    <CardTitle className="flex items-center gap-2"><HandCoins /> Delay Compensation Settings</CardTitle>
+                     <CardDescription>
+                        Reward users for withdrawal delays to build trust.
+                    </CardDescription>
+                    <div className="space-y-4 mt-4">
+                        <div className="flex items-center space-x-2">
+                           <Switch
+                                id="delay-compensation-enabled"
+                                checked={delayCompensationEnabled}
+                                onCheckedChange={setDelayCompensationEnabled}
+                            />
+                            <Label htmlFor="delay-compensation-enabled">Enable Delay Bonus</Label>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="delay-bonus-per-day">Bonus Amount Per Day (₹)</Label>
+                            <Input
+                                id="delay-bonus-per-day"
+                                type="number"
+                                placeholder="e.g., 20"
+                                value={delayBonusPerDay}
+                                onChange={(e) => setDelayBonusPerDay(Number(e.target.value))}
+                                disabled={!delayCompensationEnabled}
+                            />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="max-bonus-days">Maximum Bonus Days</Label>
+                            <Input
+                                id="max-bonus-days"
+                                type="number"
+                                placeholder="e.g., 10"
+                                value={maxBonusDays}
+                                onChange={(e) => setMaxBonusDays(Number(e.target.value))}
+                                disabled={!delayCompensationEnabled}
+                            />
+                        </div>
+                    </div>
+                </div>
                 <Separator />
                 <div>
                     <CardTitle>Payment Settings</CardTitle>
@@ -491,7 +544,7 @@ export default function SettingsPage() {
                 </div>
 
                 <Button onClick={handleSaveGeneral} className="mt-4">
-                  Save All General Settings
+                  Save All Settings
                 </Button>
             </>
            )}
@@ -500,5 +553,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
