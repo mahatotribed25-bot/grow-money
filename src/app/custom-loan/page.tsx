@@ -153,7 +153,7 @@ export default function CustomLoanPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-        <Card>
+        <Card className="bg-gradient-to-br from-card to-card/70">
           <CardHeader>
             <CardTitle>Loan Application</CardTitle>
             <CardDescription>

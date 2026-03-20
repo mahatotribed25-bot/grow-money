@@ -48,7 +48,7 @@ export default function TeamPage() {
                     ): userReferrals && userReferrals.length > 0 ? (
                         <div className="space-y-4">
                             {userReferrals.map(referral => (
-                                <Card key={referral.id} className="p-4 flex justify-between items-center">
+                                <Card key={referral.id} className="bg-gradient-to-r from-card to-card/70 p-4 flex justify-between items-center">
                                     <div>
                                         <p className="font-semibold">{referral.name}</p>
                                         <p className="text-sm text-muted-foreground">{referral.email}</p>
