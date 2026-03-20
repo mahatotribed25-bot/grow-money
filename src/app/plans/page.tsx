@@ -22,8 +22,8 @@ import {
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { collection, addDoc, doc, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
-import { add, addDays } from 'date-fns';
+import { collection, addDoc, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { addDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -44,6 +44,15 @@ type UserData = {
     walletBalance: number;
     referredBy?: string;
     totalInvestment?: number;
+    vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+}
+
+type AdminSettings = {
+    vipTiers?: {
+        silver: number;
+        gold: number;
+        platinum: number;
+    }
 }
 
 export default function PlansPage() {
@@ -53,6 +62,7 @@ export default function PlansPage() {
 
   const { data: plans, loading } = useCollection<InvestmentPlan>('investmentPlans');
   const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}`: null);
+  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
 
   const handleInvest = (plan: InvestmentPlan) => {
     if (!user || !userData) {
@@ -93,10 +103,23 @@ export default function PlansPage() {
 
         const newWalletBalance = (userDoc.data().walletBalance || 0) - planPrice;
         const newTotalInvestment = (userDoc.data().totalInvestment || 0) + planPrice;
+        
+        let newVipLevel = userDoc.data().vipLevel || 'Bronze';
+        if (adminSettings?.vipTiers) {
+            if (newTotalInvestment >= adminSettings.vipTiers.platinum) {
+                newVipLevel = 'Platinum';
+            } else if (newTotalInvestment >= adminSettings.vipTiers.gold) {
+                newVipLevel = 'Gold';
+            } else if (newTotalInvestment >= adminSettings.vipTiers.silver) {
+                newVipLevel = 'Silver';
+            }
+        }
+
 
         transaction.update(userRef, {
             walletBalance: newWalletBalance,
             totalInvestment: newTotalInvestment,
+            vipLevel: newVipLevel,
         });
 
         const investmentRef = doc(collection(firestore, 'users', user.uid, 'investments'));

@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Wallet,
@@ -17,6 +18,9 @@ import {
   Users,
   FileText,
   AlertTriangle,
+  Gift,
+  Gem,
+  CheckCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -60,6 +64,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { BannerCarousel } from '@/components/dashboard/BannerCarousel';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { isToday, startOfToday } from 'date-fns';
 
 type UserData = {
   id: string;
@@ -70,12 +75,21 @@ type UserData = {
   email?: string;
   upiId?: string;
   role?: 'user' | 'subadmin';
+  vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+  lastCheckIn?: Timestamp;
 };
 
 type AdminSettings = {
   adminUpi?: string;
   minWithdrawal?: number;
   withdrawalGstPercentage?: number;
+  dailyCheckInBonus?: number;
+  vipWithdrawalGst?: {
+    bronze: number;
+    silver: number;
+    gold: number;
+    platinum: number;
+  }
 };
 
 type Investment = {
@@ -307,16 +321,15 @@ export default function Dashboard() {
         <div className="space-y-6">
 
           <Announcements announcements={sortedAnnouncements} loading={announcementsLoading} />
+          
+          <DailyCheckInCard />
 
           <BannerCarousel />
 
           <WalletSummary
-            walletBalance={userData?.walletBalance}
-            totalInvestment={userData?.totalInvestment}
-            totalIncome={userData?.totalIncome}
+            userData={userData}
             adminSettings={adminSettings}
             loading={userDataLoading}
-            upiId={userData?.upiId}
           />
           
           <div className="flex items-center justify-between">
@@ -372,10 +385,10 @@ export default function Dashboard() {
                 <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" />
                 <QuickActionButton icon={Users2} label="Group Investing" href="/group-investing" />
                 <QuickActionButton icon={History} label="My Plans" href="/my-plans" />
+                <QuickActionButton icon={Gem} label="VIP Tiers" href="/vip-tiers" />
                 <QuickActionButton icon={BarChart2} label="Reports" href="/reports" />
                 <QuickActionButton icon={HandCoins} label="Loans" href="/loans" />
                 <QuickActionButton icon={FileText} label="Custom Loan" href="/custom-loan" />
-                <QuickActionButton icon={User} label="Profile" href="/profile" />
                 <QuickActionButton icon={Users} label="My Team" href="/team" />
                 {userData?.role === 'subadmin' && (
                   <QuickActionButton icon={Briefcase} label="Sub-Admin Panel" href="/subadmin" />
@@ -440,19 +453,13 @@ function Announcements({ announcements, loading }: { announcements: Announcement
 }
 
 function WalletSummary({
-  walletBalance,
-  totalInvestment,
-  totalIncome,
+  userData,
   adminSettings,
   loading,
-  upiId,
 }: {
-  walletBalance?: number;
-  totalInvestment?: number;
-  totalIncome?: number;
+  userData?: UserData | null;
   adminSettings?: AdminSettings | null;
   loading: boolean;
-  upiId?: string;
 }) {
   return (
     <Card className="shadow-lg border-primary/20 bg-gradient-to-br from-card to-secondary/30">
@@ -464,26 +471,26 @@ function WalletSummary({
           <div className="text-center">
             <p className="text-sm text-muted-foreground">Current Balance</p>
             <p className="text-3xl font-bold">
-              {loading ? '...' : `₹${(walletBalance || 0).toFixed(2)}`}
+              {loading ? '...' : `₹${(userData?.walletBalance || 0).toFixed(2)}`}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
               <p className="text-xs text-muted-foreground">Total Investment</p>
               <p className="font-semibold">
-                {loading ? '...' : `₹${(totalInvestment || 0).toFixed(2)}`}
+                {loading ? '...' : `₹${(userData?.totalInvestment || 0).toFixed(2)}`}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Total Income</p>
               <p className="font-semibold">
-                {loading ? '...' : `₹${(totalIncome || 0).toFixed(2)}`}
+                {loading ? '...' : `₹${(userData?.totalIncome || 0).toFixed(2)}`}
               </p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <DepositButton adminUpi={adminSettings?.adminUpi} />
-            <WithdrawButton adminSettings={adminSettings} currentBalance={walletBalance} upiId={upiId} />
+            <WithdrawButton adminSettings={adminSettings} userData={userData} />
           </div>
         </div>
       </CardContent>
@@ -606,7 +613,7 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
   );
 }
 
-function WithdrawButton({ adminSettings, currentBalance, upiId }: { adminSettings?: AdminSettings | null, currentBalance?: number, upiId?: string }) {
+function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSettings | null, userData?: UserData | null }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const [amount, setAmount] = useState('');
@@ -614,7 +621,10 @@ function WithdrawButton({ adminSettings, currentBalance, upiId }: { adminSetting
   const { toast } = useToast();
 
   const minWithdrawal = adminSettings?.minWithdrawal || 0;
-  const gstPercentage = adminSettings?.withdrawalGstPercentage || 0;
+  
+  const userLevel = (userData?.vipLevel || 'Bronze').toLowerCase() as keyof NonNullable<AdminSettings['vipWithdrawalGst']>;
+  const gstPercentage = adminSettings?.vipWithdrawalGst?.[userLevel] ?? adminSettings?.withdrawalGstPercentage ?? 0;
+
 
   const { gstAmount, finalAmount } = useMemo(() => {
     const numAmount = parseFloat(amount);
@@ -628,7 +638,7 @@ function WithdrawButton({ adminSettings, currentBalance, upiId }: { adminSetting
 
   const handleWithdraw = () => {
     const withdrawAmount = parseFloat(amount);
-    if (!user || !amount || !upiId) {
+    if (!user || !amount || !userData?.upiId) {
         toast({ variant: 'destructive', title: 'Missing Information', description: 'Please ensure you have a saved UPI ID in your profile and enter an amount.' });
         return;
     }
@@ -640,7 +650,7 @@ function WithdrawButton({ adminSettings, currentBalance, upiId }: { adminSetting
         toast({ variant: 'destructive', title: 'Amount Too Low', description: `The minimum withdrawal amount is ₹${minWithdrawal}.` });
         return;
     }
-    if (withdrawAmount > (currentBalance || 0)) {
+    if (withdrawAmount > (userData?.walletBalance || 0)) {
         toast({ variant: 'destructive', title: 'Insufficient Balance', description: 'You cannot withdraw more than your current wallet balance.' });
         return;
     }
@@ -649,7 +659,7 @@ function WithdrawButton({ adminSettings, currentBalance, upiId }: { adminSetting
       userId: user.uid,
       name: user.displayName,
       amount: withdrawAmount,
-      upiId: upiId,
+      upiId: userData.upiId,
       type: withdrawalType,
       status: 'pending' as const,
       createdAt: serverTimestamp(),
@@ -701,9 +711,9 @@ function WithdrawButton({ adminSettings, currentBalance, upiId }: { adminSetting
             </DialogHeader>
              <div className="space-y-4">
                 <p className="text-sm">
-                    Funds will be sent to your saved UPI ID: <span className="font-mono">{upiId || 'Not Set'}</span>.
+                    Funds will be sent to your saved UPI ID: <span className="font-mono">{userData?.upiId || 'Not Set'}</span>.
                 </p>
-                {!upiId && <p className="text-xs text-destructive">Please set your UPI ID in your profile before withdrawing.</p>}
+                {!userData?.upiId && <p className="text-xs text-destructive">Please set your UPI ID in your profile before withdrawing.</p>}
                 <div className="space-y-2">
                     <Label htmlFor="amount">Amount to Withdraw (INR)</Label>
                     <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Minimum ₹${minWithdrawal || 0}`}/>
@@ -748,7 +758,7 @@ function WithdrawButton({ adminSettings, currentBalance, upiId }: { adminSetting
                 <DialogClose asChild>
                     <Button variant="outline">Cancel</Button>
                 </DialogClose>
-                <Button onClick={handleWithdraw} disabled={!upiId}>Request Withdrawal</Button>
+                <Button onClick={handleWithdraw} disabled={!userData?.upiId}>Request Withdrawal</Button>
              </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -900,6 +910,93 @@ function ActiveLoanCard({ loan }: { loan: ActiveLoan }) {
         </Card>
     );
 }
+
+function DailyCheckInCard() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { data: userData, refetch } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const hasCheckedInToday = useMemo(() => {
+    if (!userData?.lastCheckIn) return false;
+    return isToday(userData.lastCheckIn.toDate());
+  }, [userData]);
+
+  const bonusAmount = adminSettings?.dailyCheckInBonus || 0;
+
+  const handleCheckIn = async () => {
+    if (!user || hasCheckedInToday || bonusAmount <= 0) return;
+
+    setIsLoading(true);
+    const userRef = doc(firestore, 'users', user.uid);
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists()) throw new Error("User not found");
+        
+        const lastCheckIn = userDoc.data().lastCheckIn?.toDate();
+        if (lastCheckIn && isToday(lastCheckIn)) {
+            throw new Error("Already checked in today.");
+        }
+
+        const newBalance = (userDoc.data().walletBalance || 0) + bonusAmount;
+        transaction.update(userRef, {
+          walletBalance: newBalance,
+          lastCheckIn: serverTimestamp(),
+        });
+      });
+      toast({
+        title: 'Check-in Successful!',
+        description: `You've earned ₹${bonusAmount.toFixed(2)}!`,
+      });
+      refetch(); // Refetch user data to update the UI
+    } catch (e: any) {
+      toast({
+        title: 'Check-in Failed',
+        description: e.message || 'An error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (bonusAmount <= 0) return null;
+
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Gift className="h-10 w-10 text-primary" />
+            <div>
+              <h3 className="font-bold">Daily Check-in Bonus</h3>
+              <p className="text-sm text-muted-foreground">
+                Get ₹{bonusAmount.toFixed(2)} for checking in every day!
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={handleCheckIn}
+            disabled={hasCheckedInToday || isLoading}
+            className="w-full sm:w-auto"
+          >
+            {hasCheckedInToday ? (
+              <>
+                <CheckCircle className="mr-2" /> Claimed Today
+              </>
+            ) : (
+              'Claim Your Bonus'
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 function BottomNavItem({
   icon: Icon,

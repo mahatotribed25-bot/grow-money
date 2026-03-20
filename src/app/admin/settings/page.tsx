@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound, RefreshCcw, HandCoins } from 'lucide-react';
+import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem } from 'lucide-react';
 import { sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
@@ -42,6 +42,18 @@ type AdminSettings = {
   delayCompensationEnabled?: boolean;
   delayBonusPerDay?: number;
   maxBonusDays?: number;
+  dailyCheckInBonus?: number;
+  vipTiers?: {
+    silver: number;
+    gold: number;
+    platinum: number;
+  };
+  vipWithdrawalGst?: {
+    bronze: number;
+    silver: number;
+    gold: number;
+    platinum: number;
+  }
 };
 
 export default function SettingsPage() {
@@ -68,6 +80,13 @@ export default function SettingsPage() {
   const [delayBonusPerDay, setDelayBonusPerDay] = useState(0);
   const [maxBonusDays, setMaxBonusDays] = useState(0);
 
+  // Engagement State
+  const [dailyCheckInBonus, setDailyCheckInBonus] = useState(0);
+
+  // VIP State
+  const [vipTiers, setVipTiers] = useState({ silver: 0, gold: 0, platinum: 0 });
+  const [vipGst, setVipGst] = useState({ bronze: 0, silver: 0, gold: 0, platinum: 0 });
+
   // Password change state
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -90,6 +109,10 @@ export default function SettingsPage() {
       setDelayBonusPerDay(settings.delayBonusPerDay || 0);
       setMaxBonusDays(settings.maxBonusDays || 0);
 
+      setDailyCheckInBonus(settings.dailyCheckInBonus || 0);
+      setVipTiers(settings.vipTiers || { silver: 0, gold: 0, platinum: 0 });
+      setVipGst(settings.vipWithdrawalGst || { bronze: 0, silver: 0, gold: 0, platinum: 0 });
+
       const isCurrentlyUnderMaintenance = settings.maintenanceEndTime
         ? settings.maintenanceEndTime.toDate() > new Date()
         : settings.isUnderMaintenance || false;
@@ -111,6 +134,9 @@ export default function SettingsPage() {
       delayCompensationEnabled,
       delayBonusPerDay: Number(delayBonusPerDay),
       maxBonusDays: Number(maxBonusDays),
+      dailyCheckInBonus: Number(dailyCheckInBonus),
+      vipTiers,
+      vipWithdrawalGst: vipGst,
     };
 
     setDoc(settingsRef, settingsData, { merge: true })
@@ -426,6 +452,65 @@ export default function SettingsPage() {
                     </div>
                 </div>
                 <Separator />
+                 <div>
+                    <CardTitle className="flex items-center gap-2"><Gem /> VIP Level Settings</CardTitle>
+                     <CardDescription>
+                        Set the total investment amount required to reach each VIP level.
+                    </CardDescription>
+                    <div className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="vip-silver">Silver Level Threshold</Label>
+                            <Input id="vip-silver" type="number" placeholder="e.g., 10000" value={vipTiers.silver} onChange={(e) => setVipTiers({...vipTiers, silver: Number(e.target.value)})} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="vip-gold">Gold Level Threshold</Label>
+                            <Input id="vip-gold" type="number" placeholder="e.g., 50000" value={vipTiers.gold} onChange={(e) => setVipTiers({...vipTiers, gold: Number(e.target.value)})} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="vip-platinum">Platinum Level Threshold</Label>
+                            <Input id="vip-platinum" type="number" placeholder="e.g., 100000" value={vipTiers.platinum} onChange={(e) => setVipTiers({...vipTiers, platinum: Number(e.target.value)})} />
+                        </div>
+                    </div>
+                </div>
+                 <Separator />
+                 <div>
+                    <CardTitle className="flex items-center gap-2"><Gem /> VIP Benefits Settings</CardTitle>
+                     <CardDescription>
+                        Set the withdrawal GST percentage for each VIP level.
+                    </CardDescription>
+                    <div className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="gst-bronze">Bronze GST (%)</Label>
+                            <Input id="gst-bronze" type="number" placeholder="e.g., 5" value={vipGst.bronze} onChange={(e) => setVipGst({...vipGst, bronze: Number(e.target.value)})} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="gst-silver">Silver GST (%)</Label>
+                            <Input id="gst-silver" type="number" placeholder="e.g., 4" value={vipGst.silver} onChange={(e) => setVipGst({...vipGst, silver: Number(e.target.value)})} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="gst-gold">Gold GST (%)</Label>
+                            <Input id="gst-gold" type="number" placeholder="e.g., 3" value={vipGst.gold} onChange={(e) => setVipGst({...vipGst, gold: Number(e.target.value)})} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="gst-platinum">Platinum GST (%)</Label>
+                            <Input id="gst-platinum" type="number" placeholder="e.g., 2" value={vipGst.platinum} onChange={(e) => setVipGst({...vipGst, platinum: Number(e.target.value)})} />
+                        </div>
+                    </div>
+                </div>
+                <Separator />
+                <div>
+                    <CardTitle className="flex items-center gap-2"><UserPlus /> User Engagement</CardTitle>
+                    <div className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="daily-check-in">Daily Check-in Bonus</Label>
+                            <Input id="daily-check-in" type="number" placeholder="e.g., 5" value={dailyCheckInBonus} onChange={(e) => setDailyCheckInBonus(Number(e.target.value))} />
+                             <p className="text-sm text-muted-foreground">
+                                Amount to be credited to user's wallet for daily check-in.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <Separator />
                 <div>
                     <CardTitle>Payment Settings</CardTitle>
                     <CardDescription>
@@ -458,7 +543,7 @@ export default function SettingsPage() {
                             </p>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="withdrawal-gst">Withdrawal GST (%)</Label>
+                            <Label htmlFor="withdrawal-gst">Default Withdrawal GST (%)</Label>
                             <Input
                             id="withdrawal-gst"
                             type="number"
@@ -467,7 +552,7 @@ export default function SettingsPage() {
                             onChange={(e) => setWithdrawalGstPercentage(Number(e.target.value))}
                             />
                              <p className="text-sm text-muted-foreground">
-                                The percentage of tax to deduct from withdrawal requests.
+                                Default tax to deduct if a user is not in a special VIP tier.
                             </p>
                         </div>
                     </div>

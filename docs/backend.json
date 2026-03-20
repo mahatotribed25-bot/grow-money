@@ -117,6 +117,16 @@
             "type": "string",
             "format": "date-time",
             "description": "Timestamp when the user account was created."
+        },
+        "vipLevel": {
+          "type": "string",
+          "enum": ["Bronze", "Silver", "Gold", "Platinum"],
+          "description": "The VIP level of the user, determining their benefits."
+        },
+        "lastCheckIn": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp of the user's last daily check-in."
         }
       },
       "required": [
@@ -411,6 +421,29 @@
         "maxBonusDays": {
             "type": "number",
             "description": "The maximum number of days a delay bonus can be accrued for a single withdrawal."
+        },
+        "dailyCheckInBonus": {
+            "type": "number",
+            "description": "The bonus amount for daily check-in."
+        },
+        "vipTiers": {
+            "type": "object",
+            "description": "Investment thresholds for each VIP level.",
+            "properties": {
+                "silver": { "type": "number" },
+                "gold": { "type": "number" },
+                "platinum": { "type": "number" }
+            }
+        },
+        "vipWithdrawalGst": {
+            "type": "object",
+            "description": "Withdrawal GST percentage for each VIP level.",
+            "properties": {
+                "bronze": { "type": "number" },
+                "silver": { "type": "number" },
+                "gold": { "type": "number" },
+                "platinum": { "type": "number" }
+            }
         }
       }
     },

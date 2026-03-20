@@ -25,6 +25,7 @@ import {
   Pencil,
   TicketPercent,
   Timer,
+  Gem,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 type Transaction = {
   id: string;
@@ -109,6 +111,7 @@ type UserData = {
   kycTermsAccepted?: boolean;
   kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
   kycRejectionReason?: string;
+  vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
 };
 
 type AdminSettings = {
@@ -335,6 +338,8 @@ export default function ProfilePage() {
       });
   }
   
+  const vipLevel = userData?.vipLevel || 'Bronze';
+  
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
@@ -350,7 +355,19 @@ export default function ProfilePage() {
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20">
           <CardHeader>
-            <CardTitle>My Information</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              My Information
+              <Link href="/vip-tiers">
+                <Badge variant={vipLevel === 'Bronze' ? 'outline' : 'default'} className={cn(
+                    'flex items-center gap-1.5 cursor-pointer hover:bg-primary/80',
+                    vipLevel === 'Silver' && 'bg-slate-400 text-black',
+                    vipLevel === 'Gold' && 'bg-yellow-400 text-black',
+                    vipLevel === 'Platinum' && 'bg-purple-500 text-white',
+                    )}>
+                    <Gem size={14}/> {vipLevel}
+                </Badge>
+               </Link>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {userDataloading ? <p>Loading...</p> : <>
@@ -928,4 +945,3 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
         </Card>
     );
 }
-
