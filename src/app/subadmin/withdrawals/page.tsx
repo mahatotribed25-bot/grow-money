@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -12,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, HandCoins, Info } from 'lucide-react';
+import { Check, X, HandCoins, Info, Copy, QrCode } from 'lucide-react'; // Added icons
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
@@ -28,6 +27,8 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import Image from 'next/image';
 
 type AdminSettings = {
   delayCompensationEnabled?: boolean;
@@ -65,6 +66,7 @@ export default function WithdrawalsPage() {
 
   const [requestToApprove, setRequestToApprove] = useState<WithdrawalRequest | null>(null);
   const [calculatedBonus, setCalculatedBonus] = useState(0);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
   const handleReject = (withdrawal: WithdrawalRequest) => {
     const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
@@ -138,9 +140,10 @@ export default function WithdrawalsPage() {
     }
     setCalculatedBonus(bonus);
     setRequestToApprove(withdrawal);
+    setIsPaymentDialogOpen(true);
   };
 
-  const handleConfirmApproval = () => {
+  const handleConfirmPaymentSent = () => {
     if (!requestToApprove) return;
 
     const baseAmount = requestToApprove.finalAmount || requestToApprove.amount;
@@ -156,7 +159,8 @@ export default function WithdrawalsPage() {
 
     updateDoc(withdrawalRef, updateData)
     .then(() => {
-        toast({ title: 'Withdrawal Approved', description: `Please manually send ₹${totalPayout.toFixed(2)} to ${requestToApprove.name}.` });
+        toast({ title: 'Withdrawal Approved', description: `Withdrawal for ${requestToApprove.name} has been marked as paid.` });
+        setIsPaymentDialogOpen(false);
         setRequestToApprove(null);
     })
     .catch(error => {
@@ -168,6 +172,16 @@ export default function WithdrawalsPage() {
         errorEmitter.emit('permission-error', permissionError);
     });
   };
+
+  const handleCopyToClipboard = (text: string, label: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    toast({ title: `${label} Copied!`, description: text });
+  };
+
+  const totalPayout = requestToApprove ? (requestToApprove.finalAmount || requestToApprove.amount) + calculatedBonus : 0;
+  const upiDeeplink = requestToApprove ? `upi://pay?pa=${requestToApprove.upiId}&pn=${encodeURIComponent(requestToApprove.name)}&am=${totalPayout.toFixed(2)}&cu=INR` : '';
+
 
   return (
     <div>
@@ -259,41 +273,71 @@ export default function WithdrawalsPage() {
         </Table>
       </div>
 
-       <Dialog open={!!requestToApprove} onOpenChange={() => setRequestToApprove(null)}>
-        <DialogContent>
+       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent className="sm:max-w-md">
             <DialogHeader>
-                <DialogTitle>Confirm Final Payout</DialogTitle>
+                <DialogTitle>Process Withdrawal</DialogTitle>
                 <DialogDescription>
-                    Review the final payout amount including any delay bonus before confirming. This will mark the request as approved.
+                    Send payment to {requestToApprove?.name} and then confirm.
                 </DialogDescription>
             </DialogHeader>
-            <div className="my-4 space-y-4 rounded-md border p-4">
-                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Original Amount:</span>
-                    <span className="font-semibold">₹{(requestToApprove?.finalAmount || requestToApprove?.amount || 0).toFixed(2)}</span>
-                 </div>
-                 <div className="flex justify-between text-green-400">
-                    <span className="text-muted-foreground">Delay Bonus Earned:</span>
-                    <span className="font-semibold">+ ₹{calculatedBonus.toFixed(2)}</span>
-                 </div>
-                 <hr className="border-border"/>
-                 <div className="flex justify-between text-lg">
-                    <span className="font-bold">Total Payout:</span>
-                    <span className="font-bold">₹{((requestToApprove?.finalAmount || requestToApprove?.amount || 0) + calculatedBonus).toFixed(2)}</span>
-                 </div>
-                 <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md flex items-start gap-2">
-                    <Info className="h-4 w-4 mt-0.5 shrink-0"/>
-                    <span>
-                     Make sure you have manually sent this total amount to the user's UPI ID: <b>{requestToApprove?.upiId}</b>
-                    </span>
-                 </div>
+            <div className="space-y-4 py-4">
+                <div className="flex flex-col items-center gap-2 p-4 rounded-md bg-muted">
+                    <p className="font-semibold">Scan QR Code to Pay</p>
+                     <div className="bg-white p-2 rounded-md">
+                        <Image
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiDeeplink)}`}
+                            alt="UPI QR Code"
+                            width={200}
+                            height={200}
+                        />
+                    </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="upiId" className="text-muted-foreground">UPI ID</Label>
+                    <div className="flex items-center gap-2">
+                        <span id="upiId" className="font-mono">{requestToApprove?.upiId}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(requestToApprove?.upiId || '', 'UPI ID')}>
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="space-y-2 rounded-md border p-3">
+                    <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Withdrawal Amount:</span>
+                        <span className="font-semibold">₹{(requestToApprove?.finalAmount || requestToApprove?.amount || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-green-400">
+                        <span className="text-muted-foreground">Delay Bonus:</span>
+                        <span className="font-semibold">+ ₹{calculatedBonus.toFixed(2)}</span>
+                    </div>
+                </div>
+                 
+                <div className="flex items-center justify-between text-lg font-bold">
+                    <Label htmlFor="totalAmount">Total to Pay</Label>
+                    <div className="flex items-center gap-2">
+                        <span id="totalAmount" className="font-mono">₹{totalPayout.toFixed(2)}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(totalPayout.toFixed(2), 'Amount')}>
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+
+                 <Button asChild className="w-full">
+                    <a href={upiDeeplink}>
+                        <QrCode className="mr-2" /> Pay with UPI App
+                    </a>
+                </Button>
             </div>
-            <DialogFooter>
+            <DialogFooter className="sm:justify-between">
                 <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
+                    <Button type="button" variant="secondary">Cancel</Button>
                 </DialogClose>
-                <Button onClick={handleConfirmApproval}>
-                    Confirm & Approve
+                <Button type="button" onClick={handleConfirmPaymentSent}>
+                    <Check className="mr-2" />
+                    Confirm Payment Sent
                 </Button>
             </DialogFooter>
         </DialogContent>
