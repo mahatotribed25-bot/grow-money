@@ -372,6 +372,7 @@ export default function Dashboard() {
                 <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" />
                 <QuickActionButton icon={Users2} label="Group Investing" href="/group-investing" />
                 <QuickActionButton icon={History} label="My Plans" href="/my-plans" />
+                <QuickActionButton icon={BarChart2} label="Reports" href="/reports" />
                 <QuickActionButton icon={HandCoins} label="Loans" href="/loans" />
                 <QuickActionButton icon={FileText} label="Custom Loan" href="/custom-loan" />
                 <QuickActionButton icon={User} label="Profile" href="/profile" />
