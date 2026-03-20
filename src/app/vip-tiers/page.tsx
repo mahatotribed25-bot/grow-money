@@ -100,8 +100,7 @@ export default function VipTiersPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <Benefit icon={TrendingDown} label="Withdrawal GST" value={`${tier.gst ?? 'N/A'}%`} />
-                        {/* Add more benefits here as they are developed */}
-                         <Benefit icon={ShieldCheck} label="Priority Support" value="Coming Soon" />
+                        <Benefit icon={ShieldCheck} label="Priority Support" value="Active" />
                     </CardContent>
                 </Card>
             ))}
