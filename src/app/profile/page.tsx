@@ -26,6 +26,7 @@ import {
   TicketPercent,
   Timer,
   Gem,
+  Trophy,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -568,7 +569,7 @@ export default function ProfilePage() {
         <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
-          <BottomNavItem icon={UsersIcon} label="Team" href="/team" />
+          <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
           <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" active />
         </div>

@@ -21,6 +21,7 @@ import {
   Gift,
   Gem,
   CheckCircle,
+  Trophy,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -387,6 +388,7 @@ export default function Dashboard() {
                 <QuickActionButton icon={History} label="My Plans" href="/my-plans" />
                 <QuickActionButton icon={Gem} label="VIP Tiers" href="/vip-tiers" />
                 <QuickActionButton icon={BarChart2} label="Reports" href="/reports" />
+                <QuickActionButton icon={Trophy} label="Leaderboard" href="/leaderboard" />
                 <QuickActionButton icon={HandCoins} label="Loans" href="/loans" />
                 <QuickActionButton icon={FileText} label="Custom Loan" href="/custom-loan" />
                 <QuickActionButton icon={Users} label="My Team" href="/team" />
@@ -403,7 +405,7 @@ export default function Dashboard() {
         <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" active />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
-          <BottomNavItem icon={Users} label="Team" href="/team" />
+          <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
           <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>

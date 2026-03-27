@@ -1,6 +1,6 @@
 
 'use client';
-import { ChevronLeft, Home, User, Briefcase, HandCoins, Users } from 'lucide-react';
+import { ChevronLeft, Home, User, Briefcase, HandCoins, Users, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -71,7 +71,7 @@ export default function TeamPage() {
             <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs">
               <BottomNavItem icon={Home} label="Home" href="/dashboard" />
               <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
-              <BottomNavItem icon={Users} label="Team" href="/team" active />
+              <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
               <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
               <BottomNavItem icon={User} label="Profile" href="/profile" />
             </div>
