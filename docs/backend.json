@@ -386,7 +386,11 @@
         },
         "loanPenalty": {
           "type": "number",
-          "description": "Daily penalty applied for each day a loan is overdue after the grace period."
+          "description": "Daily penalty applied for each day a plan-based loan is overdue after the grace period."
+        },
+        "customLoanPenalty": {
+          "type": "number",
+          "description": "Daily penalty applied for each day a custom loan is overdue after the grace period."
         },
         "kycGoogleFormUrl": {
             "type": "string",

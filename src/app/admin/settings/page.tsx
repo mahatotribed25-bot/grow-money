@@ -34,6 +34,7 @@ type AdminSettings = {
   referralBonus?: number;
   withdrawalGstPercentage?: number;
   loanPenalty?: number;
+  customLoanPenalty?: number;
   kycGoogleFormUrl?: string;
   maxCustomLoanAmount?: number;
   isUnderMaintenance?: boolean;
@@ -69,6 +70,7 @@ export default function SettingsPage() {
   const [referralBonus, setReferralBonus] = useState(0);
   const [withdrawalGstPercentage, setWithdrawalGstPercentage] = useState(0);
   const [loanPenalty, setLoanPenalty] = useState(0);
+  const [customLoanPenalty, setCustomLoanPenalty] = useState(0);
   const [kycGoogleFormUrl, setKycGoogleFormUrl] = useState('');
   const [maxCustomLoanAmount, setMaxCustomLoanAmount] = useState(0);
   const [isUnderMaintenance, setIsUnderMaintenance] = useState(false);
@@ -101,6 +103,7 @@ export default function SettingsPage() {
       setReferralBonus(settings.referralBonus || 0);
       setWithdrawalGstPercentage(settings.withdrawalGstPercentage || 0);
       setLoanPenalty(settings.loanPenalty || 0);
+      setCustomLoanPenalty(settings.customLoanPenalty || 0);
       setKycGoogleFormUrl(settings.kycGoogleFormUrl || '');
       setMaxCustomLoanAmount(settings.maxCustomLoanAmount || 5000);
       setProfitStartDate(settings.profitCalculationStartDate?.toDate() || null);
@@ -129,6 +132,7 @@ export default function SettingsPage() {
       referralBonus: Number(referralBonus),
       withdrawalGstPercentage: Number(withdrawalGstPercentage),
       loanPenalty: Number(loanPenalty),
+      customLoanPenalty: Number(customLoanPenalty),
       kycGoogleFormUrl: kycGoogleFormUrl,
       maxCustomLoanAmount: Number(maxCustomLoanAmount),
       delayCompensationEnabled,
@@ -562,7 +566,7 @@ export default function SettingsPage() {
                     <CardTitle>Loan Settings</CardTitle>
                      <div className="space-y-4 mt-4">
                          <div className="space-y-2">
-                            <Label htmlFor="loan-penalty">Daily Loan Overdue Penalty</Label>
+                            <Label htmlFor="loan-penalty">Daily Plan Loan Overdue Penalty</Label>
                             <Input
                             id="loan-penalty"
                             type="number"
@@ -571,7 +575,20 @@ export default function SettingsPage() {
                             onChange={(e) => setLoanPenalty(Number(e.target.value))}
                             />
                              <p className="text-sm text-muted-foreground">
-                                The penalty amount to apply for each day a loan is overdue after the 1-day grace period.
+                                Penalty for plan-based loans. Applied daily after the grace period.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="custom-loan-penalty">Daily Custom Loan Overdue Penalty</Label>
+                            <Input
+                            id="custom-loan-penalty"
+                            type="number"
+                            placeholder="e.g., 50"
+                            value={customLoanPenalty}
+                            onChange={(e) => setCustomLoanPenalty(Number(e.target.value))}
+                            />
+                             <p className="text-sm text-muted-foreground">
+                                Penalty for custom loans. Applied daily after the grace period.
                             </p>
                         </div>
                          <div className="space-y-2">

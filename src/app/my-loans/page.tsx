@@ -49,6 +49,7 @@ type Loan = {
 
 type AdminSettings = {
     loanPenalty?: number;
+    customLoanPenalty?: number;
 }
 
 type CustomLoanRequest = {
@@ -415,7 +416,7 @@ function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, admi
       const gracePeriodEndDate = addDays(dueDate, 1);
       
       if (currentTime > gracePeriodEndDate) {
-        const dailyPenalty = adminSettings.loanPenalty || 0;
+        const dailyPenalty = adminSettings.customLoanPenalty || 0;
         if (dailyPenalty <= 0) return;
 
         const overdueMilliseconds = currentTime.getTime() - gracePeriodEndDate.getTime();
