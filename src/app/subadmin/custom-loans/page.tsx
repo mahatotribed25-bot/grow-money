@@ -51,13 +51,14 @@ type CustomLoanRequest = {
     ifscCode: string;
   };
   upiId?: string;
-  status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin';
+  status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin' | 'payment_pending';
   interestRate?: number;
   interestAmount?: number;
   totalRepayment?: number;
   rejectionReason?: string;
   createdAt: Timestamp;
   dueDate?: Timestamp;
+  penalty?: number;
 };
 
 type UserData = {
@@ -222,6 +223,7 @@ export default function CustomLoansPage() {
       case 'pending_user_approval': return <Badge variant="outline" className="border-blue-500 text-blue-400">Pending User</Badge>;
       case 'approved_by_user': return <Badge variant="default">User Approved</Badge>;
       case 'active': return <Badge variant="default" className="bg-green-600">Active</Badge>;
+      case 'payment_pending': return <Badge variant="outline">Payment Pending</Badge>;
       case 'completed': return <Badge variant="outline">Completed</Badge>;
       case 'rejected_by_user':
       case 'rejected_by_admin':
@@ -269,8 +271,9 @@ export default function CustomLoansPage() {
                         'N/A'
                     )}
                   </TableCell>
-                  <TableCell>
-                    {request.totalRepayment !== undefined ? `₹${request.totalRepayment.toFixed(2)}` : 'N/A'}
+                   <TableCell>
+                    <div className="font-semibold">₹{((request.totalRepayment || 0) + (request.penalty || 0)).toFixed(2)}</div>
+                    {request.penalty && <div className="text-xs text-destructive">(inc. ₹{request.penalty.toFixed(2)} penalty)</div>}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col text-xs">
@@ -290,7 +293,7 @@ export default function CustomLoansPage() {
                         {request.status === 'approved_by_user' && (
                             <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleMarkAsSent(request)}><Send className="mr-2 h-4 w-4"/>Mark as Sent</Button>
                         )}
-                         {request.status === 'active' && (
+                         {(request.status === 'active' || request.status === 'payment_pending') && (
                             <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMarkAsCompleted(request)}><Check className="mr-2 h-4 w-4"/>Mark as Repaid</Button>
                         )}
                     </div>

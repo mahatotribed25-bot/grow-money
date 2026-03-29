@@ -1,3 +1,4 @@
+
 'use client';
 import {
   ChevronLeft,
@@ -54,13 +55,14 @@ type CustomLoanRequest = {
   id: string;
   requestedAmount: number;
   requestedDuration: number;
-  status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin';
+  status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin' | 'payment_pending';
   interestRate?: number;
   interestAmount?: number;
   totalRepayment?: number;
   rejectionReason?: string;
   createdAt: Timestamp;
   dueDate?: Timestamp;
+  penalty?: number;
 };
 
 const CountdownTimer = ({ endDate }: { endDate: Date }) => {
@@ -144,7 +146,7 @@ export default function MyLoansPage() {
             <h2 className="text-xl font-bold mt-8">Custom Loan Requests</h2>
             {loading ? <p>Loading custom loans...</p> : 
                 sortedCustomLoans && sortedCustomLoans.length > 0 ? (
-                    sortedCustomLoans.map(loan => <CustomLoanCard key={loan.id} loan={loan} />)
+                    sortedCustomLoans.map(loan => <CustomLoanCard key={loan.id} loan={loan} adminSettings={adminSettings} />)
                 ) : (
                     <Card>
                         <CardContent className="pt-6 text-center text-muted-foreground">
@@ -390,9 +392,64 @@ function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSet
 }
 
 
-function CustomLoanCard({ loan }: { loan: CustomLoanRequest }) {
+function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, adminSettings: AdminSettings | null }) {
+  const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const updateCurrentTime = () => setCurrentTime(new Date());
+    updateCurrentTime();
+    const timer = setInterval(updateCurrentTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const checkOverdue = async () => {
+      if (!user || !adminSettings || loan.status !== 'active' || !loan.dueDate || !currentTime) {
+        return;
+      }
+      
+      const dueDate = loan.dueDate.toDate();
+      const gracePeriodEndDate = addDays(dueDate, 1);
+      
+      if (currentTime > gracePeriodEndDate) {
+        const dailyPenalty = adminSettings.loanPenalty || 0;
+        if (dailyPenalty <= 0) return;
+
+        const overdueMilliseconds = currentTime.getTime() - gracePeriodEndDate.getTime();
+        const overdueDays = Math.floor(overdueMilliseconds / (1000 * 60 * 60 * 24)) + 1;
+        
+        const newPenalty = overdueDays * dailyPenalty;
+        
+        if (newPenalty > (loan.penalty || 0)) {
+          const loanRef = doc(firestore, 'customLoanRequests', loan.id);
+          const dataToUpdate = { penalty: newPenalty };
+
+          try {
+            await updateDoc(loanRef, dataToUpdate);
+            if (newPenalty > (loan.penalty || 0)) {
+              toast({
+                  title: 'Custom Loan Overdue Penalty',
+                  description: `Your penalty has been updated. Total penalty is now ₹${newPenalty.toFixed(2)}.`,
+                  variant: 'destructive'
+              });
+            }
+          } catch (e) {
+            const permissionError = new FirestorePermissionError({
+                path: loanRef.path,
+                operation: 'update',
+                requestResourceData: dataToUpdate
+            });
+            errorEmitter.emit('permission-error', permissionError);
+          }
+        }
+      }
+    };
+    
+    checkOverdue();
+  }, [currentTime, loan, user, firestore, adminSettings, toast]);
 
   const handleUpdateStatus = async (newStatus: 'approved_by_user' | 'rejected_by_user') => {
     const requestRef = doc(firestore, 'customLoanRequests', loan.id);
@@ -412,6 +469,28 @@ function CustomLoanCard({ loan }: { loan: CustomLoanRequest }) {
       errorEmitter.emit('permission-error', permissionError);
     }
   };
+  
+   const handlePayNow = async () => {
+    if (!user) return;
+    const loanRef = doc(firestore, 'customLoanRequests', loan.id);
+    const dataToUpdate = { status: 'payment_pending' as const };
+
+    try {
+        await updateDoc(loanRef, dataToUpdate);
+        toast({
+            title: 'Payment Initiated',
+            description: 'Your payment is being processed. The admin will confirm it shortly.',
+        });
+    } catch(e: any) {
+        const permissionError = new FirestorePermissionError({
+            path: loanRef.path,
+            operation: 'update',
+            requestResourceData: dataToUpdate,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+  };
+
 
   const getStatusBadge = (status: CustomLoanRequest['status']) => {
      switch (status) {
@@ -419,6 +498,7 @@ function CustomLoanCard({ loan }: { loan: CustomLoanRequest }) {
       case 'pending_user_approval': return <Badge variant="outline" className="border-blue-500 text-blue-400">Offer Received</Badge>;
       case 'approved_by_user': return <Badge variant="default">You Approved</Badge>;
       case 'active': return <Badge variant="default" className="bg-green-600">Active</Badge>;
+      case 'payment_pending': return <Badge variant="outline">Payment Pending</Badge>;
       case 'completed': return <Badge variant="outline">Completed</Badge>;
       case 'rejected_by_user':
       case 'rejected_by_admin':
@@ -426,6 +506,8 @@ function CustomLoanCard({ loan }: { loan: CustomLoanRequest }) {
       default: return <Badge>{status}</Badge>;
     }
   };
+  
+  const totalRepayment = (loan.totalRepayment || 0) + (loan.penalty || 0);
 
   return (
     <Card className="bg-gradient-to-br from-card to-secondary/30 border-primary/10">
@@ -447,7 +529,7 @@ function CustomLoanCard({ loan }: { loan: CustomLoanRequest }) {
                 <p className="font-semibold">{loan.requestedDuration} days</p>
             </div>
             
-            {loan.status === 'pending_user_approval' && (
+            {loan.status === 'pending_user_approval' ? (
                 <div className="p-4 bg-muted/50 rounded-lg space-y-3 mt-4">
                     <h4 className="font-bold text-center">Admin's Offer</h4>
                      <div className="flex justify-between text-sm">
@@ -467,6 +549,31 @@ function CustomLoanCard({ loan }: { loan: CustomLoanRequest }) {
                         <Button className="w-full" variant="destructive" onClick={() => handleUpdateStatus('rejected_by_user')}>Reject Offer</Button>
                     </div>
                 </div>
+            ) : (loan.status === 'active' || loan.status === 'payment_pending') && (
+                 <div className="p-4 bg-muted/50 rounded-lg space-y-3 mt-4">
+                    <h4 className="font-bold text-center">Loan Details</h4>
+                    {loan.penalty && loan.penalty > 0 && (
+                        <div className="flex justify-between text-sm text-destructive">
+                            <p className="font-semibold">Overdue Penalty</p>
+                            <p className="font-semibold">₹{(loan.penalty || 0).toFixed(2)}</p>
+                        </div>
+                    )}
+                     <div className="flex justify-between text-sm font-bold">
+                        <p>Total Repayment Due</p>
+                        <p>₹{totalRepayment.toFixed(2)}</p>
+                    </div>
+                    {loan.status === 'active' && loan.dueDate && (
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>Time Remaining:</span>
+                                <CountdownTimer endDate={loan.dueDate.toDate()} />
+                            </div>
+                        </div>
+                    )}
+                     <Button className="w-full" onClick={handlePayNow} disabled={loan.status === 'payment_pending'}>
+                        {loan.status === 'payment_pending' ? 'Processing Payment...' : 'Pay Now'}
+                    </Button>
+                </div>
             )}
             
             {loan.status === 'rejected_by_admin' && loan.rejectionReason && (
@@ -476,16 +583,6 @@ function CustomLoanCard({ loan }: { loan: CustomLoanRequest }) {
             {loan.status === 'approved_by_user' && (
                 <p className="text-sm text-green-400 text-center">You have approved the loan. Waiting for admin to send the funds.</p>
             )}
-
-            {loan.status === 'active' && loan.dueDate && (
-                 <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Time Remaining:</span>
-                        <CountdownTimer endDate={loan.dueDate.toDate()} />
-                    </div>
-                 </div>
-            )}
-
         </div>
       </CardContent>
     </Card>

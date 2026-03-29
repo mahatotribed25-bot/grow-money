@@ -77,6 +77,10 @@ export default function CustomLoanPage() {
       toast({ title: 'Invalid Duration', description: 'Please enter a valid duration in days.', variant: 'destructive' });
       return;
     }
+    if (requestedDuration > 30) {
+      toast({ title: 'Invalid Duration', description: 'Loan duration cannot exceed 30 days.', variant: 'destructive' });
+      return;
+    }
     if (maxAmount > 0 && requestedAmount > maxAmount) {
       toast({ title: 'Amount Exceeds Limit', description: `You can request a maximum of ₹${maxAmount}.`, variant: 'destructive' });
       return;
@@ -158,7 +162,7 @@ export default function CustomLoanPage() {
           <CardHeader>
             <CardTitle>Loan Application</CardTitle>
             <CardDescription>
-              Enter the amount and duration for the loan you need. Your request will be sent to an admin for approval.
+              Enter the amount and duration (max 30 days) for the loan you need. Your request will be sent to an admin for approval.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

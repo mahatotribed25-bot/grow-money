@@ -532,7 +532,7 @@
             "type": "string",
             "description": "UPI ID if payment method is UPI."
         },
-        "status": { "type": "string", "enum": ["pending_admin_review", "pending_user_approval", "approved_by_user", "active", "completed", "rejected_by_user", "rejected_by_admin"] },
+        "status": { "type": "string", "enum": ["pending_admin_review", "pending_user_approval", "approved_by_user", "active", "completed", "rejected_by_user", "rejected_by_admin", "payment_pending"] },
         "interestRate": { "type": "number", "description": "Percentage set by admin" },
         "interestAmount": { "type": "number", "description": "Calculated interest amount" },
         "totalRepayment": { "type": "number", "description": "Calculated total repayment (amount + interest)" },
@@ -541,7 +541,8 @@
         "adminApprovedAt": { "type": "string", "format": "date-time" },
         "userApprovedAt": { "type": "string", "format": "date-time" },
         "activatedAt": { "type": "string", "format": "date-time" },
-        "dueDate": { "type": "string", "format": "date-time" }
+        "dueDate": { "type": "string", "format": "date-time" },
+        "penalty": { "type": "number", "description": "Penalty applied for overdue loan." }
       },
       "required": ["userId", "userName", "requestedAmount", "requestedDuration", "paymentMethod", "status", "createdAt"]
     },

@@ -51,15 +51,25 @@ type CustomLoanRequest = {
     ifscCode: string;
   };
   upiId?: string;
-  status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin';
+  status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin' | 'payment_pending';
   interestRate?: number;
   interestAmount?: number;
   totalRepayment?: number;
   rejectionReason?: string;
   createdAt: Timestamp;
+  dueDate?: Timestamp;
+  penalty?: number;
 };
 
-const formatDate = (timestamp: Timestamp) => {
+type UserData = {
+  id: string;
+  panCard?: string;
+  aadhaarNumber?: string;
+  phoneNumber?: string;
+  kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
+};
+
+const formatDate = (timestamp?: Timestamp) => {
   if (!timestamp) return 'N/A';
   return new Date(timestamp.seconds * 1000).toLocaleString();
 };
@@ -70,14 +80,30 @@ export default function CustomLoansPage() {
   const { toast } = useToast();
 
   const [requestToUpdate, setRequestToUpdate] = useState<CustomLoanRequest | null>(null);
+  const [userKycData, setUserKycData] = useState<UserData | null>(null);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [interestRate, setInterestRate] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
-  const openApproveDialog = (request: CustomLoanRequest) => {
+  const openApproveDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
     setInterestRate('');
+    
+    try {
+        const userRef = doc(firestore, 'users', request.userId);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists()) {
+            setUserKycData({ id: userDoc.id, ...userDoc.data() } as UserData);
+        } else {
+            setUserKycData(null);
+            toast({ title: 'User data not found', variant: 'destructive'});
+        }
+    } catch(e) {
+        setUserKycData(null);
+        toast({ title: 'Error fetching user data', variant: 'destructive'});
+    }
+
     setIsApproveDialogOpen(true);
   };
 
@@ -170,6 +196,24 @@ export default function CustomLoansPage() {
         errorEmitter.emit('permission-error', permissionError);
     }
   };
+  
+  const handleMarkAsCompleted = async (request: CustomLoanRequest) => {
+    const requestRef = doc(firestore, 'customLoanRequests', request.id);
+    const updateData = {
+        status: 'completed',
+    };
+    try {
+        await updateDoc(requestRef, updateData);
+        toast({ title: 'Loan Completed', description: 'Loan has been marked as completed.'});
+    } catch(e) {
+        const permissionError = new FirestorePermissionError({
+            path: requestRef.path,
+            operation: 'update',
+            requestResourceData: updateData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+  };
 
 
   const getStatusBadge = (status: CustomLoanRequest['status']) => {
@@ -178,6 +222,7 @@ export default function CustomLoansPage() {
       case 'pending_user_approval': return <Badge variant="outline" className="border-blue-500 text-blue-400">Pending User</Badge>;
       case 'approved_by_user': return <Badge variant="default">User Approved</Badge>;
       case 'active': return <Badge variant="default" className="bg-green-600">Active</Badge>;
+      case 'payment_pending': return <Badge variant="outline">Payment Pending</Badge>;
       case 'completed': return <Badge variant="outline">Completed</Badge>;
       case 'rejected_by_user':
       case 'rejected_by_admin':
@@ -191,28 +236,50 @@ export default function CustomLoansPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">Custom Loan Requests</h2>
+      <h2 className="text-2xl font-bold mb-4">Custom Loan Requests History</h2>
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>User Name</TableHead>
-              <TableHead>Requested Amount</TableHead>
-              <TableHead>Duration</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>Loan Details</TableHead>
+              <TableHead>Interest</TableHead>
+              <TableHead>Total Repayment</TableHead>
+              <TableHead>Dates</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={6} className="text-center">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center">Loading...</TableCell></TableRow>
             ) : sortedRequests?.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell>{request.userName}</TableCell>
-                  <TableCell>₹{request.requestedAmount.toFixed(2)}</TableCell>
-                  <TableCell>{request.requestedDuration} days</TableCell>
-                  <TableCell>{formatDate(request.createdAt)}</TableCell>
+                  <TableCell>
+                      <div className="font-semibold">₹{request.requestedAmount.toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">{request.requestedDuration} days</div>
+                  </TableCell>
+                  <TableCell>
+                    {request.interestRate !== undefined ? (
+                        <>
+                            <div className="font-semibold">{request.interestRate}%</div>
+                            <div className="text-xs text-muted-foreground">₹{request.interestAmount?.toFixed(2)}</div>
+                        </>
+                    ) : (
+                        'N/A'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-semibold">₹{((request.totalRepayment || 0) + (request.penalty || 0)).toFixed(2)}</div>
+                    {request.penalty && <div className="text-xs text-destructive">(inc. ₹{request.penalty.toFixed(2)} penalty)</div>}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col text-xs">
+                        <span>Created: {formatDate(request.createdAt)}</span>
+                        {request.dueDate && <span>Due: {formatDate(request.dueDate)}</span>}
+                    </div>
+                  </TableCell>
                   <TableCell>{getStatusBadge(request.status)}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
@@ -225,6 +292,9 @@ export default function CustomLoansPage() {
                         {request.status === 'approved_by_user' && (
                             <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleMarkAsSent(request)}><Send className="mr-2 h-4 w-4"/>Mark as Sent</Button>
                         )}
+                         {(request.status === 'active' || request.status === 'payment_pending') && (
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMarkAsCompleted(request)}><Check className="mr-2 h-4 w-4"/>Mark as Repaid</Button>
+                        )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -236,11 +306,23 @@ export default function CustomLoansPage() {
       
       {/* Approve Dialog */}
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Approve Loan & Set Interest</DialogTitle>
-            <DialogDescription>Set the interest rate for this loan. The total repayment will be calculated and sent to the user for final approval.</DialogDescription>
+            <DialogDescription>Review KYC and payment details, then set the interest rate. The offer will be sent to the user.</DialogDescription>
           </DialogHeader>
+          
+          {userKycData ? (
+            <div className="space-y-2 rounded-md border p-4 my-2">
+                <h4 className="font-semibold">KYC Details for {requestToUpdate?.userName}</h4>
+                <p className="text-sm"><strong>Status:</strong> {userKycData.kycStatus}</p>
+                <p className="text-sm"><strong>PAN:</strong> {userKycData.panCard || 'N/A'}</p>
+                <p className="text-sm"><strong>Aadhaar:</strong> {userKycData.aadhaarNumber || 'N/A'}</p>
+                <p className="text-sm"><strong>Phone:</strong> {userKycData.phoneNumber || 'N/A'}</p>
+            </div>
+            ) : <p>Loading KYC data...</p>
+          }
+
           {requestToUpdate?.paymentMethod && (
             <div className="space-y-2 rounded-md border p-4 my-2">
                 <h4 className="font-semibold flex items-center gap-2">
@@ -259,12 +341,13 @@ export default function CustomLoansPage() {
                 ) : null}
             </div>
           )}
-          <div className="py-4 space-y-2">
+          
+          <div className="space-y-2">
             <Label htmlFor="interestRate">Interest Rate (%)</Label>
             <Input id="interestRate" type="number" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} placeholder="e.g., 5" />
           </div>
           <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+            <DialogClose asChild><Button variant="outline" onClick={() => setUserKycData(null)}>Cancel</Button></DialogClose>
             <Button onClick={handleApprove}>Send Offer</Button>
           </DialogFooter>
         </DialogContent>
