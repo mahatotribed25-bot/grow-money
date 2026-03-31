@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, HandCoins, Info, Copy, QrCode } from 'lucide-react'; // Added icons
+import { Check, X, HandCoins, Info, Copy, QrCode } from 'lucide-react';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
@@ -29,6 +29,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 type AdminSettings = {
   delayCompensationEnabled?: boolean;
@@ -64,9 +66,19 @@ export default function WithdrawalsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [requestToApprove, setRequestToApprove] = useState<WithdrawalRequest | null>(null);
   const [calculatedBonus, setCalculatedBonus] = useState(0);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+
+  const filteredWithdrawals = useMemo(() => {
+    if (!withdrawals) return [];
+    const sorted = [...withdrawals].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+    if (filterStatus === 'all') {
+      return sorted;
+    }
+    return sorted.filter((w) => w.status === filterStatus);
+  }, [withdrawals, filterStatus]);
 
   const handleReject = (withdrawal: WithdrawalRequest) => {
     const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
@@ -185,8 +197,20 @@ export default function WithdrawalsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">Withdrawal Requests</h2>
-      <div className="rounded-lg border">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Withdrawal Requests</h2>
+      </div>
+
+       <Tabs value={filterStatus} onValueChange={(value) => setFilterStatus(value as any)}>
+            <TabsList>
+                <TabsTrigger value="pending">Pending</TabsTrigger>
+                <TabsTrigger value="approved">Approved</TabsTrigger>
+                <TabsTrigger value="rejected">Rejected</TabsTrigger>
+                <TabsTrigger value="all">All</TabsTrigger>
+            </TabsList>
+        </Tabs>
+      
+      <div className="rounded-lg border mt-4">
         <Table>
           <TableHeader>
             <TableRow>
@@ -204,8 +228,8 @@ export default function WithdrawalsPage() {
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : (
-              withdrawals?.map((withdrawal) => (
+            ) : filteredWithdrawals.length > 0 ? (
+              filteredWithdrawals.map((withdrawal) => (
                 <TableRow key={withdrawal.id}>
                   <TableCell>
                     <div className="font-medium">{withdrawal.name || 'N/A'}</div>
@@ -268,6 +292,12 @@ export default function WithdrawalsPage() {
                   </TableCell>
                 </TableRow>
               ))
+            ) : (
+                <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        No {filterStatus} withdrawals found.
+                    </TableCell>
+                </TableRow>
             )}
           </TableBody>
         </Table>
