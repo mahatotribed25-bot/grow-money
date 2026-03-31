@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -35,6 +34,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 type UpiRequest = {
   id: string;
@@ -64,6 +65,17 @@ export default function UpiRequestsPage() {
   
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [confirmationAmount, setConfirmationAmount] = useState<number | ''>('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'awaiting_confirmation' | 'approved' | 'rejected'>('pending');
+
+  const filteredUpiRequests = useMemo(() => {
+    if (!upiRequests) return [];
+    const sorted = [...upiRequests].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+    if (filterStatus === 'all') {
+      return sorted;
+    }
+    return sorted.filter((r) => r.status === filterStatus);
+  }, [upiRequests, filterStatus]);
+
 
 
   const handleRejectRequest = (reason?: string) => {
@@ -154,8 +166,21 @@ export default function UpiRequestsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">UPI Verification Requests</h2>
-      <div className="rounded-lg border">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">UPI Verification Requests</h2>
+      </div>
+
+       <Tabs value={filterStatus} onValueChange={(value) => setFilterStatus(value as any)}>
+            <TabsList>
+                <TabsTrigger value="pending">Pending</TabsTrigger>
+                <TabsTrigger value="awaiting_confirmation">Awaiting User</TabsTrigger>
+                <TabsTrigger value="approved">Approved</TabsTrigger>
+                <TabsTrigger value="rejected">Rejected</TabsTrigger>
+                <TabsTrigger value="all">All</TabsTrigger>
+            </TabsList>
+        </Tabs>
+
+      <div className="rounded-lg border mt-4">
         <Table>
           <TableHeader>
             <TableRow>
@@ -174,8 +199,8 @@ export default function UpiRequestsPage() {
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : upiRequests && upiRequests.length > 0 ? (
-              upiRequests.map((request) => (
+            ) : filteredUpiRequests.length > 0 ? (
+              filteredUpiRequests.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell>{request.userName}</TableCell>
                   <TableCell>{request.upiId}</TableCell>
@@ -215,8 +240,8 @@ export default function UpiRequestsPage() {
               ))
             ) : (
                  <TableRow>
-                    <TableCell colSpan={6} className="text-center">
-                      No UPI requests found.
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      No {filterStatus.replace(/_/g, ' ')} UPI requests found.
                     </TableCell>
                 </TableRow>
             )}
@@ -281,5 +306,3 @@ export default function UpiRequestsPage() {
     </div>
   );
 }
-
-    

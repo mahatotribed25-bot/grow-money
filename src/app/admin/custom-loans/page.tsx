@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -37,6 +36,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { addDays } from 'date-fns';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type CustomLoanRequest = {
   id: string;
@@ -85,6 +85,19 @@ export default function CustomLoansPage() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [interestRate, setInterestRate] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected' | 'payment_pending'>('pending_admin_review');
+
+  const filteredRequests = useMemo(() => {
+    if (!requests) return [];
+    const sorted = [...requests].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+    if (filterStatus === 'all') {
+      return sorted;
+    }
+    if (filterStatus === 'rejected') {
+        return sorted.filter(r => r.status === 'rejected_by_admin' || r.status === 'rejected_by_user');
+    }
+    return sorted.filter((r) => r.status === filterStatus);
+  }, [requests, filterStatus]);
 
   const openApproveDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
@@ -231,13 +244,27 @@ export default function CustomLoansPage() {
     }
   };
   
-  const sortedRequests = requests?.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">Custom Loan Requests History</h2>
-      <div className="rounded-lg border">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Custom Loan Requests</h2>
+      </div>
+
+       <Tabs value={filterStatus} onValueChange={(value) => setFilterStatus(value as any)}>
+            <TabsList className="flex-wrap justify-start h-auto">
+                <TabsTrigger value="pending_admin_review">Pending Admin</TabsTrigger>
+                <TabsTrigger value="pending_user_approval">Pending User</TabsTrigger>
+                <TabsTrigger value="approved_by_user">User Approved</TabsTrigger>
+                <TabsTrigger value="active">Active</TabsTrigger>
+                <TabsTrigger value="payment_pending">Payment Pending</TabsTrigger>
+                <TabsTrigger value="completed">Completed</TabsTrigger>
+                <TabsTrigger value="rejected">Rejected</TabsTrigger>
+                <TabsTrigger value="all">All</TabsTrigger>
+            </TabsList>
+        </Tabs>
+
+      <div className="rounded-lg border mt-4">
         <Table>
           <TableHeader>
             <TableRow>
@@ -253,7 +280,8 @@ export default function CustomLoansPage() {
           <TableBody>
             {loading ? (
               <TableRow><TableCell colSpan={7} className="text-center">Loading...</TableCell></TableRow>
-            ) : sortedRequests?.map((request) => (
+            ) : filteredRequests.length > 0 ? (
+              filteredRequests.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell>{request.userName}</TableCell>
                   <TableCell>
@@ -299,7 +327,13 @@ export default function CustomLoansPage() {
                   </TableCell>
                 </TableRow>
               ))
-            }
+            ) : (
+                 <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                        No {filterStatus.replace(/_/g, ' ')} requests found.
+                    </TableCell>
+                </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
