@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -63,6 +62,8 @@ type Transaction = {
   delayBonusAmountPerDay?: number;
   delayBonusStartDate?: Timestamp;
   totalDelayBonus?: number;
+  gstAmount?: number;
+  finalAmount?: number;
 };
 
 type UpiRequest = {
@@ -840,6 +841,7 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
                             <TableRow>
                                 <TableHead>Amount</TableHead>
                                 <TableHead>Status</TableHead>
+                                <TableHead>Details</TableHead>
                                 <TableHead>Date</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -847,19 +849,33 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
                             {transactions && transactions.length > 0 ? (
                                 transactions.map(tx => (
                                     <TableRow key={tx.id}>
-                                        <TableCell>₹{tx.amount.toFixed(2)}</TableCell>
+                                        <TableCell className="font-semibold">
+                                            {type === 'withdrawal' && tx.status === 'approved'
+                                                ? `₹${(tx.finalAmount ?? 0).toFixed(2)}`
+                                                : `₹${tx.amount.toFixed(2)}`
+                                            }
+                                        </TableCell>
                                         <TableCell>
-                                            <div className="flex flex-col gap-2">
-                                                <Badge variant={getStatusVariant(tx.status)}>{tx.status}</Badge>
-                                                {type === 'withdrawal' && <WithdrawalStatus tx={tx} />}
-                                            </div>
+                                            <Badge variant={getStatusVariant(tx.status)}>{tx.status}</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {type === 'withdrawal' ? (
+                                                <div className="text-xs space-y-1 text-muted-foreground">
+                                                    <div>Req: ₹{tx.amount.toFixed(2)}</div>
+                                                    {tx.gstAmount != null && <div>GST: -₹{tx.gstAmount.toFixed(2)}</div>}
+                                                    {tx.totalDelayBonus != null && tx.totalDelayBonus > 0 && <div className="text-green-400">Bonus: +₹{tx.totalDelayBonus.toFixed(2)}</div>}
+                                                    {tx.status === 'pending' && <WithdrawalStatus tx={tx} />}
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">Deposit to wallet</span>
+                                            )}
                                         </TableCell>
                                         <TableCell>{formatDate(tx.createdAt)}</TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={3} className="text-center">No transactions found.</TableCell>
+                                    <TableCell colSpan={4} className="text-center">No transactions found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
