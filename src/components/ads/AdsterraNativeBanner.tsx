@@ -8,22 +8,10 @@ export function AdsterraNativeBanner() {
   useEffect(() => {
     // Ensure the script runs only once
     if (adContainerRef.current && adContainerRef.current.children.length === 0) {
-      const scriptConfig = document.createElement('script');
-      scriptConfig.innerHTML = `
-        atOptions = {
-          'key' : '27bc1190f2afeba8f384f5c9b7410c95',
-          'format' : 'iframe',
-          'height' : 90,
-          'width' : 728,
-          'params' : {}
-        };
-      `;
-      
-      const scriptInvoke = document.createElement('script');
-      scriptInvoke.src = 'https://www.highperformanceformat.com/27bc1190f2afeba8f384f5c9b7410c95/invoke.js';
-      
-      adContainerRef.current.appendChild(scriptConfig);
-      adContainerRef.current.appendChild(scriptInvoke);
+      const script = document.createElement('script');
+      script.src = 'https://pl29052938.profitablecpmratenetwork.com/4c/16/d4/4c16d4d350b2c75008c35b695c6a9130.js';
+      script.async = true;
+      adContainerRef.current.appendChild(script);
     }
   }, []);
 
