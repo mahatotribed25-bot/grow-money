@@ -1,19 +1,15 @@
-
 'use client';
 
 import Script from 'next/script';
 
 export function AdsterraNativeBanner() {
   return (
-    <div className="flex w-full justify-center my-4">
-      <div id="container-10d601e6e5e0c81bf640524d6092e5f3"></div>
-      <Script
-        id="adsterra-native-banner"
-        async
-        data-cfasync="false"
-        src="//pl28494441.effectivegatecpm.com/10d601e6e5e0c81bf640524d6092e5f3/invoke.js"
-        strategy="afterInteractive"
-      />
-    </div>
+    <Script
+      id="adsterra-ad"
+      async
+      data-cfasync="false"
+      src="https://pl28506232.profitablecpmratenetwork.com/e5/a4/32/e5a432744ffdcb052d30bec5ba0f793e.js"
+      strategy="afterInteractive"
+    />
   );
 }
