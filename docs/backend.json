@@ -400,6 +400,14 @@
             "type": "number",
             "description": "The maximum amount a user can request for a custom loan."
         },
+        "totalCustomLoanLimit": {
+            "type": "number",
+            "description": "The total amount of custom loans the platform will give out at any one time."
+        },
+        "currentCustomLoanUsage": {
+            "type": "number",
+            "description": "The currently active amount of custom loans given out."
+        },
         "isUnderMaintenance": {
             "type": "boolean",
             "description": "If true, the app is in maintenance mode."

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -19,6 +20,7 @@ import {
   Timestamp,
   serverTimestamp,
   getDoc,
+  runTransaction,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -189,22 +191,43 @@ export default function CustomLoansPage() {
 
   const handleMarkAsSent = async (request: CustomLoanRequest) => {
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
-    const now = new Date();
-    const dueDate = addDays(now, request.requestedDuration);
-
-    const updateData = {
-        status: 'active',
-        activatedAt: Timestamp.fromDate(now),
-        dueDate: Timestamp.fromDate(dueDate),
-    };
+    const settingsRef = doc(firestore, 'settings', 'admin');
+    
     try {
-        await updateDoc(requestRef, updateData);
+        await runTransaction(firestore, async (transaction) => {
+            const settingsDoc = await transaction.get(settingsRef);
+            if (!settingsDoc.exists()) {
+                throw new Error("Admin settings not found.");
+            }
+            const settingsData = settingsDoc.data();
+            const totalLimit = settingsData.totalCustomLoanLimit || 0;
+            const currentUsage = settingsData.currentCustomLoanUsage || 0;
+
+            if (totalLimit > 0 && currentUsage + request.requestedAmount > totalLimit) {
+                throw new Error("Cannot activate loan. This would exceed the platform's total loan limit.");
+            }
+
+            const newUsage = currentUsage + request.requestedAmount;
+            
+            const now = new Date();
+            const dueDate = addDays(now, request.requestedDuration);
+            const updateData = {
+                status: 'active',
+                activatedAt: Timestamp.fromDate(now),
+                dueDate: Timestamp.fromDate(dueDate),
+            };
+            
+            transaction.update(requestRef, updateData);
+            transaction.update(settingsRef, { currentCustomLoanUsage: newUsage });
+        });
+
         toast({ title: 'Loan Activated', description: 'Loan has been marked as sent and is now active.'});
-    } catch(e) {
+    } catch(e: any) {
+        toast({ title: 'Activation Failed', description: e.message, variant: 'destructive'});
         const permissionError = new FirestorePermissionError({
             path: requestRef.path,
             operation: 'update',
-            requestResourceData: updateData
+            requestResourceData: { status: 'active' }
         });
         errorEmitter.emit('permission-error', permissionError);
     }
@@ -212,17 +235,32 @@ export default function CustomLoansPage() {
   
   const handleMarkAsCompleted = async (request: CustomLoanRequest) => {
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
-    const updateData = {
-        status: 'completed',
-    };
+    const settingsRef = doc(firestore, 'settings', 'admin');
+
     try {
-        await updateDoc(requestRef, updateData);
+        await runTransaction(firestore, async (transaction) => {
+            const settingsDoc = await transaction.get(settingsRef);
+            if (!settingsDoc.exists()) {
+                console.warn("Admin settings not found, cannot update loan usage.");
+                transaction.update(requestRef, { status: 'completed' });
+                return;
+            }
+
+            const settingsData = settingsDoc.data();
+            const currentUsage = settingsData.currentCustomLoanUsage || 0;
+            const newUsage = Math.max(0, currentUsage - request.requestedAmount);
+
+            transaction.update(requestRef, { status: 'completed' });
+            transaction.update(settingsRef, { currentCustomLoanUsage: newUsage });
+        });
+
         toast({ title: 'Loan Completed', description: 'Loan has been marked as completed.'});
-    } catch(e) {
+    } catch(e: any) {
+        toast({ title: 'Completion Failed', description: e.message, variant: 'destructive'});
         const permissionError = new FirestorePermissionError({
             path: requestRef.path,
             operation: 'update',
-            requestResourceData: updateData
+            requestResourceData: { status: 'completed' }
         });
         errorEmitter.emit('permission-error', permissionError);
     }

@@ -37,6 +37,8 @@ type AdminSettings = {
   customLoanPenalty?: number;
   kycGoogleFormUrl?: string;
   maxCustomLoanAmount?: number;
+  totalCustomLoanLimit?: number;
+  currentCustomLoanUsage?: number;
   isUnderMaintenance?: boolean;
   maintenanceEndTime?: Timestamp;
   profitCalculationStartDate?: Timestamp;
@@ -73,6 +75,7 @@ export default function SettingsPage() {
   const [customLoanPenalty, setCustomLoanPenalty] = useState(0);
   const [kycGoogleFormUrl, setKycGoogleFormUrl] = useState('');
   const [maxCustomLoanAmount, setMaxCustomLoanAmount] = useState(0);
+  const [totalCustomLoanLimit, setTotalCustomLoanLimit] = useState(0);
   const [isUnderMaintenance, setIsUnderMaintenance] = useState(false);
   const [maintenanceDuration, setMaintenanceDuration] = useState(5);
   const [profitStartDate, setProfitStartDate] = useState<Date | null>(null);
@@ -106,6 +109,7 @@ export default function SettingsPage() {
       setCustomLoanPenalty(settings.customLoanPenalty || 0);
       setKycGoogleFormUrl(settings.kycGoogleFormUrl || '');
       setMaxCustomLoanAmount(settings.maxCustomLoanAmount || 5000);
+      setTotalCustomLoanLimit(settings.totalCustomLoanLimit || 0);
       setProfitStartDate(settings.profitCalculationStartDate?.toDate() || null);
       
       setDelayCompensationEnabled(settings.delayCompensationEnabled || false);
@@ -135,6 +139,7 @@ export default function SettingsPage() {
       customLoanPenalty: Number(customLoanPenalty),
       kycGoogleFormUrl: kycGoogleFormUrl,
       maxCustomLoanAmount: Number(maxCustomLoanAmount),
+      totalCustomLoanLimit: Number(totalCustomLoanLimit),
       delayCompensationEnabled,
       delayBonusPerDay: Number(delayBonusPerDay),
       maxBonusDays: Number(maxBonusDays),
@@ -592,7 +597,7 @@ export default function SettingsPage() {
                             </p>
                         </div>
                          <div className="space-y-2">
-                            <Label htmlFor="max-custom-loan">Max Custom Loan Amount</Label>
+                            <Label htmlFor="max-custom-loan">Max Custom Loan Amount (Per User)</Label>
                             <Input
                             id="max-custom-loan"
                             type="number"
@@ -601,7 +606,32 @@ export default function SettingsPage() {
                             onChange={(e) => setMaxCustomLoanAmount(Number(e.target.value))}
                             />
                              <p className="text-sm text-muted-foreground">
-                                The maximum amount a user can request for a custom loan.
+                                The maximum amount a user can request for a single custom loan.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="total-custom-loan-limit">Total Custom Loan Limit (Platform-Wide)</Label>
+                            <Input
+                                id="total-custom-loan-limit"
+                                type="number"
+                                placeholder="e.g., 100000"
+                                value={totalCustomLoanLimit}
+                                onChange={(e) => setTotalCustomLoanLimit(Number(e.target.value))}
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                The total amount of active custom loans the platform will give out at any one time.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Current Loan Usage</Label>
+                            <Input
+                                type="number"
+                                value={settings?.currentCustomLoanUsage || 0}
+                                readOnly
+                                className="bg-muted"
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                The current amount of active custom loans given out. This is updated automatically.
                             </p>
                         </div>
                     </div>
