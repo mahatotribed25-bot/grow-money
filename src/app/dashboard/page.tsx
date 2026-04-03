@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Wallet,
@@ -66,7 +65,6 @@ import { BannerCarousel } from '@/components/dashboard/BannerCarousel';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { isToday, startOfToday } from 'date-fns';
-import { AdsterraNativeBanner } from '@/components/ads/AdsterraNativeBanner';
 
 type UserData = {
   id: string;
@@ -325,8 +323,6 @@ export default function Dashboard() {
           <Announcements announcements={sortedAnnouncements} loading={announcementsLoading} />
           
           <DailyCheckInCard />
-
-          <AdsterraNativeBanner />
 
           <BannerCarousel />
 
@@ -698,7 +694,7 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
         operation: 'write',
         requestResourceData: requestData
       });
-      errorEmitter.emit('permission-error', permissionError);
+      errorEmitter.emit('permission-error', serverError);
     });
   };
 
