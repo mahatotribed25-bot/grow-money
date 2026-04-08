@@ -123,6 +123,10 @@
           "enum": ["Bronze", "Silver", "Gold", "Platinum"],
           "description": "The VIP level of the user, determining their benefits."
         },
+        "trustScore": {
+            "type": "number",
+            "description": "The user's internal trust score, calculated based on their activity."
+        },
         "lastCheckIn": {
             "type": "string",
             "format": "date-time",

@@ -50,6 +50,8 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import TrustScoreMeter from '@/components/TrustScoreMeter';
+import { calculateTrustScore } from '@/lib/trust-score';
 
 type Transaction = {
   id: string;
@@ -102,6 +104,27 @@ type GroupLoanPlan = {
     amountRepaid: number;
 }
 
+type Investment = {
+  id: string;
+  planName: string;
+  investedAmount: number;
+  returnAmount: number;
+  startDate: Timestamp;
+  maturityDate: Timestamp;
+  status: 'Active' | 'Matured' | 'Stopped';
+};
+
+type Loan = {
+  id: string;
+  status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
+  penalty?: number;
+};
+
+type Referral = {
+  id: string;
+  totalInvestment?: number;
+};
+
 type UserData = {
   referralCode?: string;
   upiId?: string;
@@ -114,6 +137,7 @@ type UserData = {
   kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
   kycRejectionReason?: string;
   vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+  trustScore?: number;
 };
 
 type AdminSettings = {
@@ -140,7 +164,7 @@ function useUserGroupInvestments(userId?: string) {
             for (const planDoc of plansSnapshot.docs) {
                 const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
                 const q = query(investmentsRef, where('investorId', '==', userId));
-                const investmentSnapshot = await getDocs(q);
+                const investmentSnapshot = await getDocs(iq);
 
                 investmentSnapshot.forEach(invDoc => {
                     allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
@@ -165,12 +189,14 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+  const { data: investments } = useCollection<Investment>(user ? `users/${user.uid}/investments` : null);
+  const { data: loans } = useCollection<Loan>(user ? `users/${user.uid}/loans` : null);
+  const { data: referrals } = useCollection<Referral>(user ? 'users' : null, { where: ['referredBy', '==', user?.uid] });
   const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null, { where: ['userId', '==', user?.uid]});
   const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null, { where: ['userId', '==', user?.uid]});
   const { data: groupInvestments } = useUserGroupInvestments(user?.uid);
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
-
-  const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   
   // KYC State
@@ -204,6 +230,22 @@ export default function ProfilePage() {
       setUpiProvider(userData.upiProvider || '');
     }
   }, [userData]);
+
+  useEffect(() => {
+    if (user && userData && investments && loans && referrals) {
+        const currentScore = userData.trustScore || 0;
+        const newScore = calculateTrustScore(investments, loans, referrals);
+        
+        // Only update if the score has changed to avoid unnecessary writes
+        if (newScore !== currentScore) {
+            const userRef = doc(firestore, 'users', user.uid);
+            updateDoc(userRef, { trustScore: newScore }).catch(error => {
+                // We don't need to show an error to the user for this background task
+                console.error("Failed to update trust score:", error);
+            });
+        }
+    }
+  }, [user, userData, investments, loans, referrals, firestore]);
 
 
   const handleLogout = async () => {
@@ -379,6 +421,20 @@ export default function ProfilePage() {
             </>
           }
           </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
+            <CardHeader>
+            <CardTitle>Your Trust Score</CardTitle>
+            <CardDescription>This score reflects your activity and reliability on our platform. A higher score may unlock better benefits.</CardDescription>
+            </CardHeader>
+            <CardContent>
+            {userDataloading ? (
+                <p>Calculating score...</p>
+            ) : (
+                <TrustScoreMeter score={userData?.trustScore || 500} />
+            )}
+            </CardContent>
         </Card>
 
         <RedeemCouponCard />
