@@ -1,4 +1,3 @@
-
 'use client';
 import {
   ChevronLeft,
@@ -175,7 +174,7 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
   const now = new Date();
 
   const totalDuration = maturityDate.getTime() - startDate.getTime();
-  const elapsedDuration = now.getTime() - elapsedDuration;
+  const elapsedDuration = now.getTime() - startDate.getTime();
   const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
 
   useEffect(() => {
