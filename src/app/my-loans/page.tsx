@@ -1,4 +1,3 @@
-
 'use client';
 import {
   ChevronLeft,
@@ -572,9 +571,11 @@ function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, admi
                             </div>
                         </div>
                     )}
-                     <Button className="w-full" onClick={handlePayNow} disabled={loan.status === 'payment_pending'}>
-                        {loan.status === 'payment_pending' ? 'Processing Payment...' : 'Pay Now'}
-                    </Button>
+                     {(isOverdue || loan.status === 'payment_pending') && (
+                        <Button className="w-full" onClick={handlePayNow} disabled={loan.status === 'payment_pending'}>
+                            {loan.status === 'payment_pending' ? 'Processing Payment...' : 'Pay Now'}
+                        </Button>
+                    )}
                 </div>
             )}
             
@@ -615,4 +616,3 @@ function BottomNavItem({
     </Link>
   );
 }
-
