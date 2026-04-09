@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, HandCoins, Info, Copy, QrCode } from 'lucide-react';
+import { Check, X, HandCoins, Info, Copy, QrCode, Send } from 'lucide-react';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
@@ -52,6 +52,7 @@ type WithdrawalRequest = {
   delayBonusAmountPerDay?: number;
   delayBonusStartDate?: Timestamp;
   totalDelayBonus?: number;
+  paidDate?: Timestamp;
 };
 
 const formatDate = (timestamp: Timestamp) => {
@@ -78,6 +79,35 @@ export default function WithdrawalsPage() {
     }
     return sorted.filter((w) => w.status === filterStatus);
   }, [withdrawals, filterStatus]);
+
+  const handleShareOnWhatsApp = (withdrawal: WithdrawalRequest) => {
+    const paidDateStr = withdrawal.paidDate
+      ? new Date(withdrawal.paidDate.seconds * 1000).toLocaleString()
+      : new Date().toLocaleString();
+
+    const message = `
+✅ *Payment Successful!*
+
+Dear *${withdrawal.name}*,
+
+Your withdrawal request has been approved and processed successfully.
+
+*Transaction Details:*
+-----------------------------------
+➡️ *Initial Request:* ₹${withdrawal.amount.toFixed(2)}
+📉 *GST Deducted:* ₹${(withdrawal.gstAmount || 0).toFixed(2)}
+🎁 *Delay Bonus Added:* ₹${(withdrawal.totalDelayBonus || 0).toFixed(2)}
+💰 *Final Payout Sent:* *₹${(withdrawal.finalAmount || withdrawal.amount).toFixed(2)}*
+🏦 *UPI ID:* ${withdrawal.upiId}
+🗓️ *Processed On:* ${paidDateStr}
+-----------------------------------
+
+The amount has been sent to your registered UPI ID. Thank you for being with Grow Money!
+    `.trim();
+    
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
 
   const handleReject = (withdrawal: WithdrawalRequest) => {
     const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
@@ -287,6 +317,16 @@ export default function WithdrawalsPage() {
                             </Button>
                         )}
                       </div>
+                    )}
+                    {withdrawal.status === 'approved' && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                            onClick={() => handleShareOnWhatsApp(withdrawal)}
+                        >
+                            <Send className="h-4 w-4 mr-1" /> Share on WhatsApp
+                        </Button>
                     )}
                   </TableCell>
                 </TableRow>
