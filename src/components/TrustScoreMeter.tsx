@@ -2,37 +2,46 @@
 
 import { useEffect, useState } from 'react';
 
-const getScoreColor = (score: number) => {
-  if (score < 500) return '#ef4444'; // red-500
-  if (score < 750) return '#facc15'; // yellow-400
-  return '#22c55e'; // green-500
-};
-
 const TrustScoreMeter = ({ score }: { score: number }) => {
   const [displayScore, setDisplayScore] = useState(300);
 
   const normalizedScore = Math.max(300, Math.min(score, 900));
-  const angle = ((normalizedScore - 300) / 600) * 180 - 90; // -90 to 90 degrees
-  const color = getScoreColor(normalizedScore);
 
   useEffect(() => {
-    // Animate the score number
-    const animation = requestAnimationFrame(() => {
-        setDisplayScore(normalizedScore);
-    });
-    return () => cancelAnimationFrame(animation);
+    let animationFrameId: number;
+    const animate = () => {
+      setDisplayScore(currentScore => {
+        const difference = normalizedScore - currentScore;
+        if (Math.abs(difference) < 0.5) {
+          return normalizedScore;
+        }
+        const newScore = currentScore + difference * 0.1;
+        animationFrameId = requestAnimationFrame(animate);
+        return newScore;
+      });
+    };
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
   }, [normalizedScore]);
 
+  // Angle from 0 (left) to 180 (right)
+  const angle = ((displayScore - 300) / 600) * 180;
 
-  const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
-    const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
-    return {
-      x: centerX + radius * Math.cos(angleInRadians),
-      y: centerY + radius * Math.sin(angleInRadians),
-    };
-  };
+  const width = 300;
+  const height = 160;
+  const cx = width / 2;
+  const cy = height - 10;
+  const radius = 120;
+  const strokeWidth = 25;
 
   const describeArc = (x: number, y: number, radius: number, startAngle: number, endAngle: number) => {
+    const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
+      const angleInRadians = ((angleInDegrees - 180) * Math.PI) / 180.0;
+      return {
+        x: centerX + radius * Math.cos(angleInRadians),
+        y: centerY + radius * Math.sin(angleInRadians),
+      };
+    };
     const start = polarToCartesian(x, y, radius, endAngle);
     const end = polarToCartesian(x, y, radius, startAngle);
     const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
@@ -40,52 +49,56 @@ const TrustScoreMeter = ({ score }: { score: number }) => {
     return d;
   };
 
-  const filledPath = describeArc(100, 100, 80, 180, 180 + ((normalizedScore - 300) / 600) * 180);
-
   return (
-    <div className="flex flex-col items-center justify-center h-[200px] w-full">
-      <svg viewBox="0 0 200 120" className="w-full h-full text-foreground">
-        {/* Background Arc */}
+    <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+        <defs>
+          <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style={{ stopColor: '#ef4444' }} />
+            <stop offset="50%" style={{ stopColor: '#facc15' }} />
+            <stop offset="100%" style={{ stopColor: '#22c55e' }} />
+          </linearGradient>
+        </defs>
+
+        {/* Gauge arc */}
         <path
-          d={describeArc(100, 100, 80, 180, 360)}
+          d={describeArc(cx, cy, radius, 180, 360)}
           fill="none"
-          stroke="hsl(var(--muted))"
-          strokeWidth="20"
+          stroke="url(#gaugeGradient)"
+          strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
-        {/* Filled Arc */}
-        <path
-          d={filledPath}
-          fill="none"
-          stroke={color}
-          strokeWidth="20"
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dasharray 0.5s ease' }}
-        />
-        {/* Needle ("the stick") */}
-        <g transform={`rotate(${angle} 100 100)`}>
-            <line x1="100" y1="100" x2="100" y2="30" stroke="hsl(var(--foreground))" strokeWidth="2" />
-            <circle cx="100" cy="100" r="5" fill="hsl(var(--foreground))" />
+
+        {/* Needle */}
+        <g
+          transform={`rotate(${angle} ${cx} ${cy})`}
+          style={{ transition: 'transform 0.2s ease-out' }}
+        >
+          {/* The polygon points are defined as if it's pointing left, then the whole group is rotated */}
+          <polygon
+            points={`${cx - radius + strokeWidth/2 - 2},${cy} ${cx - radius - 15},${cy - 8} ${cx - radius - 15},${cy + 8}`}
+            fill="hsl(var(--card-foreground))"
+          />
         </g>
         
         {/* Text */}
         <text
-          x="100"
-          y="95"
+          x={cx}
+          y={cy - 60}
           textAnchor="middle"
           dominantBaseline="middle"
-          className="text-5xl font-bold fill-current"
+          className="text-lg font-semibold fill-current text-muted-foreground"
         >
-          {Math.round(displayScore)}
+          YOUR SCORE:
         </text>
         <text
-          x="100"
-          y="115"
+          x={cx}
+          y={cy - 20}
           textAnchor="middle"
           dominantBaseline="middle"
-          className="text-sm font-medium fill-current text-muted-foreground"
+          className="text-6xl font-bold fill-current"
         >
-          Trust Score
+          {Math.round(displayScore)}
         </text>
       </svg>
     </div>
