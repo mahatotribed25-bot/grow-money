@@ -508,6 +508,7 @@ function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, admi
     }
   };
   
+  const isOverdue = currentTime && loan.dueDate && currentTime > loan.dueDate.toDate();
   const totalRepayment = (loan.totalRepayment || 0) + (loan.penalty || 0);
 
   return (
@@ -549,10 +550,12 @@ function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, admi
             ) : (loan.status === 'active' || loan.status === 'payment_pending') && (
                  <div className="p-4 bg-muted/50 rounded-lg space-y-3 mt-4">
                     <h4 className="font-bold text-center">Active Loan Details</h4>
-                    <div className="flex justify-between text-sm text-destructive">
-                        <p className="font-semibold">Overdue Penalty</p>
-                        <p className="font-semibold">₹{(loan.penalty || 0).toFixed(2)}</p>
-                    </div>
+                    {isOverdue && (
+                        <div className="flex justify-between text-sm text-destructive">
+                            <p className="font-semibold">Overdue Penalty</p>
+                            <p className="font-semibold">₹{(loan.penalty || 0).toFixed(2)}</p>
+                        </div>
+                    )}
                      <div className="flex justify-between text-lg font-bold">
                         <p>Total Repayment Due</p>
                         <p>₹{totalRepayment.toFixed(2)}</p>
@@ -561,7 +564,11 @@ function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, admi
                         <div className="space-y-1">
                             <div className="flex justify-between text-xs text-muted-foreground">
                                 <span>Time Remaining:</span>
-                                <CountdownTimer endDate={loan.dueDate.toDate()} />
+                                {isOverdue ? (
+                                    <span className="font-semibold text-destructive">Overdue</span>
+                                ) : (
+                                    <CountdownTimer endDate={loan.dueDate.toDate()} />
+                                )}
                             </div>
                         </div>
                     )}
