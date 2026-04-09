@@ -13,6 +13,7 @@ const TrustScoreMeter = ({ score }: { score: number }) => {
       setDisplayScore(currentScore => {
         const difference = normalizedScore - currentScore;
         if (Math.abs(difference) < 0.5) {
+          cancelAnimationFrame(animationFrameId);
           return normalizedScore;
         }
         const newScore = currentScore + difference * 0.1;
@@ -24,28 +25,34 @@ const TrustScoreMeter = ({ score }: { score: number }) => {
     return () => cancelAnimationFrame(animationFrameId);
   }, [normalizedScore]);
 
-  // Angle from 0 (left) to 180 (right)
-  const angle = ((displayScore - 300) / 600) * 180;
+  // Rotation from 0 (left) to 180 (right)
+  const rotation = ((displayScore - 300) / 600) * 180;
 
   const width = 300;
-  const height = 160;
+  const height = 180; // Adjusted height for better spacing
   const cx = width / 2;
-  const cy = height - 10;
-  const radius = 120;
+  const cy = height - 20; // Pivot point at the bottom
+  const radius = 130;
   const strokeWidth = 25;
 
   const describeArc = (x: number, y: number, radius: number, startAngle: number, endAngle: number) => {
     const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
-      const angleInRadians = ((angleInDegrees - 180) * Math.PI) / 180.0;
+      const angleInRadians = (angleInDegrees * Math.PI) / 180.0;
       return {
         x: centerX + radius * Math.cos(angleInRadians),
         y: centerY + radius * Math.sin(angleInRadians),
       };
     };
-    const start = polarToCartesian(x, y, radius, endAngle);
-    const end = polarToCartesian(x, y, radius, startAngle);
-    const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
-    const d = ['M', start.x, start.y, 'A', radius, radius, 0, largeArcFlag, 0, end.x, end.y].join(' ');
+
+    const start = polarToCartesian(x, y, radius, startAngle);
+    const end = polarToCartesian(x, y, radius, endAngle);
+
+    // M(start) A(rx,ry, x-axis-rotation, large-arc-flag, sweep-flag, end)
+    const d = [
+        "M", start.x, start.y, 
+        "A", radius, radius, 0, 0, 1, end.x, end.y
+    ].join(" ");
+
     return d;
   };
 
@@ -60,7 +67,7 @@ const TrustScoreMeter = ({ score }: { score: number }) => {
           </linearGradient>
         </defs>
 
-        {/* Gauge arc */}
+        {/* Gauge arc (top semi-circle, from West to East) */}
         <path
           d={describeArc(cx, cy, radius, 180, 360)}
           fill="none"
@@ -69,31 +76,40 @@ const TrustScoreMeter = ({ score }: { score: number }) => {
           strokeLinecap="round"
         />
 
-        {/* Needle */}
+        {/* Needle group, rotated around the pivot point */}
         <g
-          transform={`rotate(${angle} ${cx} ${cy})`}
-          style={{ transition: 'transform 0.2s ease-out' }}
+          transform={`rotate(${rotation} ${cx} ${cy})`}
+          style={{ transition: 'transform 0.5s cubic-bezier(0.64, 0, 0.78, 1)' }}
         >
-          {/* The polygon points are defined as if it's pointing left, then the whole group is rotated */}
-          <polygon
-            points={`${cx - radius + strokeWidth/2 - 2},${cy} ${cx - radius - 15},${cy - 8} ${cx - radius - 15},${cy + 8}`}
-            fill="hsl(var(--card-foreground))"
+          {/* The needle itself, pointing left (west) from the pivot */}
+          <line
+            x1={cx}
+            y1={cy}
+            x2={cx - radius + (strokeWidth / 2)}
+            y2={cy}
+            stroke="hsl(var(--foreground))"
+            strokeWidth={3}
+            strokeLinecap="round"
           />
         </g>
+        
+        {/* Pivot point circle on top of the needle */}
+        <circle cx={cx} cy={cy} r="6" fill="hsl(var(--foreground))" />
+        <circle cx={cx} cy={cy} r="3" fill="hsl(var(--background))" />
         
         {/* Text */}
         <text
           x={cx}
-          y={cy - 60}
+          y={cy - 65}
           textAnchor="middle"
           dominantBaseline="middle"
           className="text-lg font-semibold fill-current text-muted-foreground"
         >
-          YOUR SCORE:
+          YOUR SCORE
         </text>
         <text
           x={cx}
-          y={cy - 20}
+          y={cy - 30}
           textAnchor="middle"
           dominantBaseline="middle"
           className="text-6xl font-bold fill-current"
