@@ -39,6 +39,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { addDays } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 
 type CustomLoanRequest = {
   id: string;
@@ -85,9 +86,15 @@ export default function CustomLoansPage() {
   const [userKycData, setUserKycData] = useState<UserData | null>(null);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [interestRate, setInterestRate] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected' | 'payment_pending'>('pending_admin_review');
+
+  const [calculatedInterestInfo, setCalculatedInterestInfo] = useState<{
+    dailyInterest: number;
+    totalInterest: number;
+    totalRepayment: number;
+    interestRate: number;
+  } | null>(null);
 
   const filteredRequests = useMemo(() => {
     if (!requests) return [];
@@ -103,7 +110,18 @@ export default function CustomLoansPage() {
 
   const openApproveDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
-    setInterestRate('');
+    
+    const dailyInterest = (request.requestedAmount / 1000) * 5;
+    const totalInterest = dailyInterest * request.requestedDuration;
+    const totalRepayment = request.requestedAmount + totalInterest;
+    const interestRate = (totalInterest / request.requestedAmount) * 100;
+
+    setCalculatedInterestInfo({
+        dailyInterest,
+        totalInterest,
+        totalRepayment,
+        interestRate,
+    });
     
     try {
         const userRef = doc(firestore, 'users', request.userId);
@@ -129,25 +147,17 @@ export default function CustomLoansPage() {
   };
   
   const handleApprove = async () => {
-    if (!requestToUpdate || !interestRate) {
-        toast({ title: "Interest rate is required", variant: 'destructive'});
+    if (!requestToUpdate || !calculatedInterestInfo) {
+        toast({ title: "Error calculating interest.", variant: 'destructive'});
         return;
     }
-    const rate = parseFloat(interestRate);
-    if(isNaN(rate) || rate < 0) {
-        toast({ title: "Invalid interest rate", variant: 'destructive'});
-        return;
-    }
-
-    const interestAmount = (requestToUpdate.requestedAmount * rate) / 100;
-    const totalRepayment = requestToUpdate.requestedAmount + interestAmount;
 
     const requestRef = doc(firestore, 'customLoanRequests', requestToUpdate.id);
     const updateData = {
-        status: 'pending_user_approval',
-        interestRate: rate,
-        interestAmount: interestAmount,
-        totalRepayment: totalRepayment,
+        status: 'pending_user_approval' as const,
+        interestRate: calculatedInterestInfo.interestRate,
+        interestAmount: calculatedInterestInfo.totalInterest,
+        totalRepayment: calculatedInterestInfo.totalRepayment,
         adminApprovedAt: serverTimestamp(),
     };
 
@@ -156,6 +166,7 @@ export default function CustomLoansPage() {
         toast({ title: 'Offer Sent', description: 'Loan offer sent to user for approval.'});
         setIsApproveDialogOpen(false);
         setRequestToUpdate(null);
+        setCalculatedInterestInfo(null);
     } catch(e) {
         const permissionError = new FirestorePermissionError({
             path: requestRef.path,
@@ -329,7 +340,7 @@ export default function CustomLoansPage() {
                   <TableCell>
                     {request.interestRate !== undefined ? (
                         <>
-                            <div className="font-semibold">{request.interestRate}%</div>
+                            <div className="font-semibold">{request.interestRate.toFixed(2)}%</div>
                             <div className="text-xs text-muted-foreground">₹{request.interestAmount?.toFixed(2)}</div>
                         </>
                     ) : (
@@ -377,11 +388,17 @@ export default function CustomLoansPage() {
       </div>
       
       {/* Approve Dialog */}
-      <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
+      <Dialog open={isApproveDialogOpen} onOpenChange={(isOpen) => {
+          setIsApproveDialogOpen(isOpen);
+          if (!isOpen) {
+            setUserKycData(null);
+            setCalculatedInterestInfo(null);
+          }
+      }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Approve Loan & Set Interest</DialogTitle>
-            <DialogDescription>Review KYC and payment details, then set the interest rate. The offer will be sent to the user.</DialogDescription>
+            <DialogTitle>Approve Loan & Send Offer</DialogTitle>
+            <DialogDescription>Review user and payment details. The interest is calculated automatically. Click "Send Offer" to confirm.</DialogDescription>
           </DialogHeader>
           
           {userKycData ? (
@@ -414,12 +431,31 @@ export default function CustomLoansPage() {
             </div>
           )}
           
-          <div className="space-y-2">
-            <Label htmlFor="interestRate">Interest Rate (%)</Label>
-            <Input id="interestRate" type="number" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} placeholder="e.g., 5" />
-          </div>
+          {calculatedInterestInfo && requestToUpdate && (
+            <div className="space-y-2 rounded-md border p-4 my-2 bg-muted/50">
+              <h4 className="font-semibold text-center">Loan Offer Summary</h4>
+               <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Loan Amount:</span>
+                <span className="font-semibold">₹{requestToUpdate?.requestedAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Daily Interest (@ ₹5 per ₹1000):</span>
+                <span className="font-semibold">₹{calculatedInterestInfo.dailyInterest.toFixed(2)}</span>
+              </div>
+               <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Total Interest ({requestToUpdate?.requestedDuration} days):</span>
+                <span className="font-semibold text-red-400">₹{calculatedInterestInfo.totalInterest.toFixed(2)}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between text-lg font-bold">
+                <span>Total Repayment:</span>
+                <span>₹{calculatedInterestInfo.totalRepayment.toFixed(2)}</span>
+              </div>
+            </div>
+          )}
+
           <DialogFooter>
-            <DialogClose asChild><Button variant="outline" onClick={() => setUserKycData(null)}>Cancel</Button></DialogClose>
+            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
             <Button onClick={handleApprove}>Send Offer</Button>
           </DialogFooter>
         </DialogContent>
