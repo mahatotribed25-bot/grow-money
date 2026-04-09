@@ -396,6 +396,10 @@
           "type": "number",
           "description": "Daily penalty applied for each day a custom loan is overdue after the grace period."
         },
+        "customLoanInterestPer1000": {
+          "type": "number",
+          "description": "The daily interest amount charged per 1000 units of currency for custom loans."
+        },
         "kycGoogleFormUrl": {
             "type": "string",
             "description": "The URL for the Google Form to be used for KYC document submission."

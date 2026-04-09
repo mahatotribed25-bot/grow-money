@@ -13,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Check, X, Send, Banknote, Landmark } from 'lucide-react';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useDoc } from '@/firebase';
 import {
   doc,
   updateDoc,
@@ -72,13 +72,18 @@ type UserData = {
   kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
 };
 
+type AdminSettings = {
+    customLoanInterestPer1000?: number;
+}
+
 const formatDate = (timestamp?: Timestamp) => {
   if (!timestamp) return 'N/A';
   return new Date(timestamp.seconds * 1000).toLocaleString();
 };
 
 export default function CustomLoansPage() {
-  const { data: requests, loading } = useCollection<CustomLoanRequest>('customLoanRequests');
+  const { data: requests, loading: requestsLoading } = useCollection<CustomLoanRequest>('customLoanRequests');
+  const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>('settings/admin');
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -96,6 +101,8 @@ export default function CustomLoansPage() {
     interestRate: number;
   } | null>(null);
 
+  const loading = requestsLoading || settingsLoading;
+
   const filteredRequests = useMemo(() => {
     if (!requests) return [];
     const sorted = [...requests].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
@@ -111,7 +118,8 @@ export default function CustomLoansPage() {
   const openApproveDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
     
-    const dailyInterest = (request.requestedAmount / 1000) * 5;
+    const interestPer1000 = adminSettings?.customLoanInterestPer1000 || 5;
+    const dailyInterest = (request.requestedAmount / 1000) * interestPer1000;
     const totalInterest = dailyInterest * request.requestedDuration;
     const totalRepayment = request.requestedAmount + totalInterest;
     const interestRate = (totalInterest / request.requestedAmount) * 100;
@@ -439,7 +447,7 @@ export default function CustomLoansPage() {
                 <span className="font-semibold">₹{requestToUpdate?.requestedAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Daily Interest (@ ₹5 per ₹1000):</span>
+                <span className="text-muted-foreground">Daily Interest (@ ₹{adminSettings?.customLoanInterestPer1000 || 5} per ₹1000):</span>
                 <span className="font-semibold">₹{calculatedInterestInfo.dailyInterest.toFixed(2)}</span>
               </div>
                <div className="flex justify-between text-sm">

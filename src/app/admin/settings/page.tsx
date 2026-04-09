@@ -35,6 +35,7 @@ type AdminSettings = {
   withdrawalGstPercentage?: number;
   loanPenalty?: number;
   customLoanPenalty?: number;
+  customLoanInterestPer1000?: number;
   kycGoogleFormUrl?: string;
   maxCustomLoanAmount?: number;
   totalCustomLoanLimit?: number;
@@ -73,6 +74,7 @@ export default function SettingsPage() {
   const [withdrawalGstPercentage, setWithdrawalGstPercentage] = useState(0);
   const [loanPenalty, setLoanPenalty] = useState(0);
   const [customLoanPenalty, setCustomLoanPenalty] = useState(0);
+  const [customLoanInterest, setCustomLoanInterest] = useState(5);
   const [kycGoogleFormUrl, setKycGoogleFormUrl] = useState('');
   const [maxCustomLoanAmount, setMaxCustomLoanAmount] = useState(0);
   const [totalCustomLoanLimit, setTotalCustomLoanLimit] = useState(0);
@@ -107,6 +109,7 @@ export default function SettingsPage() {
       setWithdrawalGstPercentage(settings.withdrawalGstPercentage || 0);
       setLoanPenalty(settings.loanPenalty || 0);
       setCustomLoanPenalty(settings.customLoanPenalty || 0);
+      setCustomLoanInterest(settings.customLoanInterestPer1000 || 5);
       setKycGoogleFormUrl(settings.kycGoogleFormUrl || '');
       setMaxCustomLoanAmount(settings.maxCustomLoanAmount || 5000);
       setTotalCustomLoanLimit(settings.totalCustomLoanLimit || 0);
@@ -137,6 +140,7 @@ export default function SettingsPage() {
       withdrawalGstPercentage: Number(withdrawalGstPercentage),
       loanPenalty: Number(loanPenalty),
       customLoanPenalty: Number(customLoanPenalty),
+      customLoanInterestPer1000: Number(customLoanInterest),
       kycGoogleFormUrl: kycGoogleFormUrl,
       maxCustomLoanAmount: Number(maxCustomLoanAmount),
       totalCustomLoanLimit: Number(totalCustomLoanLimit),
@@ -570,6 +574,19 @@ export default function SettingsPage() {
                  <div>
                     <CardTitle>Loan Settings</CardTitle>
                      <div className="space-y-4 mt-4">
+                         <div className="space-y-2">
+                            <Label htmlFor="custom-loan-interest">Daily Custom Loan Interest (per ₹1000)</Label>
+                            <Input
+                                id="custom-loan-interest"
+                                type="number"
+                                placeholder="e.g., 5"
+                                value={customLoanInterest}
+                                onChange={(e) => setCustomLoanInterest(Number(e.target.value))}
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                The amount of interest charged per day for every ₹1000 of the loan amount.
+                            </p>
+                        </div>
                          <div className="space-y-2">
                             <Label htmlFor="loan-penalty">Daily Plan Loan Overdue Penalty</Label>
                             <Input
