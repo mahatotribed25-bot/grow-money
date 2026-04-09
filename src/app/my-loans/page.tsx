@@ -23,6 +23,8 @@ import { useEffect, useState } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { addDays } from 'date-fns';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
@@ -45,6 +47,7 @@ type Loan = {
   durationType: DurationType;
   repaymentMethod: 'EMI' | 'Direct';
   emis?: EMI[];
+  interest?: number;
 };
 
 type AdminSettings = {
@@ -175,6 +178,40 @@ export default function MyLoansPage() {
   );
 }
 
+function getStatusVariant(status: string) {
+    switch (status) {
+        case 'Active':
+        case 'Paid':
+        case 'approved_by_user':
+             return 'default';
+        case 'Due':
+        case 'rejected_by_user':
+        case 'rejected_by_admin':
+            return 'destructive';
+        case 'Payment Pending':
+        case 'pending_user_approval':
+             return 'outline';
+        case 'Completed':
+        case 'pending_admin_review':
+            return 'secondary';
+        default: return 'secondary';
+    }
+}
+
+function InfoItem({ label, value, isBadge = false, badgeClass }: { label: string, value: string | number, isBadge?: boolean, badgeClass?: string }) {
+  const valueAsString = String(value);
+  return (
+    <div className="space-y-1">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      {isBadge ? (
+        <Badge variant={getStatusVariant(valueAsString)} className={cn("capitalize", badgeClass)}>{valueAsString}</Badge>
+      ) : (
+        <p className="font-semibold">{value}</p>
+      )}
+    </div>
+  );
+}
+
 
 function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSettings | null }) {
   const { user } = useUser();
@@ -283,18 +320,6 @@ function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSet
     });
   };
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-        case 'Active':
-        case 'Paid':
-             return 'default';
-        case 'Due': return 'destructive';
-        case 'Payment Pending': return 'outline';
-        case 'Completed': return 'secondary';
-        default: return 'secondary';
-    }
-  }
-
   const isEmiPayable = (emi: EMI) => {
       return currentTime && (new Date(emi.dueDate.seconds * 1000) <= currentTime) && emi.status === 'Pending';
   }
@@ -302,37 +327,28 @@ function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSet
   return (
     <Card className="bg-gradient-to-br from-card to-secondary/30 border-primary/10">
       <CardHeader>
-        <CardTitle className="flex justify-between items-center">
-          <span>{loan.planName}</span>
-          <Badge variant={getStatusVariant(loan.status)} className="capitalize">
-            {loan.status}
-          </Badge>
-        </CardTitle>
+        <CardTitle>{loan.planName}</CardTitle>
         <CardDescription>Loan taken on: {startDate.toLocaleDateString()}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex justify-between">
-          <p className="text-sm text-muted-foreground">Loan Amount</p>
-          <p className="font-semibold">₹{(loan.loanAmount || 0).toFixed(2)}</p>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+            <InfoItem label="Loan Amount" value={`₹${(loan.loanAmount || 0).toFixed(2)}`} />
+            <InfoItem label="Interest" value={`₹${(loan.interest || 0).toFixed(2)}`} />
+            <InfoItem label="Repayment Method" value={loan.repaymentMethod} />
+            <InfoItem label="Status" value={loan.status} isBadge />
         </div>
-        {loan.status === 'Due' && loan.penalty ? (
-            <>
-                <div className="flex justify-between">
-                  <p className="text-sm text-muted-foreground">Original Repayment</p>
-                  <p className="font-semibold">₹{(loan.totalPayable || 0).toFixed(2)}</p>
-                </div>
-                 <div className="flex justify-between text-destructive">
-                  <p className="text-sm font-semibold">Overdue Penalty</p>
-                  <p className="font-semibold">₹{(loan.penalty || 0).toFixed(2)}</p>
-                </div>
-            </>
-        ) : null}
-        <div className="flex justify-between">
-          <p className="text-sm text-muted-foreground">Total Repayment Due</p>
-          <p className="font-semibold text-red-400">
-            ₹{totalRepayment.toFixed(2)}
-          </p>
+        <Separator/>
+        <div className="space-y-2">
+            <div className="flex justify-between text-sm text-destructive">
+                <p className="font-semibold">Overdue Penalty</p>
+                <p className="font-semibold">₹{(loan.penalty || 0).toFixed(2)}</p>
+            </div>
+            <div className="flex justify-between text-lg font-bold">
+                <p>Total Repayment Due</p>
+                <p>₹{totalRepayment.toFixed(2)}</p>
+            </div>
         </div>
+        
         {loan.status === 'Active' && currentTime && (
             <div className="space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
@@ -344,7 +360,7 @@ function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSet
         
         {loan.repaymentMethod === 'EMI' && loan.emis ? (
             <div className="space-y-2">
-                <h4 className="font-semibold">EMI Schedule</h4>
+                <h4 className="font-semibold text-sm">EMI Schedule</h4>
                  <Table>
                     <TableHeader>
                         <TableRow>
@@ -491,22 +507,6 @@ function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, admi
         errorEmitter.emit('permission-error', permissionError);
     }
   };
-
-
-  const getStatusBadge = (status: CustomLoanRequest['status']) => {
-     switch (status) {
-      case 'pending_admin_review': return <Badge variant="secondary">Pending Admin</Badge>;
-      case 'pending_user_approval': return <Badge variant="outline" className="border-blue-500 text-blue-400">Offer Received</Badge>;
-      case 'approved_by_user': return <Badge variant="default">You Approved</Badge>;
-      case 'active': return <Badge variant="default" className="bg-green-600">Active</Badge>;
-      case 'payment_pending': return <Badge variant="outline">Payment Pending</Badge>;
-      case 'completed': return <Badge variant="outline">Completed</Badge>;
-      case 'rejected_by_user':
-      case 'rejected_by_admin':
-        return <Badge variant="destructive">Rejected</Badge>;
-      default: return <Badge>{status}</Badge>;
-    }
-  };
   
   const totalRepayment = (loan.totalRepayment || 0) + (loan.penalty || 0);
 
@@ -515,19 +515,15 @@ function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, admi
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
             <span>Custom Loan Request</span>
-            {getStatusBadge(loan.status)}
+            <Badge variant={getStatusVariant(loan.status)} className="capitalize">{loan.status}</Badge>
         </CardTitle>
         <CardDescription>Requested on: {loan.createdAt.toDate().toLocaleDateString()}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-                <p className="text-muted-foreground">Requested Amount</p>
-                <p className="font-semibold">₹{(loan.requestedAmount || 0).toFixed(2)}</p>
-            </div>
-             <div className="flex justify-between text-sm">
-                <p className="text-muted-foreground">Requested Duration</p>
-                <p className="font-semibold">{loan.requestedDuration} days</p>
+        <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+                <InfoItem label="Requested Amount" value={`₹${(loan.requestedAmount || 0).toFixed(2)}`} />
+                <InfoItem label="Requested Duration" value={`${loan.requestedDuration} days`} />
             </div>
             
             {loan.status === 'pending_user_approval' ? (
@@ -552,14 +548,12 @@ function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, admi
                 </div>
             ) : (loan.status === 'active' || loan.status === 'payment_pending') && (
                  <div className="p-4 bg-muted/50 rounded-lg space-y-3 mt-4">
-                    <h4 className="font-bold text-center">Loan Details</h4>
-                    {loan.penalty && loan.penalty > 0 && (
-                        <div className="flex justify-between text-sm text-destructive">
-                            <p className="font-semibold">Overdue Penalty</p>
-                            <p className="font-semibold">₹{(loan.penalty || 0).toFixed(2)}</p>
-                        </div>
-                    )}
-                     <div className="flex justify-between text-sm font-bold">
+                    <h4 className="font-bold text-center">Active Loan Details</h4>
+                    <div className="flex justify-between text-sm text-destructive">
+                        <p className="font-semibold">Overdue Penalty</p>
+                        <p className="font-semibold">₹{(loan.penalty || 0).toFixed(2)}</p>
+                    </div>
+                     <div className="flex justify-between text-lg font-bold">
                         <p>Total Repayment Due</p>
                         <p>₹{totalRepayment.toFixed(2)}</p>
                     </div>
@@ -614,3 +608,4 @@ function BottomNavItem({
     </Link>
   );
 }
+
