@@ -30,10 +30,41 @@ type Investment = {
   startDate: Timestamp;
   maturityDate: Timestamp;
   status: 'Active' | 'Matured' | 'Stopped';
+  dailyIncome: number;
   finalReturn?: number;
   daysActive?: number;
   earnedIncome?: number;
 };
+
+const CountdownTimer = ({ endDate }: { endDate: Date }) => {
+    const [timeLeft, setTimeLeft] = useState('');
+
+    useEffect(() => {
+        const calculateTimeLeft = () => {
+            const now = new Date();
+            const distance = endDate.getTime() - now.getTime();
+
+            if (distance < 0) {
+                setTimeLeft("Matured");
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+
+            setTimeLeft(`${days}d ${hours}h ${minutes}m`);
+        };
+        
+        calculateTimeLeft();
+        const interval = setInterval(calculateTimeLeft, 1000 * 60); // update every minute
+
+        return () => clearInterval(interval);
+    }, [endDate]);
+
+    return <span className="font-mono">{timeLeft}</span>;
+};
+
 
 export default function MyPlansPage() {
   const { user, loading: userLoading } = useUser();
@@ -175,7 +206,9 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
 
   const totalDuration = maturityDate.getTime() - startDate.getTime();
   const elapsedDuration = now.getTime() - startDate.getTime();
-  const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
+  const progress = totalDuration > 0 ? Math.min((elapsedDuration / totalDuration) * 100, 100) : 100;
+  
+  const wasStoppedEarly = investment.status === 'Stopped';
 
   useEffect(() => {
     if (investment.status === 'Stopped' || (investment.status === 'Active' && now >= maturityDate)) {
@@ -187,17 +220,23 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
   const handleClaimClick = async () => {
     setIsClaiming(true);
     await onClaim(investment);
-    setIsClaiming(false);
+    // Don't set isClaiming to false, the card will re-render with "Matured" status and disappear from this tab
   }
 
   const getBadge = () => {
     if (investment.status === 'Matured') return <Badge variant="outline">Matured</Badge>;
-    if (investment.status === 'Stopped') return <Badge variant="destructive">Stopped</Badge>;
+    if (wasStoppedEarly) return <Badge variant="destructive">Stopped</Badge>;
     if (isClaimable) return <Badge>Matured</Badge>;
     return <Badge>Active</Badge>;
   }
   
-  const wasStoppedEarly = investment.daysActive !== undefined && investment.earnedIncome !== undefined;
+  const totalProfit = wasStoppedEarly
+    ? investment.earnedIncome || 0
+    : investment.returnAmount - investment.investedAmount;
+
+  const finalReturn = wasStoppedEarly 
+    ? investment.finalReturn || 0
+    : investment.returnAmount || 0;
 
   return (
     <Card className="bg-gradient-to-br from-card to-secondary/30 border-primary/10">
@@ -208,36 +247,31 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
         </CardTitle>
         <CardDescription>Invested on: {startDate.toLocaleDateString()}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex justify-between">
-          <p className="text-sm text-muted-foreground">Invested Amount</p>
-          <p className="font-semibold">₹{(investment.investedAmount || 0).toFixed(2)}</p>
+      <CardContent className="space-y-4">
+        
+        <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="space-y-1">
+                <p className="text-muted-foreground">Invested</p>
+                <p className="font-semibold">₹{(investment.investedAmount || 0).toFixed(2)}</p>
+            </div>
+             <div className="space-y-1">
+                <p className="text-muted-foreground">Daily Income</p>
+                <p className="font-semibold text-green-400">+ ₹{(investment.dailyIncome || 0).toFixed(2)}</p>
+            </div>
+            <div className="space-y-1">
+                <p className="text-muted-foreground">Total Profit</p>
+                <p className="font-semibold">₹{totalProfit.toFixed(2)}</p>
+            </div>
+             <div className="space-y-1">
+                <p className="text-muted-foreground">{wasStoppedEarly ? 'Final Return' : 'Maturity Return'}</p>
+                <p className="font-semibold">₹{finalReturn.toFixed(2)}</p>
+            </div>
         </div>
 
-        {wasStoppedEarly ? (
-          <>
-            <div className="flex justify-between text-sm">
-                <p className="text-muted-foreground">Active Duration</p>
-                <p className="font-semibold">{investment.daysActive} days</p>
-            </div>
-            <div className="flex justify-between text-sm">
-                <p className="text-muted-foreground">Interest Earned</p>
-                <p className="font-semibold text-green-400">₹{(investment.earnedIncome || 0).toFixed(2)}</p>
-            </div>
-             <div className="flex justify-between">
-              <p className="text-sm text-muted-foreground">{investment.status === 'Matured' ? 'Actual Return Received' : 'Final Return (Claimable)'}</p>
-              <p className="font-semibold text-green-400">
-                ₹{(investment.finalReturn || 0).toFixed(2)}
-              </p>
-            </div>
-          </>
-        ) : (
-           <div className="flex justify-between">
-            <p className="text-sm text-muted-foreground">Maturity Return</p>
-            <p className="font-semibold text-green-400">
-              ₹{(investment.returnAmount || 0).toFixed(2)}
+        {wasStoppedEarly && (
+            <p className="text-xs text-center text-muted-foreground">
+                Plan was stopped after {investment.daysActive} days.
             </p>
-          </div>
         )}
 
         {investment.status === 'Active' && (
@@ -246,11 +280,12 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
                     {isClaiming ? 'Claiming...' : 'Claim Return'}
                 </Button>
             ) : (
-                <div className="space-y-1">
+                <div className="space-y-2 pt-2">
                     <Progress value={progress} />
-                    <p className="text-xs text-muted-foreground">
-                        Matures on: {maturityDate.toLocaleDateString()}
-                    </p>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Maturity Countdown:</span>
+                        <CountdownTimer endDate={maturityDate} />
+                    </div>
                 </div>
             )
         )}
