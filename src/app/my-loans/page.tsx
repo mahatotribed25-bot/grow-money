@@ -7,6 +7,8 @@ import {
   HandCoins,
   Users as UsersIcon,
   Trophy,
+  Copy,
+  QrCode,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -24,6 +26,17 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { addDays } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import Image from 'next/image';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
@@ -52,6 +65,7 @@ type Loan = {
 type AdminSettings = {
     loanPenalty?: number;
     customLoanPenalty?: number;
+    adminUpi?: string;
 }
 
 type CustomLoanRequest = {
@@ -102,6 +116,7 @@ const CountdownTimer = ({ endDate }: { endDate: Date }) => {
 export default function MyLoansPage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
+  const { toast } = useToast();
   const { data: allLoans, loading: loansLoading } =
     useCollection<Loan>(
       user ? `users/${user.uid}/loans` : null
@@ -111,10 +126,77 @@ export default function MyLoansPage() {
       user ? query(collection(firestore, 'customLoanRequests'), where('userId', '==', user.uid)) : null
   );
 
+  const [paymentDetails, setPaymentDetails] = useState<{
+    isOpen: boolean;
+    loan: Loan | CustomLoanRequest;
+    isEmi: boolean;
+    emiIndex?: number;
+    amount: number;
+  } | null>(null);
+
   const loading = userLoading || loansLoading || settingsLoading || customLoansLoading;
   
   const sortedLoans = allLoans?.sort((a,b) => b.startDate.seconds - a.startDate.seconds);
   const sortedCustomLoans = customLoans?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds);
+
+  const handlePaymentInitiation = (loan: Loan | CustomLoanRequest, amount: number, isEmi: boolean = false, emiIndex?: number) => {
+    setPaymentDetails({
+      isOpen: true,
+      loan,
+      amount,
+      isEmi,
+      emiIndex,
+    });
+  };
+
+  const handlePaymentConfirmation = async () => {
+    if (!user || !paymentDetails || !paymentDetails.loan) return;
+
+    const { loan, isEmi, emiIndex } = paymentDetails;
+    const isCustom = 'requestedAmount' in loan;
+    const collectionName = isCustom ? 'customLoanRequests' : `users/${user.uid}/loans`;
+    const loanRef = doc(firestore, collectionName, loan.id);
+    
+    let dataToUpdate: any;
+
+    if (!isCustom && isEmi && emiIndex !== undefined) {
+      const planLoan = loan as Loan;
+      if (!planLoan.emis) return;
+      
+      const updatedEmis = planLoan.emis.map((emi, index) => 
+          index === emiIndex ? { ...emi, status: 'Payment Pending' } : emi
+      );
+      dataToUpdate = { emis: updatedEmis };
+    } else {
+      dataToUpdate = { status: 'Payment Pending' };
+    }
+
+    try {
+      await updateDoc(loanRef, dataToUpdate);
+      toast({
+        title: 'Payment Initiated',
+        description: 'Your payment is being processed. The admin will confirm it shortly.',
+      });
+      setPaymentDetails(null); // Close dialog
+    } catch (error) {
+      const permissionError = new FirestorePermissionError({
+        path: loanRef.path,
+        operation: 'update',
+        requestResourceData: dataToUpdate,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    }
+  };
+  
+  const handleCopyToClipboard = (text: string, label: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    toast({ title: `${label} Copied!`, description: text });
+  };
+  
+  const upiDeeplink = paymentDetails?.isOpen && adminSettings?.adminUpi
+    ? `upi://pay?pa=${adminSettings.adminUpi}&pn=Grow%20Money&am=${paymentDetails.amount.toFixed(2)}&cu=INR`
+    : '';
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -133,7 +215,7 @@ export default function MyLoansPage() {
             <h2 className="text-xl font-bold">Plan-Based Loans</h2>
             {loading ? <p>Loading loan history...</p> : 
                 sortedLoans && sortedLoans.length > 0 ? (
-                    sortedLoans.map(loan => <LoanCard key={loan.id} loan={loan} adminSettings={adminSettings} />)
+                    sortedLoans.map(loan => <LoanCard key={loan.id} loan={loan} adminSettings={adminSettings} onPayNow={handlePaymentInitiation} />)
                 ) : (
                     <Card>
                         <CardContent className="pt-6 text-center text-muted-foreground">
@@ -149,7 +231,7 @@ export default function MyLoansPage() {
             <h2 className="text-xl font-bold mt-8">Custom Loan Requests</h2>
             {loading ? <p>Loading custom loans...</p> : 
                 sortedCustomLoans && sortedCustomLoans.length > 0 ? (
-                    sortedCustomLoans.map(loan => <CustomLoanCard key={loan.id} loan={loan} adminSettings={adminSettings} />)
+                    sortedCustomLoans.map(loan => <CustomLoanCard key={loan.id} loan={loan} adminSettings={adminSettings} onPayNow={handlePaymentInitiation} />)
                 ) : (
                     <Card>
                         <CardContent className="pt-6 text-center text-muted-foreground">
@@ -173,6 +255,68 @@ export default function MyLoansPage() {
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>
+
+      <Dialog open={!!paymentDetails?.isOpen} onOpenChange={() => setPaymentDetails(null)}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Repay Your Loan</DialogTitle>
+                <DialogDescription>
+                    Please send the payment to the admin's UPI ID. After paying, click the confirmation button below.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+               {adminSettings?.adminUpi && upiDeeplink && (
+                 <div className="flex flex-col items-center gap-2 p-4 rounded-md bg-muted">
+                    <p className="font-semibold">Scan QR Code to Pay</p>
+                     <div className="bg-white p-2 rounded-md">
+                        <Image
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiDeeplink)}`}
+                            alt="UPI QR Code"
+                            width={200}
+                            height={200}
+                        />
+                    </div>
+                </div>
+               )}
+                
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="upiId" className="text-muted-foreground">Admin UPI ID</Label>
+                    <div className="flex items-center gap-2">
+                        <span id="upiId" className="font-mono">{adminSettings?.adminUpi || 'Not available'}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(adminSettings?.adminUpi || '', 'UPI ID')}>
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+                 
+                <div className="flex items-center justify-between text-lg font-bold">
+                    <Label htmlFor="totalAmount">Total to Pay</Label>
+                    <div className="flex items-center gap-2">
+                        <span id="totalAmount" className="font-mono">₹{paymentDetails?.amount.toFixed(2)}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(paymentDetails?.amount.toFixed(2) || '', 'Amount')}>
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+
+                {upiDeeplink && (
+                    <Button asChild className="w-full">
+                        <a href={upiDeeplink}>
+                            <QrCode className="mr-2" /> Pay with UPI App
+                        </a>
+                    </Button>
+                )}
+            </div>
+            <DialogFooter className="sm:justify-between">
+                <DialogClose asChild>
+                    <Button type="button" variant="secondary">Cancel</Button>
+                </DialogClose>
+                <Button type="button" onClick={handlePaymentConfirmation}>
+                    I have paid, confirm now
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -212,7 +356,7 @@ function InfoItem({ label, value, isBadge = false, badgeClass }: { label: string
 }
 
 
-function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSettings | null }) {
+function LoanCard({ loan, adminSettings, onPayNow }: { loan: Loan, adminSettings: AdminSettings | null, onPayNow: (loan: Loan, amount: number, isEmi: boolean, emiIndex?: number) => void }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -285,40 +429,6 @@ function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSet
   
   const totalRepayment = loan.totalPayable + (loan.penalty || 0);
 
-  const handlePayNow = async (isEmi: boolean, emiIndex?: number) => {
-    if (!user) return;
-    const loanRef = doc(firestore, 'users', user.uid, 'loans', loan.id);
-    let dataToUpdate: { emis: EMI[] } | { status: string };
-
-    if(isEmi && emiIndex !== undefined && loan.emis) {
-        const updatedEmis = loan.emis.map((emi, index) => {
-            if(index === emiIndex) {
-                return {...emi, status: 'Payment Pending'};
-            }
-            return emi;
-        });
-        dataToUpdate = { emis: updatedEmis };
-    } else {
-        dataToUpdate = { status: 'Payment Pending' };
-    }
-  
-    updateDoc(loanRef, dataToUpdate)
-    .then(() => {
-      toast({
-        title: 'Payment Initiated',
-        description: 'Your payment is being processed. The admin will confirm it shortly.',
-      });
-    })
-    .catch((error) => {
-        const permissionError = new FirestorePermissionError({
-            path: loanRef.path,
-            operation: 'update',
-            requestResourceData: dataToUpdate,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    });
-  };
-
   const isEmiPayable = (emi: EMI) => {
       return currentTime && (new Date(emi.dueDate.seconds * 1000) <= currentTime) && emi.status === 'Pending';
   }
@@ -379,7 +489,7 @@ function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSet
                                 </TableCell>
                                 <TableCell>
                                     {loan.status !== 'Completed' && (
-                                         <Button size="sm" onClick={() => handlePayNow(true, index)} disabled={!isEmiPayable(emi) || emi.status !== 'Pending'}>
+                                         <Button size="sm" onClick={() => onPayNow(loan, emi.emiAmount, true, index)} disabled={!isEmiPayable(emi) || emi.status !== 'Pending'}>
                                             {emi.status === 'Payment Pending' ? 'Processing...' : emi.status === 'Paid' ? 'Paid' : 'Pay Now'}
                                         </Button>
                                     )}
@@ -392,7 +502,7 @@ function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSet
         ) : loan.status !== 'Completed' && (
              <Button 
                 className="w-full" 
-                onClick={() => handlePayNow(false)} 
+                onClick={() => onPayNow(loan, totalRepayment, false)}
                 disabled={loan.status === 'Payment Pending' || loan.status === 'Completed'}
             >
                 {loan.status === 'Payment Pending' ? 'Processing Payment...' : 'Pay Full Amount Now'}
@@ -408,7 +518,7 @@ function LoanCard({ loan, adminSettings }: { loan: Loan, adminSettings: AdminSet
 }
 
 
-function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, adminSettings: AdminSettings | null }) {
+function CustomLoanCard({ loan, adminSettings, onPayNow }: { loan: CustomLoanRequest, adminSettings: AdminSettings | null, onPayNow: (loan: CustomLoanRequest, amount: number) => void }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -486,27 +596,6 @@ function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, admi
     }
   };
   
-   const handlePayNow = async () => {
-    if (!user) return;
-    const loanRef = doc(firestore, 'customLoanRequests', loan.id);
-    const dataToUpdate = { status: 'payment_pending' as const };
-
-    try {
-        await updateDoc(loanRef, dataToUpdate);
-        toast({
-            title: 'Payment Initiated',
-            description: 'Your payment is being processed. The admin will confirm it shortly.',
-        });
-    } catch(e: any) {
-        const permissionError = new FirestorePermissionError({
-            path: loanRef.path,
-            operation: 'update',
-            requestResourceData: dataToUpdate,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
-  };
-  
   const isOverdue = currentTime && loan.dueDate && currentTime > loan.dueDate.toDate();
   const totalRepayment = (loan.totalRepayment || 0) + (loan.penalty || 0);
 
@@ -572,7 +661,7 @@ function CustomLoanCard({ loan, adminSettings }: { loan: CustomLoanRequest, admi
                         </div>
                     )}
                      {(isOverdue || loan.status === 'payment_pending') && (
-                        <Button className="w-full" onClick={handlePayNow} disabled={loan.status === 'payment_pending'}>
+                        <Button className="w-full" onClick={() => onPayNow(loan, totalRepayment)} disabled={loan.status === 'payment_pending'}>
                             {loan.status === 'payment_pending' ? 'Processing Payment...' : 'Pay Now'}
                         </Button>
                     )}
