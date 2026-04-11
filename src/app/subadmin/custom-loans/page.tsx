@@ -379,7 +379,10 @@ export default function CustomLoansPage() {
                             <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleMarkAsSent(request)}><Send className="mr-2 h-4 w-4"/>Mark as Sent</Button>
                         )}
                          {(request.status === 'active' || request.status === 'payment_pending') && (
-                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMarkAsCompleted(request)}><Check className="mr-2 h-4 w-4"/>Mark as Repaid</Button>
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMarkAsCompleted(request)}>
+                                <Check className="mr-2 h-4 w-4"/>
+                                {request.status === 'payment_pending' ? 'Confirm Repayment' : 'Mark as Repaid'}
+                            </Button>
                         )}
                     </div>
                   </TableCell>
