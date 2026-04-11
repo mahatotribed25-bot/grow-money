@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown } from 'lucide-react';
+import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown, Timer } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -76,12 +76,19 @@ type Investment = {
 
 type Transaction = {
   id: string;
-  type: 'deposit' | 'withdrawal';
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Timestamp;
-  userId?: string;
-}
+  // for deposits
+  transactionId?: string;
+  // for withdrawals
+  delayBonusActive?: boolean;
+  delayBonusAmountPerDay?: number;
+  delayBonusStartDate?: Timestamp;
+  totalDelayBonus?: number;
+  gstAmount?: number;
+  finalAmount?: number;
+};
 
 type EMI = {
   emiAmount: number;
@@ -190,6 +197,42 @@ const permissionLabels: Record<keyof UserPermissions, string> = {
     canManageKyc: "Manage KYC",
     canManagePlanLoans: "Manage Plan Loans",
     canManageCustomLoans: "Manage Custom Loans",
+};
+
+
+const WithdrawalStatus = ({ tx }: { tx: Transaction }) => {
+    const [waitingDays, setWaitingDays] = useState(0);
+    const [bonusEarned, setBonusEarned] = useState(0);
+
+    useEffect(() => {
+        if (tx.status === 'pending' && tx.delayBonusActive && tx.delayBonusStartDate) {
+            const interval = setInterval(() => {
+                const startDate = tx.delayBonusStartDate.toDate();
+                const now = new Date();
+                const diffTime = Math.abs(now.getTime() - startDate.getTime());
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                setWaitingDays(diffDays);
+                setBonusEarned(diffDays * (tx.delayBonusAmountPerDay || 0));
+            }, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [tx]);
+    
+    if (tx.status === 'pending') {
+        if (tx.delayBonusActive) {
+            return (
+                 <div className="p-2 text-xs rounded-md bg-blue-500/10 text-blue-300 space-y-1">
+                    <p className="font-semibold flex items-center gap-1"><Timer size={14}/> Delay Bonus Active</p>
+                    <p>User is earning ₹{tx.delayBonusAmountPerDay || 0}/day.</p>
+                    <p>Days Waiting: {waitingDays}</p>
+                    <p>Bonus Earned: ₹{bonusEarned.toFixed(2)}</p>
+                 </div>
+            )
+        }
+        return <p className="text-xs text-muted-foreground">The user's withdrawal is under processing.</p>
+    }
+
+    return null; // Don't show for approved/rejected
 };
 
 
@@ -676,11 +719,12 @@ export default function UserDetailPage() {
         </TabsContent>
         <TabsContent value="deposits">
              <HistoryTable
-              headers={['Amount', 'Status', 'Date']}
+              headers={['Amount', 'Transaction ID', 'Status', 'Date']}
               items={deposits}
               renderRow={(item: Transaction) => (
                 <TableRow key={item.id}>
                   <TableCell>₹{(item.amount || 0).toFixed(2)}</TableCell>
+                  <TableCell>{item.transactionId || 'N/A'}</TableCell>
                   <TableCell><Badge variant={getStatusVariant(item.status)} className="capitalize">{item.status}</Badge></TableCell>
                   <TableCell>{formatDate(item.createdAt)}</TableCell>
                 </TableRow>
@@ -689,12 +733,25 @@ export default function UserDetailPage() {
         </TabsContent>
         <TabsContent value="withdrawals">
              <HistoryTable
-              headers={['Amount', 'Status', 'Date']}
+              headers={['Amount', 'Status', 'Details', 'Date']}
               items={withdrawals}
               renderRow={(item: Transaction) => (
                 <TableRow key={item.id}>
-                  <TableCell>₹{(item.amount || 0).toFixed(2)}</TableCell>
+                  <TableCell className="font-semibold">
+                    {item.status === 'approved'
+                        ? `₹${(item.finalAmount ?? 0).toFixed(2)}`
+                        : `₹${item.amount.toFixed(2)}`
+                    }
+                  </TableCell>
                   <TableCell><Badge variant={getStatusVariant(item.status)} className="capitalize">{item.status}</Badge></TableCell>
+                  <TableCell>
+                    <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>Req: ₹{item.amount.toFixed(2)}</div>
+                        {item.gstAmount != null && <div>GST: -₹{item.gstAmount.toFixed(2)}</div>}
+                        {item.totalDelayBonus != null && item.totalDelayBonus > 0 && <div className="text-green-400">Bonus: +₹{item.totalDelayBonus.toFixed(2)}</div>}
+                        {item.status === 'pending' && <WithdrawalStatus tx={item} />}
+                    </div>
+                  </TableCell>
                   <TableCell>{formatDate(item.createdAt)}</TableCell>
                 </TableRow>
               )}
