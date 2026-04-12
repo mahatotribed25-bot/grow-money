@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -8,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown, Timer } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, writeBatch, collection, getDocs, query, where, deleteField, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -365,98 +366,93 @@ export default function UserDetailPage() {
     if (!user) return;
 
     try {
-        // Find active custom loans to credit back the amount
-        const activeCustomLoansQuery = query(collection(firestore, 'customLoanRequests'), where('userId', '==', userId), where('status', '==', 'active'));
-        const activeCustomLoansSnapshot = await getDocs(activeCustomLoansQuery);
+      // --- Step 1: Gather all document references BEFORE the transaction ---
+      const docRefsToDelete: any[] = [];
+      
+      // Subcollections of the user
+      const investmentsSnapshot = await getDocs(collection(firestore, 'users', userId, 'investments'));
+      investmentsSnapshot.forEach(doc => docRefsToDelete.push(doc.ref));
 
-        let amountToCreditBack = 0;
-        activeCustomLoansSnapshot.forEach(doc => {
-            amountToCreditBack += doc.data().requestedAmount || 0;
-        });
-        
-        const settingsRef = doc(firestore, 'settings', 'admin');
-        let newCustomLoanUsage: number | undefined = undefined;
+      const loansSnapshot = await getDocs(collection(firestore, 'users', userId, 'loans'));
+      loansSnapshot.forEach(doc => docRefsToDelete.push(doc.ref));
+      
+      // Root collections referencing the user
+      const collectionsToClean = ['deposits', 'withdrawals', 'loanRequests', 'customLoanRequests', 'upiRequests'];
+      for (const colName of collectionsToClean) {
+          const q = query(collection(firestore, colName), where('userId', '==', userId));
+          const snapshot = await getDocs(q);
+          snapshot.forEach(doc => docRefsToDelete.push(doc.ref));
+      }
 
-        if (amountToCreditBack > 0) {
-            const settingsDoc = await getDoc(settingsRef);
-            if (settingsDoc.exists()) {
-                const currentUsage = settingsDoc.data().currentCustomLoanUsage || 0;
-                newCustomLoanUsage = Math.max(0, currentUsage - amountToCreditBack);
-            }
-        }
+      // Chat documents
+      const chatRef = doc(firestore, 'chats', userId);
+      const messagesSnapshot = await getDocs(collection(firestore, 'chats', userId, 'messages'));
+      messagesSnapshot.forEach(doc => docRefsToDelete.push(doc.ref));
+      docRefsToDelete.push(chatRef);
 
-        const batch = writeBatch(firestore);
+      // Get active custom loans specifically to calculate the amount to credit back
+      const activeCustomLoansQuery = query(collection(firestore, 'customLoanRequests'), where('userId', '==', userId), where('status', '==', 'active'));
+      const activeCustomLoansSnapshot = await getDocs(activeCustomLoansQuery);
+      let amountToCreditBack = 0;
+      activeCustomLoansSnapshot.forEach(doc => {
+          amountToCreditBack += doc.data().requestedAmount || 0;
+      });
 
-        // Update admin settings if necessary
-        if (newCustomLoanUsage !== undefined) {
-            batch.update(settingsRef, { currentCustomLoanUsage: newCustomLoanUsage });
-        }
+      // --- Step 2: Run the atomic transaction ---
+      await runTransaction(firestore, async (transaction) => {
+          // Read and Update admin settings atomically
+          if (amountToCreditBack > 0) {
+              const settingsRef = doc(firestore, 'settings', 'admin');
+              const settingsDoc = await transaction.get(settingsRef);
+              if (settingsDoc.exists()) {
+                  const currentUsage = settingsDoc.data().currentCustomLoanUsage || 0;
+                  const newCustomLoanUsage = Math.max(0, currentUsage - amountToCreditBack);
+                  transaction.update(settingsRef, { currentCustomLoanUsage: newCustomLoanUsage });
+              }
+          }
 
-        // 1. Reset user document to a clean state
-        const userRef = doc(firestore, 'users', userId);
-        batch.update(userRef, {
-            walletBalance: 0,
-            totalIncome: 0,
-            totalInvestment: 0,
-            status: 'Active',
-            role: 'user',
-            permissions: deleteField(),
-            panCard: deleteField(),
-            aadhaarNumber: deleteField(),
-            phoneNumber: deleteField(),
-            kycStatus: 'Not Submitted',
-            kycRejectionReason: deleteField(),
-            kycSubmissionDate: deleteField(),
-            kycTermsAccepted: deleteField(),
-            upiId: deleteField(),
-            upiProvider: deleteField(),
-            upiStatus: 'Unverified',
-            vipLevel: 'Bronze',
-            trustScore: 500,
-            lastCheckIn: deleteField(),
-        });
+          // Reset the main user document
+          const userRef = doc(firestore, 'users', userId);
+          transaction.update(userRef, {
+              walletBalance: 0,
+              totalIncome: 0,
+              totalInvestment: 0,
+              status: 'Active',
+              role: 'user',
+              permissions: deleteField(),
+              panCard: deleteField(),
+              aadhaarNumber: deleteField(),
+              phoneNumber: deleteField(),
+              kycStatus: 'Not Submitted',
+              kycRejectionReason: deleteField(),
+              kycSubmissionDate: deleteField(),
+              kycTermsAccepted: deleteField(),
+              upiId: deleteField(),
+              upiProvider: deleteField(),
+              upiStatus: 'Unverified',
+              vipLevel: 'Bronze',
+              trustScore: 500,
+              lastCheckIn: deleteField(),
+          });
 
-        // 2. Delete all subcollection documents for the user
-        const investmentsRef = collection(firestore, 'users', userId, 'investments');
-        const investmentsSnapshot = await getDocs(investmentsRef);
-        investmentsSnapshot.forEach(doc => batch.delete(doc.ref));
+          // Delete all the gathered documents
+          docRefsToDelete.forEach(ref => transaction.delete(ref));
+      });
 
-        const loansRef = collection(firestore, 'users', userId, 'loans');
-        const loansSnapshot = await getDocs(loansRef);
-        loansSnapshot.forEach(doc => batch.delete(doc.ref));
-
-        // 3. Delete all root collection documents related to the user
-        const collectionsToClean = ['deposits', 'withdrawals', 'loanRequests', 'customLoanRequests', 'upiRequests'];
-        for (const colName of collectionsToClean) {
-            const q = query(collection(firestore, colName), where('userId', '==', userId));
-            const snapshot = await getDocs(q);
-            snapshot.forEach(doc => batch.delete(doc.ref));
-        }
-        
-        // 4. Delete chat history
-        const chatRef = doc(firestore, 'chats', userId);
-        const messagesSnapshot = await getDocs(collection(firestore, 'chats', userId, 'messages'));
-        messagesSnapshot.forEach(doc => batch.delete(doc.ref));
-        batch.delete(chatRef);
-
-        // Note: Group investments and coupon redemptions are not reset to avoid complex transactions.
-        
-        await batch.commit();
-
-        toast({
-            title: 'User Data Fully Reset',
-            description: `${user.name}'s account has been reset to its initial state.`,
-        });
+      toast({
+          title: 'User Data Fully Reset',
+          description: `${user.name}'s account has been reset to its initial state.`,
+      });
 
     } catch (error) {
         console.error("Error resetting user data:", error);
         toast({
             title: 'Error During Reset',
-            description: "An error occurred while resetting the user's data. Some data might not have been cleared.",
+            description: "An error occurred while resetting the user's data. Please check permissions or try again.",
             variant: 'destructive',
         });
         const permissionError = new FirestorePermissionError({
-            path: `users/${userId} and subcollections`,
+            path: `users/${userId} and related data`,
             operation: 'write',
             requestResourceData: { action: 'full-reset-user-data' },
         });
