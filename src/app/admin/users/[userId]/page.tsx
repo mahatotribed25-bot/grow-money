@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -9,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown, Timer } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, updateDoc, writeBatch, collection, getDocs, query, where, deleteField } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -368,57 +367,75 @@ export default function UserDetailPage() {
     try {
         const batch = writeBatch(firestore);
 
-        // Reset user wallet and stats
+        // 1. Reset user document to a clean state
         const userRef = doc(firestore, 'users', userId);
         batch.update(userRef, {
             walletBalance: 0,
             totalIncome: 0,
             totalInvestment: 0,
+            status: 'Active',
+            role: 'user',
+            permissions: deleteField(),
+            panCard: deleteField(),
+            aadhaarNumber: deleteField(),
+            phoneNumber: deleteField(),
+            kycStatus: 'Not Submitted',
+            kycRejectionReason: deleteField(),
+            kycSubmissionDate: deleteField(),
+            kycTermsAccepted: deleteField(),
+            upiId: deleteField(),
+            upiProvider: deleteField(),
+            upiStatus: 'Unverified',
+            vipLevel: 'Bronze',
+            trustScore: 500,
+            lastCheckIn: deleteField(),
         });
 
-        // Delete all investments
+        // 2. Delete all subcollection documents for the user
         const investmentsRef = collection(firestore, 'users', userId, 'investments');
         const investmentsSnapshot = await getDocs(investmentsRef);
         investmentsSnapshot.forEach(doc => batch.delete(doc.ref));
 
-        // Delete all loans
         const loansRef = collection(firestore, 'users', userId, 'loans');
         const loansSnapshot = await getDocs(loansRef);
         loansSnapshot.forEach(doc => batch.delete(doc.ref));
 
-        // Delete all deposit and withdrawal requests
-        const depositsSnapshot = await getDocs(query(collection(firestore, 'deposits'), where('userId', '==', userId)));
-        depositsSnapshot.forEach(doc => batch.delete(doc.ref));
+        // 3. Delete all root collection documents related to the user
+        const collectionsToClean = ['deposits', 'withdrawals', 'loanRequests', 'customLoanRequests', 'upiRequests'];
+        for (const colName of collectionsToClean) {
+            const q = query(collection(firestore, colName), where('userId', '==', userId));
+            const snapshot = await getDocs(q);
+            snapshot.forEach(doc => batch.delete(doc.ref));
+        }
         
-        const withdrawalsSnapshot = await getDocs(query(collection(firestore, 'withdrawals'), where('userId', '==', userId)));
-        withdrawalsSnapshot.forEach(doc => batch.delete(doc.ref));
+        // 4. Delete chat history
+        const chatRef = doc(firestore, 'chats', userId);
+        const messagesSnapshot = await getDocs(collection(firestore, 'chats', userId, 'messages'));
+        messagesSnapshot.forEach(doc => batch.delete(doc.ref));
+        batch.delete(chatRef);
 
-        const loanRequestsSnapshot = await getDocs(query(collection(firestore, 'loanRequests'), where('userId', '==', userId)));
-        loanRequestsSnapshot.forEach(doc => batch.delete(doc.ref));
+        // Note: Group investments and coupon redemptions are not reset to avoid complex transactions.
+        
+        await batch.commit();
 
-        batch.commit()
-          .then(() => {
-            toast({
-                title: 'User Data Reset',
-                description: `All financial data for ${user.name} has been reset.`,
-            });
-          })
-          .catch((error) => {
-            console.error("Error resetting user data:", error);
-            const permissionError = new FirestorePermissionError({
-                path: `users/${userId} and subcollections`,
-                operation: 'write',
-                requestResourceData: { action: 'reset-user-data' },
-            });
-            errorEmitter.emit('permission-error', permissionError);
+        toast({
+            title: 'User Data Fully Reset',
+            description: `${user.name}'s account has been reset to its initial state.`,
         });
 
     } catch (error) {
+        console.error("Error resetting user data:", error);
         toast({
-            title: 'Error Preparing Reset',
-            description: 'Could not prepare the data reset operation.',
+            title: 'Error During Reset',
+            description: "An error occurred while resetting the user's data. Some data might not have been cleared.",
             variant: 'destructive',
         });
+        const permissionError = new FirestorePermissionError({
+            path: `users/${userId} and subcollections`,
+            operation: 'write',
+            requestResourceData: { action: 'full-reset-user-data' },
+        });
+        errorEmitter.emit('permission-error', permissionError);
     }
   }
   
