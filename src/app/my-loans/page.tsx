@@ -168,7 +168,11 @@ export default function MyLoansPage() {
       );
       dataToUpdate = { emis: updatedEmis };
     } else {
-      dataToUpdate = { status: 'Payment Pending' };
+      if(isCustom) {
+        dataToUpdate = { status: 'payment_pending' };
+      } else {
+        dataToUpdate = { status: 'Payment Pending' };
+      }
     }
 
     try {
