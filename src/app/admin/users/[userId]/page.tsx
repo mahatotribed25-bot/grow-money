@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown, Timer } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, writeBatch, collection, getDocs, query, where, deleteField } from 'firebase/firestore';
+import { doc, updateDoc, writeBatch, collection, getDocs, query, where, deleteField, getDoc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -365,7 +365,32 @@ export default function UserDetailPage() {
     if (!user) return;
 
     try {
+        // Find active custom loans to credit back the amount
+        const activeCustomLoansQuery = query(collection(firestore, 'customLoanRequests'), where('userId', '==', userId), where('status', '==', 'active'));
+        const activeCustomLoansSnapshot = await getDocs(activeCustomLoansQuery);
+
+        let amountToCreditBack = 0;
+        activeCustomLoansSnapshot.forEach(doc => {
+            amountToCreditBack += doc.data().requestedAmount || 0;
+        });
+        
+        const settingsRef = doc(firestore, 'settings', 'admin');
+        let newCustomLoanUsage: number | undefined = undefined;
+
+        if (amountToCreditBack > 0) {
+            const settingsDoc = await getDoc(settingsRef);
+            if (settingsDoc.exists()) {
+                const currentUsage = settingsDoc.data().currentCustomLoanUsage || 0;
+                newCustomLoanUsage = Math.max(0, currentUsage - amountToCreditBack);
+            }
+        }
+
         const batch = writeBatch(firestore);
+
+        // Update admin settings if necessary
+        if (newCustomLoanUsage !== undefined) {
+            batch.update(settingsRef, { currentCustomLoanUsage: newCustomLoanUsage });
+        }
 
         // 1. Reset user document to a clean state
         const userRef = doc(firestore, 'users', userId);
