@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDoc, useFirestore, useAuth, useUser } from '@/firebase';
-import { doc, setDoc, serverTimestamp, deleteField, type Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp, deleteField, type Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
 
 type AdminSettings = {
@@ -99,6 +100,7 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
 
   useEffect(() => {
@@ -309,6 +311,37 @@ export default function SettingsPage() {
         errorEmitter.emit('permission-error', permissionError);
       });
   };
+
+  const handleRecalculateUsage = async () => {
+        setIsRecalculating(true);
+        try {
+            const activeLoansQuery = query(collection(firestore, 'customLoanRequests'), where('status', '==', 'active'));
+            const querySnapshot = await getDocs(activeLoansQuery);
+            
+            let totalUsage = 0;
+            querySnapshot.forEach((doc) => {
+                totalUsage += doc.data().requestedAmount || 0;
+            });
+
+            const settingsRef = doc(firestore, 'settings', 'admin');
+            await setDoc(settingsRef, { currentCustomLoanUsage: totalUsage }, { merge: true });
+
+            toast({
+                title: "Recalculation Complete",
+                description: `Current loan usage has been synced. New value is ₹${totalUsage.toFixed(2)}.`,
+            });
+
+        } catch (error) {
+            console.error("Error recalculating loan usage:", error);
+            toast({
+                title: "Recalculation Failed",
+                description: "An error occurred while trying to sync the loan usage.",
+                variant: 'destructive',
+            });
+        } finally {
+            setIsRecalculating(false);
+        }
+    };
 
 
   const maintenanceEndsAt = settings?.maintenanceEndTime ? settings.maintenanceEndTime.toDate().toLocaleString() : null;
@@ -639,16 +672,22 @@ export default function SettingsPage() {
                                 The total amount of active custom loans the platform will give out at any one time.
                             </p>
                         </div>
-                        <div className="space-y-2">
+                         <div className="space-y-2">
                             <Label>Current Loan Usage</Label>
-                            <Input
-                                type="number"
-                                value={settings?.currentCustomLoanUsage || 0}
-                                readOnly
-                                className="bg-muted"
-                            />
+                            <div className="flex gap-2 items-center">
+                                <Input
+                                    type="number"
+                                    value={settings?.currentCustomLoanUsage || 0}
+                                    readOnly
+                                    className="bg-muted"
+                                />
+                                <Button onClick={handleRecalculateUsage} disabled={isRecalculating} variant="outline">
+                                    <RefreshCcw className={cn("mr-2 h-4 w-4", isRecalculating && "animate-spin")} />
+                                    {isRecalculating ? 'Syncing...' : 'Sync'}
+                                </Button>
+                            </div>
                             <p className="text-sm text-muted-foreground">
-                                The current amount of active custom loans given out. This is updated automatically.
+                                The current amount of active custom loans given out. Click Sync to fix any discrepancies.
                             </p>
                         </div>
                     </div>
