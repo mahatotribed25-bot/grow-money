@@ -110,7 +110,6 @@ type Investment = {
   investedAmount: number;
   returnAmount: number;
   startDate: Timestamp;
-  maturityDate: Timestamp;
   status: 'Active' | 'Matured' | 'Stopped';
 };
 
