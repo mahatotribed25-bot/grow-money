@@ -112,6 +112,9 @@ export default function CustomLoansPage() {
     if (filterStatus === 'rejected') {
         return sorted.filter(r => r.status === 'rejected_by_admin' || r.status === 'rejected_by_user');
     }
+    if (filterStatus === 'payment_pending') {
+      return sorted.filter(r => r.status.toLowerCase() === 'payment_pending');
+    }
     return sorted.filter((r) => r.status === filterStatus);
   }, [requests, filterStatus]);
 
@@ -289,7 +292,8 @@ export default function CustomLoansPage() {
 
 
   const getStatusBadge = (status: CustomLoanRequest['status']) => {
-    switch (status) {
+    const lowerCaseStatus = status.toLowerCase();
+    switch (lowerCaseStatus) {
       case 'pending_admin_review': return <Badge variant="secondary">Pending Admin</Badge>;
       case 'pending_user_approval': return <Badge variant="outline" className="border-blue-500 text-blue-400">Pending User</Badge>;
       case 'approved_by_user': return <Badge variant="default">User Approved</Badge>;
@@ -378,10 +382,10 @@ export default function CustomLoansPage() {
                         {request.status === 'approved_by_user' && (
                             <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleMarkAsSent(request)}><Send className="mr-2 h-4 w-4"/>Mark as Sent</Button>
                         )}
-                         {(request.status === 'active' || request.status === 'payment_pending') && (
+                         {(request.status === 'active' || request.status.toLowerCase() === 'payment_pending') && (
                             <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMarkAsCompleted(request)}>
                                 <Check className="mr-2 h-4 w-4"/>
-                                {request.status === 'payment_pending' ? 'Confirm Repayment' : 'Mark as Repaid'}
+                                {request.status.toLowerCase() === 'payment_pending' ? 'Confirm Repayment' : 'Mark as Repaid'}
                             </Button>
                         )}
                     </div>
