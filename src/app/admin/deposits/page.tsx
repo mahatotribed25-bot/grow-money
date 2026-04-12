@@ -11,10 +11,10 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X } from 'lucide-react';
+import { Check, X, Send } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, runTransaction } from 'firebase/firestore';
+import { doc, updateDoc, runTransaction, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -104,6 +104,35 @@ export default function DepositsPage() {
       });
     }
   };
+  
+  const handleShareOnWhatsApp = async (deposit: DepositRequest) => {
+    try {
+        const userRef = doc(firestore, 'users', deposit.userId);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists() && userDoc.data().phoneNumber) {
+            const phoneNumber = userDoc.data().phoneNumber;
+            const message = `✅ Deposit Successful! Dear ${deposit.name}, your deposit of ₹${deposit.amount.toFixed(2)} has been approved and added to your wallet. Thank you for choosing Grow Money!`;
+            // Using wa.me link which is more common and works on mobile/desktop
+            const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Phone Number Not Found',
+                description: `The user ${deposit.name} has not saved a phone number in their profile.`,
+            });
+        }
+    } catch (error) {
+        console.error("Error fetching user's phone number: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: "Could not fetch user's phone number.",
+        });
+    }
+}
+
 
   return (
     <div>
@@ -179,6 +208,16 @@ export default function DepositsPage() {
                           <X className="h-4 w-4 mr-1" /> Reject
                         </Button>
                       </div>
+                    )}
+                    {deposit.status === 'approved' && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                            onClick={() => handleShareOnWhatsApp(deposit)}
+                        >
+                            <Send className="h-4 w-4 mr-1" /> Share on WhatsApp
+                        </Button>
                     )}
                   </TableCell>
                 </TableRow>

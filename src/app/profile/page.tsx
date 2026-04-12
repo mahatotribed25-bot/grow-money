@@ -27,6 +27,7 @@ import {
   Timer,
   Gem,
   Trophy,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -262,6 +263,29 @@ export default function ProfilePage() {
         description: "Your referral code has been copied to the clipboard.",
       });
     }
+  };
+
+  const handleSavePhone = () => {
+    if (!user) return;
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+        toast({ title: "Invalid Phone Number", description: "Please enter a valid 10-digit phone number.", variant: "destructive" });
+        return;
+    }
+    const userRef = doc(firestore, 'users', user.uid);
+    updateDoc(userRef, { phoneNumber: phoneNumber })
+      .then(() => {
+        toast({ title: "Phone Number Updated" });
+      })
+      .catch((error) => {
+        console.error('Error updating phone number:', error);
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: { phoneNumber },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   const handleSubmitUpi = () => {
@@ -557,7 +581,10 @@ export default function ProfilePage() {
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="phoneNumber">Phone Number</Label>
-                        <Input id="phoneNumber" type="number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="9876543210" maxLength={10} disabled={isKycFormDisabled}/>
+                        <div className="flex gap-2">
+                            <Input id="phoneNumber" type="number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="9876543210" maxLength={10} />
+                            <Button variant="outline" size="sm" onClick={handleSavePhone}>Save Phone</Button>
+                        </div>
                     </div>
                      <div className="space-y-4 rounded-md border p-4">
                         <h4 className="text-sm font-medium flex items-center gap-2"><AlertTriangle className="text-yellow-400"/>Terms and Conditions</h4>
