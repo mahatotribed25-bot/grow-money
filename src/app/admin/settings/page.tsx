@@ -37,6 +37,7 @@ type AdminSettings = {
   loanPenalty?: number;
   customLoanPenalty?: number;
   customLoanInterestPer1000?: number;
+  customLoanUpi?: string;
   kycGoogleFormUrl?: string;
   maxCustomLoanAmount?: number;
   totalCustomLoanLimit?: number;
@@ -76,6 +77,7 @@ export default function SettingsPage() {
   const [loanPenalty, setLoanPenalty] = useState(0);
   const [customLoanPenalty, setCustomLoanPenalty] = useState(0);
   const [customLoanInterest, setCustomLoanInterest] = useState(5);
+  const [customLoanUpi, setCustomLoanUpi] = useState('');
   const [kycGoogleFormUrl, setKycGoogleFormUrl] = useState('');
   const [maxCustomLoanAmount, setMaxCustomLoanAmount] = useState(0);
   const [totalCustomLoanLimit, setTotalCustomLoanLimit] = useState(0);
@@ -112,6 +114,7 @@ export default function SettingsPage() {
       setLoanPenalty(settings.loanPenalty || 0);
       setCustomLoanPenalty(settings.customLoanPenalty || 0);
       setCustomLoanInterest(settings.customLoanInterestPer1000 || 5);
+      setCustomLoanUpi(settings.customLoanUpi || '');
       setKycGoogleFormUrl(settings.kycGoogleFormUrl || '');
       setMaxCustomLoanAmount(settings.maxCustomLoanAmount || 5000);
       setTotalCustomLoanLimit(settings.totalCustomLoanLimit || 0);
@@ -143,6 +146,7 @@ export default function SettingsPage() {
       loanPenalty: Number(loanPenalty),
       customLoanPenalty: Number(customLoanPenalty),
       customLoanInterestPer1000: Number(customLoanInterest),
+      customLoanUpi,
       kycGoogleFormUrl: kycGoogleFormUrl,
       maxCustomLoanAmount: Number(maxCustomLoanAmount),
       totalCustomLoanLimit: Number(totalCustomLoanLimit),
@@ -564,7 +568,7 @@ export default function SettingsPage() {
                     </CardDescription>
                     <div className="space-y-4 mt-4">
                         <div className="space-y-2">
-                            <Label htmlFor="admin-upi">Admin UPI ID</Label>
+                            <Label htmlFor="admin-upi">Admin UPI ID (for Deposits)</Label>
                             <Input
                             id="admin-upi"
                             placeholder="your-upi@bank"
@@ -618,6 +622,19 @@ export default function SettingsPage() {
                             />
                             <p className="text-sm text-muted-foreground">
                                 The amount of interest charged per day for every ₹1000 of the loan amount.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="custom-loan-upi">Custom Loan Repayment UPI ID</Label>
+                            <Input
+                                id="custom-loan-upi"
+                                type="text"
+                                placeholder="e.g., custom-loan-repayment@upi"
+                                value={customLoanUpi}
+                                onChange={(e) => setCustomLoanUpi(e.target.value)}
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                The UPI ID users will use to repay their custom loans.
                             </p>
                         </div>
                          <div className="space-y-2">

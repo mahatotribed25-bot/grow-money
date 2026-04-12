@@ -376,6 +376,10 @@
           "type": "string",
           "description": "The UPI ID for users to send deposits to."
         },
+        "customLoanUpi": {
+          "type": "string",
+          "description": "The UPI ID for users to repay custom loans to."
+        },
         "minWithdrawal": {
           "type": "number",
           "description": "The minimum amount for a withdrawal request."

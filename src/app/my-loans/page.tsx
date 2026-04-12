@@ -1,3 +1,4 @@
+
 'use client';
 import {
   ChevronLeft,
@@ -66,6 +67,7 @@ type AdminSettings = {
     loanPenalty?: number;
     customLoanPenalty?: number;
     adminUpi?: string;
+    customLoanUpi?: string;
 }
 
 type CustomLoanRequest = {
@@ -132,6 +134,7 @@ export default function MyLoansPage() {
     isEmi: boolean;
     emiIndex?: number;
     amount: number;
+    upiId: string;
   } | null>(null);
 
   const loading = userLoading || loansLoading || settingsLoading || customLoansLoading;
@@ -140,12 +143,23 @@ export default function MyLoansPage() {
   const sortedCustomLoans = customLoans?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds);
 
   const handlePaymentInitiation = (loan: Loan | CustomLoanRequest, amount: number, isEmi: boolean = false, emiIndex?: number) => {
+    const isCustom = 'requestedAmount' in loan;
+    const upiIdForPayment = isCustom 
+        ? adminSettings?.customLoanUpi || adminSettings?.adminUpi || '' 
+        : adminSettings?.adminUpi || '';
+
+    if (!upiIdForPayment) {
+        toast({ title: "Admin UPI not set", description: "The administrator has not configured a UPI ID for payments.", variant: "destructive"});
+        return;
+    }
+
     setPaymentDetails({
       isOpen: true,
       loan,
       amount,
       isEmi,
       emiIndex,
+      upiId: upiIdForPayment,
     });
   };
 
@@ -198,8 +212,8 @@ export default function MyLoansPage() {
     toast({ title: `${label} Copied!`, description: text });
   };
   
-  const upiDeeplink = paymentDetails?.isOpen && adminSettings?.adminUpi
-    ? `upi://pay?pa=${adminSettings.adminUpi}&pn=Grow%20Money&am=${paymentDetails.amount.toFixed(2)}&cu=INR`
+  const upiDeeplink = paymentDetails?.isOpen && paymentDetails.upiId
+    ? `upi://pay?pa=${paymentDetails.upiId}&pn=Grow%20Money&am=${paymentDetails.amount.toFixed(2)}&cu=INR`
     : '';
 
   return (
@@ -269,7 +283,7 @@ export default function MyLoansPage() {
                 </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-               {adminSettings?.adminUpi && upiDeeplink && (
+               {paymentDetails?.upiId && upiDeeplink && (
                  <div className="flex flex-col items-center gap-2 p-4 rounded-md bg-muted">
                     <p className="font-semibold">Scan QR Code to Pay</p>
                      <div className="bg-white p-2 rounded-md">
@@ -286,8 +300,8 @@ export default function MyLoansPage() {
                 <div className="flex items-center justify-between">
                     <Label htmlFor="upiId" className="text-muted-foreground">Admin UPI ID</Label>
                     <div className="flex items-center gap-2">
-                        <span id="upiId" className="font-mono">{adminSettings?.adminUpi || 'Not available'}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(adminSettings?.adminUpi || '', 'UPI ID')}>
+                        <span id="upiId" className="font-mono">{paymentDetails?.upiId || 'Not available'}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(paymentDetails?.upiId || '', 'UPI ID')}>
                             <Copy className="h-4 w-4" />
                         </Button>
                     </div>
