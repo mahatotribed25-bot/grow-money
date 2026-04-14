@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ChevronLeft,
   Home,
@@ -28,11 +28,13 @@ import { addDoc, collection, serverTimestamp, where, query } from 'firebase/fire
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
 
 type AdminSettings = {
   maxCustomLoanAmount?: number;
   totalCustomLoanLimit?: number;
   currentCustomLoanUsage?: number;
+  customLoanInterestPer1000?: number;
 };
 
 type CustomLoanRequest = {
@@ -66,6 +68,21 @@ export default function CustomLoanPage() {
   const isServiceEnabled = adminSettings?.totalCustomLoanLimit && adminSettings.totalCustomLoanLimit > 0;
 
   const hasActiveRequest = existingRequests && existingRequests.length > 0;
+  
+  const calculatedInfo = useMemo(() => {
+    const principal = parseFloat(amount);
+    const days = parseInt(duration, 10);
+    const interestPer1000 = adminSettings?.customLoanInterestPer1000 || 0;
+
+    if (principal > 0 && days > 0 && interestPer1000 > 0) {
+        const dailyInterest = (principal / 1000) * interestPer1000;
+        const totalInterest = dailyInterest * days;
+        const totalRepayment = principal + totalInterest;
+        return { dailyInterest, totalInterest, totalRepayment };
+    }
+    return null;
+  }, [amount, duration, adminSettings]);
+
 
   const handleSubmit = async () => {
     if (!user || !user.displayName) {
@@ -221,6 +238,26 @@ export default function CustomLoanPage() {
                                 onChange={(e) => setDuration(e.target.value)}
                             />
                             </div>
+
+                             {calculatedInfo && (
+                                <Card className="bg-muted/50 p-4 space-y-2 animate-in fade-in-0">
+                                    <h4 className="font-semibold text-center mb-2">Loan Estimate</h4>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Daily Interest (@ ₹{adminSettings?.customLoanInterestPer1000 || 0} per ₹1000):</span>
+                                        <span className="font-semibold">₹{calculatedInfo.dailyInterest.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Total Interest ({duration} days):</span>
+                                        <span className="font-semibold text-red-400">₹{calculatedInfo.totalInterest.toFixed(2)}</span>
+                                    </div>
+                                    <Separator className="my-2" />
+                                    <div className="flex justify-between text-lg font-bold">
+                                        <span>Estimated Repayment:</span>
+                                        <span>₹{calculatedInfo.totalRepayment.toFixed(2)}</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground text-center pt-2">This is an estimate. The final amount will be confirmed by the admin.</p>
+                                </Card>
+                            )}
                             
                             <div className="space-y-2">
                                 <Label>How would you like to receive the money?</Label>
