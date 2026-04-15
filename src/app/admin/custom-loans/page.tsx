@@ -288,6 +288,36 @@ export default function CustomLoansPage() {
     }
   };
 
+  const handleShareOnWhatsApp = async (request: CustomLoanRequest) => {
+    try {
+        const userRef = doc(firestore, 'users', request.userId);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists() && userDoc.data().phoneNumber) {
+            const phoneNumber = userDoc.data().phoneNumber;
+            const loanAmount = request.requestedAmount.toFixed(2);
+            const dueDate = request.dueDate ? request.dueDate.toDate().toLocaleDateString() : 'N/A';
+            const message = `🎉 Loan Approved! 🎉\n\nDear ${request.userName},\n\nCongratulations! Your custom loan of ₹${loanAmount} has been approved and sent to your account.\n\nEnjoy your loan, and please remember to repay it by the due date: *${dueDate}*.\n\nThank you for choosing Grow Money!`;
+            
+            const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Phone Number Not Found',
+                description: `The user ${request.userName} has not saved a phone number in their profile.`,
+            });
+        }
+    } catch (error) {
+        console.error("Error fetching user's phone number: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: "Could not fetch the user's phone number.",
+        });
+    }
+  }
+
 
   const getStatusBadge = (status: CustomLoanRequest['status']) => {
     const lowerCaseStatus = status.toLowerCase();
@@ -381,10 +411,26 @@ export default function CustomLoansPage() {
                         {request.status === 'approved_by_user' && (
                             <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleMarkAsSent(request)}><Send className="mr-2 h-4 w-4"/>Mark as Sent</Button>
                         )}
-                         {(request.status === 'active' || request.status.toLowerCase() === 'payment_pending') && (
+                        {request.status === 'active' && (
+                            <>
+                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMarkAsCompleted(request)}>
+                                    <Check className="mr-2 h-4 w-4"/>
+                                    Mark as Repaid
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                                    onClick={() => handleShareOnWhatsApp(request)}
+                                >
+                                    <Send className="h-4 w-4 mr-1" /> Notify User
+                                </Button>
+                            </>
+                        )}
+                        {request.status.toLowerCase() === 'payment_pending' && (
                             <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMarkAsCompleted(request)}>
                                 <Check className="mr-2 h-4 w-4"/>
-                                {request.status.toLowerCase() === 'payment_pending' ? 'Confirm Repayment' : 'Mark as Repaid'}
+                                Confirm Repayment
                             </Button>
                         )}
                     </div>
