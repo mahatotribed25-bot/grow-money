@@ -53,10 +53,15 @@ type InvestmentPlan = {
   adminProfit?: number;
 }
 
-type ActiveLoan = {
+type LoanRequestInfo = {
     id: string;
     userId: string;
-}
+};
+
+type ActiveLoanInfo = {
+    id: string;
+    status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
+};
 
 type GroupLoanPlan = {
     id: string;
@@ -135,8 +140,8 @@ export default function AdminDashboard() {
   const { data: allInvestments, loading: allInvestmentsLoading } = useCollection<Investment>(isAdmin ? 'investments' : null, { subcollections: true });
   const { data: loanPlans, loading: loanPlansLoading } = useCollection(isAdmin ? 'loanPlans' : null);
   const { data: groupLoanPlans, loading: groupLoanPlansLoading } = useCollection<GroupLoanPlan>(isAdmin ? 'groupLoanPlans' : null);
-  const { data: activeLoans, loading: loansLoading } = useCollection<ActiveLoan>(isAdmin ? 'loanRequests' : null, { where: ['status', 'in', ['approved', 'sent']] });
-  const { data: allActiveLoans, loading: allActiveLoansLoading } = useCollection(isAdmin ? 'loans' : null, { subcollections: true, where: ['status', 'in', ['Active', 'Due']] });
+  const { data: approvedLoanRequests, loading: loansLoading } = useCollection<LoanRequestInfo>(isAdmin ? 'loanRequests' : null, { where: ['status', 'in', ['approved', 'sent']] });
+  const { data: allActiveLoans, loading: allActiveLoansLoading } = useCollection<ActiveLoanInfo>(isAdmin ? 'loans' : null, { subcollections: true });
   const { data: pendingKycUsers, loading: kycLoading } = useCollection(isAdmin ? 'users' : null, { where: ['kycStatus', '==', 'pending']});
   const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>(isAdmin ? 'settings/admin' : null);
 
@@ -200,11 +205,11 @@ export default function AdminDashboard() {
   const totalLoanPlans = loanPlans?.length || 0;
   const activeGroupLoans = groupLoanPlans?.filter(p => p.status === 'Active').length || 0;
   const pendingKyc = pendingKycUsers?.length || 0;
-  const totalActiveLoans = allActiveLoans?.length || 0;
+  const totalActiveLoans = allActiveLoans?.filter(loan => loan.status === 'Active' || loan.status === 'Due').length || 0;
   
   const onlineUsers = users?.filter(u => u.isOnline && u.lastSeen && u.lastSeen.toMillis() > Date.now() - 5 * 60 * 1000).length || 0;
 
-  const uniqueUsersWithLoans = activeLoans ? new Set(activeLoans.map(loan => loan.userId)).size : 0;
+  const uniqueUsersWithLoans = approvedLoanRequests ? new Set(approvedLoanRequests.map(loan => loan.userId)).size : 0;
   
   const profitFromSalesChartData = useMemo(() => {
     const calculationStartDate = adminSettings?.profitCalculationStartDate?.toDate();
