@@ -201,6 +201,11 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
     
+    // Loans (Collection Group Query for Admin Dashboard)
+    match /{path=**}/loans/{loanId} {
+      allow read: if isAdmin();
+    }
+    
     // Fallback rule: Deny all other reads/writes by default.
     match /{document=**} {
       allow read, write: if false;
