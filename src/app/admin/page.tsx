@@ -136,6 +136,7 @@ export default function AdminDashboard() {
   const { data: loanPlans, loading: loanPlansLoading } = useCollection(isAdmin ? 'loanPlans' : null);
   const { data: groupLoanPlans, loading: groupLoanPlansLoading } = useCollection<GroupLoanPlan>(isAdmin ? 'groupLoanPlans' : null);
   const { data: activeLoans, loading: loansLoading } = useCollection<ActiveLoan>(isAdmin ? 'loanRequests' : null, { where: ['status', 'in', ['approved', 'sent']] });
+  const { data: allActiveLoans, loading: allActiveLoansLoading } = useCollection(isAdmin ? 'loans' : null, { subcollections: true, where: ['status', 'in', ['Active', 'Due']] });
   const { data: pendingKycUsers, loading: kycLoading } = useCollection(isAdmin ? 'users' : null, { where: ['kycStatus', '==', 'pending']});
   const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>(isAdmin ? 'settings/admin' : null);
 
@@ -188,7 +189,7 @@ export default function AdminDashboard() {
   }, [allInvestments, investmentPlans, adminSettings]);
 
   const loading =
-    usersLoading || depositsLoading || withdrawalsLoading || investmentPlansLoading || loanPlansLoading || loansLoading || groupLoanPlansLoading || kycLoading || allInvestmentsLoading || settingsLoading;
+    usersLoading || depositsLoading || withdrawalsLoading || investmentPlansLoading || loanPlansLoading || loansLoading || groupLoanPlansLoading || kycLoading || allInvestmentsLoading || settingsLoading || allActiveLoansLoading;
 
   const totalUsers =
     users?.filter((u) => u.email !== 'admin@tribed.world').length || 0;
@@ -199,6 +200,7 @@ export default function AdminDashboard() {
   const totalLoanPlans = loanPlans?.length || 0;
   const activeGroupLoans = groupLoanPlans?.filter(p => p.status === 'Active').length || 0;
   const pendingKyc = pendingKycUsers?.length || 0;
+  const totalActiveLoans = allActiveLoans?.length || 0;
   
   const onlineUsers = users?.filter(u => u.isOnline && u.lastSeen && u.lastSeen.toMillis() > Date.now() - 5 * 60 * 1000).length || 0;
 
@@ -226,6 +228,7 @@ export default function AdminDashboard() {
     { title: 'Loan Plans', value: loading ? '...' : totalLoanPlans, icon: HandCoins },
     { title: 'Active Group Loans', value: loading ? '...' : activeGroupLoans, icon: Users2 },
     { title: 'Users with Loans', value: loading ? '...' : uniqueUsersWithLoans, icon: Users },
+    { title: 'Total Active Loans', value: loading ? '...' : totalActiveLoans, icon: HandCoins },
     { title: 'Pending KYC', value: loading ? '...' : pendingKyc, icon: UserCheck },
     { title: 'Online Users', value: loading ? '...' : onlineUsers, icon: Users },
   ];
@@ -311,5 +314,7 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+    
 
     

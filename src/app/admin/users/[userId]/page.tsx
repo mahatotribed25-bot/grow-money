@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown, Timer } from 'lucide-react';
+import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown, Timer, Send } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -746,7 +746,7 @@ export default function UserDetailPage() {
         </TabsContent>
          <TabsContent value="loans">
             {loans && loans.length > 0 ? loans.map(loan => (
-                <LoanDetails key={loan.id} loan={loan} onCompleteLoan={handleCompleteLoan} onConfirmEmi={handleConfirmEmiPayment} />
+                <LoanDetails key={loan.id} user={user} loan={loan} onCompleteLoan={handleCompleteLoan} onConfirmEmi={handleConfirmEmiPayment} />
             )) : (
                 <Card>
                     <CardContent className="pt-6">
@@ -867,8 +867,33 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
   )
 }
 
-function LoanDetails({ loan, onCompleteLoan, onConfirmEmi }: { loan: ActiveLoan; onCompleteLoan: (loanId: string, totalPayable: number) => void; onConfirmEmi: (loan: ActiveLoan, emiIndex: number) => void; }) {
+function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: ActiveLoan; user: UserData; onCompleteLoan: (loanId: string, totalPayable: number) => void; onConfirmEmi: (loan: ActiveLoan, emiIndex: number) => void; }) {
+  const { toast } = useToast();
   const totalRepayment = loan.totalPayable + (loan.penalty || 0);
+
+  const handleSendReminder = () => {
+    if (!user || !user.phoneNumber) {
+        toast({
+            variant: 'destructive',
+            title: 'Phone Number Not Found',
+            description: `This user has not saved a phone number.`,
+        });
+        return;
+    }
+
+    const dueDate = loan.dueDate ? loan.dueDate.toDate().toLocaleDateString() : 'N/A';
+    const totalAmountDue = (loan.totalPayable + (loan.penalty || 0)).toFixed(2);
+    
+    let message = `🔔 Loan Repayment Reminder 🔔\n\nDear ${user.name},\n\nThis is a friendly reminder that your loan for the *${loan.planName}* is due for repayment.`;
+    message += `\n\n*Amount Due:* ₹${totalAmountDue}`;
+    message += `\n*Due Date:* ${dueDate}`;
+    message += `\n\nPlease make the payment on time to avoid further penalties.`;
+    message += `\n\nThank you,\nGrow Money Team`;
+
+    const whatsappUrl = `https://wa.me/91${user.phoneNumber}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   return (
     <Card className="mb-4">
       <CardHeader>
@@ -935,6 +960,12 @@ function LoanDetails({ loan, onCompleteLoan, onConfirmEmi }: { loan: ActiveLoan;
           </Collapsible>
         ) : (
           <p>No repayment details available.</p>
+        )}
+        
+        {['Active', 'Due'].includes(loan.status) && (
+            <Button onClick={handleSendReminder} variant="outline" size="sm" className="mt-4 w-full text-green-500 hover:text-green-600 border-green-500/50 hover:bg-green-500/10">
+                <Send className="mr-2 h-4 w-4" /> Send Reminder
+            </Button>
         )}
       </CardContent>
     </Card>
@@ -1015,3 +1046,5 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
         </Card>
     );
 }
+
+    
