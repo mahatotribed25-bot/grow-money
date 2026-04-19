@@ -10,6 +10,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { useState } from "react";
+import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -93,11 +94,20 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-4">
+    <main className="relative flex min-h-screen w-full flex-col items-center justify-center">
+      <Image
+        src="https://images.unsplash.com/photo-1542856239-a7ea626a5554?q=80&w=1920"
+        alt="Three cute birds on a branch"
+        fill
+        className="object-cover -z-10"
+        data-ai-hint="cartoon birds"
+      />
+      <div className="absolute inset-0 bg-black/60 -z-10" />
+
+      <div className="w-full max-w-sm space-y-4 p-4">
         <div className="flex flex-col items-center space-y-2 text-center">
           <LoginStatusAnimation status={loginStatus} />
-          <h1 className="text-3xl font-bold tracking-tight text-primary">
+          <h1 className="text-3xl font-bold tracking-tight text-white">
             Grow Money 💰
           </h1>
         </div>
