@@ -99,3 +99,34 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
+
+@keyframes blink {
+  0%, 100% {
+    transform: scaleY(1);
+    transform-origin: center;
+  }
+  2% {
+    transform: scaleY(0.1);
+    transform-origin: center;
+  }
+  4% {
+    transform: scaleY(1);
+    transform-origin: center;
+  }
+}
+
+@keyframes color-cycle {
+  0% { stroke: hsl(var(--primary)); }
+  25% { stroke: hsl(var(--chart-2)); }
+  50% { stroke: hsl(var(--chart-4)); }
+  75% { stroke: hsl(var(--chart-5)); }
+  100% { stroke: hsl(var(--primary)); }
+}
+
+.cat-body {
+  animation: color-cycle 8s linear infinite;
+}
+
+.cat-eyes {
+  animation: blink 4s linear infinite;
+}
