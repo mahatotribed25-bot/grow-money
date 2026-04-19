@@ -99,7 +99,7 @@ export default function LoginPage() {
         src="https://images.unsplash.com/photo-1542856239-a7ea626a5554?q=80&w=1920"
         alt="Three cute birds on a branch"
         fill
-        className="object-cover -z-10"
+        className="object-cover -z-20"
         data-ai-hint="cartoon birds"
       />
       <div className="absolute inset-0 bg-black/60 -z-10" />
