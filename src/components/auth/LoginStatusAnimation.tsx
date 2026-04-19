@@ -1,7 +1,8 @@
+
 'use client';
 
 import { cn } from '@/lib/utils';
-import { LoaderCircle, Cat, CheckCircle, XCircle } from 'lucide-react';
+import { LoaderCircle, CheckCircle, XCircle } from 'lucide-react';
 
 
 export function LoginStatusAnimation({ status }: { status: 'idle' | 'loading' | 'success' | 'error' }) {
@@ -39,10 +40,16 @@ export function LoginStatusAnimation({ status }: { status: 'idle' | 'loading' | 
   return (
     <div className="flex h-[100px] w-full items-center justify-center overflow-hidden">
         <div className="animate-in fade-in">
-             <Cat
+             <svg 
+                width={iconSize} 
+                height={iconSize}
+                viewBox="0 0 100 100"
                 className="text-primary"
-                size={iconSize}
-              />
+              >
+                <path d="M20 40 L30 50 L40 40" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M45 25 L55 35 L65 25" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M70 45 L80 55 L90 45" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
         </div>
     </div>
   );
