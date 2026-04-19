@@ -43,12 +43,23 @@ export function LoginStatusAnimation({ status }: { status: 'idle' | 'loading' | 
              <svg 
                 width={iconSize} 
                 height={iconSize}
-                viewBox="0 0 100 100"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 className="text-primary"
               >
-                <path d="M20 40 L30 50 L40 40" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M45 25 L55 35 L65 25" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M70 45 L80 55 L90 45" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 5C8.13 5 5 8.13 5 12s3.13 7 7 7 7-3.13 7-7-3.13-7-7-7z"></path>
+                <path d="M12 2v3"></path>
+                <path d="M12 22v-3"></path>
+                <path d="M22 12h-3"></path>
+                <path d="M5 12H2"></path>
+                <path d="m18.36 5.64-.71.71"></path>
+                <path d="m6.35 17.65-.71.71"></path>
+                <path d="m18.36 18.36-.71-.71"></path>
+                <path d="m6.35 6.35-.71-.71"></path>
               </svg>
         </div>
     </div>
