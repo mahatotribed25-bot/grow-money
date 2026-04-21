@@ -103,6 +103,18 @@ export default {
             'from': { transform: 'rotate(0deg)' },
             'to': { transform: 'rotate(360deg)' },
         },
+        blink: {
+          '0%, 100%': { transform: 'scaleY(1)', 'transform-origin': 'center' },
+          '2%': { transform: 'scaleY(0.1)', 'transform-origin': 'center' },
+          '4%': { transform: 'scaleY(1)', 'transform-origin': 'center' },
+        },
+        'color-cycle': {
+          '0%': { stroke: 'hsl(var(--primary))' },
+          '25%': { stroke: 'hsl(var(--chart-2))' },
+          '50%': { stroke: 'hsl(var(--chart-4))' },
+          '75%': { stroke: 'hsl(var(--chart-5))' },
+          '100%': { stroke: 'hsl(var(--primary))' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -110,6 +122,8 @@ export default {
         'shake': 'shake 0.82s cubic-bezier(.36,.07,.19,.97) both',
         'flip-down': 'flip-down 0.5s ease-in-out',
         'border-spin': 'border-spin 2s linear infinite',
+        blink: 'blink 4s linear infinite',
+        'color-cycle': 'color-cycle 8s linear infinite',
       },
     },
   },

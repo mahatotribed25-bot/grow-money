@@ -50,7 +50,7 @@ export function LoginStatusAnimation({ status }: { status: 'idle' | 'loading' | 
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <g className="cat-body">
+                <g className="animate-color-cycle">
                     {/* Head */}
                     <path d="M17.5,7.5a6.5,6.5,0,0,1-11,0" />
                     {/* Body */}
@@ -58,7 +58,7 @@ export function LoginStatusAnimation({ status }: { status: 'idle' | 'loading' | 
                     {/* Whiskers */}
                      <path d="M17.5,16.5c-1.5,1-3.5,1.5-5.5,1.5s-4-0.5-5.5-1.5" />
                 </g>
-                <g className="cat-eyes">
+                <g className="animate-blink">
                     <path d="M9.5,11.5v-1" />
                     <path d="M14.5,11.5v-1" />
                 </g>
@@ -67,4 +67,3 @@ export function LoginStatusAnimation({ status }: { status: 'idle' | 'loading' | 
     </div>
   );
 }
-
