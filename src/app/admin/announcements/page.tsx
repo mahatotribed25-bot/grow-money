@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2, Send } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Send, HandCoins } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useDoc } from '@/firebase';
 import { useState } from 'react';
 import {
   addDoc,
@@ -62,6 +62,12 @@ type Announcement = {
   createdAt: Timestamp;
 };
 
+type AdminSettings = {
+    totalCustomLoanLimit?: number;
+    currentCustomLoanUsage?: number;
+    customLoanInterestPer1000?: number;
+};
+
 const emptyAnnouncement: Omit<Announcement, 'id' | 'createdAt'> = {
   message: '',
   link: '',
@@ -71,11 +77,39 @@ const emptyAnnouncement: Omit<Announcement, 'id' | 'createdAt'> = {
 export default function AnnouncementsPage() {
   const { data: announcements, loading } = useCollection<Announcement>('announcements');
   const { data: investmentPlans, loading: plansLoading } = useCollection<InvestmentPlan>('investmentPlans');
+  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Partial<Announcement> | null>(null);
+
+  const handleShareCustomLoanAvailability = () => {
+    if (!adminSettings) {
+        toast({ title: "Admin settings not loaded", variant: "destructive" });
+        return;
+    }
+    const limit = adminSettings.totalCustomLoanLimit || 0;
+    const usage = adminSettings.currentCustomLoanUsage || 0;
+    const available = Math.max(0, limit - usage);
+    const interest = adminSettings.customLoanInterestPer1000 || 5;
+
+    if (limit <= 0) {
+        toast({ title: "Custom loan limit not set in settings", variant: "destructive" });
+        return;
+    }
+
+    let message = `🚀 *Grow Money: Custom Loan Alert!* 🚀\n\n`;
+    message += `Hamare platform par *Custom Loans* ki nayi limit available hai! \n\n`;
+    message += `💰 *Available Limit:* ₹${available.toFixed(2)}\n`;
+    message += `📉 *Interest Rate:* Sirf ₹${interest} per ₹1000/day (Sabse sasta!)\n\n`;
+    message += `✨ Agar aapko paison ki zaroorat hai toh jaldi kijiye, ye limit limited samay ke liye hai! ✨\n\n`;
+    message += `👇 *Abhi Apply Karein:* \n${window.location.origin}/custom-loan\n\n`;
+    message += `*Grow Money* - Aapka bharosa, hamari pehchan 💰`;
+
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
 
   const handleShareOnWhatsApp = (announcement: Announcement) => {
     const linkedPlan = announcement.planId ? investmentPlans?.find(p => p.id === announcement.planId) : null;
@@ -198,12 +232,22 @@ export default function AnnouncementsPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
         <h2 className="text-2xl font-bold">Announcements</h2>
-        <Button onClick={handleCreateNew}>
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Create New Announcement
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleShareCustomLoanAvailability} 
+            className="text-blue-400 border-blue-400/50 hover:bg-blue-400/10"
+          >
+            <HandCoins className="h-4 w-4 mr-2" />
+            Broadcast Loan Limit
+          </Button>
+          <Button onClick={handleCreateNew}>
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Create New Announcement
+          </Button>
+        </div>
       </div>
       <div className="rounded-lg border">
         <Table>
