@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -100,6 +99,7 @@ type ActiveLoan = {
     id: string;
     planName: string;
     loanAmount: number;
+    interest?: number;
     totalPayable: number;
     penalty?: number;
     dueDate: Timestamp;
@@ -883,12 +883,38 @@ function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: Activ
 
     const dueDate = loan.dueDate ? loan.dueDate.toDate().toLocaleDateString() : 'N/A';
     const totalAmountDue = (loan.totalPayable + (loan.penalty || 0)).toFixed(2);
+    const loanAmount = loan.loanAmount || 0;
+    const interest = loan.interest || 0;
+    const platformTax = Math.max(0, loan.totalPayable - loanAmount - interest);
+    const penalty = loan.penalty || 0;
+    const isOverdue = loan.status === 'Due' || penalty > 0;
+
+    let message = `🔔 *Loan Repayment Reminder* 🔔\n\n`;
+    message += `Dear *${user.name}*,\n\n`;
+    message += `This is a reminder regarding your active loan for *${loan.planName}*.\n\n`;
     
-    let message = `🔔 Loan Repayment Reminder 🔔\n\nDear ${user.name},\n\nThis is a friendly reminder that your loan for the *${loan.planName}* is due for repayment.`;
-    message += `\n\n*Amount Due:* ₹${totalAmountDue}`;
-    message += `\n*Due Date:* ${dueDate}`;
-    message += `\n\nPlease make the payment on time to avoid further penalties.`;
-    message += `\n\nThank you,\nGrow Money Team`;
+    message += `*Loan Breakdown:*\n`;
+    message += `-----------------------------------\n`;
+    message += `💵 *Loan Amount:* ₹${loanAmount.toFixed(2)}\n`;
+    message += `📈 *Interest:* ₹${interest.toFixed(2)}\n`;
+    message += `⚙️ *Platform Tax:* ₹${platformTax.toFixed(2)}\n`;
+    
+    if (penalty > 0) {
+        message += `⚠️ *Penalty:* ₹${penalty.toFixed(2)}\n`;
+    }
+    
+    message += `-----------------------------------\n`;
+    message += `💰 *Total Amount Due:* *₹${totalAmountDue}*\n`;
+    message += `🗓️ *Due Date:* ${dueDate}\n`;
+    message += `-----------------------------------\n\n`;
+
+    if (isOverdue) {
+        message += `❗ *Urgent:* Your loan is currently *OVERDUE*. Please pay immediately to avoid increasing penalties.\n\n`;
+    } else {
+        message += `✅ *Tip:* Repay on time to improve your *Trust Score* and unlock higher loan limits!\n\n`;
+    }
+
+    message += `Thank you for choosing *Grow Money*! 💰`;
 
     const whatsappUrl = `https://wa.me/91${user.phoneNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -1046,5 +1072,3 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
         </Card>
     );
 }
-
-    

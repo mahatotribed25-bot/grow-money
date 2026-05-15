@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Table,
@@ -100,12 +99,11 @@ export default function AnnouncementsPage() {
     }
 
     let message = `🚀 *Grow Money: Custom Loan Alert!* 🚀\n\n`;
-    message += `Hamare platform par *Custom Loans* ki nayi limit available hai! \n\n`;
+    message += `A new limit for *Custom Loans* is now available on our platform!\n\n`;
     message += `💰 *Available Limit:* ₹${available.toFixed(2)}\n`;
-    message += `📉 *Interest Rate:* Sirf ₹${interest} per ₹1000/day (Sabse sasta!)\n\n`;
-    message += `✨ Agar aapko paison ki zaroorat hai toh jaldi kijiye, ye limit limited samay ke liye hai! ✨\n\n`;
-    message += `👇 *Abhi Apply Karein:* \n${window.location.origin}/custom-loan\n\n`;
-    message += `*Grow Money* - Aapka bharosa, hamari pehchan 💰`;
+    message += `📉 *Interest Rate:* Only ₹${interest} per ₹1000/day (Lowest in Market!)\n\n`;
+    message += `✨ If you are looking for urgent funds, hurry up! This limit is available for a limited time only. ✨\n\n`;
+    message += `*Grow Money* - Your trusted partner for growth 💰`;
 
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
