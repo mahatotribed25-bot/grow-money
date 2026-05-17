@@ -2,20 +2,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
-import { collection, query, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, query, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, User, Trash2, MoreVertical, Search, MessageSquare } from 'lucide-react';
+import { Send, User, Search, MessageSquare } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 type Chat = {
     id: string;
@@ -88,34 +82,6 @@ export default function AdminChatPage() {
             setMessage('');
         } catch (e) {
             console.error(e);
-        }
-    }
-
-    const handleClearHistory = async () => {
-        if (!selectedChat) return;
-
-        try {
-            const messagesCol = collection(firestore, `chats/${selectedChat.id}/messages`);
-            const snapshot = await getDocs(messagesCol);
-            
-            const batch = writeBatch(firestore);
-            snapshot.docs.forEach((doc) => {
-                batch.delete(doc.ref);
-            });
-
-            const chatDoc = doc(firestore, `chats/${selectedChat.id}`);
-            batch.update(chatDoc, {
-                lastMessage: 'Chat history cleared by admin',
-                lastMessageAt: serverTimestamp(),
-                unreadByAdmin: false,
-                unreadByUser: false,
-            });
-
-            await batch.commit();
-            toast({ title: "Chat Cleared", description: `Conversation with ${selectedChat.userName} has been reset.` });
-        } catch (e) {
-            console.error(e);
-            toast({ title: "Error", description: "Could not clear chat history.", variant: "destructive" });
         }
     }
 
@@ -194,19 +160,6 @@ export default function AdminChatPage() {
                                     <p className="text-[10px] text-green-500 font-semibold uppercase tracking-wider">Active Session</p>
                                 </div>
                              </div>
-                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon">
-                                        <MoreVertical className="h-5 w-5 text-muted-foreground" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={handleClearHistory} className="text-destructive">
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Clear Chat History
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                             </DropdownMenu>
                         </div>
                         <ScrollArea className="flex-1 p-6 bg-muted/5" ref={scrollAreaRef}>
                             <div className="space-y-6">
@@ -216,7 +169,7 @@ export default function AdminChatPage() {
                                     </div>
                                 ) : messages?.length === 0 ? (
                                     <div className="text-center py-20 text-muted-foreground">
-                                        <p className="text-sm">Conversation cleared.</p>
+                                        <p className="text-sm">No messages in this conversation.</p>
                                     </div>
                                 ) : (
                                     messages?.map(msg => (
