@@ -2,14 +2,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
-import { collection, query, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, User, Search, MessageSquare } from 'lucide-react';
+import { Send, User, Search, MessageSquare, MoreVertical, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type Chat = {
     id: string;
@@ -85,6 +91,34 @@ export default function AdminChatPage() {
         }
     }
 
+    const handleClearChat = async () => {
+        if (!selectedChat) return;
+
+        try {
+            const messagesCol = collection(firestore, `chats/${selectedChat.id}/messages`);
+            const snapshot = await getDocs(messagesCol);
+            
+            const batch = writeBatch(firestore);
+            snapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+
+            const chatDoc = doc(firestore, `chats/${selectedChat.id}`);
+            batch.update(chatDoc, {
+                lastMessage: 'Chat history cleared by admin',
+                lastMessageAt: serverTimestamp(),
+                unreadByAdmin: false,
+                unreadByUser: false,
+            });
+
+            await batch.commit();
+            toast({ title: "Chat Cleared", description: "User's chat history has been successfully deleted." });
+        } catch (e) {
+            console.error(e);
+            toast({ title: "Error", description: "Could not clear chat history.", variant: "destructive" });
+        }
+    }
+
     const filteredChats = chats?.filter(chat => 
         chat.userName.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -100,7 +134,7 @@ export default function AdminChatPage() {
                 <div className="p-4 border-b space-y-4">
                     <h2 className="text-xl font-bold flex items-center gap-2">
                         <MessageSquare className="h-5 w-5 text-primary" />
-                        User Chats
+                        Conversations
                     </h2>
                     <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -160,6 +194,19 @@ export default function AdminChatPage() {
                                     <p className="text-[10px] text-green-500 font-semibold uppercase tracking-wider">Active Session</p>
                                 </div>
                              </div>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                        <MoreVertical className="h-5 w-5" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={handleClearChat} className="text-destructive">
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Clear Chat History
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                         <ScrollArea className="flex-1 p-6 bg-muted/5" ref={scrollAreaRef}>
                             <div className="space-y-6">
@@ -211,7 +258,7 @@ export default function AdminChatPage() {
                             <MessageSquare className="h-10 w-10 opacity-20" />
                         </div>
                         <h3 className="text-lg font-medium">Select a user to start chatting</h3>
-                        <p className="text-sm">Customer support history will appear here.</p>
+                        <p className="text-sm">Conversation history with customers will appear here.</p>
                     </div>
                 )}
             </div>
