@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Wallet,
@@ -177,14 +176,14 @@ export default function Dashboard() {
   const { toast } = useToast();
   
   useEffect(() => {
-    if (!userLoading) {
+    if (!userLoading && user && userData) {
         const hasSeenPopup = sessionStorage.getItem('welcomePopupShown');
         if (!hasSeenPopup) {
             setShowWelcomePopup(true);
             sessionStorage.setItem('welcomePopupShown', 'true');
         }
     }
-  }, [userLoading, user]);
+  }, [userLoading, user, userData]);
   
   const overdueLoan = useMemo(() => {
     if (!loans) return null;
@@ -280,6 +279,9 @@ export default function Dashboard() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-center text-2xl">Welcome to Grow Money 💰</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-lg font-medium py-2">
+              Mr./Mrs. {userData?.name}
+            </AlertDialogDescription>
             <AlertDialogDescription className="text-center">
               Your journey to financial growth starts now!
             </AlertDialogDescription>
