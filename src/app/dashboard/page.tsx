@@ -22,6 +22,7 @@ import {
   Gem,
   CheckCircle,
   Trophy,
+  MessageCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -188,7 +189,6 @@ export default function Dashboard() {
   const overdueLoan = useMemo(() => {
     if (!loans) return null;
     const now = new Date();
-    // A loan is considered due for a popup if its due date has passed and it's not yet completed.
     return loans.find(l => l.dueDate.toDate() < now && l.status !== 'Completed');
   }, [loans]);
 
@@ -214,8 +214,6 @@ export default function Dashboard() {
        
        const invData = invDoc.data();
        if (invData.status === 'Matured') {
-          toast({ title: "Already Claimed", description: "This investment has already been claimed.", variant: "destructive" });
-          // Returning a specific value to indicate a handled case vs. a failure
           return { claimed: false, message: 'Already claimed' };
        }
        
@@ -383,6 +381,7 @@ export default function Dashboard() {
                 <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <QuickActionButton icon={MessageCircle} label="Private Chats" href="/user-chats" />
                 <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" />
                 <QuickActionButton icon={Users2} label="Group Investing" href="/group-investing" />
                 <QuickActionButton icon={History} label="My Plans" href="/my-plans" />
@@ -426,7 +425,7 @@ function Announcements({ announcements, loading }: { announcements: Announcement
     }
     
     if (!announcements || announcements.length === 0) {
-        return null; // Don't show the card if there are no announcements
+        return null;
     }
 
     return (
@@ -780,7 +779,6 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
   const maturityDate = investment.maturityDate.toDate();
   const now = new Date();
 
-  // Calculations for income and progress
   const totalPossibleIncome = investment.returnAmount - investment.investedAmount;
   const elapsedMilliseconds = Math.max(0, now.getTime() - startDate.getTime());
   const elapsedDays = Math.floor(elapsedMilliseconds / (1000 * 60 * 60 * 24));
@@ -790,7 +788,6 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
   const progress = totalDuration > 0 ? Math.min((elapsedMilliseconds / totalDuration) * 100, 100) : 100;
 
   useEffect(() => {
-    // Check if the plan is claimable
     if (investment.status === 'Stopped' || (investment.status === 'Active' && now >= maturityDate)) {
       setIsClaimable(true);
     }
@@ -799,7 +796,6 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
   const handleClaimClick = () => {
     setIsClaiming(true);
     onClaim(investment);
-    // A better approach would be for onClaim to return a promise to handle loading state.
   }
   
   const getBadge = () => {
@@ -953,7 +949,7 @@ function DailyCheckInCard() {
         title: 'Check-in Successful!',
         description: `You've earned ₹${bonusAmount.toFixed(2)}!`,
       });
-      refetch(); // Refetch user data to update the UI
+      refetch(); 
     } catch (e: any) {
       toast({
         title: 'Check-in Failed',

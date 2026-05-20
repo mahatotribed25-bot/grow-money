@@ -21,6 +21,7 @@ import {
   Gift,
   FileText,
   MessageSquare,
+  Network,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -149,7 +150,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (loading) {
-      return; // Wait for user status to be determined
+      return; 
     }
 
     if (pathname !== '/admin/login' && (!user || user.email !== ADMIN_EMAIL)) {
@@ -195,6 +196,9 @@ export default function AdminLayout({
             </AdminNavItem>
             <AdminNavItem icon={Users} href="/admin/users">
               Users
+            </AdminNavItem>
+            <AdminNavItem icon={Network} href="/admin/user-chats">
+              User Chat Bridge
             </AdminNavItem>
             <AdminNavItem icon={Briefcase} href="/admin/investment-plans">
               Investment Plans
@@ -274,6 +278,9 @@ export default function AdminLayout({
                 </AdminNavItem>
                 <AdminNavItem icon={Users} href="/admin/users">
                   Users
+                </AdminNavItem>
+                <AdminNavItem icon={Network} href="/admin/user-chats">
+                  User Chat Bridge
                 </AdminNavItem>
                 <AdminNavItem icon={Briefcase} href="/admin/investment-plans">
                   Investment Plans

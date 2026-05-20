@@ -5,13 +5,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Settings can be read by any user, authenticated or not.
-    // Writing is restricted to admin.
     match /settings/admin {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Helper functions to make rules more readable and reusable.
     function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
@@ -24,191 +22,38 @@ service cloud.firestore {
       return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'subadmin';
     }
 
-    function getUserPermissions() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions;
-    }
-
-    // Rules for the 'users' collection.
+    // Rules for 'users'
     match /users/{userId} {
-      // A user can create their own document.
       allow create: if isOwner(userId);
-      // A user can read their own data. Admin/Sub-admin can read all.
       allow get: if isOwner(userId) || isAdmin() || isSubAdmin();
-      allow list: if isAdmin() || (isSubAdmin() && getUserPermissions().canManageKyc == true);
-      // A user can update their own data. Admin has full update access. Sub-admin has limited update access.
-      allow update: if isOwner(userId) || isAdmin() || (isSubAdmin() && getUserPermissions().canManageKyc == true && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['kycStatus', 'kycRejectionReason']));
-      // Only an admin can delete a user account.
-      allow delete: if isAdmin();
-    }
-
-    // Rules for 'investmentPlans' collection.
-    match /investmentPlans/{planId} {
-      // Any signed-in user can view the available plans.
-      allow read: if request.auth != null;
-      // Admin can create and delete plans.
-      allow create, delete: if isAdmin();
-      // Admin can update anything. Users can only decrement stock by 1 when investing.
-      allow update: if isAdmin() || (
-        request.auth != null &&
-        request.resource.data.stock == resource.data.stock - 1 &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock'])
-      );
-    }
-    
-    // Rules for a user's 'investments' sub-collection.
-    match /users/{userId}/investments/{investmentId} {
-      // A user can only read their own investments. Admin can read any.
-      allow read, write: if isOwner(userId) || isAdmin();
-    }
-    
-    // Rules for 'deposits' collection.
-    match /deposits/{depositId} {
-      // A user can only create a deposit request for themselves.
-      allow create: if request.auth != null && isOwner(request.resource.data.userId);
-      // A user can read their own deposit history. Admin/Sub-admin can read all.
-      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin() || (isSubAdmin() && getUserPermissions().canManageDeposits == true);
-      // Only an admin/sub-admin can approve or reject a deposit request.
-      allow update: if isAdmin() || (isSubAdmin() && getUserPermissions().canManageDeposits == true);
-    }
-    
-    // Rules for 'withdrawals' collection.
-    match /withdrawals/{withdrawalId} {
-      // A user can only create a withdrawal request for themselves.
-      allow create: if request.auth != null && isOwner(request.resource.data.userId);
-      // A user can read their own withdrawal history. Admin/Sub-admin can read all.
-      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin() || (isSubAdmin() && getUserPermissions().canManageWithdrawals == true);
-      // Only an admin/sub-admin can approve or reject a withdrawal request.
-      allow update: if isAdmin() || (isSubAdmin() && getUserPermissions().canManageWithdrawals == true);
-    }
-    
-    // Rules for announcements.
-    match /announcements/{announcementId} {
-      // All signed-in users can read announcements.
-      allow read: if request.auth != null;
-      // Only an admin can create or delete announcements.
-      allow write: if isAdmin();
-    }
-
-    // Rules for 'loanPlans' collection.
-    match /loanPlans/{planId} {
-      // Any signed-in user can view available loan plans.
-      allow read: if request.auth != null;
-      // Only an admin can create, update, or delete loan plans.
-      allow write: if isAdmin();
-    }
-
-    // Rules for 'loanRequests' collection.
-    match /loanRequests/{requestId} {
-       // A user can only create a loan request for themselves.
-      allow create: if request.auth != null && isOwner(request.resource.data.userId);
-      // A user can read their own request. Admin/Sub-admin can read all.
-      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin() || (isSubAdmin() && getUserPermissions().canManagePlanLoans == true);
-      // Only an admin/sub-admin can approve or reject loan requests.
-      allow update: if isAdmin() || (isSubAdmin() && getUserPermissions().canManagePlanLoans == true);
-    }
-
-    // Rules for Custom Loan Requests
-    match /customLoanRequests/{requestId} {
-      // A user can create a request for themselves.
-      allow create: if request.auth != null && isOwner(request.resource.data.userId);
-      // User can read their own request, admin/sub-admin can read all.
-      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin() || isSubAdmin();
-      // Admin/Sub-admin can update when pending admin review or after user approval.
-      // User can update when pending user approval, only changing status and userApprovedAt.
-      allow update: if (isAdmin() || (isSubAdmin() && getUserPermissions().canManageCustomLoans == true)) || 
-                       (isOwner(resource.data.userId) && resource.data.status == 'pending_user_approval' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'userApprovedAt']));
-      // Admin can delete requests.
-      allow delete: if isAdmin();
-    }
-
-    // Rules for UPI Verification Requests
-    match /upiRequests/{requestId} {
-      // A user can create a request for themselves.
-      allow create: if request.auth != null && isOwner(request.resource.data.userId);
-      // A user can read their own request. Admin can read all.
-      allow read: if (request.auth != null && isOwner(resource.data.userId)) || isAdmin();
-      // Only an admin can update (approve/reject) requests.
-      allow update: if isAdmin();
-    }
-
-    // Rules for a user's active 'loans' sub-collection.
-    match /users/{userId}/loans/{loanId} {
-      // A user can read their own loan data.
-      allow read: if isOwner(userId) || isAdmin();
-      // Admin can create or delete loan records.
-      allow create, delete: if isAdmin();
-      // User can update status (e.g. to 'Payment Pending') or an admin can manage the record.
+      allow list: if isAdmin() || isSubAdmin();
       allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
     }
 
-    // Rules for Group Loan Investment System
-    match /groupLoanPlans/{planId} {
-      // Any signed-in user can view group loan plans.
-      allow read: if request.auth != null;
-      // Only an admin can create or update the plans.
-      allow write: if isAdmin(); 
-    }
-
-    match /groupLoanPlans/{planId}/investments/{investmentId} {
-      // Any signed-in user can see who has invested in a plan.
-      allow read: if request.auth != null;
-      // A user can only create an investment for themselves.
-      allow create: if request.auth != null && isOwner(request.resource.data.investorId); 
-      // Only an admin can update (e.g., for distributing payouts) or delete records.
-      allow update, delete: if isAdmin();
-    }
-    
-    match /groupLoanPlans/{planId}/repayments/{repaymentId} {
-      // Only an admin can manage borrower repayment records.
-      allow read, write: if isAdmin(); 
-    }
-
-    match /groupLoanPlans/{planId}/payouts/{payoutId} {
-      // Only an admin can manage the investor payout records.
-      allow read, write: if isAdmin();
-    }
-
-    // Rules for coupons
-    match /coupons/{couponId} {
-      // Admin can do everything.
-      allow write: if isAdmin();
-      // Any authenticated user can read coupons for redemption checks.
-      allow read: if request.auth != null;
-
-      // A user can update a coupon to redeem it as part of a transaction.
-      // This rule is intentionally a bit relaxed; the client transaction must enforce the core logic.
-      allow update: if request.auth.uid != null
-                    // The coupon must be active and have had stock.
-                    && resource.data.status == 'active'
-                    && resource.data.stock > 0
-                    // Only stock, redemptions, and status can be changed.
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'redemptions', 'status']);
-    }
-
-    // Rules for Chat
+    // Support Chats (User to Admin)
     match /chats/{userId} {
-      // User can read/write their own chat document. Admin can read/write all.
       allow read, write: if isOwner(userId) || isAdmin();
     }
-
     match /chats/{userId}/messages/{messageId} {
-      // User can read/write messages in their own chat. Admin can read/write all.
       allow read, write: if isOwner(userId) || isAdmin();
     }
 
-    // Investments (Collection Group Query for Admin Dashboard)
-    match /{path=**}/investments/{investmentId} {
-      allow read: if isAdmin();
+    // Peer-to-Peer Chats (Admin controlled)
+    match /userChatSessions/{sessionId} {
+      allow read: if request.auth != null && (request.auth.uid in resource.data.participants || isAdmin());
+      allow create: if isAdmin();
+      allow update: if request.auth != null && (request.auth.uid in resource.data.participants || isAdmin());
+      allow delete: if isAdmin();
     }
-    
-    // Loans (Collection Group Query for Admin Dashboard)
-    match /{path=**}/loans/{loanId} {
-      allow read: if isAdmin();
+    match /userChatSessions/{sessionId}/messages/{messageId} {
+      allow read: if request.auth != null && (get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants.hasAny([request.auth.uid]) || isAdmin());
+      allow create: if request.auth != null && (get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants.hasAny([request.auth.uid]) || isAdmin());
     }
-    
-    // Fallback rule: Deny all other reads/writes by default.
+
+    // Generic fallback
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if isAdmin();
     }
   }
 }
