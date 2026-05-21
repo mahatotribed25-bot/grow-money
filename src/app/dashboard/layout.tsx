@@ -1,8 +1,6 @@
-
 'use client';
 
 import { useDoc, useAuth, useUser } from '@/firebase';
-import { UserPresence } from '@/components/UserPresence';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
@@ -42,8 +40,6 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!userDataLoading && userData) {
-      // We keep the redirect for the main admin, but remove it for sub-admins
-      // so they can see their user dashboard.
       if (userData.email === 'admin@tribed.world') {
         router.push('/admin');
       }
@@ -105,7 +101,6 @@ export default function DashboardLayout({
 
   return (
     <>
-      <UserPresence />
       {children}
       <ChatSupportWidget />
     </>

@@ -1,10 +1,10 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { useCollection, useFirestore, useUser } from '@/firebase';
+import { useCollection, useFirestore, useUser, useDoc } from '@/firebase';
 import { collection, query, orderBy, addDoc, serverTimestamp, doc, updateDoc, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, User, MessageCircle, ChevronLeft, Home, Briefcase, Trophy, HandCoins, MoreVertical, Trash2 } from 'lucide-react';
+import { Send, User, MessageCircle, ChevronLeft, Home, Briefcase, Trophy, HandCoins, MoreVertical, Trash2, Circle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -29,6 +29,12 @@ type ChatMessage = {
     text: string;
     senderId: string;
     createdAt: any;
+}
+
+type OtherUserData = {
+    id: string;
+    isOnline?: boolean;
+    lastSeen?: any;
 }
 
 export default function UserChatsPage() {
@@ -131,7 +137,6 @@ export default function UserChatsPage() {
             </header>
 
             <main className="flex-1 overflow-hidden flex flex-col md:flex-row">
-                {/* Session List */}
                 <div className={cn("md:w-80 border-r flex flex-col", selectedSession && "hidden md:flex")}>
                     <ScrollArea className="flex-1">
                         {sessions?.length === 0 ? (
@@ -141,62 +146,36 @@ export default function UserChatsPage() {
                                 const otherId = s.participants.find(p => p !== user?.uid);
                                 const otherName = otherId ? s.participantNames[otherId] : 'Unknown';
                                 return (
-                                    <div 
+                                    <ChatSessionItem 
                                         key={s.id} 
-                                        onClick={() => setSelectedSession(s)}
-                                        className={cn(
-                                            "p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors",
-                                            selectedSession?.id === s.id && "bg-primary/5 border-l-4 border-l-primary"
-                                        )}
-                                    >
-                                        <p className="font-semibold text-sm">{otherName}</p>
-                                        <p className="text-xs text-muted-foreground truncate">{s.lastMessage}</p>
-                                    </div>
+                                        session={s} 
+                                        otherId={otherId!} 
+                                        otherName={otherName} 
+                                        isSelected={selectedSession?.id === s.id}
+                                        onSelect={() => setSelectedSession(s)}
+                                    />
                                 )
                             })
                         )}
                     </ScrollArea>
                 </div>
 
-                {/* Chat Area */}
                 <div className={cn("flex-1 flex flex-col", !selectedSession && "hidden md:flex items-center justify-center bg-muted/5")}>
-                    {selectedSession ? (
+                    {selectedSession && user ? (
                         <>
-                            <div className="p-4 border-b flex items-center justify-between bg-card">
-                                <div className="flex items-center gap-3">
-                                    <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSelectedSession(null)}>
-                                        <ChevronLeft className="h-5 w-5" />
-                                    </Button>
-                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                        <User className="h-6 w-6 text-primary" />
-                                    </div>
-                                    <h2 className="font-bold">
-                                        {selectedSession.participants.find(p => p !== user?.uid) 
-                                            ? selectedSession.participantNames[selectedSession.participants.find(p => p !== user?.uid)!] 
-                                            : 'User'}
-                                    </h2>
-                                </div>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon">
-                                            <MoreVertical className="h-5 w-5" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={handleClearChat} className="text-destructive">
-                                            <Trash2 className="mr-2 h-4 w-4" />
-                                            Clear Chat History
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
+                            <ChatHeader 
+                                session={selectedSession} 
+                                currentUserId={user.uid} 
+                                onBack={() => setSelectedSession(null)} 
+                                onClear={handleClearChat}
+                            />
                             <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
                                 <div className="space-y-6">
                                     {messages?.map(msg => (
-                                        <div key={msg.id} className={cn("flex flex-col", msg.senderId === user?.uid ? "items-end" : "items-start")}>
+                                        <div key={msg.id} className={cn("flex flex-col", msg.senderId === user.uid ? "items-end" : "items-start")}>
                                             <div className={cn(
                                                 "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-sm",
-                                                msg.senderId === user?.uid 
+                                                msg.senderId === user.uid 
                                                 ? "bg-primary text-primary-foreground rounded-tr-none" 
                                                 : "bg-card text-foreground rounded-tl-none border"
                                             )}>
@@ -241,6 +220,90 @@ export default function UserChatsPage() {
             </nav>
         </div>
     )
+}
+
+function ChatSessionItem({ session, otherId, otherName, isSelected, onSelect }: { session: ChatSession, otherId: string, otherName: string, isSelected: boolean, onSelect: () => void }) {
+    const { data: otherUser } = useDoc<OtherUserData>(`users/${otherId}`);
+    
+    const isOnline = useMemo(() => {
+        if (!otherUser?.isOnline || !otherUser?.lastSeen) return false;
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+        return otherUser.lastSeen.toMillis() > fiveMinutesAgo;
+    }, [otherUser]);
+
+    return (
+        <div 
+            onClick={onSelect}
+            className={cn(
+                "p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors flex items-center gap-3",
+                isSelected && "bg-primary/5 border-l-4 border-l-primary"
+            )}
+        >
+            <div className="relative">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-6 w-6 text-primary" />
+                </div>
+                <div className={cn(
+                    "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background",
+                    isOnline ? "bg-green-500" : "bg-gray-500"
+                )} />
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate">{otherName}</p>
+                <p className="text-xs text-muted-foreground truncate">{session.lastMessage}</p>
+            </div>
+        </div>
+    );
+}
+
+function ChatHeader({ session, currentUserId, onBack, onClear }: { session: ChatSession, currentUserId: string, onBack: () => void, onClear: () => void }) {
+    const otherId = session.participants.find(p => p !== currentUserId);
+    const otherName = otherId ? session.participantNames[otherId] : 'User';
+    const { data: otherUser } = useDoc<OtherUserData>(otherId ? `users/${otherId}` : null);
+
+    const isOnline = useMemo(() => {
+        if (!otherUser?.isOnline || !otherUser?.lastSeen) return false;
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+        return otherUser.lastSeen.toMillis() > fiveMinutesAgo;
+    }, [otherUser]);
+
+    return (
+        <div className="p-4 border-b flex items-center justify-between bg-card">
+            <div className="flex items-center gap-3">
+                <Button variant="ghost" size="icon" className="md:hidden" onClick={onBack}>
+                    <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <div className="relative">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <User className="h-6 w-6 text-primary" />
+                    </div>
+                    <Circle className={cn(
+                        "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 fill-current border-2 border-card",
+                        isOnline ? "text-green-500" : "text-gray-500"
+                    )} />
+                </div>
+                <div>
+                    <h2 className="font-bold">{otherName}</h2>
+                    <p className={cn("text-[10px] font-bold uppercase tracking-widest", isOnline ? "text-green-500" : "text-muted-foreground")}>
+                        {isOnline ? 'Online' : 'Offline'}
+                    </p>
+                </div>
+            </div>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-5 w-5" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={onClear} className="text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Clear Chat History
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    );
 }
 
 function BottomNavItem({
