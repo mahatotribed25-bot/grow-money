@@ -1,14 +1,20 @@
-
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useCollection, useFirestore, useUser } from '@/firebase';
-import { collection, query, orderBy, addDoc, serverTimestamp, doc, updateDoc, where } from 'firebase/firestore';
+import { collection, query, orderBy, addDoc, serverTimestamp, doc, updateDoc, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, User, MessageCircle, ChevronLeft, Home, Briefcase, Trophy, HandCoins } from 'lucide-react';
+import { Send, User, MessageCircle, ChevronLeft, Home, Briefcase, Trophy, HandCoins, MoreVertical, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type ChatSession = {
     id: string;
@@ -28,6 +34,7 @@ type ChatMessage = {
 export default function UserChatsPage() {
     const { user } = useUser();
     const firestore = useFirestore();
+    const { toast } = useToast();
     const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null);
     const [message, setMessage] = useState('');
     
@@ -81,6 +88,32 @@ export default function UserChatsPage() {
         }
     };
 
+    const handleClearChat = async () => {
+        if (!selectedSession || !user) return;
+
+        try {
+            const messagesCol = collection(firestore, `userChatSessions/${selectedSession.id}/messages`);
+            const snapshot = await getDocs(messagesCol);
+            
+            const batch = writeBatch(firestore);
+            snapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+
+            const sessionDoc = doc(firestore, `userChatSessions/${selectedSession.id}`);
+            batch.update(sessionDoc, {
+                lastMessage: 'Chat history cleared',
+                lastMessageAt: serverTimestamp()
+            });
+
+            await batch.commit();
+            toast({ title: "Chat Cleared", description: "The conversation history has been deleted." });
+        } catch (e) {
+            console.error(e);
+            toast({ title: "Error", description: "Could not clear chat.", variant: "destructive" });
+        }
+    };
+
     if (sessionsLoading) return <div className="flex h-screen items-center justify-center"><p>Loading Chats...</p></div>;
 
     return (
@@ -129,18 +162,33 @@ export default function UserChatsPage() {
                 <div className={cn("flex-1 flex flex-col", !selectedSession && "hidden md:flex items-center justify-center bg-muted/5")}>
                     {selectedSession ? (
                         <>
-                            <div className="p-4 border-b flex items-center gap-3 bg-card">
-                                <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSelectedSession(null)}>
-                                    <ChevronLeft className="h-5 w-5" />
-                                </Button>
-                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                    <User className="h-6 w-6 text-primary" />
+                            <div className="p-4 border-b flex items-center justify-between bg-card">
+                                <div className="flex items-center gap-3">
+                                    <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSelectedSession(null)}>
+                                        <ChevronLeft className="h-5 w-5" />
+                                    </Button>
+                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <User className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <h2 className="font-bold">
+                                        {selectedSession.participants.find(p => p !== user?.uid) 
+                                            ? selectedSession.participantNames[selectedSession.participants.find(p => p !== user?.uid)!] 
+                                            : 'User'}
+                                    </h2>
                                 </div>
-                                <h2 className="font-bold">
-                                    {selectedSession.participants.find(p => p !== user?.uid) 
-                                        ? selectedSession.participantNames[selectedSession.participants.find(p => p !== user?.uid)!] 
-                                        : 'User'}
-                                </h2>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon">
+                                            <MoreVertical className="h-5 w-5" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={handleClearChat} className="text-destructive">
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Clear Chat History
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                             <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
                                 <div className="space-y-6">
