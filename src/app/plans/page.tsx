@@ -39,6 +39,7 @@ type InvestmentPlan = {
   finalReturn: number;
   status: 'Available' | 'Coming Soon';
   stock?: number;
+  adminProfit?: number;
 };
 
 type UserData = {
@@ -86,9 +87,11 @@ export default function PlansPage() {
     runTransaction(firestore, async (transaction) => {
         const userRef = doc(firestore, 'users', user.uid);
         const planRef = doc(firestore, 'investmentPlans', plan.id);
+        const settingsRef = doc(firestore, 'settings', 'admin');
 
         const userDoc = await transaction.get(userRef);
         const planDoc = await transaction.get(planRef);
+        const settingsDoc = await transaction.get(settingsRef);
 
         if (!userDoc.exists()) throw new Error("User does not exist");
         if (!planDoc.exists()) throw new Error("Plan does not exist");
@@ -122,6 +125,15 @@ export default function PlansPage() {
             totalInvestment: newTotalInvestment,
             vipLevel: newVipLevel,
         });
+
+        // Track Admin Profit
+        const adminProfitFromThisSale = plan.adminProfit || 0;
+        if (adminProfitFromThisSale > 0 && settingsDoc.exists()) {
+            const currentProfitBalance = settingsDoc.data().adminProfitBalance || 0;
+            transaction.update(settingsRef, {
+                adminProfitBalance: currentProfitBalance + adminProfitFromThisSale
+            });
+        }
 
         const investmentRef = doc(collection(firestore, 'users', user.uid, 'investments'));
         const startDate = new Date();

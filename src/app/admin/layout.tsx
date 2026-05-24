@@ -22,6 +22,7 @@ import {
   FileText,
   MessageSquare,
   Network,
+  IndianRupee,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -194,6 +195,9 @@ export default function AdminLayout({
             <AdminNavItem icon={Home} href="/admin">
               Dashboard
             </AdminNavItem>
+            <AdminNavItem icon={IndianRupee} href="/admin/finance">
+              Finance & Earnings
+            </AdminNavItem>
             <AdminNavItem icon={Users} href="/admin/users">
               Users
             </AdminNavItem>
@@ -275,6 +279,9 @@ export default function AdminLayout({
                 </Link>
                 <AdminNavItem icon={Home} href="/admin">
                   Dashboard
+                </AdminNavItem>
+                <AdminNavItem icon={IndianRupee} href="/admin/finance">
+                  Finance & Earnings
                 </AdminNavItem>
                 <AdminNavItem icon={Users} href="/admin/users">
                   Users
