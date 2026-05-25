@@ -104,12 +104,25 @@ service cloud.firestore {
     match /users/{userId}/loans/{id} {
       allow read, write: if isOwner(userId) || isAdmin();
     }
+    
+    // Collection Group Queries for Admin Stats
+    match /{path=**}/investments/{id} {
+      allow read: if isAdmin();
+    }
+    match /{path=**}/loans/{id} {
+      allow read: if isAdmin();
+    }
 
     // Coupons
     match /coupons/{id} {
       allow read: if isAuthenticated();
       allow create, delete: if isAdmin();
       allow update: if isAuthenticated(); // Needed for arrayUnion on redemptions
+    }
+
+    // Admin Withdrawals (Profit Logs)
+    match /adminWithdrawals/{id} {
+      allow read, write: if isAdmin();
     }
 
     // Support Chats (User to Admin)
@@ -130,7 +143,7 @@ service cloud.firestore {
     match /userChatSessions/{sessionId}/messages/{messageId} {
       allow read: if isAuthenticated() && (get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants.hasAny([request.auth.uid]) || isAdmin());
       allow create: if isAuthenticated() && (get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants.hasAny([request.auth.uid]) || isAdmin());
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated() && (get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants.hasAny([request.auth.uid]) || isAdmin());
     }
 
     // Generic fallback
