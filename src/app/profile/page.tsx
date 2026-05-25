@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -28,6 +27,8 @@ import {
   Gem,
   Trophy,
   X,
+  CreditCard as CreditCardIcon,
+  CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -406,252 +407,322 @@ export default function ProfilePage() {
   const vipLevel = userData?.vipLevel || 'Bronze';
   
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
+    <div className="flex min-h-screen w-full flex-col bg-[#030408] text-foreground relative overflow-hidden">
+      {/* Glow Blobs */}
+      <div className="absolute top-[-10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/20 blur-[120px] pointer-events-none animate-pulse" />
+      <div className="absolute bottom-[-10%] -right-[10%] w-[50%] h-[50%] rounded-full bg-secondary/10 blur-[120px] pointer-events-none" />
+
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
         <Link href="/dashboard">
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="hover:bg-white/10 text-white/70">
             <ChevronLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <h1 className="text-lg font-semibold">Profile</h1>
+        <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Profile</h1>
         <div className="w-9"></div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-        <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 relative z-10 max-w-4xl mx-auto w-full space-y-6">
+        {/* Profile Info Card */}
+        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl transition-all hover:bg-white/[0.05]">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              My Information
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary to-secondary p-[2px] shadow-lg">
+                    <div className="h-full w-full rounded-2xl bg-[#030408] flex items-center justify-center">
+                       <User size={40} className="text-white/80" />
+                    </div>
+                  </div>
+                  <div className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-green-500 border-4 border-[#030408] flex items-center justify-center">
+                    <ShieldCheck size={16} className="text-white" />
+                  </div>
+                </div>
+                <div className="text-center sm:text-left">
+                  <CardTitle className="text-2xl font-bold text-white mb-1">
+                    {user?.displayName || 'Investor'}
+                  </CardTitle>
+                  <CardDescription className="text-white/40 flex items-center justify-center sm:justify-start gap-1">
+                    <Mail size={14}/> {user?.email}
+                  </CardDescription>
+                </div>
+              </div>
               <Link href="/vip-tiers">
-                <Badge variant={vipLevel === 'Bronze' ? 'outline' : 'default'} className={cn(
-                    'flex items-center gap-1.5 cursor-pointer hover:bg-primary/80',
-                    vipLevel === 'Silver' && 'bg-slate-400 text-black',
-                    vipLevel === 'Gold' && 'bg-yellow-400 text-black',
-                    vipLevel === 'Platinum' && 'bg-purple-500 text-white',
-                    )}>
-                    <Gem size={14}/> {vipLevel}
-                </Badge>
+                <div className={cn(
+                    'group relative px-6 py-2.5 rounded-xl border transition-all hover:scale-105 active:scale-95 flex items-center gap-2 overflow-hidden',
+                    vipLevel === 'Bronze' && 'border-amber-800/50 bg-amber-900/10 text-amber-500',
+                    vipLevel === 'Silver' && 'border-slate-400/50 bg-slate-400/10 text-slate-300',
+                    vipLevel === 'Gold' && 'border-yellow-400/50 bg-yellow-400/10 text-yellow-400',
+                    vipLevel === 'Platinum' && 'border-purple-500/50 bg-purple-500/10 text-purple-400',
+                )}>
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                    <Gem size={18} className="animate-bounce" />
+                    <span className="font-bold tracking-wider uppercase text-sm">{vipLevel} TIER</span>
+                </div>
                </Link>
-            </CardTitle>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {userDataloading ? <p>Loading...</p> : <>
-              <InfoRow icon={User} label="Name" value={user?.displayName || 'N/A'} />
-              <Separator />
-              <InfoRow icon={Mail} label="Email" value={user?.email || 'N/A'} />
-            </>
-          }
-          </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
+        {/* Trust Score Card */}
+        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardHeader>
-            <CardTitle>Your Trust Score</CardTitle>
-            <CardDescription>This score reflects your activity and reliability on our platform. A higher score may unlock better benefits.</CardDescription>
+                <CardTitle className="flex items-center gap-2 text-white/90">
+                    <Trophy className="text-yellow-400" /> Your Trust Score
+                </CardTitle>
+                <CardDescription className="text-white/40">This score is calculated based on your platform reliability and history.</CardDescription>
             </CardHeader>
-            <CardContent>
-            {userDataloading ? (
-                <p>Calculating score...</p>
-            ) : (
-                <TrustScoreMeter score={userData?.trustScore || 500} />
-            )}
+            <CardContent className="relative">
+                {userDataloading ? (
+                    <div className="flex justify-center p-8"><Timer className="animate-spin text-primary" /></div>
+                ) : (
+                    <div className="py-2">
+                        <TrustScoreMeter score={userData?.trustScore || 500} />
+                    </div>
+                )}
             </CardContent>
         </Card>
 
         <RedeemCouponCard />
 
-        {awaitingConfirmationRequest ? (
-            <AmountVerificationCard request={awaitingConfirmationRequest}/>
-        ) : (
-             <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
-                <CardHeader>
-                    <CardTitle>UPI Verification</CardTitle>
-                    <CardDescription>Your UPI ID must be verified to make withdrawals.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {userDataloading ? <p>Loading UPI Status...</p> : (
-                        <>
-                            {upiStatus === 'Verified' && (
-                                <div className="rounded-md border border-green-500/50 bg-green-500/10 p-4 text-green-300 space-y-2">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="font-semibold">UPI ID Verified</p>
-                                            <p className="text-sm">Provider: {userData?.upiProvider}</p>
-                                            <p className="text-sm">ID: {userData?.upiId}</p>
+        {/* Verification Sections */}
+        <div className="grid gap-6">
+            {awaitingConfirmationRequest ? (
+                <AmountVerificationCard request={awaitingConfirmationRequest}/>
+            ) : (
+                 <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-white/90">
+                            <CreditCardIcon className="text-blue-400" /> UPI Verification
+                        </CardTitle>
+                        <CardDescription className="text-white/40">Required for smooth and automated withdrawals.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {userDataloading ? <p>Loading...</p> : (
+                            <>
+                                {upiStatus === 'Verified' && (
+                                    <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-5 text-green-300 space-y-4">
+                                        <div className="flex justify-between items-start">
+                                            <div className="space-y-1">
+                                                <p className="font-bold flex items-center gap-2"><CheckCircle2 className="text-green-500" size={18}/> UPI Verified</p>
+                                                <div className="text-sm bg-white/5 p-2 rounded-lg font-mono tracking-tight text-white/80">
+                                                    {userData?.upiId}
+                                                </div>
+                                                <p className="text-[10px] text-white/40 uppercase tracking-widest">{userData?.upiProvider}</p>
+                                            </div>
+                                            <Button variant="outline" size="sm" onClick={handleChangeUpiRequest} className="border-white/10 hover:bg-white/10 text-white/70 h-8">
+                                                <Pencil className="h-3 w-3 mr-1" /> Change
+                                            </Button>
                                         </div>
-                                        <Button variant="ghost" size="sm" onClick={handleChangeUpiRequest} className="text-green-300/80 hover:text-green-300 h-auto p-1">
-                                            <Pencil className="h-3 w-3 mr-1" /> Change
+                                    </div>
+                                )}
+                                {upiStatus === 'Pending' && (
+                                    <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-6 text-center space-y-2">
+                                        <div className="mx-auto w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center animate-pulse">
+                                            <Timer className="text-blue-400" />
+                                        </div>
+                                        <p className="font-bold text-blue-300 text-lg">Verification Pending</p>
+                                        <p className="text-sm text-blue-200/60">Our team is reviewing your UPI ID. This usually takes less than 1 hour.</p>
+                                    </div>
+                                )}
+                                {upiStatus === 'Unverified' || upiStatus === 'Rejected' ? (
+                                    <div className="space-y-5">
+                                        {upiStatus === 'Rejected' && (
+                                            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive flex items-start gap-3">
+                                                <AlertTriangle size={18} />
+                                                <div className="text-sm">
+                                                    <p className="font-bold">Verification Failed</p>
+                                                    <p className="opacity-80">The provided UPI ID was not valid. Please check and try again.</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label className="text-white/60">UPI Provider</Label>
+                                                <Select onValueChange={(value: 'PhonePe' | 'Google Pay' | 'Paytm') => setUpiProvider(value)} value={upiProvider} disabled={isUpiFormDisabled}>
+                                                    <SelectTrigger className="bg-white/5 border-white/10 rounded-xl focus:ring-primary h-11">
+                                                        <SelectValue placeholder="App Name" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-[#030408] border-white/10">
+                                                        <SelectItem value="PhonePe">PhonePe</SelectItem>
+                                                        <SelectItem value="Google Pay">Google Pay</SelectItem>
+                                                        <SelectItem value="Paytm">Paytm</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="upiId" className="text-white/60">UPI ID</Label>
+                                                <Input id="upiId" value={upiId} onChange={(e) => setUpiId(e.target.value)} placeholder="name@oksbi" disabled={isUpiFormDisabled} className="bg-white/5 border-white/10 rounded-xl h-11 focus:ring-primary" />
+                                            </div>
+                                        </div>
+                                        <Button onClick={handleSubmitUpi} className="w-full h-12 rounded-xl text-lg font-bold shadow-xl shadow-primary/20" disabled={isUpiFormDisabled}>
+                                            <Handshake className="mr-2 h-5 w-5" />
+                                            Verify Identity
+                                        </Button>
+                                    </div>
+                                ): null}
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+       
+            <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-white/90">
+                        <Fingerprint className="text-purple-400" /> KYC Authentication
+                    </CardTitle>
+                    <CardDescription className="text-white/40">Secure your account with official document verification.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                    {userDataloading ? <p>Loading...</p> : (
+                        <>
+                            {kycStatus === 'Pending' && (
+                                <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-6 text-center space-y-2">
+                                    <div className="mx-auto w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center animate-pulse">
+                                        <Timer className="text-blue-400" />
+                                    </div>
+                                    <p className="font-bold text-blue-300 text-lg">Awaiting Review</p>
+                                    <p className="text-sm text-blue-200/60">Your KYC submission is in the queue. You'll be notified once approved.</p>
+                                </div>
+                            )}
+                            {kycStatus === 'Verified' && (
+                                <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-6 text-center space-y-2">
+                                    <div className="mx-auto w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                                        <ShieldCheck className="text-green-400" size={28} />
+                                    </div>
+                                    <p className="font-bold text-green-300 text-lg">Account Fully Verified</p>
+                                    <p className="text-sm text-green-200/60">All platform features and high-limit loans are now unlocked.</p>
+                                </div>
+                            )}
+                            {kycStatus === 'Rejected' && (
+                                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <AlertTriangle size={18} />
+                                        <p className="font-bold">KYC Declined</p>
+                                    </div>
+                                    <p className="text-xs bg-destructive/10 p-3 rounded-lg border border-destructive/20">Reason: {userData?.kycRejectionReason}</p>
+                                </div>
+                            )}
+
+                            {kycStatus !== 'Verified' && kycStatus !== 'Pending' && (
+                                <div className="space-y-5">
+                                    {adminSettings?.kycGoogleFormUrl && (
+                                        <Button asChild variant="secondary" className='w-full h-12 rounded-xl bg-white/10 hover:bg-white/20 border-white/5'>
+                                            <a href={adminSettings.kycGoogleFormUrl} target="_blank" rel="noopener noreferrer">
+                                                <FileUp className="mr-2 h-5 w-5" />
+                                                Step 1: Upload Documents
+                                            </a>
+                                        </Button>
+                                    )}
+                                    <div className="space-y-4">
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label className="text-white/60">PAN Card No.</Label>
+                                                <Input value={panCard} onChange={(e) => setPanCard(e.target.value.toUpperCase())} placeholder="ABCDE1234F" className="bg-white/5 border-white/10 rounded-xl h-11" disabled={isKycFormDisabled} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-white/60">Aadhaar Card No.</Label>
+                                                <Input type="number" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value)} placeholder="12-Digit Number" className="bg-white/5 border-white/10 rounded-xl h-11" disabled={isKycFormDisabled}/>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-white/60">Registered Phone</Label>
+                                            <div className="flex gap-2">
+                                                <Input type="number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="9876543210" className="bg-white/5 border-white/10 rounded-xl h-11" />
+                                                <Button variant="outline" className="border-white/10 rounded-xl h-11" onClick={handleSavePhone}>Save</Button>
+                                            </div>
+                                        </div>
+                                        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-4">
+                                            <p className="text-[10px] text-white/30 uppercase tracking-[2px] font-bold">Terms & Security</p>
+                                            <p className="text-xs text-white/50 leading-relaxed">
+                                                By submitting, you agree to our data policy. False information or loan defaults will result in immediate legal action and platform suspension.
+                                            </p>
+                                            <div className="flex items-center space-x-3 pt-2">
+                                                <Checkbox id="terms" onCheckedChange={(checked) => setKycTermsAccepted(!!checked)} disabled={isKycFormDisabled} className="border-white/20 rounded-md data-[state=checked]:bg-primary" />
+                                                <label htmlFor="terms" className="text-sm font-medium text-white/70 cursor-pointer">
+                                                    I certify the above details are authentic.
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <Button onClick={handleSubmitKyc} className="w-full h-12 rounded-xl font-bold" disabled={isKycFormDisabled}>
+                                           Finalize KYC Submission
                                         </Button>
                                     </div>
                                 </div>
                             )}
-                            {upiStatus === 'Pending' && (
-                                <div className="rounded-md border border-blue-500/50 bg-blue-500/10 p-4 text-center text-blue-300">
-                                    <p className="font-semibold">UPI Pending Verification</p>
-                                    <p className="text-sm">Your UPI ID is under review by the admin.</p>
-                                </div>
-                            )}
-                            {upiStatus === 'Unverified' || upiStatus === 'Rejected' ? (
-                                <div className="space-y-4">
-                                    {upiStatus === 'Rejected' && (
-                                        <div className="rounded-md border-destructive bg-destructive/10 p-4 text-destructive-foreground">
-                                            <p className="font-semibold">UPI Submission Rejected</p>
-                                            <p className="text-sm">Please correct your information below and resubmit.</p>
-                                        </div>
-                                    )}
-                                    <div className="space-y-2">
-                                        <Label>UPI App</Label>
-                                        <Select onValueChange={(value: 'PhonePe' | 'Google Pay' | 'Paytm') => setUpiProvider(value)} value={upiProvider} disabled={isUpiFormDisabled}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select a provider" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="PhonePe">PhonePe</SelectItem>
-                                                <SelectItem value="Google Pay">Google Pay</SelectItem>
-                                                <SelectItem value="Paytm">Paytm</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="upiId">Your UPI ID</Label>
-                                        <Input id="upiId" value={upiId} onChange={(e) => setUpiId(e.target.value)} placeholder="your-name@oksbi" disabled={isUpiFormDisabled} />
-                                    </div>
-                                    <Button onClick={handleSubmitUpi} className="w-full" disabled={isUpiFormDisabled}>
-                                        <Handshake className="mr-2 h-4 w-4" />
-                                        Submit for Verification
-                                    </Button>
-                                </div>
-                            ): null}
                         </>
                     )}
                 </CardContent>
             </Card>
-        )}
-       
-         <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
+        </div>
+
+        {/* Referral Card */}
+        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-50 group-hover:opacity-100 transition-opacity" />
           <CardHeader>
-            <CardTitle>KYC Verification</CardTitle>
-            <CardDescription>This information is required to apply for loans. Please fill all fields and submit your documents.</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-white/90">
+                <Gift className="text-pink-400" /> Share & Earn
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {userDataloading ? <p>Loading KYC status...</p> : (
-                <>
-                    {kycStatus === 'Pending' && (
-                      <div className="rounded-md border border-blue-500/50 bg-blue-500/10 p-4 text-center text-blue-300">
-                        <p className="font-semibold">KYC Pending Approval</p>
-                        <p className="text-sm">Your details have been submitted and are under review by the admin.</p>
-                      </div>
-                    )}
-                    {kycStatus === 'Verified' && (
-                      <div className="rounded-md border border-green-500/50 bg-green-500/10 p-4 text-center text-green-300">
-                        <p className="font-semibold">KYC Verified</p>
-                        <p className="text-sm">You are eligible to apply for loans.</p>
-                      </div>
-                    )}
-                     {kycStatus === 'Rejected' && userData?.kycRejectionReason && (
-                        <div className="rounded-md border-destructive bg-destructive/10 p-4 text-destructive-foreground">
-                            <p className="font-semibold">KYC Rejected</p>
-                            <p className="text-sm">Reason: {userData.kycRejectionReason}</p>
-                            <p className="text-sm mt-2">Please correct your information below and resubmit.</p>
-                        </div>
-                    )}
-
-
-                    {adminSettings?.kycGoogleFormUrl && (
-                        <Button asChild className='w-full'>
-                            <a href={adminSettings.kycGoogleFormUrl} target="_blank" rel="noopener noreferrer">
-                                <FileUp className="mr-2 h-4 w-4" />
-                                Submit Documents via Google Form
-                            </a>
-                        </Button>
-                    )}
-                    <p className='text-center text-sm text-muted-foreground'>Step 1: Submit your documents using the button above.</p>
-                    <p className='text-center text-sm text-muted-foreground'>Step 2: Fill in the matching details below and submit.</p>
-                    <Separator />
-                    <div className="space-y-2">
-                        <Label htmlFor="panCard">PAN Card Number</Label>
-                        <Input id="panCard" value={panCard} onChange={(e) => setPanCard(e.target.value.toUpperCase())} placeholder="ABCDE1234F" maxLength={10} disabled={isKycFormDisabled} />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="aadhaarNumber">Aadhaar Card Number</Label>
-                        <Input id="aadhaarNumber" type="number" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value)} placeholder="123456789012" maxLength={12} disabled={isKycFormDisabled}/>
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="phoneNumber">Phone Number</Label>
-                        <div className="flex gap-2">
-                            <Input id="phoneNumber" type="number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="9876543210" maxLength={10} />
-                            <Button variant="outline" size="sm" onClick={handleSavePhone}>Save Phone</Button>
-                        </div>
-                    </div>
-                     <div className="space-y-4 rounded-md border p-4">
-                        <h4 className="text-sm font-medium flex items-center gap-2"><AlertTriangle className="text-yellow-400"/>Terms and Conditions</h4>
-                        <p className="text-xs text-muted-foreground">
-                          If you do not repay the loan, if for some reason you run away, or if you abscond without repaying the loan, then legal action will be taken against you.
-                        </p>
-                         <div className="flex items-center space-x-2">
-                            <Checkbox id="terms" onCheckedChange={(checked) => setKycTermsAccepted(!!checked)} disabled={isKycFormDisabled}/>
-                            <label
-                                htmlFor="terms"
-                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                            >
-                                I agree to the terms and conditions
-                            </label>
-                        </div>
-                    </div>
-                    <Button onClick={handleSubmitKyc} className="w-full" disabled={isKycFormDisabled}>
-                       Submit KYC for Approval
-                    </Button>
-                </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
-          <CardHeader>
-            <CardTitle>Referral Code</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between rounded-md bg-muted p-3">
-              <div className="flex items-center gap-3">
-                  <Gift className="h-6 w-6 text-primary" />
-                  <span className="text-lg font-mono tracking-widest">{userData?.referralCode || 'Loading...'}</span>
+          <CardContent className="relative space-y-4">
+            <div className="flex items-center justify-between rounded-2xl bg-black/40 border border-white/5 p-4">
+              <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-white/5">
+                    <UsersIcon size={24} className="text-white/80" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Referral ID</p>
+                    <span className="text-xl font-mono font-bold text-white tracking-tighter">{userData?.referralCode || '••••••'}</span>
+                  </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={handleCopyCode}>
-                <Copy className="h-5 w-5" />
+              <Button variant="ghost" size="icon" onClick={handleCopyCode} className="h-12 w-12 rounded-xl hover:bg-white/10 text-white/60">
+                <Copy className="h-6 w-6" />
               </Button>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">Share this code with friends. You'll get a bonus when they make their first investment!</p>
+            <div className="flex items-center gap-3 text-sm text-white/40 bg-white/[0.02] p-4 rounded-2xl">
+                <Users2 className="shrink-0 text-white/20" />
+                <p>Earn <span className="text-white font-bold">₹500</span> bonus instantly when a friend starts their first plan!</p>
+            </div>
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="deposits" className="mt-6">
-            <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="deposits">Deposit History</TabsTrigger>
-                <TabsTrigger value="withdrawals">Withdrawal History</TabsTrigger>
-                <TabsTrigger value="group-investments">Group Investments</TabsTrigger>
+        {/* History Tabs */}
+        <Tabs defaultValue="deposits" className="mt-8">
+            <TabsList className="grid w-full grid-cols-3 bg-white/5 border-white/10 p-1.5 h-14 rounded-2xl">
+                <TabsTrigger value="deposits" className="rounded-xl data-[state=active]:bg-white/10 data-[state=active]:text-white transition-all h-full">Deposits</TabsTrigger>
+                <TabsTrigger value="withdrawals" className="rounded-xl data-[state=active]:bg-white/10 data-[state=active]:text-white transition-all h-full">Withdrawals</TabsTrigger>
+                <TabsTrigger value="group-investments" className="rounded-xl data-[state=active]:bg-white/10 data-[state=active]:text-white transition-all h-full text-[10px] sm:text-sm">Group Plans</TabsTrigger>
             </TabsList>
-            <TabsContent value="deposits">
-                <TransactionTable transactions={deposits} type="deposit" />
-            </TabsContent>
-            <TabsContent value="withdrawals">
-                <TransactionTable transactions={withdrawals} type="withdrawal" />
-            </TabsContent>
-             <TabsContent value="group-investments">
-                <GroupInvestmentTable investments={groupInvestments} />
-            </TabsContent>
+            <div className="mt-6">
+                <TabsContent value="deposits">
+                    <TransactionTable transactions={deposits} type="deposit" />
+                </TabsContent>
+                <TabsContent value="withdrawals">
+                    <TransactionTable transactions={withdrawals} type="withdrawal" />
+                </TabsContent>
+                 <TabsContent value="group-investments">
+                    <GroupInvestmentTable investments={groupInvestments} />
+                </TabsContent>
+            </div>
         </Tabs>
 
-        <Button onClick={handleLogout} className="mt-6 w-full" variant="destructive">
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </Button>
+        <div className="pt-6">
+            <Button onClick={handleLogout} className="w-full h-14 rounded-2xl font-bold bg-white/5 hover:bg-destructive text-white border border-white/10 transition-colors shadow-2xl" variant="ghost">
+            <LogOut className="mr-2 h-5 w-5" />
+            Sign Out Securely
+            </Button>
+            <p className="text-center text-[10px] text-white/20 uppercase tracking-[4px] font-bold mt-8">Grow Money Protected Platform</p>
+        </div>
       </main>
-      <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs">
+
+      <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-          <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
+          <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" active />
         </div>
       </nav>
@@ -690,7 +761,6 @@ function RedeemCouponCard() {
         const couponDoc = snapshot.docs[0];
         const couponData = couponDoc.data() as Coupon;
 
-        // Pre-check for redemption to provide a cleaner user experience
         if (couponData.redemptions?.some(r => r.userId === user.uid)) {
             toast({ title: 'Coupon Already Used', description: 'You have already redeemed this coupon code.', variant: 'destructive' });
             setIsLoading(false);
@@ -713,7 +783,6 @@ function RedeemCouponCard() {
                 }
                 const coupon = couponSnapshot.data() as Coupon;
 
-                // Re-validate inside the transaction to prevent race conditions
                 if (coupon.status !== 'active' || coupon.stock <= 0) {
                     throw new Error('This coupon is no longer active or out of stock.');
                 }
@@ -757,22 +826,24 @@ function RedeemCouponCard() {
 
 
     return (
-        <Card className="shadow-lg border-primary/10 bg-gradient-to-b from-card to-secondary/20 mt-6">
+        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl group overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><TicketPercent /> Redeem a Coupon</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-white/90">
+                    <TicketPercent className="text-cyan-400 group-hover:rotate-12 transition-transform" /> Promo & Coupons
+                </CardTitle>
             </CardHeader>
-            <CardContent>
-                <div className="flex flex-col sm:flex-row gap-2">
-                    <Input 
-                        placeholder="Enter coupon code" 
-                        value={couponCode} 
-                        onChange={(e) => setCouponCode(e.target.value)}
-                        disabled={isLoading}
-                    />
-                    <Button onClick={handleApplyCoupon} disabled={isLoading} className="w-full sm:w-auto">
-                        {isLoading ? 'Applying...' : 'Apply Coupon'}
-                    </Button>
-                </div>
+            <CardContent className="relative flex flex-col sm:flex-row gap-3">
+                <Input 
+                    placeholder="Enter unique code" 
+                    value={couponCode} 
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    disabled={isLoading}
+                    className="bg-white/5 border-white/10 h-12 rounded-xl text-lg font-mono tracking-widest placeholder:text-white/20 focus:ring-primary"
+                />
+                <Button onClick={handleApplyCoupon} disabled={isLoading} className="h-12 rounded-xl px-8 font-bold">
+                    {isLoading ? 'Processing...' : 'Redeem Now'}
+                </Button>
             </CardContent>
         </Card>
     );
@@ -794,7 +865,6 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
     }
 
     if (userInputAmount === request.confirmationAmount) {
-      // Amounts match, run transaction to approve
       try {
         await runTransaction(firestore, async (transaction) => {
           const userRef = doc(firestore, 'users', user.uid);
@@ -812,26 +882,27 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
         toast({ title: 'Verification Failed', description: 'An error occurred. Please try again.', variant: 'destructive' });
       }
     } else {
-      // Amounts do not match
       toast({ title: 'Incorrect Amount', description: 'The amount you entered does not match. Please check and try again.', variant: 'destructive' });
     }
   };
 
 
   return (
-    <Card className="shadow-lg border-yellow-500/50 bg-gradient-to-b from-card to-yellow-900/20 mt-6">
+    <Card className="shadow-2xl border-yellow-500/30 bg-yellow-500/[0.03] backdrop-blur-xl group">
       <CardHeader>
-        <CardTitle>Verify Your UPI ID</CardTitle>
-        <CardDescription>We have sent a small amount to your UPI ID. Please enter the exact amount you received to complete verification.</CardDescription>
+        <CardTitle className="text-yellow-400 flex items-center gap-2">
+            <Timer className="animate-pulse" /> Final Verification
+        </CardTitle>
+        <CardDescription className="text-yellow-200/40">We've sent a small amount to your UPI. Enter the exact figure below.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-            <Label htmlFor="verificationAmount">Amount Received</Label>
-            <Input id="verificationAmount" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g., 1.07" />
+            <Label htmlFor="verificationAmount" className="text-yellow-200/60">Amount Received (₹)</Label>
+            <Input id="verificationAmount" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g., 1.07" className="bg-white/5 border-yellow-500/20 text-yellow-100 h-12 text-xl font-mono text-center rounded-xl" />
         </div>
-        <Button className="w-full" onClick={handleVerifyAmount}>
-            <ShieldCheck className="mr-2 h-4 w-4" />
-            Verify Amount
+        <Button className="w-full h-12 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-black font-bold" onClick={handleVerifyAmount}>
+            <ShieldCheck className="mr-2 h-5 w-5" />
+            Complete Verification
         </Button>
       </CardContent>
     </Card>
@@ -841,21 +912,26 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between py-1">
       <div className="flex items-center gap-3">
-        <Icon className="h-5 w-5 text-muted-foreground" />
-        <span className="text-sm font-medium">{label}</span>
+        <div className="p-2 rounded-lg bg-white/5">
+            <Icon className="h-4 w-4 text-white/50" />
+        </div>
+        <span className="text-sm font-medium text-white/70">{label}</span>
       </div>
-      <span className="text-sm text-muted-foreground">{value}</span>
+      <span className="text-sm text-white/90 font-semibold">{value}</span>
     </div>
   );
 }
 
 function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href: string, active?: boolean }) {
   return (
-    <Link href={href} className={`flex flex-col items-center justify-center gap-1 ${active ? 'text-primary' : 'text-muted-foreground'}`}>
-      <Icon className="h-5 w-5" />
-      <span>{label}</span>
+    <Link href={href} className={cn(
+        "flex flex-col items-center justify-center gap-1 transition-all h-full",
+        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
+    )}>
+      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
+      <span className="text-[10px] tracking-tight">{label}</span>
     </Link>
   );
 }
@@ -874,7 +950,7 @@ const WithdrawalStatus = ({ tx }: { tx: Transaction }) => {
                 const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                 setWaitingDays(diffDays);
                 setBonusEarned(diffDays * (tx.delayBonusAmountPerDay || 0));
-            }, 1000); // Update every second to show a "live" timer feel
+            }, 1000);
             return () => clearInterval(interval);
         }
     }, [tx]);
@@ -882,78 +958,92 @@ const WithdrawalStatus = ({ tx }: { tx: Transaction }) => {
     if (tx.status === 'pending') {
         if (tx.delayBonusActive) {
             return (
-                 <div className="p-2 text-xs rounded-md bg-blue-500/10 text-blue-300 space-y-1">
-                    <p className="font-semibold flex items-center gap-1"><Timer size={14}/> Delay Bonus Active</p>
-                    <p>You are earning ₹{tx.delayBonusAmountPerDay || 0}/day.</p>
-                    <p>Days Waiting: {waitingDays}</p>
-                    <p>Bonus Earned: ₹{bonusEarned.toFixed(2)}</p>
+                 <div className="p-3 text-[10px] rounded-xl bg-blue-500/10 text-blue-300 border border-blue-500/20 space-y-1">
+                    <p className="font-bold flex items-center gap-1.5"><Timer size={12}/> DELAY BONUS ACTIVE</p>
+                    <div className="flex justify-between">
+                        <span>Rate</span>
+                        <span className="text-white">₹{tx.delayBonusAmountPerDay}/day</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>Waiting</span>
+                        <span className="text-white">{waitingDays} days</span>
+                    </div>
+                    <div className="flex justify-between border-t border-blue-500/20 pt-1 mt-1">
+                        <span>Earned</span>
+                        <span className="text-green-400 font-bold">₹{bonusEarned.toFixed(2)}</span>
+                    </div>
                  </div>
             )
         }
-        return <p className="text-xs text-muted-foreground">Your withdrawal is under processing.</p>
+        return <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">In Processing Queue</p>
     }
 
-    return null; // Don't show for approved/rejected
+    return null;
 };
 
 function TransactionTable({ transactions, type }: { transactions: Transaction[] | undefined | null, type: 'deposit' | 'withdrawal' }) {
     const formatDate = (timestamp: Timestamp) => {
         if (!timestamp) return 'N/A';
-        return new Date(timestamp.seconds * 1000).toLocaleString();
+        return new Date(timestamp.seconds * 1000).toLocaleDateString();
     };
 
-    const getStatusVariant = (status: string) => {
+    const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'approved': return 'default';
-            case 'rejected': return 'destructive';
-            default: return 'secondary';
+            case 'approved': return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Success</Badge>;
+            case 'rejected': return <Badge className="bg-destructive/20 text-destructive border-destructive/30">Failed</Badge>;
+            default: return <Badge variant="secondary" className="bg-white/5 text-white/40 border-white/10">Pending</Badge>;
         }
     };
     
     return (
-        <Card className="bg-gradient-to-b from-card to-secondary/20 border-primary/10">
-            <CardContent className="pt-6">
+        <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
+            <CardContent className="p-0">
                 <div className="overflow-x-auto">
                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Amount</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Details</TableHead>
-                                <TableHead>Date</TableHead>
+                        <TableHeader className="bg-white/[0.02]">
+                            <TableRow className="border-white/10">
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Payout</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Status</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Details</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Date</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {transactions && transactions.length > 0 ? (
                                 transactions.map(tx => (
-                                    <TableRow key={tx.id}>
-                                        <TableCell className="font-semibold">
-                                            {type === 'withdrawal' && tx.status === 'approved'
-                                                ? `₹${(tx.finalAmount ?? 0).toFixed(2)}`
-                                                : `₹${tx.amount.toFixed(2)}`
-                                            }
+                                    <TableRow key={tx.id} className="border-white/[0.05] hover:bg-white/[0.02] transition-colors">
+                                        <TableCell className="pl-6">
+                                            <div className="font-bold text-white tracking-tight">
+                                                {type === 'withdrawal' && tx.status === 'approved'
+                                                    ? `₹${(tx.finalAmount ?? 0).toFixed(2)}`
+                                                    : `₹${tx.amount.toFixed(2)}`
+                                                }
+                                            </div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant={getStatusVariant(tx.status)}>{tx.status}</Badge>
+                                            {getStatusBadge(tx.status)}
                                         </TableCell>
                                         <TableCell>
                                             {type === 'withdrawal' ? (
-                                                <div className="text-xs space-y-1 text-muted-foreground">
-                                                    <div>Req: ₹{tx.amount.toFixed(2)}</div>
-                                                    {tx.gstAmount != null && <div>GST: -₹{tx.gstAmount.toFixed(2)}</div>}
-                                                    {tx.totalDelayBonus != null && tx.totalDelayBonus > 0 && <div className="text-green-400">Bonus: +₹{tx.totalDelayBonus.toFixed(2)}</div>}
+                                                <div className="text-[10px] space-y-1 text-white/40">
+                                                    {tx.status === 'approved' && (
+                                                        <>
+                                                            <div className="flex justify-between max-w-[80px]"><span>GST:</span> <span className="text-destructive">-₹{tx.gstAmount?.toFixed(2)}</span></div>
+                                                            {tx.totalDelayBonus! > 0 && <div className="flex justify-between max-w-[80px]"><span>Bonus:</span> <span className="text-green-400">+₹{tx.totalDelayBonus?.toFixed(2)}</span></div>}
+                                                        </>
+                                                    )}
                                                     {tx.status === 'pending' && <WithdrawalStatus tx={tx} />}
                                                 </div>
                                             ) : (
-                                                <span className="text-xs text-muted-foreground">Deposit to wallet</span>
+                                                <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Wallet Credit</span>
                                             )}
                                         </TableCell>
-                                        <TableCell>{formatDate(tx.createdAt)}</TableCell>
+                                        <TableCell className="text-[10px] text-white/30 pr-6">{formatDate(tx.createdAt)}</TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center">No transactions found.</TableCell>
+                                    <TableCell colSpan={4} className="text-center py-10 text-white/20 italic">No transactions found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -982,23 +1072,23 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
     const remainingAmount = expectedReturn - (investment.amountReceived || 0);
 
     return (
-        <TableRow>
-            <TableCell>
-                <div className='font-medium'>{investment.planName}</div>
-                <div className='text-xs text-muted-foreground'>{formatDate(investment.createdAt)}</div>
+        <TableRow className="border-white/[0.05] hover:bg-white/[0.02]">
+            <TableCell className="pl-6">
+                <div className='font-bold text-white'>{investment.planName}</div>
+                <div className='text-[10px] text-white/20 font-bold uppercase tracking-widest mt-1'>{formatDate(investment.createdAt)}</div>
             </TableCell>
-            <TableCell>₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-cyan-400">₹{(totalProfitShare || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-green-400">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-yellow-400">₹{(remainingAmount > 0 ? remainingAmount : 0).toFixed(2)}</TableCell>
-            <TableCell>
+            <TableCell className="text-white/80 font-medium">₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-cyan-400 font-bold">₹{(totalProfitShare || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-green-400 font-bold">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-yellow-400 font-bold">₹{(remainingAmount > 0 ? remainingAmount : 0).toFixed(2)}</TableCell>
+            <TableCell className="pr-6">
                 {planData ? (
-                    <div className="w-24">
-                        <Progress value={repaymentProgress} className="h-2" />
-                        <span className="text-xs text-muted-foreground">{repaymentProgress.toFixed(0)}% Repaid</span>
+                    <div className="w-24 space-y-1">
+                        <Progress value={repaymentProgress} className="h-1.5 bg-white/5" />
+                        <span className="text-[10px] text-white/30 font-bold">{repaymentProgress.toFixed(0)}% PAID BACK</span>
                     </div>
                 ) : (
-                    <span className="text-xs text-muted-foreground">Loading...</span>
+                    <span className="text-[10px] text-white/20 animate-pulse">SYNCING...</span>
                 )}
             </TableCell>
         </TableRow>
@@ -1009,18 +1099,18 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
 function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
 
     return (
-        <Card className="bg-gradient-to-b from-card to-secondary/20 border-primary/10">
-            <CardContent className="pt-6">
+        <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
+            <CardContent className="p-0">
                 <div className="overflow-x-auto">
                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Plan</TableHead>
-                                <TableHead>Invested</TableHead>
-                                <TableHead>Profit</TableHead>
-                                <TableHead>Received</TableHead>
-                                <TableHead>Remaining</TableHead>
-                                <TableHead>Loan Progress</TableHead>
+                        <TableHeader className="bg-white/[0.02]">
+                            <TableRow className="border-white/10">
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Plan</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Invested</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Profit</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Received</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Remaining</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Progress</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1030,7 +1120,7 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center">No group investments found.</TableCell>
+                                    <TableCell colSpan={6} className="text-center py-10 text-white/20 italic">No group investments found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
