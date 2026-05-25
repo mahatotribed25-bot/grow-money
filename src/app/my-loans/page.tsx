@@ -38,6 +38,13 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 
@@ -637,7 +644,7 @@ function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { lo
         
         const newPenalty = overdueDays * dailyPenalty;
         
-        if (newPenalty > (loan.penalty || 0)) {
+        if (loan.status !== 'Due' || newPenalty > (loan.penalty || 0)) {
           const loanRef = doc(firestore, 'customLoanRequests', loan.id);
           const dataToUpdate = { penalty: newPenalty };
 
