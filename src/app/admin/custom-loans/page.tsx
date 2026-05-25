@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -265,7 +266,6 @@ export default function CustomLoansPage() {
         await runTransaction(firestore, async (transaction) => {
             const settingsDoc = await transaction.get(settingsRef);
             if (!settingsDoc.exists()) {
-                console.warn("Admin settings not found, cannot update loan usage.");
                 transaction.update(requestRef, { status: 'completed' });
                 return;
             }
@@ -361,7 +361,6 @@ export default function CustomLoansPage() {
             });
         }
     } catch (error) {
-        console.error("Error fetching user's phone number: ", error);
         toast({
             variant: 'destructive',
             title: 'Error',

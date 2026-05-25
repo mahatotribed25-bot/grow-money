@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -76,7 +77,6 @@ export default function DepositsPage() {
           });
       })
       .catch((error) => {
-          console.error('Error updating deposit status:', error);
           const permissionError = new FirestorePermissionError({
             path: `users/${deposit.userId} or deposits/${deposit.id}`,
             operation: 'write',
@@ -94,7 +94,6 @@ export default function DepositsPage() {
           });
       })
       .catch((error) => {
-          console.error('Error updating deposit status:', error);
           const permissionError = new FirestorePermissionError({
             path: depositRef.path,
             operation: 'update',
@@ -113,7 +112,6 @@ export default function DepositsPage() {
         if (userDoc.exists() && userDoc.data().phoneNumber) {
             const phoneNumber = userDoc.data().phoneNumber;
             const message = `✅ Deposit Successful! Dear ${deposit.name}, your deposit of ₹${deposit.amount.toFixed(2)} has been approved and added to your wallet. Thank you for choosing Grow Money!`;
-            // Using wa.me link which is more common and works on mobile/desktop
             const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');
         } else {
@@ -124,7 +122,6 @@ export default function DepositsPage() {
             });
         }
     } catch (error) {
-        console.error("Error fetching user's phone number: ", error);
         toast({
             variant: 'destructive',
             title: 'Error',

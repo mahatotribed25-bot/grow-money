@@ -165,7 +165,7 @@ function useUserGroupInvestments(userId?: string) {
             for (const planDoc of plansSnapshot.docs) {
                 const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
                 const q = query(investmentsRef, where('investorId', '==', userId));
-                const investmentSnapshot = await getDocs(iq);
+                const investmentSnapshot = await getDocs(q);
 
                 investmentSnapshot.forEach(invDoc => {
                     allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
@@ -278,7 +278,6 @@ export default function ProfilePage() {
         toast({ title: "Phone Number Updated" });
       })
       .catch((error) => {
-        console.error('Error updating phone number:', error);
         const permissionError = new FirestorePermissionError({
           path: userRef.path,
           operation: 'update',
@@ -318,7 +317,6 @@ export default function ProfilePage() {
           toast({ title: 'UPI Submitted', description: 'Your UPI ID has been submitted for verification.' });
       })
       .catch((error) => {
-          console.error('Error submitting UPI request:', error);
           const permissionError = new FirestorePermissionError({
               path: `upiRequests or users/${user.uid}`,
               operation: 'write',
@@ -347,7 +345,6 @@ export default function ProfilePage() {
         setUpiProvider('');
       })
       .catch((error) => {
-        console.error('Error resetting UPI:', error);
         const permissionError = new FirestorePermissionError({
           path: userRef.path,
           operation: 'update',
@@ -752,7 +749,6 @@ function RedeemCouponCard() {
             toast({ title: 'Coupon Redeemed!', description: `₹${couponDoc.data().amount} has been added to your wallet.` });
             setCouponCode('');
         } catch (error: any) {
-            // The user sees the toast, no need for a console error for validation issues.
             toast({ title: 'Redemption Failed', description: error.message || 'An error occurred.', variant: 'destructive' });
         } finally {
             setIsLoading(false);
@@ -813,7 +809,6 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
         });
         toast({ title: 'UPI Verified!', description: 'Your UPI ID has been successfully verified.' });
       } catch (error) {
-        console.error("Verification transaction failed: ", error);
         toast({ title: 'Verification Failed', description: 'An error occurred. Please try again.', variant: 'destructive' });
       }
     } else {

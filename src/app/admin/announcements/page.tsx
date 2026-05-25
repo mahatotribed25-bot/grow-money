@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Table,
@@ -151,7 +152,6 @@ export default function AnnouncementsPage() {
         toast({ title: 'Announcement deleted successfully' });
       })
       .catch((error) => {
-        console.error('Error deleting announcement: ', error);
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
@@ -178,7 +178,6 @@ export default function AnnouncementsPage() {
           setEditingAnnouncement(null);
         })
         .catch((error) => {
-          console.error('Error updating announcement: ', error);
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
@@ -200,7 +199,6 @@ export default function AnnouncementsPage() {
           setEditingAnnouncement(null);
         })
         .catch((error) => {
-          console.error('Error creating announcement: ', error);
           const permissionError = new FirestorePermissionError({
             path: collectionRef.path,
             operation: 'create',

@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
@@ -87,7 +88,7 @@ export default function AdminChatPage() {
             await setDoc(chatDoc, chatData, { merge: true });
             setMessage('');
         } catch (e) {
-            console.error(e);
+            // Error is handled by global emitter if permissions fail
         }
     }
 
@@ -114,7 +115,6 @@ export default function AdminChatPage() {
             await batch.commit();
             toast({ title: "Chat Cleared", description: "User's chat history has been successfully deleted." });
         } catch (e) {
-            console.error(e);
             toast({ title: "Error", description: "Could not clear chat history.", variant: "destructive" });
         }
     }

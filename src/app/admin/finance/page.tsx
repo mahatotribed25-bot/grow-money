@@ -7,15 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
-import { doc, updateDoc, runTransaction, serverTimestamp, collection, type Timestamp } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp, collection, type Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { 
     IndianRupee, 
     TrendingUp, 
     ArrowUpRight, 
-    ArrowDownRight, 
     History, 
-    LineChart, 
     Briefcase,
     Users
 } from 'lucide-react';
@@ -134,7 +132,6 @@ export default function AdminFinancePage() {
             setIsWithdrawDialogOpen(false);
             setWithdrawAmount('');
         } catch (e) {
-            console.error(e);
             toast({ title: "Withdrawal Failed", variant: "destructive" });
         }
     };
