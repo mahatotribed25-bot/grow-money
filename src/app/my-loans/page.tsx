@@ -1,4 +1,3 @@
-
 'use client';
 import {
   ChevronLeft,
@@ -10,6 +9,8 @@ import {
   Trophy,
   Copy,
   QrCode,
+  Timer,
+  PlusCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
+import { Input } from '@/components/ui/input';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
@@ -74,7 +76,7 @@ type CustomLoanRequest = {
   id: string;
   requestedAmount: number;
   requestedDuration: number;
-  status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin' | 'payment_pending';
+  status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin' | 'payment_pending' | 'extension_pending';
   interestRate?: number;
   interestAmount?: number;
   totalRepayment?: number;
@@ -82,6 +84,7 @@ type CustomLoanRequest = {
   createdAt: Timestamp;
   dueDate?: Timestamp;
   penalty?: number;
+  extensionRequestedDays?: number;
 };
 
 const CountdownTimer = ({ endDate }: { endDate: Date }) => {
@@ -136,6 +139,9 @@ export default function MyLoansPage() {
     amount: number;
     upiId: string;
   } | null>(null);
+
+  const [extensionLoan, setExtensionLoan] = useState<CustomLoanRequest | null>(null);
+  const [extensionDays, setExtensionDays] = useState('5');
 
   const loading = userLoading || loansLoading || settingsLoading || customLoansLoading;
   
@@ -205,6 +211,35 @@ export default function MyLoansPage() {
       errorEmitter.emit('permission-error', permissionError);
     }
   };
+
+  const handleRequestExtension = async () => {
+    if (!extensionLoan) return;
+    const days = parseInt(extensionDays);
+    if (isNaN(days) || days <= 0 || days > 15) {
+      toast({ title: "Invalid Extension", description: "You can request between 1 and 15 extra days.", variant: "destructive" });
+      return;
+    }
+
+    const loanRef = doc(firestore, 'customLoanRequests', extensionLoan.id);
+    const updateData = {
+      status: 'extension_pending',
+      extensionRequestedDays: days,
+      extensionRequestedAt: serverTimestamp()
+    };
+
+    try {
+      await updateDoc(loanRef, updateData);
+      toast({ title: "Extension Requested", description: "Your extension request has been sent to the admin." });
+      setExtensionLoan(null);
+    } catch (e) {
+      const permissionError = new FirestorePermissionError({
+        path: loanRef.path,
+        operation: 'update',
+        requestResourceData: updateData
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    }
+  };
   
   const handleCopyToClipboard = (text: string, label: string) => {
     if (!text) return;
@@ -249,7 +284,7 @@ export default function MyLoansPage() {
             <h2 className="text-xl font-bold mt-8">Custom Loan Requests</h2>
             {loading ? <p>Loading custom loans...</p> : 
                 sortedCustomLoans && sortedCustomLoans.length > 0 ? (
-                    sortedCustomLoans.map(loan => <CustomLoanCard key={loan.id} loan={loan} adminSettings={adminSettings} onPayNow={handlePaymentInitiation} />)
+                    sortedCustomLoans.map(loan => <CustomLoanCard key={loan.id} loan={loan} adminSettings={adminSettings} onPayNow={handlePaymentInitiation} onOpenExtension={() => setExtensionLoan(loan)} />)
                 ) : (
                     <Card>
                         <CardContent className="pt-6 text-center text-muted-foreground">
@@ -335,6 +370,37 @@ export default function MyLoansPage() {
             </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!extensionLoan} onOpenChange={() => setExtensionLoan(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Loan Extension</DialogTitle>
+            <DialogDescription>
+              Need more time? Request an extension for your custom loan. The admin will review your request and may apply an extension fee.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="extension-days">How many extra days do you need?</Label>
+              <Select value={extensionDays} onValueChange={setExtensionDays}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select extra days" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 3, 5, 7, 10, 15].map(d => (
+                    <SelectItem key={d} value={d.toString()}>{d} Extra Days</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Extensions are subject to approval and extra fees.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+            <Button onClick={handleRequestExtension}>Submit Request</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -342,6 +408,7 @@ export default function MyLoansPage() {
 function getStatusVariant(status: string) {
     switch (status) {
         case 'Active':
+        case 'active':
         case 'Paid':
         case 'approved_by_user':
              return 'default';
@@ -350,9 +417,12 @@ function getStatusVariant(status: string) {
         case 'rejected_by_admin':
             return 'destructive';
         case 'Payment Pending':
+        case 'payment_pending':
         case 'pending_user_approval':
+        case 'extension_pending':
              return 'outline';
         case 'Completed':
+        case 'completed':
         case 'pending_admin_review':
             return 'secondary';
         default: return 'secondary';
@@ -478,8 +548,8 @@ function LoanCard({ loan, adminSettings, onPayNow }: { loan: Loan, adminSettings
         
         {loan.status === 'Active' && currentTime && (
             <div className="space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Time Remaining:</span>
+                <div className="flex justify-between text-xs text-muted-foreground items-center">
+                    <span className="flex items-center gap-1.5"><Timer size={14}/> Time Remaining</span>
                     <CountdownTimer endDate={dueDate} />
                 </div>
             </div>
@@ -536,7 +606,7 @@ function LoanCard({ loan, adminSettings, onPayNow }: { loan: Loan, adminSettings
 }
 
 
-function CustomLoanCard({ loan, adminSettings, onPayNow }: { loan: CustomLoanRequest, adminSettings: AdminSettings | null, onPayNow: (loan: CustomLoanRequest, amount: number) => void }) {
+function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { loan: CustomLoanRequest, adminSettings: AdminSettings | null, onPayNow: (loan: CustomLoanRequest, amount: number) => void, onOpenExtension: () => void }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -617,12 +687,14 @@ function CustomLoanCard({ loan, adminSettings, onPayNow }: { loan: CustomLoanReq
   const isOverdue = currentTime && loan.dueDate && currentTime > loan.dueDate.toDate();
   const totalRepayment = (loan.totalRepayment || 0) + (loan.penalty || 0);
 
+  const statusLabel = loan.status === 'extension_pending' ? 'Extension Pending' : loan.status;
+
   return (
     <Card className="bg-gradient-to-br from-card to-secondary/30 border-primary/10">
       <CardHeader>
-        <CardTitle className="flex justify-between items-center">
+        <CardTitle className="flex justify-between items-center text-sm md:text-base">
             <span>Custom Loan Request</span>
-            <Badge variant={getStatusVariant(loan.status)} className="capitalize">{loan.status}</Badge>
+            <Badge variant={getStatusVariant(loan.status)} className="capitalize">{statusLabel.replace('_', ' ')}</Badge>
         </CardTitle>
         <CardDescription>Requested on: {loan.createdAt.toDate().toLocaleDateString()}</CardDescription>
       </CardHeader>
@@ -653,7 +725,7 @@ function CustomLoanCard({ loan, adminSettings, onPayNow }: { loan: CustomLoanReq
                         <Button className="w-full" variant="destructive" onClick={() => handleUpdateStatus('rejected_by_user')}>Reject Offer</Button>
                     </div>
                 </div>
-            ) : (loan.status === 'active' || loan.status === 'payment_pending') && (
+            ) : (loan.status === 'active' || loan.status === 'payment_pending' || loan.status === 'extension_pending') && (
                  <div className="p-4 bg-muted/50 rounded-lg space-y-3 mt-4">
                     <h4 className="font-bold text-center">Active Loan Details</h4>
                     {isOverdue && (
@@ -668,7 +740,7 @@ function CustomLoanCard({ loan, adminSettings, onPayNow }: { loan: CustomLoanReq
                     </div>
                     {loan.status === 'active' && loan.dueDate && (
                         <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-muted-foreground">
+                            <div className="flex justify-between text-xs text-muted-foreground items-center">
                                 <span>Time Remaining:</span>
                                 {isOverdue ? (
                                     <span className="font-semibold text-destructive">Overdue</span>
@@ -678,11 +750,25 @@ function CustomLoanCard({ loan, adminSettings, onPayNow }: { loan: CustomLoanReq
                             </div>
                         </div>
                     )}
-                     {(isOverdue || loan.status === 'payment_pending') && (
-                        <Button className="w-full" onClick={() => onPayNow(loan, totalRepayment)} disabled={loan.status === 'payment_pending'}>
-                            {loan.status === 'payment_pending' ? 'Processing Payment...' : 'Pay Now'}
-                        </Button>
+                    
+                    {loan.status === 'extension_pending' && (
+                       <div className="text-center p-2 rounded bg-blue-500/10 text-blue-300 text-xs">
+                          Waiting for admin to approve {loan.extensionRequestedDays} extra days.
+                       </div>
                     )}
+
+                    <div className="flex flex-col gap-2 pt-2">
+                        {(isOverdue || loan.status === 'payment_pending' || loan.status === 'active') && (
+                            <Button className="w-full" onClick={() => onPayNow(loan, totalRepayment)} disabled={loan.status === 'payment_pending'}>
+                                {loan.status === 'payment_pending' ? 'Processing Payment...' : 'Pay Now'}
+                            </Button>
+                        )}
+                        {loan.status === 'active' && !isOverdue && (
+                            <Button variant="outline" className="w-full" onClick={onOpenExtension}>
+                                <PlusCircle className="h-4 w-4 mr-2" /> Request Extension
+                            </Button>
+                        )}
+                    </div>
                 </div>
             )}
             

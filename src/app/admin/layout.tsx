@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -54,7 +53,7 @@ type WithdrawalRequest = BaseRequest & { name: string };
 type LoanRequest = BaseRequest & { userName: string };
 type KycRequest = { id: string, name: string, kycSubmissionDate: Timestamp };
 type UpiRequest = BaseRequest & { userName: string };
-type CustomLoanRequest = BaseRequest & { userName: string };
+type CustomLoanRequest = BaseRequest & { userName: string, status: string };
 
 
 export default function AdminLayout({
@@ -91,7 +90,7 @@ export default function AdminLayout({
   );
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(
     isAdmin ? 'customLoanRequests' : null,
-    { where: ['status', '==', 'pending_admin_review'] }
+    { where: ['status', 'in', ['pending_admin_review', 'extension_pending']] }
   );
 
 
@@ -104,6 +103,13 @@ export default function AdminLayout({
         link: '/admin/kyc-requests',
         name: k.name,
         createdAt: k.kycSubmissionDate,
+    })) || [];
+
+    const customLoanNotifs = pendingCustomLoanRequests?.map(c => ({
+        ...c,
+        type: c.status === 'extension_pending' ? 'Loan Extension' : 'Custom Loan',
+        link: '/admin/custom-loans',
+        name: c.userName,
     })) || [];
 
     return [
@@ -132,12 +138,7 @@ export default function AdminLayout({
         link: '/admin/upi-requests',
         name: u.userName,
       })) || []),
-       ...(pendingCustomLoanRequests?.map((c) => ({
-        ...c,
-        type: 'Custom Loan',
-        link: '/admin/custom-loans',
-        name: c.userName,
-      })) || []),
+       ...customLoanNotifs,
     ].filter(n => n.createdAt).sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
   }, [isAdmin, pendingDeposits, pendingWithdrawals, pendingLoanRequests, pendingKycRequests, pendingUpiRequests, pendingCustomLoanRequests]);
 

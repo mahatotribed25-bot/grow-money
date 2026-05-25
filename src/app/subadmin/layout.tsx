@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -57,7 +56,7 @@ type DepositRequest = BaseRequest & { name: string };
 type WithdrawalRequest = BaseRequest & { name: string };
 type LoanRequest = BaseRequest & { userName: string };
 type KycRequest = { id: string, name: string, kycSubmissionDate: Timestamp };
-type CustomLoanRequest = BaseRequest & { userName: string };
+type CustomLoanRequest = BaseRequest & { userName: string, status: string };
 
 
 export default function SubAdminLayout({
@@ -92,19 +91,26 @@ export default function SubAdminLayout({
   );
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(
     isAuthorized && permissions?.canManageCustomLoans ? 'customLoanRequests' : null,
-    { where: ['status', '==', 'pending_admin_review'] }
+    { where: ['status', 'in', ['pending_admin_review', 'extension_pending']] }
   );
 
 
   const notifications = useMemo(() => {
     if (!isAuthorized) return [];
     
+    const customLoanNotifs = pendingCustomLoanRequests?.map(c => ({
+        ...c,
+        type: c.status === 'extension_pending' ? 'Loan Extension' : 'Custom Loan',
+        link: '/subadmin/custom-loans',
+        name: c.userName,
+    })) || [];
+
     return [
        ...(pendingDeposits?.map((d) => ({ ...d, type: 'Deposit', link: '/subadmin/deposits', name: d.name })) || []),
        ...(pendingWithdrawals?.map((w) => ({...w, type: 'Withdrawal', link: '/subadmin/withdrawals', name: w.name })) || []),
        ...(pendingLoanRequests?.map((l) => ({ ...l, type: 'Loan', link: '/subadmin/loans', name: l.userName })) || []),
        ...(pendingKycRequests?.map(k => ({ id: k.id, type: 'KYC', link: '/subadmin/kyc-requests', name: k.name, createdAt: k.kycSubmissionDate, })) || []),
-       ...(pendingCustomLoanRequests?.map((c) => ({ ...c, type: 'Custom Loan', link: '/subadmin/custom-loans', name: c.userName, })) || []),
+       ...customLoanNotifs,
     ].filter(n => n.createdAt).sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
   }, [isAuthorized, pendingDeposits, pendingWithdrawals, pendingLoanRequests, pendingKycRequests, pendingCustomLoanRequests]);
 
