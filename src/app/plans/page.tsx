@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -39,6 +40,7 @@ type InvestmentPlan = {
 };
 
 type UserData = {
+    name?: string;
     walletBalance: number;
     referredBy?: string;
     totalInvestment?: number;
@@ -174,13 +176,21 @@ export default function PlansPage() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground relative z-10">
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
-        <Link href="/dashboard">
-          <Button variant="ghost" size="icon" className="hover:bg-white/10 text-white/70">
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Investment Plans</h1>
-        <div className="w-9" />
+        <div className="flex items-center gap-2">
+            <Link href="/dashboard">
+            <Button variant="ghost" size="icon" className="hover:bg-white/10 text-white/70">
+                <ChevronLeft className="h-5 w-5" />
+            </Button>
+            </Link>
+            <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Investment Plans</h1>
+        </div>
+        <div className="flex items-center gap-2">
+             <Badge variant="outline" className="border-white/10 bg-white/5 h-8 px-4 rounded-xl">
+                <span className="animate-rgb-glow font-black tracking-tighter text-sm">
+                    {userData?.name || 'User'}
+                </span>
+             </Badge>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 max-w-5xl mx-auto w-full">

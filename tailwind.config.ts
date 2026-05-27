@@ -103,6 +103,14 @@ export default {
             'from': { transform: 'rotate(0deg)' },
             'to': { transform: 'rotate(360deg)' },
         },
+        'rgb-glow': {
+          '0%': { color: '#ff0000', textShadow: '0 0 10px rgba(255, 0, 0, 0.8), 0 0 20px rgba(255, 0, 0, 0.4)' },
+          '20%': { color: '#ffff00', textShadow: '0 0 10px rgba(255, 255, 0, 0.8), 0 0 20px rgba(255, 255, 0, 0.4)' },
+          '40%': { color: '#00ff00', textShadow: '0 0 10px rgba(0, 255, 0, 0.8), 0 0 20px rgba(0, 255, 0, 0.4)' },
+          '60%': { color: '#00ffff', textShadow: '0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4)' },
+          '80%': { color: '#0000ff', textShadow: '0 0 10px rgba(0, 0, 255, 0.8), 0 0 20px rgba(0, 0, 255, 0.4)' },
+          '100%': { color: '#ff00ff', textShadow: '0 0 10px rgba(255, 0, 255, 0.8), 0 0 20px rgba(255, 0, 255, 0.4)' },
+        },
         blink: {
           '0%, 100%': { transform: 'scaleY(1)', 'transform-origin': 'center' },
           '2%': { transform: 'scaleY(0.1)', 'transform-origin': 'center' },
@@ -122,6 +130,7 @@ export default {
         'shake': 'shake 0.82s cubic-bezier(.36,.07,.19,.97) both',
         'flip-down': 'flip-down 0.5s ease-in-out',
         'border-spin': 'border-spin 2s linear infinite',
+        'rgb-glow': 'rgb-glow 8s linear infinite',
         blink: 'blink 4s linear infinite',
         'color-cycle': 'color-cycle 8s linear infinite',
       },

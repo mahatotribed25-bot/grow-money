@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Wallet,
@@ -319,7 +320,11 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2">
              <span className="text-xs font-bold uppercase tracking-widest text-white/30 hidden sm:inline">User Portal</span>
-             <Badge variant="outline" className="border-white/10 bg-white/5 text-white/70">{userData?.name || 'User'}</Badge>
+             <Badge variant="outline" className="border-white/10 bg-white/5 h-8 px-4 rounded-xl">
+                <span className="animate-rgb-glow font-black tracking-tighter text-sm">
+                    {userData?.name || 'User'}
+                </span>
+             </Badge>
         </div>
       </header>
 
