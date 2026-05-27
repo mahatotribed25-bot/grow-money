@@ -36,6 +36,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth, useUser, useCollection } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useEffect, useMemo } from 'react';
