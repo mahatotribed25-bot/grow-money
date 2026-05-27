@@ -66,6 +66,7 @@ import { BannerCarousel } from '@/components/dashboard/BannerCarousel';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { isToday, startOfToday } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type UserData = {
   id: string;
@@ -267,143 +268,154 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center">
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#030408]">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+    <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground">
        <AlertDialog open={showWelcomePopup} onOpenChange={setShowWelcomePopup}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-center text-2xl">Welcome to Grow Money 💰</AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-lg font-medium py-2">
+            <AlertDialogTitle className="text-center text-2xl font-bold text-white">Welcome to Grow Money 💰</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-lg font-medium py-2 text-primary">
               Mr./Mrs. {userData?.name}
             </AlertDialogDescription>
-            <AlertDialogDescription className="text-center">
+            <AlertDialogDescription className="text-center text-white/60">
               Your journey to financial growth starts now!
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogAction onClick={() => setShowWelcomePopup(false)} className="w-full">
+          <AlertDialogAction onClick={() => setShowWelcomePopup(false)} className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl">
             Let's Go!
           </AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
       
       <AlertDialog open={showDueLoanPopup} onOpenChange={setShowDueLoanPopup}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-6 w-6 text-destructive"/>
+            <AlertDialogTitle className="flex items-center gap-2 text-white">
+                <AlertTriangle className="h-6 w-6 text-red-500 animate-pulse"/>
                 Loan Payment Due
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="text-white/60">
               Your loan payment is now due. Please repay it as soon as possible to avoid penalties. You have a 1-day grace period, after which daily penalties will be applied.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogAction asChild onClick={() => setShowDueLoanPopup(false)}>
+          <AlertDialogAction asChild onClick={() => setShowDueLoanPopup(false)} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold h-12 rounded-xl">
             <Link href="/my-loans">View Loan & Pay</Link>
           </AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
 
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/50 px-4 backdrop-blur-md sm:px-6">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
         <div className="flex items-center gap-2">
-          <Briefcase className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold text-primary">Grow Money</h1>
+          <div className="p-1.5 rounded-lg bg-primary/20 shadow-lg shadow-primary/10">
+            <Briefcase className="h-5 w-5 text-primary" />
+          </div>
+          <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Grow Money</h1>
         </div>
-        <h1 className="text-lg font-semibold">Welcome, {userData?.name || 'User'}!</h1>
-        <div className="w-9" />
+        <div className="flex items-center gap-2">
+             <span className="text-xs font-bold uppercase tracking-widest text-white/30 hidden sm:inline">User Portal</span>
+             <Badge variant="outline" className="border-white/10 bg-white/5 text-white/70">{userData?.name || 'User'}</Badge>
+        </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-        <div className="space-y-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        
+        <Announcements announcements={sortedAnnouncements} loading={announcementsLoading} />
+        
+        <DailyCheckInCard />
 
-          <Announcements announcements={sortedAnnouncements} loading={announcementsLoading} />
-          
-          <DailyCheckInCard />
-
-          <BannerCarousel />
-
-          <WalletSummary
-            userData={userData}
-            adminSettings={adminSettings}
-            loading={userDataLoading}
-          />
-          
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Active Investments</h2>
-             <Button variant="outline" size="sm" asChild>
-              <Link href="/plans">
-                Invest More <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-
-          {investmentsLoading ? (
-             <Card>
-                <CardContent className="pt-6">
-                    <p>Loading your investments...</p>
-                </CardContent>
-            </Card>
-          ) : activeInvestments && activeInvestments.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {activeInvestments.map((investment) => (
-                <ActivePlanCard key={investment.id} investment={investment} onClaim={handleClaimReturn} />
-              ))}
-            </div>
-          ) : (
-            <Card>
-                <CardContent className="pt-6 text-center text-muted-foreground">
-                    <p>You have no active investments.</p>
-                </CardContent>
-            </Card>
-          )}
-
-          {loansLoading ? (
-              <Card><CardContent className="pt-6"><p>Loading loan status...</p></CardContent></Card>
-          ) : activeLoan ? (
-              <div>
-                  <div className="flex items-center justify-between">
-                     <h2 className="text-xl font-bold">Active Loan</h2>
-                     <Button variant="outline" size="sm" asChild>
-                      <Link href="/my-loans">
-                        View Details <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                  <ActiveLoanCard loan={activeLoan} />
-              </div>
-          ) : null}
-
-           <Card>
-            <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <QuickActionButton icon={MessageCircle} label="Private Chats" href="/user-chats" />
-                <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" />
-                <QuickActionButton icon={Users2} label="Group Investing" href="/group-investing" />
-                <QuickActionButton icon={History} label="My Plans" href="/my-plans" />
-                <QuickActionButton icon={Gem} label="VIP Tiers" href="/vip-tiers" />
-                <QuickActionButton icon={BarChart2} label="Reports" href="/reports" />
-                <QuickActionButton icon={Trophy} label="Leaderboard" href="/leaderboard" />
-                <QuickActionButton icon={HandCoins} label="Loans" href="/loans" />
-                <QuickActionButton icon={FileText} label="Custom Loan" href="/custom-loan" />
-                <QuickActionButton icon={Users} label="My Team" href="/team" />
-                {userData?.role === 'subadmin' && (
-                  <QuickActionButton icon={Briefcase} label="Sub-Admin Panel" href="/subadmin" />
-                )}
-            </CardContent>
-           </Card>
-
+        <div className="rounded-3xl overflow-hidden shadow-2xl shadow-primary/5">
+            <BannerCarousel />
         </div>
+
+        <WalletSummary
+          userData={userData}
+          adminSettings={adminSettings}
+          loading={userDataLoading}
+        />
+        
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold tracking-tight text-white/90 flex items-center gap-2">
+            <TrendingUp className="text-green-400" size={20} /> Active Investments
+          </h2>
+           <Button variant="ghost" size="sm" asChild className="text-primary hover:bg-primary/10">
+            <Link href="/plans">
+              Invest More <ArrowRight className="ml-1 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+
+        {investmentsLoading ? (
+           <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
+              <CardContent className="pt-6">
+                  <p className="text-center text-white/30 animate-pulse uppercase tracking-widest text-[10px] font-bold">Syncing Investments...</p>
+              </CardContent>
+          </Card>
+        ) : activeInvestments && activeInvestments.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {activeInvestments.map((investment) => (
+              <ActivePlanCard key={investment.id} investment={investment} onClaim={handleClaimReturn} />
+            ))}
+          </div>
+        ) : (
+          <Card className="bg-white/[0.03] border-white/[0.08] border-dashed">
+              <CardContent className="pt-8 text-center text-white/40 space-y-2">
+                  <p className="text-sm">You have no active investments.</p>
+                  <Button asChild variant="outline" className="border-white/10 h-8 text-xs">
+                    <Link href="/plans">Browse Plans</Link>
+                  </Button>
+              </CardContent>
+          </Card>
+        )}
+
+        {loansLoading ? (
+            <Card className="bg-white/5 border-white/10"><CardContent className="pt-6"><p className="text-center text-white/30 animate-pulse text-[10px] font-bold uppercase tracking-widest">Checking Loan Status...</p></CardContent></Card>
+        ) : activeLoan ? (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                   <h2 className="text-xl font-bold text-white/90 flex items-center gap-2">
+                     <HandCoins className="text-red-400" size={20} /> Active Loan
+                   </h2>
+                   <Button variant="ghost" size="sm" asChild className="text-red-400 hover:bg-red-400/10">
+                    <Link href="/my-loans">
+                      Details <ArrowRight className="ml-1 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+                <ActiveLoanCard loan={activeLoan} />
+            </div>
+        ) : null}
+
+         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl">
+          <CardHeader>
+              <CardTitle className="text-lg font-bold text-white/80">Platform Services</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <QuickActionButton icon={MessageCircle} label="Private Chats" href="/user-chats" color="text-blue-400" />
+              <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" color="text-green-400" />
+              <QuickActionButton icon={Users2} label="Group Investing" href="/group-investing" color="text-purple-400" />
+              <QuickActionButton icon={History} label="My Plans" href="/my-plans" color="text-orange-400" />
+              <QuickActionButton icon={Gem} label="VIP Tiers" href="/vip-tiers" color="text-yellow-400" />
+              <QuickActionButton icon={BarChart2} label="Reports" href="/reports" color="text-cyan-400" />
+              <QuickActionButton icon={Trophy} label="Leaderboard" href="/leaderboard" color="text-amber-400" />
+              <QuickActionButton icon={HandCoins} label="Loans" href="/loans" color="text-red-400" />
+              <QuickActionButton icon={FileText} label="Custom Loan" href="/custom-loan" color="text-pink-400" />
+              <QuickActionButton icon={Users} label="My Team" href="/team" color="text-emerald-400" />
+              {userData?.role === 'subadmin' && (
+                <QuickActionButton icon={Briefcase} label="Sub-Admin Panel" href="/subadmin" color="text-primary" />
+              )}
+          </CardContent>
+         </Card>
+
       </main>
 
-      <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs">
+      <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" active />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
@@ -416,37 +428,28 @@ export default function Dashboard() {
 }
 
 function Announcements({ announcements, loading }: { announcements: Announcement[] | null | undefined, loading: boolean }) {
-    if (loading) {
-        return (
-            <Card>
-                <CardContent className="pt-6">
-                    <p>Loading announcements...</p>
-                </CardContent>
-            </Card>
-        );
-    }
-    
-    if (!announcements || announcements.length === 0) {
-        return null;
-    }
+    if (loading) return null;
+    if (!announcements || announcements.length === 0) return null;
 
     return (
-        <Card className="bg-primary/10 border-primary/20">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-blue-300">
-                    <Megaphone className="h-5 w-5"/>
-                    Announcements
+        <Card className="bg-primary/10 border-primary/20 backdrop-blur-xl rounded-2xl overflow-hidden relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent pointer-events-none" />
+            <CardHeader className="py-3">
+                <CardTitle className="flex items-center gap-2 text-blue-300 text-sm font-bold uppercase tracking-widest">
+                    <Megaphone className="h-4 w-4 animate-bounce"/>
+                    Latest Updates
                 </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-                {announcements.map(ann => (
-                    <div key={ann.id} className="text-sm">
+            <CardContent className="space-y-3 relative pb-4">
+                {announcements.slice(0, 3).map(ann => (
+                    <div key={ann.id} className="text-xs bg-black/20 p-2.5 rounded-xl border border-white/5 flex items-start gap-3">
+                        <div className="h-1.5 w-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
                         {ann.link ? (
-                            <a href={ann.link} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                            <a href={ann.link} target="_blank" rel="noopener noreferrer" className="text-blue-200 hover:text-white transition-colors leading-relaxed">
                                 {ann.message}
                             </a>
                         ) : (
-                            <p className="text-foreground/90">{ann.message}</p>
+                            <p className="text-white/80 leading-relaxed">{ann.message}</p>
                         )}
                     </div>
                 ))}
@@ -465,36 +468,37 @@ function WalletSummary({
   loading: boolean;
 }) {
   return (
-    <Card className="shadow-lg border-primary/20 bg-gradient-to-br from-card to-secondary/30">
-      <CardHeader>
-        <CardTitle>My Wallet</CardTitle>
+    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl rounded-3xl overflow-hidden relative group">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 opacity-50 pointer-events-none" />
+      <CardHeader className="relative">
+        <CardTitle className="text-white/60 text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+            <Wallet size={16} /> My Digital Wallet
+        </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">Current Balance</p>
-            <p className="text-3xl font-bold">
-              {loading ? '...' : `₹${(userData?.walletBalance || 0).toFixed(2)}`}
+      <CardContent className="relative space-y-6">
+        <div className="text-center space-y-1">
+          <p className="text-[10px] text-white/30 uppercase tracking-[3px] font-bold">Current Balance</p>
+          <p className="text-5xl font-black text-white tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+            {loading ? '...' : `₹${(userData?.walletBalance || 0).toFixed(2)}`}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-4 bg-black/20 p-4 rounded-2xl border border-white/5">
+          <div className="text-center border-r border-white/5">
+            <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold mb-1">Invested</p>
+            <p className="text-lg font-bold text-white">
+              {loading ? '...' : `₹${(userData?.totalInvestment || 0).toFixed(2)}`}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4 text-center">
-            <div>
-              <p className="text-xs text-muted-foreground">Total Investment</p>
-              <p className="font-semibold">
-                {loading ? '...' : `₹${(userData?.totalInvestment || 0).toFixed(2)}`}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total Income</p>
-              <p className="font-semibold">
-                {loading ? '...' : `₹${(userData?.totalIncome || 0).toFixed(2)}`}
-              </p>
-            </div>
+          <div className="text-center">
+            <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold mb-1">Income</p>
+            <p className="text-lg font-bold text-green-400">
+              {loading ? '...' : `₹${(userData?.totalIncome || 0).toFixed(2)}`}
+            </p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <DepositButton adminUpi={adminSettings?.adminUpi} />
-            <WithdrawButton adminSettings={adminSettings} userData={userData} />
-          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <DepositButton adminUpi={adminSettings?.adminUpi} />
+          <WithdrawButton adminSettings={adminSettings} userData={userData} />
         </div>
       </CardContent>
     </Card>
@@ -559,57 +563,58 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
   return (
     <Dialog onOpenChange={(isOpen) => { if (!isOpen) { setAmount(''); setTransactionId(''); setQrData('')}}}>
       <DialogTrigger asChild>
-        <Button className="w-full">
+        <Button className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-white/90 shadow-xl shadow-white/5">
           <Upload className="mr-2 h-4 w-4" /> Recharge
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white">
         <DialogHeader>
           <DialogTitle>Recharge Wallet</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
            <div className="space-y-2">
-            <Label htmlFor="amount">1. Enter Amount (INR)</Label>
+            <Label htmlFor="amount" className="text-white/60">1. Enter Amount (INR)</Label>
             <Input
               id="amount"
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="e.g., 500"
+              className="bg-white/5 border-white/10 rounded-xl h-11"
             />
           </div>
           
           {qrData && (
-            <div className="flex flex-col items-center gap-2 p-4 rounded-md bg-muted animate-in fade-in-50">
-                <p className="text-sm text-center font-semibold">2. Scan and Pay</p>
-                <div className="bg-white p-2 rounded-md">
+            <div className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white/5 border border-white/5 animate-in fade-in-50">
+                <p className="text-xs text-center font-bold uppercase tracking-widest text-white/40">2. Scan and Pay</p>
+                <div className="bg-white p-3 rounded-2xl shadow-2xl">
                     <Image
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`}
                         alt="UPI QR Code"
-                        width={200}
+                        width={180}
                         height={200}
                     />
                 </div>
-                <p className="text-xs text-muted-foreground text-center">Or pay to UPI ID: <span className="font-mono">{adminUpi}</span></p>
+                <p className="text-[10px] text-white/30 text-center font-mono">ID: {adminUpi}</p>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="transactionId">3. Enter Transaction ID</Label>
+            <Label htmlFor="transactionId" className="text-white/60">3. Enter Transaction ID</Label>
             <Input
               id="transactionId"
               value={transactionId}
               onChange={(e) => setTransactionId(e.target.value)}
-              placeholder="Enter the 12-digit transaction ID"
+              placeholder="12-digit UPI reference"
+              className="bg-white/5 border-white/10 rounded-xl h-11"
             />
-             <p className="text-xs text-muted-foreground">After payment, enter the UPI transaction ID here.</p>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="ghost" className="hover:bg-white/5 text-white/40">Cancel</Button>
           </DialogClose>
-          <Button onClick={handleSubmit}>Submit Request</Button>
+          <Button onClick={handleSubmit} className="rounded-xl font-bold bg-primary hover:bg-primary/90 text-white">Confirm Deposit</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -704,68 +709,68 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
   return (
       <Dialog>
         <DialogTrigger asChild>
-            <Button variant="secondary" className="w-full">
+            <Button variant="outline" className="w-full h-12 rounded-xl font-bold border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white">
               <Download className="mr-2 h-4 w-4" /> Withdraw
             </Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white">
             <DialogHeader>
                 <DialogTitle>Withdraw Funds</DialogTitle>
             </DialogHeader>
              <div className="space-y-4">
-                <p className="text-sm">
-                    Funds will be sent to your saved UPI ID: <span className="font-mono">{userData?.upiId || 'Not Set'}</span>.
-                </p>
-                {!userData?.upiId && <p className="text-xs text-destructive">Please set your UPI ID in your profile before withdrawing.</p>}
-                <div className="space-y-2">
-                    <Label htmlFor="amount">Amount to Withdraw (INR)</Label>
-                    <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Minimum ₹${minWithdrawal || 0}`}/>
+                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
+                    <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold mb-1">Receiving Account</p>
+                    <span className="font-mono text-white/80">{userData?.upiId || 'Not Configured'}</span>
+                    {!userData?.upiId && <p className="text-[10px] text-red-400 mt-2">Configure UPI in Profile first.</p>}
                 </div>
+                
+                <div className="space-y-2">
+                    <Label htmlFor="amount" className="text-white/60">Amount to Withdraw (INR)</Label>
+                    <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Min ₹${minWithdrawal}`} className="bg-white/5 border-white/10 rounded-xl h-11" />
+                </div>
+
                  <div className="space-y-2">
-                    <Label>Withdrawal From</Label>
-                    <RadioGroup onValueChange={setWithdrawalType} value={withdrawalType} className="grid grid-cols-2 gap-4">
-                        <div>
-                            <RadioGroupItem value="Investment Plan" id="type-investment" className="peer sr-only" />
-                            <Label htmlFor="type-investment" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                Investment Plan
-                            </Label>
-                        </div>
-                         <div>
-                            <RadioGroupItem value="Group Investment" id="type-group" className="peer sr-only" />
-                            <Label htmlFor="type-group" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                Group Investment
-                            </Label>
-                        </div>
-                         <div>
-                            <RadioGroupItem value="General" id="type-general" className="peer sr-only" />
-                            <Label htmlFor="type-general" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                General Balance
-                            </Label>
-                        </div>
+                    <Label className="text-white/60">Withdrawal Source</Label>
+                    <RadioGroup onValueChange={setWithdrawalType} value={withdrawalType} className="grid grid-cols-2 gap-3">
+                        <WithdrawTypeOption value="Investment Plan" label="Plans" />
+                        <WithdrawTypeOption value="Group Investment" label="Groups" />
+                        <WithdrawTypeOption value="General" label="General" className="col-span-2" />
                     </RadioGroup>
                 </div>
+
                 {amount && (
-                  <Card className="bg-muted/50 p-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>GST ({gstPercentage}%):</span>
-                      <span className="text-destructive">- ₹{gstAmount.toFixed(2)}</span>
+                  <Card className="bg-black/40 border-white/5 rounded-2xl p-4 space-y-2">
+                    <div className="flex justify-between text-xs text-white/40">
+                      <span>Service Fee ({gstPercentage}%):</span>
+                      <span className="text-red-400">- ₹{gstAmount.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between font-bold">
-                      <span>You will receive:</span>
-                      <span>₹{finalAmount.toFixed(2)}</span>
+                    <div className="flex justify-between font-bold text-white">
+                      <span>Total Payout:</span>
+                      <span className="text-green-400">₹{finalAmount.toFixed(2)}</span>
                     </div>
                   </Card>
                 )}
              </div>
-             <DialogFooter>
+             <DialogFooter className="gap-2 sm:gap-0">
                 <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
+                    <Button variant="ghost" className="text-white/40 hover:bg-white/5">Cancel</Button>
                 </DialogClose>
-                <Button onClick={handleWithdraw} disabled={!userData?.upiId}>Request Withdrawal</Button>
+                <Button onClick={handleWithdraw} disabled={!userData?.upiId || !amount} className="rounded-xl font-bold bg-primary text-white">Request Payout</Button>
              </DialogFooter>
         </DialogContent>
       </Dialog>
   );
+}
+
+function WithdrawTypeOption({ value, label, className }: { value: string, label: string, className?: string }) {
+    return (
+        <div className={className}>
+            <RadioGroupItem value={value} id={`type-${value}`} className="peer sr-only" />
+            <Label htmlFor={`type-${value}`} className="flex items-center justify-center rounded-xl border-2 border-white/5 bg-white/[0.02] p-3 text-sm font-bold text-white/60 hover:bg-white/5 peer-data-[state=checked]:border-primary peer-data-[state=checked]:text-white peer-data-[state=checked]:bg-primary/10 transition-all cursor-pointer">
+                {label}
+            </Label>
+        </div>
+    )
 }
 
 
@@ -802,58 +807,46 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
   
   const getBadge = () => {
     if (investment.status === 'Stopped') {
-        return <Badge variant="destructive">Stopped</Badge>;
+        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] uppercase font-bold">Stopped</Badge>;
     }
     if (isClaimable) {
-        return <Badge>Matured</Badge>;
+        return <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] uppercase font-bold">Matured</Badge>;
     }
-    return <Badge>Active</Badge>;
+    return <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] uppercase font-bold">Growing</Badge>;
   }
 
   return (
-    <Card className="bg-gradient-to-br from-card via-secondary/20 to-card border-primary/10">
-      <CardHeader>
-        <CardTitle className="flex justify-between items-center">
-          <span>{investment.planName}</span>
+    <Card className="shadow-xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-2xl group overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      <CardHeader className="pb-3">
+        <CardTitle className="flex justify-between items-center text-white/90">
+          <span className="text-base font-bold">{investment.planName}</span>
           {getBadge()}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex justify-between">
-          <p className="text-sm text-muted-foreground">Invested</p>
-          <p className="font-semibold">₹{(investment.investedAmount || 0).toFixed(2)}</p>
-        </div>
-
-        <div className="space-y-2 rounded-md bg-black/20 p-3">
-            <div className="flex justify-between">
-              <p className="text-sm text-muted-foreground">Income Earned</p>
-              <p className="font-semibold text-green-400">
-                ₹{earnedIncome.toFixed(2)}
-              </p>
+      <CardContent className="space-y-4 relative">
+        <div className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5">
+            <div className="space-y-1">
+                 <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Current Value</p>
+                 <p className="text-xl font-bold text-green-400">₹{currentTotalValue.toFixed(2)}</p>
             </div>
-            <div className="flex justify-between text-xs text-green-500/80">
-              <p>Credited Daily</p>
-              <p>+ ₹{investment.dailyIncome.toFixed(2)}</p>
-            </div>
-             <div className="flex justify-between font-bold pt-2 border-t border-white/10">
-                <p className="text-sm">Current Value</p>
-                <p className="text-green-400">
-                    ₹{currentTotalValue.toFixed(2)}
-                </p>
+            <div className="text-right space-y-1">
+                 <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Earnings</p>
+                 <p className="text-sm font-bold text-white/80">+ ₹{earnedIncome.toFixed(2)}</p>
             </div>
         </div>
         
         {isClaimable ? (
-            <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full">
-                {isClaiming ? 'Claiming...' : 'Claim Return'}
+            <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full h-11 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20">
+                {isClaiming ? 'Processing...' : 'Claim Full Return'}
             </Button>
         ) : (
-            <div className="space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Maturity:</span>
+            <div className="space-y-2">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/30">
+                    <span>Target Date: {maturityDate.toLocaleDateString()}</span>
                     <CountdownTimer endDate={maturityDate} />
                 </div>
-                <Progress value={progress} />
+                <Progress value={progress} className="h-1.5 bg-white/5" />
             </div>
         )}
       </CardContent>
@@ -862,9 +855,8 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
 }
 
 function ActiveLoanCard({ loan }: { loan: ActiveLoan }) {
-    if (!loan.startDate || !loan.dueDate) {
-        return null;
-    }
+    if (!loan.startDate || !loan.dueDate) return null;
+    
     const startDate = loan.startDate.toDate();
     const dueDate = loan.dueDate.toDate();
     const now = new Date();
@@ -873,38 +865,41 @@ function ActiveLoanCard({ loan }: { loan: ActiveLoan }) {
     const elapsedDuration = now.getTime() - startDate.getTime();
     const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
     
-    const getStatusVariant = (status: string) => {
+    const getBadgeStyle = (status: string) => {
         switch(status) {
-            case 'Active': return 'default';
-            case 'Due':
-            case 'Payment Pending': return 'destructive';
-            default: return 'secondary';
+            case 'Active': return "bg-primary/20 text-primary border-primary/30";
+            case 'Due': return "bg-red-500/20 text-red-400 border-red-500/30";
+            default: return "bg-white/5 text-white/40 border-white/10";
         }
     }
 
     return (
-        <Card className="bg-gradient-to-br from-card via-destructive/20 to-card border-destructive/20 mt-4">
-             <CardHeader>
-                <CardTitle className="flex justify-between items-center">
-                    <span>{loan.planName}</span>
-                    <Badge variant={getStatusVariant(loan.status)} className="capitalize">{loan.status}</Badge>
+        <Card className="shadow-xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-2xl group overflow-hidden">
+             <CardHeader className="pb-3">
+                <CardTitle className="flex justify-between items-center text-white/90">
+                    <span className="text-base font-bold">{loan.planName}</span>
+                    <Badge variant="outline" className={cn("text-[10px] uppercase font-bold tracking-widest", getBadgeStyle(loan.status))}>
+                        {loan.status}
+                    </Badge>
                 </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                    <p className="text-sm text-muted-foreground">Loan Amount</p>
-                    <p className="font-semibold">₹{(loan.loanAmount || 0).toFixed(2)}</p>
-                </div>
-                <div className="flex justify-between">
-                    <p className="text-sm text-muted-foreground">Total Repayment</p>
-                    <p className="font-semibold text-red-400">₹{(loan.totalPayable || 0).toFixed(2)}</p>
-                </div>
-                <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Time Remaining:</span>
-                        <span>Due on {dueDate.toLocaleDateString()}</span>
+            <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                        <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold mb-1">Repayment</p>
+                        <p className="text-lg font-bold text-red-400">₹{(loan.totalPayable || 0).toFixed(2)}</p>
                     </div>
-                    <Progress value={progress} className="[&>div]:bg-red-500" />
+                    <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-right">
+                        <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold mb-1">Due Date</p>
+                        <p className="text-sm font-bold text-white/80">{dueDate.toLocaleDateString()}</p>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Progress value={progress} className="h-1.5 bg-white/5 [&>div]:bg-red-500" />
+                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/30">
+                        <span>Timeline</span>
+                        <span>{progress.toFixed(0)}% Elapsed</span>
+                    </div>
                 </div>
             </CardContent>
         </Card>
@@ -966,29 +961,36 @@ function DailyCheckInCard() {
   if (bonusAmount <= 0) return null;
 
   return (
-    <Card>
-      <CardContent className="pt-6">
+    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-2xl overflow-hidden relative group">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-50 pointer-events-none" />
+      <CardContent className="pt-6 relative">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Gift className="h-10 w-10 text-primary" />
+            <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                <Gift className="h-6 w-6" />
+            </div>
             <div>
-              <h3 className="font-bold">Daily Check-in Bonus</h3>
-              <p className="text-sm text-muted-foreground">
-                Get ₹{bonusAmount.toFixed(2)} for checking in every day!
+              <h3 className="font-bold text-white/90">Daily Check-in</h3>
+              <p className="text-xs text-white/40">
+                Collect your daily <span className="text-white font-bold">₹{bonusAmount.toFixed(2)}</span> reward.
               </p>
             </div>
           </div>
           <Button
             onClick={handleCheckIn}
             disabled={hasCheckedInToday || isLoading}
-            className="w-full sm:w-auto"
+            className={cn(
+                "w-full sm:w-auto h-11 rounded-xl px-8 font-bold transition-all",
+                hasCheckedInToday ? "bg-white/5 text-white/20 border-white/5" : "bg-primary text-white shadow-lg shadow-primary/20"
+            )}
+            variant={hasCheckedInToday ? "ghost" : "default"}
           >
             {hasCheckedInToday ? (
               <>
-                <CheckCircle className="mr-2" /> Claimed Today
+                <CheckCircle className="mr-2 h-4 w-4" /> Claimed
               </>
             ) : (
-              'Claim Your Bonus'
+              'Claim Now'
             )}
           </Button>
         </div>
@@ -1012,22 +1014,26 @@ function BottomNavItem({
   return (
     <Link
       href={href}
-      className={`flex flex-col items-center justify-center gap-1 ${
-        active ? 'text-primary' : 'text-muted-foreground'
-      }`}
+      className={cn(
+        "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
+        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
+      )}
     >
-      <Icon className="h-5 w-5" />
-      <span>{label}</span>
+      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
+      <span className="text-[10px] tracking-tight">{label}</span>
+      {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>
   );
 }
 
-function QuickActionButton({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href: string }) {
+function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.ElementType, label: string, href: string, color?: string }) {
     return (
-        <Button variant="outline" className="flex-col h-20" asChild>
+        <Button variant="ghost" className="flex-col h-24 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-white/10 transition-all group" asChild>
             <Link href={href}>
-                <Icon className="h-6 w-6 mb-1" />
-                <span>{label}</span>
+                <div className={cn("h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform", color)}>
+                    <Icon className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 group-hover:text-white/80">{label}</span>
             </Link>
         </Button>
     )

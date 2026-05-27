@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -14,11 +13,7 @@ import {
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
+  Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from '@/components/ui/card';
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
@@ -28,6 +23,7 @@ import { addDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { cn } from '@/lib/utils';
 
 type InvestmentPlan = {
   id: string;
@@ -176,56 +172,63 @@ export default function PlansPage() {
 
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
+    <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground relative z-10">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
         <Link href="/dashboard">
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="hover:bg-white/10 text-white/70">
             <ChevronLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <h1 className="text-lg font-semibold">Investment Plans</h1>
+        <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Investment Plans</h1>
         <div className="w-9" />
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {loading ? (
-            <p>Loading plans...</p>
-          ) : availablePlans && availablePlans.length > 0 ? (
-            availablePlans.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} />
-            ))
-          ) : (
-            !comingSoonPlans?.length && (
-                <Card className="col-span-full">
-                    <CardContent className="pt-6 text-center text-muted-foreground">
-                        <h3 className="text-xl font-semibold mb-2">No Plans Available</h3>
-                        <p>New investment plans are being prepared and will be available shortly.</p>
-                    </CardContent>
-                </Card>
-            )
-          )}
-        </div>
-
-        {comingSoonPlans && comingSoonPlans.length > 0 && (
-            <div>
-                <h2 className="text-2xl font-bold mb-4">Coming Soon</h2>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                     {comingSoonPlans.map((plan) => (
-                        <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} />
-                    ))}
-                </div>
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 max-w-5xl mx-auto w-full">
+        {loading ? (
+           <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <p className="text-[10px] font-bold uppercase tracking-[4px] text-white/20">Accessing Vault</p>
+           </div>
+        ) : (
+          <>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {availablePlans && availablePlans.length > 0 ? (
+                availablePlans.map((plan) => (
+                    <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} />
+                ))
+            ) : (
+                !comingSoonPlans?.length && (
+                    <Card className="col-span-full bg-white/5 border-white/10 backdrop-blur-xl rounded-3xl p-10 text-center">
+                        <CardContent className="space-y-4">
+                            <Briefcase size={48} className="mx-auto text-white/10" />
+                            <h3 className="text-xl font-bold text-white/80">No Plans Active</h3>
+                            <p className="text-white/40 text-sm max-w-xs mx-auto">New wealth-building opportunities are being prepared. Check back soon!</p>
+                        </CardContent>
+                    </Card>
+                )
+            )}
             </div>
-        )}
 
+            {comingSoonPlans && comingSoonPlans.length > 0 && (
+                <div className="space-y-6">
+                    <h2 className="text-xl font-bold text-white/40 uppercase tracking-widest pl-2">Coming Soon</h2>
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                        {comingSoonPlans.map((plan) => (
+                            <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} />
+                        ))}
+                    </div>
+                </div>
+            )}
+          </>
+        )}
       </main>
 
-      <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs">
+      <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" active />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-          <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
+          <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>
@@ -239,37 +242,73 @@ function PlanCard({ plan, onInvest, userBalance }: { plan: InvestmentPlan, onInv
   const isOutOfStock = plan.stock !== undefined && plan.stock <= 0;
 
   return (
-    <Card className={`shadow-lg border-border/50 bg-gradient-to-br from-secondary/50 to-background ${(!isAvailable || isOutOfStock) && 'opacity-60'}`}>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-            <CardTitle className="text-primary">{plan.name}</CardTitle>
-            {isOutOfStock ? (
-                <Badge variant="destructive">Out of Stock</Badge>
-            ) : !isAvailable && (
-                <Badge variant="outline">Coming Soon</Badge>
-            )}
-        </div>
-        <CardDescription>Investment: ₹{(plan.price || 0).toFixed(2)}</CardDescription>
+    <Card className={cn(
+        "shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden transition-all duration-300 relative group",
+        (!isAvailable || isOutOfStock) ? 'opacity-40 grayscale' : 'hover:scale-[1.02] hover:bg-white/[0.06] hover:border-white/20'
+    )}>
+      <div className="absolute top-0 right-0 p-4">
+         {isOutOfStock ? (
+            <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] font-bold">SOLD OUT</Badge>
+         ) : !isAvailable && (
+            <Badge className="bg-white/10 text-white/40 border-white/10 text-[10px] font-bold">UPCOMING</Badge>
+         )}
+      </div>
+      
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-bold text-white group-hover:text-primary transition-colors">{plan.name}</CardTitle>
+        <CardDescription className="text-white/40 flex items-center gap-1.5">
+           <TrendingUp size={14} /> ₹{(plan.price || 0).toLocaleString()} Entry
+        </CardDescription>
       </CardHeader>
+      
       <CardContent className="space-y-4">
-        <PlanDetail label="Daily Income" value={`₹${(plan.dailyIncome || 0).toFixed(2)}`} />
-        <PlanDetail label="Validity" value={`${plan.validity || 0} Days`} />
-        <PlanDetail label="Total Income" value={`₹${(plan.totalIncome || 0).toFixed(2)}`} />
-        <PlanDetail label="Final Return (Inc. Principal)" value={`₹${(plan.finalReturn || 0).toFixed(2)}`} />
-        {plan.stock !== undefined && isAvailable && <PlanDetail label="Units Left" value={`${plan.stock}`} />}
-        <Button className="w-full" onClick={() => onInvest(plan)} disabled={!canAfford || !isAvailable || isOutOfStock}>
-          {isOutOfStock ? 'Out of Stock' : isAvailable ? (canAfford ? 'Invest Now' : 'Insufficient Balance') : 'Coming Soon'}
+        <div className="grid grid-cols-2 gap-2">
+            <PlanDetail label="Daily ROI" value={`₹${(plan.dailyIncome || 0).toFixed(2)}`} valueClass="text-green-400" />
+            <PlanDetail label="Cycle" value={`${plan.validity || 0} Days`} valueClass="text-white" />
+        </div>
+        
+        <div className="bg-black/40 rounded-2xl p-4 border border-white/5 space-y-2">
+             <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/30">
+                <span>Total Net Profit</span>
+                <span className="text-green-400 font-black">+₹{(plan.totalIncome || 0).toFixed(2)}</span>
+             </div>
+             <div className="flex justify-between text-sm font-bold text-white/90">
+                <span>Total Payout</span>
+                <span className="text-xl font-black tracking-tighter">₹{(plan.finalReturn || 0).toFixed(2)}</span>
+             </div>
+        </div>
+
+        {plan.stock !== undefined && isAvailable && (
+            <div className="flex items-center justify-center gap-2">
+                <div className="h-1 w-12 rounded-full bg-white/5 overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${(plan.stock / 100) * 100}%` }} />
+                </div>
+                <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">{plan.stock} units available</span>
+            </div>
+        )}
+
+        <Button 
+            className={cn(
+                "w-full h-12 rounded-xl font-bold transition-all duration-300",
+                canAfford && isAvailable && !isOutOfStock 
+                    ? "bg-white text-black hover:bg-primary hover:text-white shadow-lg shadow-white/5" 
+                    : "bg-white/5 text-white/20 border-white/5"
+            )}
+            onClick={() => onInvest(plan)} 
+            disabled={!canAfford || !isAvailable || isOutOfStock}
+        >
+          {isOutOfStock ? 'Plan Depleted' : isAvailable ? (canAfford ? 'Secure Plan Now' : 'Insufficient Funds') : 'Pending Release'}
         </Button>
       </CardContent>
     </Card>
   );
 }
 
-function PlanDetail({ label, value }: { label: string; value: string }) {
+function PlanDetail({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
-    <div className="flex justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-semibold">{value}</span>
+    <div className="flex flex-col bg-white/5 p-2.5 rounded-xl border border-white/5">
+      <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest mb-1">{label}</span>
+      <span className={cn("text-sm font-bold tracking-tight", valueClass)}>{value}</span>
     </div>
   );
 }
@@ -288,12 +327,14 @@ function BottomNavItem({
   return (
     <Link
       href={href}
-      className={`flex flex-col items-center justify-center gap-1 ${
-        active ? 'text-primary' : 'text-muted-foreground'
-      }`}
+      className={cn(
+        "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
+        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
+      )}
     >
-      <Icon className="h-5 w-5" />
-      <span>{label}</span>
+      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
+      <span className="text-[10px] tracking-tight">{label}</span>
+      {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>
   );
 }
