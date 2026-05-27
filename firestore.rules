@@ -24,9 +24,8 @@ service cloud.firestore {
     // Rules for 'users'
     match /users/{userId} {
       allow create: if isOwner(userId);
-      // Allow get for all auth users so they can see names/online status in chat
-      allow get: if isAuthenticated();
-      allow list: if isAdmin() || isSubAdmin();
+      // Allow get and list for all auth users so they can see names in chat and the leaderboard
+      allow read: if isAuthenticated();
       // Sub-admins need to update users to change balances, kycStatus, etc.
       allow update: if isOwner(userId) || isAdmin() || isSubAdmin();
       allow delete: if isAdmin();
@@ -51,6 +50,9 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
+    match /investmentPlans/{planId}/investments/{id} {
+        allow read: if isAuthenticated();
+    }
 
     // Group Loans
     match /groupLoanPlans/{id} {
@@ -63,7 +65,7 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || isSubAdmin();
     }
     match /groupLoanPlans/{planId}/repayments/{id} {
-      allow read: if isAuthenticated(); // Participants need to see progress
+      allow read: if isAuthenticated();
       allow write: if isAdmin() || isSubAdmin();
     }
     match /groupLoanPlans/{planId}/payouts/{id} {
@@ -118,7 +120,7 @@ service cloud.firestore {
     match /coupons/{id} {
       allow read: if isAuthenticated();
       allow create, delete: if isAdmin();
-      allow update: if isAuthenticated(); // Needed for arrayUnion on redemptions
+      allow update: if isAuthenticated();
     }
 
     // Admin Withdrawals (Profit Logs)
