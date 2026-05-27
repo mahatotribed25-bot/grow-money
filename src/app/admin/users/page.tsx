@@ -31,6 +31,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 type User = {
   id: string;
@@ -195,4 +196,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
