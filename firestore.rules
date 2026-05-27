@@ -27,7 +27,8 @@ service cloud.firestore {
       // Allow get for all auth users so they can see names/online status in chat
       allow get: if isAuthenticated();
       allow list: if isAdmin() || isSubAdmin();
-      allow update: if isOwner(userId) || isAdmin();
+      // Sub-admins need to update users to change balances, kycStatus, etc.
+      allow update: if isOwner(userId) || isAdmin() || isSubAdmin();
       allow delete: if isAdmin();
     }
 
@@ -89,28 +90,28 @@ service cloud.firestore {
     match /upiRequests/{id} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isSubAdmin());
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isSubAdmin());
+      allow update: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin() || isSubAdmin();
     }
     match /customLoanRequests/{id} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isSubAdmin());
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isSubAdmin());
+      allow update: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin() || isSubAdmin();
     }
 
     // User Subcollections
     match /users/{userId}/investments/{id} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read, write: if isOwner(userId) || isAdmin() || isSubAdmin();
     }
     match /users/{userId}/loans/{id} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read, write: if isOwner(userId) || isAdmin() || isSubAdmin();
     }
     
     // Collection Group Queries for Admin Stats
     match /{path=**}/investments/{id} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isSubAdmin();
     }
     match /{path=**}/loans/{id} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isSubAdmin();
     }
 
     // Coupons
@@ -135,15 +136,15 @@ service cloud.firestore {
 
     // Peer-to-Peer Chats (Admin controlled)
     match /userChatSessions/{sessionId} {
-      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin() || isSubAdmin());
       allow create: if isAdmin();
-      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin() || isSubAdmin());
       allow delete: if isAdmin();
     }
     match /userChatSessions/{sessionId}/messages/{messageId} {
-      allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants || isAdmin());
-      allow create: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants || isAdmin());
-      allow delete: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants || isAdmin());
+      allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants || isAdmin() || isSubAdmin());
+      allow create: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants || isAdmin() || isSubAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants || isAdmin() || isSubAdmin());
     }
 
     // Generic fallback
