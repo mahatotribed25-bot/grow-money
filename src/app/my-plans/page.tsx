@@ -10,6 +10,7 @@ import {
   History as HistoryIcon,
   Timer,
   ArrowUpRight,
+  CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
