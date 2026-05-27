@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Users,
@@ -28,6 +27,7 @@ import {
 import { Timestamp } from 'firebase/firestore';
 import { subDays, format, startOfDay, startOfMonth, isSameDay, isWithinInterval } from 'date-fns';
 import { useMemo } from 'react';
+import { cn } from '@/lib/utils';
 
 type User = {
   walletBalance?: number;
@@ -222,94 +222,106 @@ export default function AdminDashboard() {
   const userSignupChartData = processUserSignupData(users);
   
   const stats = [
-    { title: "Today's Profit", value: loading ? '...' : `₹${todayProfit.toFixed(2)}`, icon: TrendingUp },
-    { title: "This Month's Profit", value: loading ? '...' : `₹${monthProfit.toFixed(2)}`, icon: TrendingUp },
-    { title: "All-Time Profit", value: loading ? '...' : `₹${totalProfit.toFixed(2)}`, icon: TrendingUp },
-    { title: 'Total Users', value: loading ? '...' : totalUsers, icon: Users },
-    { title: 'Total Wallet Balance', value: loading ? '...' : `₹${totalWalletBalance.toFixed(2)}`, icon: Wallet },
-    { title: 'Pending Deposits', value: loading ? '...' : pendingDepositsCount, icon: Upload },
-    { title: 'Pending Withdrawals', value: loading ? '...' : pendingWithdrawalsCount, icon: Download },
-    { title: 'Investment Plans', value: loading ? '...' : totalInvestmentPlans, icon: Briefcase },
-    { title: 'Loan Plans', value: loading ? '...' : totalLoanPlans, icon: HandCoins },
-    { title: 'Active Group Loans', value: loading ? '...' : activeGroupLoans, icon: Users2 },
-    { title: 'Users with Loans', value: loading ? '...' : uniqueUsersWithLoans, icon: Users },
-    { title: 'Total Active Loans', value: loading ? '...' : totalActiveLoans, icon: HandCoins },
-    { title: 'Pending KYC', value: loading ? '...' : pendingKyc, icon: UserCheck },
-    { title: 'Online Users', value: loading ? '...' : onlineUsers, icon: Users },
+    { title: "Today's Profit", value: loading ? '...' : `₹${todayProfit.toFixed(2)}`, icon: TrendingUp, color: 'text-green-400' },
+    { title: "This Month's Profit", value: loading ? '...' : `₹${monthProfit.toFixed(2)}`, icon: TrendingUp, color: 'text-green-400' },
+    { title: "All-Time Profit", value: loading ? '...' : `₹${totalProfit.toFixed(2)}`, icon: TrendingUp, color: 'text-green-400' },
+    { title: 'Total Users', value: loading ? '...' : totalUsers, icon: Users, color: 'text-blue-400' },
+    { title: 'Total Wallet Balance', value: loading ? '...' : `₹${totalWalletBalance.toFixed(2)}`, icon: Wallet, color: 'text-purple-400' },
+    { title: 'Pending Deposits', value: loading ? '...' : pendingDepositsCount, icon: Upload, color: 'text-amber-400' },
+    { title: 'Pending Withdrawals', value: loading ? '...' : pendingWithdrawalsCount, icon: Download, color: 'text-red-400' },
+    { title: 'Investment Plans', value: loading ? '...' : totalInvestmentPlans, icon: Briefcase, color: 'text-cyan-400' },
+    { title: 'Loan Plans', value: loading ? '...' : totalLoanPlans, icon: HandCoins, color: 'text-orange-400' },
+    { title: 'Active Group Loans', value: loading ? '...' : activeGroupLoans, icon: Users2, color: 'text-blue-500' },
+    { title: 'Users with Loans', value: loading ? '...' : uniqueUsersWithLoans, icon: Users, color: 'text-indigo-400' },
+    { title: 'Total Active Loans', value: loading ? '...' : totalActiveLoans, icon: HandCoins, color: 'text-red-500' },
+    { title: 'Pending KYC', value: loading ? '...' : pendingKyc, icon: UserCheck, color: 'text-emerald-400' },
+    { title: 'Online Users', value: loading ? '...' : onlineUsers, icon: Users, color: 'text-green-500' },
   ];
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-in fade-in duration-500">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {stats.map((stat) => (
-          <Card key={stat.title}>
+          <Card key={stat.title} className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl transition-all hover:bg-white/[0.06] hover:scale-[1.02] group">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-[10px] uppercase font-bold tracking-widest text-white/40">
                 {stat.title}
               </CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
+              <div className={cn("p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors", stat.color)}>
+                 <stat.icon className="h-4 w-4" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
+              <div className="text-2xl font-bold tracking-tight text-white">{stat.value}</div>
             </CardContent>
           </Card>
         ))}
       </div>
+
       <div className="grid gap-6 md:grid-cols-1">
-         <Card>
+         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
             <CardHeader>
-            <CardTitle>Last 30 Days Profit from Plan Sales</CardTitle>
+            <CardTitle className="text-lg font-bold tracking-tight text-white/90">Last 30 Days Profit from Plan Sales</CardTitle>
             </CardHeader>
             <CardContent>
             {loading ? (
                 <div className="h-[350px] w-full flex items-center justify-center">
-                <p>Loading chart data...</p>
+                <p className="text-white/20 animate-pulse uppercase tracking-widest text-xs font-bold">Collecting Data...</p>
                 </div>
             ) : (
                 <ResponsiveContainer width="100%" height={350}>
                   <LineChart data={profitFromSalesChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(value) => `₹${value}`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} />
+                    <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value}`} />
                     <Tooltip
                       contentStyle={{
-                          backgroundColor: 'hsl(var(--background))',
-                          borderColor: 'hsl(var(--border))',
+                          backgroundColor: 'rgba(3,4,8,0.95)',
+                          borderColor: 'rgba(255,255,255,0.1)',
+                          backdropFilter: 'blur(10px)',
+                          borderRadius: '12px',
+                          boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                          fontSize: '12px'
                       }}
                     />
-                    <Legend />
-                    <Line type="monotone" dataKey="Profit" stroke="hsl(var(--chart-4))" strokeWidth={2} activeDot={{ r: 8 }} />
+                    <Legend iconType="circle" />
+                    <Line type="monotone" dataKey="Profit" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 0 }} activeDot={{ r: 8, strokeWidth: 0 }} />
                   </LineChart>
                 </ResponsiveContainer>
             )}
             </CardContent>
         </Card>
       </div>
+
       <div className="grid gap-6 md:grid-cols-1">
-         <Card>
+         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
             <CardHeader>
-            <CardTitle>Last 7 Days User Signups</CardTitle>
+            <CardTitle className="text-lg font-bold tracking-tight text-white/90">Last 7 Days User Signups</CardTitle>
             </CardHeader>
             <CardContent>
             {loading ? (
                 <div className="h-[350px] w-full flex items-center justify-center">
-                <p>Loading chart data...</p>
+                <p className="text-white/20 animate-pulse uppercase tracking-widest text-xs font-bold">Collecting Data...</p>
                 </div>
             ) : (
                 <ResponsiveContainer width="100%" height={350}>
                     <LineChart data={userSignupChartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))"/>
-                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} allowDecimals={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
+                        <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} />
+                        <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
                         <Tooltip
                             contentStyle={{
-                                backgroundColor: 'hsl(var(--background))',
-                                borderColor: 'hsl(var(--border))',
+                                backgroundColor: 'rgba(3,4,8,0.95)',
+                                borderColor: 'rgba(255,255,255,0.1)',
+                                backdropFilter: 'blur(10px)',
+                                borderRadius: '12px',
+                                boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                                fontSize: '12px'
                             }}
                         />
-                        <Legend />
-                        <Line type="monotone" dataKey="New Users" stroke="hsl(var(--chart-2))" strokeWidth={2} activeDot={{ r: 8 }} />
+                        <Legend iconType="circle" />
+                        <Line type="monotone" dataKey="New Users" stroke="#22c55e" strokeWidth={3} dot={{ r: 4, fill: '#22c55e', strokeWidth: 0 }} activeDot={{ r: 8, strokeWidth: 0 }} />
                     </LineChart>
                 </ResponsiveContainer>
             )}
@@ -320,6 +332,3 @@ export default function AdminDashboard() {
   );
 }
 
-    
-
-    
