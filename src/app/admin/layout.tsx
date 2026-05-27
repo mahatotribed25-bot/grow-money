@@ -182,58 +182,58 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[240px_1fr] lg:grid-cols-[280px_1fr] bg-[#030408] relative overflow-hidden">
-      {/* Background Glow Blobs */}
-      <div className="absolute top-[-10%] -left-[5%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[100px] pointer-events-none animate-pulse" />
-      <div className="absolute bottom-[-10%] -right-[5%] w-[40%] h-[40%] rounded-full bg-secondary/10 blur-[100px] pointer-events-none" />
-
-      {/* Glassy Sidebar */}
-      <div className="hidden border-r border-white/[0.05] bg-white/[0.02] backdrop-blur-xl md:block relative z-20">
-        <div className="flex h-full max-h-screen flex-col gap-2">
-          <div className="flex h-16 items-center border-b border-white/[0.05] px-4 lg:px-6">
-            <Link
-              href="/admin"
-              className="flex items-center gap-2 font-bold tracking-tight"
-            >
-              <div className="p-1.5 rounded-lg bg-primary/20">
-                <Briefcase className="h-5 w-5 text-primary" />
-              </div>
-              <span className="text-lg bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Admin Panel</span>
-            </Link>
-          </div>
-          <ScrollArea className="flex-1 px-4">
-            <nav className="grid items-start py-4 gap-1">
-                <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
-                <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance & Earnings</AdminNavItem>
-                <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
-                <AdminNavItem icon={Network} href="/admin/user-chats">User Chat Bridge</AdminNavItem>
-                <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
-                <AdminNavItem icon={Users2} href="/admin/group-loans">Group Loans</AdminNavItem>
-                <AdminNavItem icon={HandCoins} href="/admin/loan-plans">Loan Plans</AdminNavItem>
-                <AdminNavItem icon={HandCoins} href="/admin/loans">Loan Requests</AdminNavItem>
-                <AdminNavItem icon={FileText} href="/admin/custom-loans">Custom Loans</AdminNavItem>
-                <AdminNavItem icon={FileCheck} href="/admin/kyc-requests">KYC Requests</AdminNavItem>
-                <AdminNavItem icon={Handshake} href="/admin/upi-requests">UPI Requests</AdminNavItem>
-                <AdminNavItem icon={Upload} href="/admin/deposits">Deposits</AdminNavItem>
-                <AdminNavItem icon={Download} href="/admin/withdrawals">Withdrawals</AdminNavItem>
-                <AdminNavItem icon={Gift} href="/admin/coupons">Coupons</AdminNavItem>
-                <AdminNavItem icon={Megaphone} href="/admin/announcements">Announcements</AdminNavItem>
-                <AdminNavItem icon={MessageSquare} href="/admin/chat">Chat Support</AdminNavItem>
-                <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
-            </nav>
-          </ScrollArea>
-          <div className="mt-auto p-4 border-t border-white/5">
-            <Button variant="ghost" size="sm" className="w-full text-white/50 hover:text-white hover:bg-destructive/20" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
-          </div>
-        </div>
+    <div className="min-h-screen w-full bg-[#030408] relative flex flex-col md:flex-row">
+      {/* Background Glow Blobs - Fixed layer to prevent layout shifts */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-10%] -left-[5%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[100px] animate-pulse" />
+        <div className="absolute bottom-[-10%] -right-[5%] w-[40%] h-[40%] rounded-full bg-secondary/10 blur-[100px]" />
       </div>
 
-      <div className="flex flex-col relative z-10">
+      {/* Glassy Sidebar - Desktop */}
+      <aside className="hidden border-r border-white/[0.05] bg-white/[0.02] backdrop-blur-xl md:flex md:w-[240px] lg:w-[280px] shrink-0 sticky top-0 h-screen z-20 flex-col overflow-hidden">
+        <div className="flex h-16 items-center border-b border-white/[0.05] px-4 lg:px-6">
+          <Link
+            href="/admin"
+            className="flex items-center gap-2 font-bold tracking-tight"
+          >
+            <div className="p-1.5 rounded-lg bg-primary/20">
+              <Briefcase className="h-5 w-5 text-primary" />
+            </div>
+            <span className="text-lg bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Admin Panel</span>
+          </Link>
+        </div>
+        <ScrollArea className="flex-1 px-4">
+          <nav className="grid items-start py-4 gap-1">
+              <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
+              <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance & Earnings</AdminNavItem>
+              <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
+              <AdminNavItem icon={Network} href="/admin/user-chats">User Chat Bridge</AdminNavItem>
+              <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
+              <AdminNavItem icon={Users2} href="/admin/group-loans">Group Loans</AdminNavItem>
+              <AdminNavItem icon={HandCoins} href="/admin/loan-plans">Loan Plans</AdminNavItem>
+              <AdminNavItem icon={HandCoins} href="/admin/loans">Loan Requests</AdminNavItem>
+              <AdminNavItem icon={FileText} href="/admin/custom-loans">Custom Loans</AdminNavItem>
+              <AdminNavItem icon={FileCheck} href="/admin/kyc-requests">KYC Requests</AdminNavItem>
+              <AdminNavItem icon={Handshake} href="/admin/upi-requests">UPI Requests</AdminNavItem>
+              <AdminNavItem icon={Upload} href="/admin/deposits">Deposits</AdminNavItem>
+              <AdminNavItem icon={Download} href="/admin/withdrawals">Withdrawals</AdminNavItem>
+              <AdminNavItem icon={Gift} href="/admin/coupons">Coupons</AdminNavItem>
+              <AdminNavItem icon={Megaphone} href="/admin/announcements">Announcements</AdminNavItem>
+              <AdminNavItem icon={MessageSquare} href="/admin/chat">Chat Support</AdminNavItem>
+              <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
+          </nav>
+        </ScrollArea>
+        <div className="mt-auto p-4 border-t border-white/5 bg-black/20">
+          <Button variant="ghost" size="sm" className="w-full text-white/50 hover:text-white hover:bg-destructive/20" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
+        </div>
+      </aside>
+
+      <div className="flex flex-col flex-1 relative z-10 w-full min-w-0">
         {/* Glassy Header */}
-        <header className="flex h-16 items-center gap-4 border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl lg:px-6 sticky top-0 z-30">
+        <header className="flex h-16 items-center gap-4 border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl lg:px-6 sticky top-0 z-30 w-full">
           <Sheet>
             <SheetTrigger asChild>
               <Button
@@ -282,7 +282,7 @@ export default function AdminLayout({
             </SheetContent>
           </Sheet>
           <div className="w-full flex-1">
-            <h1 className="text-lg font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent uppercase tracking-wider text-[11px]">
+            <h1 className="text-lg font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent uppercase tracking-wider text-[11px] truncate">
               {pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
             </h1>
           </div>
@@ -340,7 +340,7 @@ export default function AdminLayout({
           </Popover>
         </header>
 
-        <main className="flex-1 flex flex-col gap-6 p-4 lg:p-8">
+        <main className="flex-1 p-4 lg:p-8 min-h-screen w-full overflow-x-hidden">
           {children}
         </main>
       </div>
@@ -371,7 +371,7 @@ function AdminNavItem({
       )}
     >
       <Icon className={cn("h-4 w-4 transition-transform", isActive && "scale-110")} />
-      <span>{children}</span>
+      <span className="truncate">{children}</span>
     </Link>
   );
 }
