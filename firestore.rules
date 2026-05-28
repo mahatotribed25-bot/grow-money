@@ -24,6 +24,7 @@ service cloud.firestore {
     // Rules for 'users'
     match /users/{userId} {
       allow create: if isOwner(userId);
+      // Allow read for all authenticated users to support Leaderboard and P2P participant names
       allow read: if isAuthenticated();
       // Allow update for balance adjustments (P2P/Investments), profile updates, and VIP leveling
       allow update: if isAuthenticated(); 
@@ -41,25 +42,29 @@ service cloud.firestore {
       }
     }
 
-    // Collection Group Rules (For Admin Dashboard stats)
+    // Collection Group Rules (For Admin Dashboard stats and cross-user lookups)
     match /{path=**}/investments/{id} {
-      allow read: if isAdmin() || isSubAdmin();
+      allow read: if isAuthenticated();
     }
     match /{path=**}/loans/{id} {
-      allow read: if isAdmin() || isSubAdmin();
+      allow read: if isAuthenticated();
     }
     match /{path=**}/offers/{id} {
         allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+    }
+    match /{path=**}/messages/{id} {
+        allow read, write: if isAuthenticated();
     }
 
     // Settings
     match /settings/admin {
       allow read: if isAuthenticated();
-      // Allow write for Admin and for P2P fee profit recording (triggered by users during transactions)
+      // Allow write for Admin and for P2P fee profit recording/stock decrement (triggered by users during transactions)
       allow write: if isAuthenticated();
     }
 
-    // Marketplace
+    // P2P Marketplace
     match /p2pLoanRequests/{id} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated();
@@ -122,6 +127,12 @@ service cloud.firestore {
       }
     }
 
+    // Loan Plans (Static definitions)
+    match /loanPlans/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // Standard transactions
     match /deposits/{id} {
       allow read: if isAuthenticated();
@@ -149,6 +160,11 @@ service cloud.firestore {
       allow update: if isAuthenticated() || isAdmin() || isSubAdmin(); 
     }
 
+    // Admin Specific history
+    match /adminWithdrawals/{id} {
+      allow read, write: if isAdmin();
+    }
+
     // Chat support
     match /chats/{chatId} {
         allow read, write: if isOwner(chatId) || isAdmin() || isSubAdmin();
@@ -159,10 +175,10 @@ service cloud.firestore {
     
     // Private user chats (Bridged)
     match /userChatSessions/{sessionId} {
-        allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
-        allow create: if isAdmin();
+        allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin() || isSubAdmin());
+        allow create: if isAdmin() || isSubAdmin();
         allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants);
-        allow delete: if isAdmin();
+        allow delete: if isAdmin() || isSubAdmin();
         
         match /messages/{msgId} {
             allow read, write: if isAuthenticated();
