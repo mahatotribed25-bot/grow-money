@@ -25,15 +25,26 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isOwner(userId);
       allow read: if isAuthenticated();
-      // Allow update if owner, admin, or for P2P transaction balance adjustments
+      // Allow update for balance adjustments (P2P/Investments) and profile updates
       allow update: if isAuthenticated(); 
       allow delete: if isAdmin();
+
+      // User's own financial sub-collections
+      match /investments/{id} {
+        allow read: if isOwner(userId) || isAdmin() || isSubAdmin();
+        allow write: if isOwner(userId) || isAdmin() || isSubAdmin();
+      }
+      match /loans/{id} {
+        allow read: if isOwner(userId) || isAdmin() || isSubAdmin();
+        allow write: if isAdmin() || isSubAdmin();
+        allow update: if isOwner(userId); // For user to signal payment pending
+      }
     }
 
     // Settings
     match /settings/admin {
       allow read: if isAuthenticated();
-      // Allow write for Admin and for P2P fee profit recording
+      // Allow write for Admin and for P2P fee profit recording (triggered by users)
       allow write: if isAuthenticated();
     }
 
@@ -62,12 +73,19 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isSubAdmin();
     }
+
+    // Coupons
+    match /coupons/{id} {
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated(); // For stock decrement and redemptions array update
+      allow write: if isAdmin();
+    }
     
     // Investment Plans
     match /investmentPlans/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
-      allow update: if isAuthenticated(); // For stock updates
+      allow update: if isAuthenticated(); // For stock/limit updates during purchase
     }
     
     // Group Loan Plans
@@ -112,12 +130,12 @@ service cloud.firestore {
     match /upiRequests/{id} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated();
-        allow update: if isAuthenticated();
+        allow update: if isAdmin() || isSubAdmin();
     }
     match /customLoanRequests/{id} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow update: if isAuthenticated(); // For users to confirm offers or request extensions
     }
 
     // Chat support
@@ -128,7 +146,7 @@ service cloud.firestore {
         }
     }
     
-    // Private user chats
+    // Private user chats (Bridged)
     match /userChatSessions/{sessionId} {
         allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
         allow create: if isAdmin();
@@ -140,6 +158,7 @@ service cloud.firestore {
         }
     }
 
+    // Global Admin catch-all for any other collections (adminWithdrawals, etc)
     match /{document=**} {
       allow read, write: if isAdmin();
     }
