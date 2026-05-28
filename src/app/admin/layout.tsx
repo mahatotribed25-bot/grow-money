@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -208,6 +209,7 @@ export default function AdminLayout({
               <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance & Earnings</AdminNavItem>
               <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
               <AdminNavItem icon={Network} href="/admin/user-chats">User Chat Bridge</AdminNavItem>
+              <AdminNavItem icon={HandCoins} href="/admin/p2p-loans">P2P Market Oversight</AdminNavItem>
               <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
               <AdminNavItem icon={Users2} href="/admin/group-loans">Group Loans</AdminNavItem>
               <AdminNavItem icon={HandCoins} href="/admin/loan-plans">Loan Plans</AdminNavItem>
@@ -258,6 +260,7 @@ export default function AdminLayout({
                     <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance & Earnings</AdminNavItem>
                     <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
                     <AdminNavItem icon={Network} href="/admin/user-chats">User Chat Bridge</AdminNavItem>
+                    <AdminNavItem icon={HandCoins} href="/admin/p2p-loans">P2P Market</AdminNavItem>
                     <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
                     <AdminNavItem icon={Users2} href="/admin/group-loans">Group Loans</AdminNavItem>
                     <AdminNavItem icon={HandCoins} href="/admin/loan-plans">Loan Plans</AdminNavItem>
@@ -340,7 +343,7 @@ export default function AdminLayout({
           </Popover>
         </header>
 
-        <main className="flex-1 p-4 lg:p-8 min-h-screen w-full overflow-x-hidden">
+        <main className="flex-1 p-4 lg:p-8 min-h-screen w-full">
           {children}
         </main>
       </div>

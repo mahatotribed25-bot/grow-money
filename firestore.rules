@@ -24,20 +24,32 @@ service cloud.firestore {
     // Rules for 'users'
     match /users/{userId} {
       allow create: if isOwner(userId);
-      // Allow get and list for all auth users so they can see names in chat and the leaderboard
       allow read: if isAuthenticated();
-      // Sub-admins need to update users to change balances, kycStatus, etc.
       allow update: if isOwner(userId) || isAdmin() || isSubAdmin();
       allow delete: if isAdmin();
     }
 
-    // Settings (Read-only for users)
+    // Settings
     match /settings/admin {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // Public/Shared Resources (Read-only for all auth users)
+    // Marketplace
+    match /p2pLoanRequests/{id} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated();
+        allow delete: if isAdmin();
+    }
+    match /p2pLoanRequests/{id}/offers/{offerId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated();
+        allow delete: if isAdmin();
+    }
+
+    // Legacy matchers...
     match /announcements/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isSubAdmin();
@@ -50,11 +62,6 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
-    match /investmentPlans/{planId}/investments/{id} {
-        allow read: if isAuthenticated();
-    }
-
-    // Group Loans
     match /groupLoanPlans/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
@@ -64,16 +71,6 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.investorId == request.auth.uid;
       allow update, delete: if isAdmin() || isSubAdmin();
     }
-    match /groupLoanPlans/{planId}/repayments/{id} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isSubAdmin();
-    }
-    match /groupLoanPlans/{planId}/payouts/{id} {
-      allow read: if isAuthenticated() && (resource.data.investorId == request.auth.uid || isAdmin() || isSubAdmin());
-      allow write: if isAdmin() || isSubAdmin();
-    }
-
-    // User-specific requests
     match /deposits/{id} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isSubAdmin());
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
@@ -90,9 +87,9 @@ service cloud.firestore {
       allow update: if isAdmin() || isSubAdmin();
     }
     match /upiRequests/{id} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isSubAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin() || isSubAdmin();
+        allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isSubAdmin());
+        allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+        allow update: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin() || isSubAdmin();
     }
     match /customLoanRequests/{id} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isSubAdmin());
@@ -100,56 +97,6 @@ service cloud.firestore {
       allow update: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin() || isSubAdmin();
     }
 
-    // User Subcollections
-    match /users/{userId}/investments/{id} {
-      allow read, write: if isOwner(userId) || isAdmin() || isSubAdmin();
-    }
-    match /users/{userId}/loans/{id} {
-      allow read, write: if isOwner(userId) || isAdmin() || isSubAdmin();
-    }
-    
-    // Collection Group Queries for Admin Stats
-    match /{path=**}/investments/{id} {
-      allow read: if isAdmin() || isSubAdmin();
-    }
-    match /{path=**}/loans/{id} {
-      allow read: if isAdmin() || isSubAdmin();
-    }
-
-    // Coupons
-    match /coupons/{id} {
-      allow read: if isAuthenticated();
-      allow create, delete: if isAdmin();
-      allow update: if isAuthenticated();
-    }
-
-    // Admin Withdrawals (Profit Logs)
-    match /adminWithdrawals/{id} {
-      allow read, write: if isAdmin();
-    }
-
-    // Support Chats (User to Admin)
-    match /chats/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
-    }
-    match /chats/{userId}/messages/{messageId} {
-      allow read, write: if isOwner(userId) || isAdmin();
-    }
-
-    // Peer-to-Peer Chats (Admin controlled)
-    match /userChatSessions/{sessionId} {
-      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin() || isSubAdmin());
-      allow create: if isAdmin();
-      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin() || isSubAdmin());
-      allow delete: if isAdmin();
-    }
-    match /userChatSessions/{sessionId}/messages/{messageId} {
-      allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants || isAdmin() || isSubAdmin());
-      allow create: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants || isAdmin() || isSubAdmin());
-      allow delete: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/userChatSessions/$(sessionId)).data.participants || isAdmin() || isSubAdmin());
-    }
-
-    // Generic fallback
     match /{document=**} {
       allow read, write: if isAdmin();
     }

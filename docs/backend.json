@@ -138,25 +138,32 @@
         "email"
       ]
     },
-    "userChatSession": {
-      "title": "User Chat Session",
-      "description": "A chat session between two users, initiated by an admin.",
-      "type": "object",
-      "properties": {
-        "participants": { "type": "array", "items": { "type": "string" }, "description": "UIDs of the two users." },
-        "participantNames": { "type": "object", "description": "Map of UID to Name." },
-        "lastMessage": { "type": "string" },
-        "lastMessageAt": { "type": "string", "format": "date-time" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "userChatMessage": {
-        "title": "User Chat Message",
-        "description": "A message in a peer-to-peer chat.",
+    "p2pLoanRequest": {
+        "title": "P2P Loan Request",
+        "description": "A public loan request in the marketplace.",
         "type": "object",
         "properties": {
-            "text": { "type": "string" },
-            "senderId": { "type": "string" },
+            "borrowerId": { "type": "string" },
+            "borrowerName": { "type": "string" },
+            "borrowerTrustScore": { "type": "number" },
+            "amount": { "type": "number" },
+            "duration": { "type": "number" },
+            "status": { "type": "string", "enum": ["funding", "accepted", "completed", "expired"] },
+            "createdAt": { "type": "string", "format": "date-time" },
+            "expiresAt": { "type": "string", "format": "date-time" },
+            "acceptedOfferId": { "type": "string" }
+        }
+    },
+    "p2pLoanOffer": {
+        "title": "P2P Loan Offer",
+        "description": "An interest offer from a potential lender.",
+        "type": "object",
+        "properties": {
+            "requestId": { "type": "string" },
+            "lenderId": { "type": "string" },
+            "lenderName": { "type": "string" },
+            "interestRate": { "type": "number" },
+            "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
             "createdAt": { "type": "string", "format": "date-time" }
         }
     }
@@ -179,21 +186,13 @@
       },
       "description": "Stores admin-specific settings."
     },
-    "/chats/{userId}": {
-      "schema": { "$ref": "#/entities/chat" },
-      "description": "Stores a chat session between a user and an admin."
+    "/p2pLoanRequests/{requestId}": {
+        "schema": { "$ref": "#/entities/p2pLoanRequest" },
+        "description": "Stores public P2P loan marketplace requests."
     },
-    "/chats/{userId}/messages/{messageId}": {
-      "schema": { "$ref": "#/entities/chatMessage" },
-      "description": "Stores individual messages within a chat session."
-    },
-    "/userChatSessions/{sessionId}": {
-        "schema": { "$ref": "#/entities/userChatSession" },
-        "description": "Stores connections between users for private chatting."
-    },
-    "/userChatSessions/{sessionId}/messages/{messageId}": {
-        "schema": { "$ref": "#/entities/userChatMessage" },
-        "description": "Stores messages between connected users."
+    "/p2pLoanRequests/{requestId}/offers/{offerId}": {
+        "schema": { "$ref": "#/entities/p2pLoanOffer" },
+        "description": "Stores bidding offers for a P2P request."
     }
   }
 }

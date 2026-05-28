@@ -401,6 +401,8 @@ export default function Dashboard() {
               <CardTitle className="text-lg font-bold text-white/80">Platform Services</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <QuickActionButton icon={Users} label="P2P Market" href="/p2p-market" color="text-primary" />
+              <QuickActionButton icon={HandCoins} label="P2P Hub" href="/p2p-my-dashboard" color="text-yellow-400" />
               <QuickActionButton icon={MessageCircle} label="Private Chats" href="/user-chats" color="text-blue-400" />
               <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" color="text-green-400" />
               <QuickActionButton icon={Users2} label="Group Investing" href="/group-investing" color="text-purple-400" />

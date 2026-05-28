@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem } from 'lucide-react';
+import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users } from 'lucide-react';
 import { sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
@@ -49,6 +49,7 @@ type AdminSettings = {
   delayBonusPerDay?: number;
   maxBonusDays?: number;
   dailyCheckInBonus?: number;
+  p2pPlatformFeePercent?: number;
   vipTiers?: {
     silver: number;
     gold: number;
@@ -84,6 +85,7 @@ export default function SettingsPage() {
   const [isUnderMaintenance, setIsUnderMaintenance] = useState(false);
   const [maintenanceDuration, setMaintenanceDuration] = useState(5);
   const [profitStartDate, setProfitStartDate] = useState<Date | null>(null);
+  const [p2pFee, setP2pFee] = useState(2);
 
   // Delay Bonus State
   const [delayCompensationEnabled, setDelayCompensationEnabled] = useState(false);
@@ -125,6 +127,8 @@ export default function SettingsPage() {
       setMaxBonusDays(settings.maxBonusDays || 0);
 
       setDailyCheckInBonus(settings.dailyCheckInBonus || 0);
+      setP2pFee(settings.p2pPlatformFeePercent || 2);
+
       setVipTiers(settings.vipTiers || { silver: 0, gold: 0, platinum: 0 });
       setVipGst(settings.vipWithdrawalGst || { bronze: 0, silver: 0, gold: 0, platinum: 0 });
 
@@ -154,6 +158,7 @@ export default function SettingsPage() {
       delayBonusPerDay: Number(delayBonusPerDay),
       maxBonusDays: Number(maxBonusDays),
       dailyCheckInBonus: Number(dailyCheckInBonus),
+      p2pPlatformFeePercent: Number(p2pFee),
       vipTiers,
       vipWithdrawalGst: vipGst,
     };
@@ -562,6 +567,19 @@ export default function SettingsPage() {
                 </div>
                 <Separator />
                 <div>
+                    <CardTitle className="flex items-center gap-2"><Users /> P2P Marketplace</CardTitle>
+                    <div className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="p2p-fee">Platform Fee (%)</Label>
+                            <Input id="p2p-fee" type="number" placeholder="e.g., 2" value={p2pFee} onChange={(e) => setP2pFee(Number(e.target.value))} />
+                             <p className="text-sm text-muted-foreground">
+                                Percentage commission the platform takes when a P2P loan is accepted.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <Separator />
+                <div>
                     <CardTitle>Payment Settings</CardTitle>
                     <CardDescription>
                         Configure how users make deposits and withdrawals.
@@ -608,7 +626,7 @@ export default function SettingsPage() {
                     </div>
                 </div>
                 <Separator />
-                 <div>
+                <div>
                     <CardTitle>Loan Settings</CardTitle>
                      <div className="space-y-4 mt-4">
                          <div className="space-y-2">
