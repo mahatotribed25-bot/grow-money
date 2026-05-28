@@ -77,7 +77,7 @@ export default function P2PMarketPage() {
         const requestData = {
             borrowerId: user.uid,
             borrowerName: user.displayName || 'User',
-            borrowerTrustScore: 500, // will be synced by function/trigger ideally
+            borrowerTrustScore: 500, // Initial default score
             amount: amt,
             duration: dur,
             status: 'funding',
@@ -130,7 +130,7 @@ export default function P2PMarketPage() {
                     </div>
                 ) : filteredRequests && filteredRequests.length > 0 ? (
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {filteredRequests.map(req => <RequestCard key={r.id} req={req} />)}
+                        {filteredRequests.map(req => <RequestCard key={req.id} req={req} />)}
                     </div>
                 ) : (
                     <div className="text-center py-20 space-y-4 bg-white/[0.02] border border-dashed border-white/[0.08] rounded-3xl">
