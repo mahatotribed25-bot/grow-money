@@ -25,11 +25,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isOwner(userId);
       allow read: if isAuthenticated();
-      // Allow update for balance adjustments (P2P/Investments) and profile updates
+      // Allow update for balance adjustments (P2P/Investments), profile updates, and VIP leveling
       allow update: if isAuthenticated(); 
       allow delete: if isAdmin();
 
-      // User's own financial sub-collections
+      // User's own financial sub-collections (Direct path)
       match /investments/{id} {
         allow read: if isOwner(userId) || isAdmin() || isSubAdmin();
         allow write: if isOwner(userId) || isAdmin() || isSubAdmin();
@@ -41,10 +41,21 @@ service cloud.firestore {
       }
     }
 
+    // Collection Group Rules (For Admin Dashboard stats)
+    match /{path=**}/investments/{id} {
+      allow read: if isAdmin() || isSubAdmin();
+    }
+    match /{path=**}/loans/{id} {
+      allow read: if isAdmin() || isSubAdmin();
+    }
+    match /{path=**}/offers/{id} {
+        allow read: if isAuthenticated();
+    }
+
     // Settings
     match /settings/admin {
       allow read: if isAuthenticated();
-      // Allow write for Admin and for P2P fee profit recording (triggered by users)
+      // Allow write for Admin and for P2P fee profit recording (triggered by users during transactions)
       allow write: if isAuthenticated();
     }
 
@@ -135,14 +146,14 @@ service cloud.firestore {
     match /customLoanRequests/{id} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated(); // For users to confirm offers or request extensions
+      allow update: if isAuthenticated() || isAdmin() || isSubAdmin(); 
     }
 
     // Chat support
     match /chats/{chatId} {
-        allow read, write: if isOwner(chatId) || isAdmin();
+        allow read, write: if isOwner(chatId) || isAdmin() || isSubAdmin();
         match /messages/{msgId} {
-            allow read, write: if isOwner(chatId) || isAdmin();
+            allow read, write: if isOwner(chatId) || isAdmin() || isSubAdmin();
         }
     }
     
@@ -158,7 +169,7 @@ service cloud.firestore {
         }
     }
 
-    // Global Admin catch-all for any other collections (adminWithdrawals, etc)
+    // Global Admin catch-all
     match /{document=**} {
       allow read, write: if isAdmin();
     }
