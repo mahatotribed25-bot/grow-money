@@ -15,7 +15,9 @@ import {
     ArrowUpRight, 
     History, 
     Briefcase,
-    Users
+    Users,
+    Activity,
+    HandCoins
 } from 'lucide-react';
 import {
     Table,
@@ -59,6 +61,12 @@ type AdminWithdrawal = {
     status: 'completed';
 };
 
+type ActiveP2PLoan = {
+    id: string;
+    amount: number;
+    createdAt: Timestamp;
+};
+
 export default function AdminFinancePage() {
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -66,6 +74,7 @@ export default function AdminFinancePage() {
     const { data: plans, loading: plansLoading } = useCollection<InvestmentPlan>('investmentPlans');
     const { data: investments, loading: investmentsLoading } = useCollection<Investment>('investments', { subcollections: true });
     const { data: withdrawalLogs, loading: logsLoading } = useCollection<AdminWithdrawal>('adminWithdrawals');
+    const { data: p2pLoans, loading: p2pLoading } = useCollection<ActiveP2PLoan>('p2pActiveLoans');
 
     const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
     const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -90,14 +99,18 @@ export default function AdminFinancePage() {
         });
 
         const totalOverallRevenue = planStats.reduce((sum, p) => sum + p.totalRevenue, 0);
-        const totalOverallProfit = planStats.reduce((sum, p) => sum + p.totalProfit, 0);
+        const planProfits = planStats.reduce((sum, p) => sum + p.totalProfit, 0);
+        
+        // P2P Profits (2% constant)
+        const p2pProfit = p2pLoans?.reduce((sum, l) => sum + (l.amount * 0.02), 0) || 0;
 
         return {
             planStats,
             totalOverallRevenue,
-            totalOverallProfit
+            totalOverallProfit: planProfits + p2pProfit,
+            p2pProfit
         };
-    }, [investments, plans]);
+    }, [investments, plans, p2pLoans]);
 
     const handleWithdrawProfit = async () => {
         const amount = parseFloat(withdrawAmount);
@@ -136,87 +149,96 @@ export default function AdminFinancePage() {
         }
     };
 
-    const loading = settingsLoading || plansLoading || investmentsLoading || logsLoading;
+    const loading = settingsLoading || plansLoading || investmentsLoading || logsLoading || p2pLoading;
 
-    if (loading) return <div className="flex h-full items-center justify-center"><p>Loading financial data...</p></div>;
+    if (loading) return <div className="flex h-full items-center justify-center"><p className="text-white/20 animate-pulse font-bold tracking-widest text-xs">CALCULATING BALANCES...</p></div>;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex justify-between items-center">
-                <h2 className="text-3xl font-bold tracking-tight">Finance & Earnings</h2>
-                <Button onClick={() => setIsWithdrawDialogOpen(true)} className="bg-green-600 hover:bg-green-700">
-                    <IndianRupee className="mr-2 h-4 w-4" /> Withdraw to Account
+                <h2 className="text-3xl font-bold tracking-tighter text-white">Finance Hub</h2>
+                <Button onClick={() => setIsWithdrawDialogOpen(true)} className="bg-white text-black hover:bg-primary hover:text-white font-bold h-11 rounded-xl shadow-xl shadow-white/5 transition-all">
+                    <IndianRupee className="mr-2 h-4 w-4" /> Withdraw Earnings
                 </Button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="bg-gradient-to-br from-primary/10 to-background border-primary/20">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card className="bg-gradient-to-br from-primary/20 to-transparent border-white/[0.08] backdrop-blur-xl rounded-2xl shadow-2xl">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Available Profit Wallet</CardTitle>
-                        <IndianRupee className="h-4 w-4 text-primary" />
+                        <CardTitle className="text-[10px] uppercase font-black tracking-widest text-white/40">Profit Wallet</CardTitle>
+                        <Wallet className="h-4 w-4 text-primary" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{profitBalance.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground mt-1">Net earnings ready for withdrawal</p>
+                        <div className="text-3xl font-black text-white tracking-tighter">₹{profitBalance.toFixed(2)}</div>
+                        <p className="text-[10px] text-white/20 mt-1 font-bold uppercase">Ready for Payout</p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-blue-500/10 to-background border-blue-500/20">
+                <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-2xl">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Platform Revenue</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-blue-400" />
+                        <CardTitle className="text-[10px] uppercase font-black tracking-widest text-white/40">Market Revenue</CardTitle>
+                        <Activity className="h-4 w-4 text-blue-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-blue-400">₹{stats?.totalOverallRevenue.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground mt-1">Total money spent by all users</p>
+                        <div className="text-3xl font-black text-blue-400 tracking-tighter">₹{stats?.totalOverallRevenue.toFixed(2)}</div>
+                        <p className="text-[10px] text-white/20 mt-1 font-bold uppercase">Total Volume</p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-green-500/10 to-background border-green-500/20">
+                <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-2xl">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Lifetime Gross Profit</CardTitle>
+                        <CardTitle className="text-[10px] uppercase font-black tracking-widest text-white/40">Gross Earnings</CardTitle>
                         <ArrowUpRight className="h-4 w-4 text-green-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-green-400">₹{stats?.totalOverallProfit.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground mt-1">Total business earnings generated</p>
+                        <div className="text-3xl font-black text-green-400 tracking-tighter">₹{stats?.totalOverallProfit.toFixed(2)}</div>
+                        <p className="text-[10px] text-white/20 mt-1 font-bold uppercase">Lifetime Net</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-2xl border-primary/20">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-[10px] uppercase font-black tracking-widest text-white/40">P2P Fees</CardTitle>
+                        <HandCoins className="h-4 w-4 text-primary" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-black text-primary tracking-tighter">₹{stats?.p2pProfit.toFixed(2)}</div>
+                        <p className="text-[10px] text-white/20 mt-1 font-bold uppercase">Matching Income</p>
                     </CardContent>
                 </Card>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="lg:col-span-4">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" /> Plan Performance</CardTitle>
-                        <CardDescription>Breakdown of earnings generated by each investment plan.</CardDescription>
+                <Card className="lg:col-span-4 bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-3xl overflow-hidden shadow-2xl">
+                    <CardHeader className="border-b border-white/[0.05] bg-white/[0.01]">
+                        <CardTitle className="flex items-center gap-2 text-white font-bold"><Briefcase className="h-5 w-5 text-primary" /> Plan Performance</CardTitle>
+                        <CardDescription className="text-white/30 text-xs">Earnings breakdown by investment tiers.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-0">
                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Plan Name</TableHead>
-                                    <TableHead>Sales</TableHead>
-                                    <TableHead>Revenue</TableHead>
-                                    <TableHead className="text-right">Admin Profit</TableHead>
+                            <TableHeader className="bg-white/[0.02]">
+                                <TableRow className="border-white/10">
+                                    <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest pl-6">Plan Tier</TableHead>
+                                    <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest">Sales</TableHead>
+                                    <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest text-right pr-6">Profit</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {stats?.planStats.map((plan) => (
-                                    <TableRow key={plan.id}>
-                                        <TableCell className="font-medium">{plan.name}</TableCell>
+                                    <TableRow key={plan.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                                        <TableCell className="font-bold text-white/80 pl-6">{plan.name}</TableCell>
                                         <TableCell>
-                                            <div className="flex items-center gap-1.5">
-                                                <Users className="h-3 w-3 text-muted-foreground" />
+                                            <div className="flex items-center gap-1.5 text-xs text-white/60">
+                                                <Users className="h-3 w-3 text-primary" />
                                                 {plan.salesCount}
                                             </div>
                                         </TableCell>
-                                        <TableCell>₹{plan.totalRevenue.toFixed(2)}</TableCell>
-                                        <TableCell className="text-right font-bold text-green-400">₹{plan.totalProfit.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right pr-6 font-black text-green-400 text-sm">₹{plan.totalProfit.toFixed(2)}</TableCell>
                                     </TableRow>
                                 ))}
                                 {(!stats?.planStats || stats.planStats.length === 0) && (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">No investment data available.</TableCell>
+                                        <TableCell colSpan={3} className="text-center py-20 text-white/20 italic">No investment data available.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
@@ -224,29 +246,29 @@ export default function AdminFinancePage() {
                     </CardContent>
                 </Card>
 
-                <Card className="lg:col-span-3">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" /> Withdrawal History</CardTitle>
-                        <CardDescription>Recent profit withdrawals to personal accounts.</CardDescription>
+                <Card className="lg:col-span-3 bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-3xl overflow-hidden shadow-2xl">
+                    <CardHeader className="border-b border-white/[0.05] bg-white/[0.01]">
+                        <CardTitle className="flex items-center gap-2 text-white font-bold"><History className="h-5 w-5 text-primary" /> Admin Payouts</CardTitle>
+                        <CardDescription className="text-white/30 text-xs">Recent withdrawals from profit wallet.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-0">
                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead className="text-right">Amount</TableHead>
+                            <TableHeader className="bg-white/[0.02]">
+                                <TableRow className="border-white/10">
+                                    <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest pl-6">Date</TableHead>
+                                    <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest text-right pr-6">Amount</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {withdrawalLogs?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds).map((log) => (
-                                    <TableRow key={log.id}>
-                                        <TableCell className="text-xs">{new Date(log.createdAt.seconds * 1000).toLocaleDateString()}</TableCell>
-                                        <TableCell className="text-right text-red-400 font-medium">- ₹{log.amount.toFixed(2)}</TableCell>
+                                    <TableRow key={log.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                                        <TableCell className="text-[10px] text-white/40 pl-6 font-bold">{new Date(log.createdAt.seconds * 1000).toLocaleDateString()}</TableCell>
+                                        <TableCell className="text-right pr-6 text-red-400 font-black text-sm">- ₹{log.amount.toFixed(2)}</TableCell>
                                     </TableRow>
                                 ))}
                                 {(!withdrawalLogs || withdrawalLogs.length === 0) && (
                                     <TableRow>
-                                        <TableCell colSpan={2} className="text-center py-10 text-muted-foreground text-xs">No withdrawals yet.</TableCell>
+                                        <TableCell colSpan={2} className="text-center py-20 text-white/20 italic">No payouts history found.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
@@ -256,32 +278,33 @@ export default function AdminFinancePage() {
             </div>
 
             <Dialog open={isWithdrawDialogOpen} onOpenChange={setIsWithdrawDialogOpen}>
-                <DialogContent>
+                <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white">
                     <DialogHeader>
-                        <DialogTitle>Withdraw Profit</DialogTitle>
-                        <DialogDescription>
-                            Transfer profit from the business wallet to your personal account.
+                        <DialogTitle>Withdraw Business Profit</DialogTitle>
+                        <DialogDescription className="text-white/40">
+                            Transfer accumulated profits from the platform wallet to your personal account.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Available to Withdraw:</span>
-                            <span className="font-bold">₹{profitBalance.toFixed(2)}</span>
+                    <div className="space-y-6 py-6">
+                        <div className="bg-white/5 rounded-2xl p-5 border border-white/5 flex justify-between items-center">
+                            <span className="text-[10px] uppercase font-black tracking-widest text-white/20">Available Credit</span>
+                            <span className="text-2xl font-black text-white tracking-tighter">₹{profitBalance.toFixed(2)}</span>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="withdraw-amount">Amount (INR)</Label>
+                        <div className="space-y-2 px-1">
+                            <Label htmlFor="withdraw-amount" className="text-white/60">Payout Amount (INR)</Label>
                             <Input 
                                 id="withdraw-amount" 
                                 type="number" 
-                                placeholder="Enter amount to withdraw" 
+                                placeholder="0.00" 
                                 value={withdrawAmount}
                                 onChange={(e) => setWithdrawAmount(e.target.value)}
+                                className="bg-white/5 border-white/10 rounded-xl h-12 text-lg font-bold"
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                        <Button onClick={handleWithdrawProfit}>Confirm Withdrawal</Button>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <DialogClose asChild><Button variant="ghost" className="text-white/40">Cancel</Button></DialogClose>
+                        <Button onClick={handleWithdrawProfit} className="rounded-xl font-bold bg-white text-black hover:bg-primary hover:text-white px-8">Confirm Payout</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
