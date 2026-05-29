@@ -9,7 +9,8 @@ import { Zap, Timer } from 'lucide-react';
 export function ActivityPulse() {
     const { user, loading: userLoading } = useUser();
     
-    // Only target the collection group if the user is authenticated to prevent permission errors
+    // Only target the collection group if the user is definitely authenticated 
+    // to prevent permission errors during initialization.
     const pulsePath = useMemo(() => {
         if (userLoading || !user) return null;
         return 'investments';
@@ -47,6 +48,8 @@ export function ActivityPulse() {
         }, 6000);
         return () => clearInterval(interval);
     }, [activities.length]);
+
+    if (userLoading) return <div className="h-8 w-full bg-primary/5 animate-pulse" />;
 
     return (
         <div className="w-full bg-primary/10 border-y border-white/5 py-2 overflow-hidden flex items-center h-8">
