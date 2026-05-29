@@ -84,6 +84,12 @@ service cloud.firestore {
         }
     }
     
+    match /p2pActiveLoans/{id} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated();
+    }
+    
     match /p2pHistory/{id} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated();

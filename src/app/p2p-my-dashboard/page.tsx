@@ -1,17 +1,17 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useUser, useCollection, useFirestore, useDoc } from '@/firebase';
-import { collection, query, where, doc, runTransaction, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, query, where, doc, runTransaction, serverTimestamp, Timestamp, addDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, Timer, CheckCircle2, XCircle, Users, ArrowUpRight } from 'lucide-react';
+import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, Timer, CheckCircle2, XCircle, Users, ArrowUpRight, Wallet, History, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { addDays } from 'date-fns';
 
 type P2PRequest = {
     id: string;
@@ -30,6 +30,21 @@ type P2POffer = {
     lenderId: string;
 }
 
+type ActiveP2PLoan = {
+    id: string;
+    requestId: string;
+    borrowerId: string;
+    borrowerName: string;
+    lenderId: string;
+    lenderName: string;
+    amount: number;
+    interestRate: number;
+    totalRepayment: number;
+    dueDate: Timestamp;
+    status: 'active' | 'repaid';
+    createdAt: Timestamp;
+}
+
 type AdminSettings = {
     p2pPlatformFeePercent?: number;
 }
@@ -37,11 +52,18 @@ type AdminSettings = {
 export default function P2PMyDashboard() {
     const { user } = useUser();
     const firestore = useFirestore();
-    const { toast } = useToast();
     const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
     
     const { data: myRequests, loading: reqLoading } = useCollection<P2PRequest>(
         user ? query(collection(firestore, 'p2pLoanRequests'), where('borrowerId', '==', user.uid)) : null
+    );
+
+    const { data: myBorrowedLoans, loading: borrowedLoading } = useCollection<ActiveP2PLoan>(
+        user ? query(collection(firestore, 'p2pActiveLoans'), where('borrowerId', '==', user.uid)) : null
+    );
+
+    const { data: myLentLoans, loading: lentLoading } = useCollection<ActiveP2PLoan>(
+        user ? query(collection(firestore, 'p2pActiveLoans'), where('lenderId', '==', user.uid)) : null
     );
 
     const platformFeePercent = adminSettings?.p2pPlatformFeePercent || 2;
@@ -63,28 +85,93 @@ export default function P2PMyDashboard() {
             <main className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-4xl mx-auto w-full space-y-6">
                 <Tabs defaultValue="borrowing">
                     <TabsList className="grid w-full grid-cols-2 bg-white/5 border-white/10 p-1.5 h-14 rounded-2xl">
-                        <TabsTrigger value="borrowing" className="rounded-xl data-[state=active]:bg-white/10 h-full font-bold uppercase tracking-widest text-[10px]">As Borrower</TabsTrigger>
-                        <TabsTrigger value="lending" className="rounded-xl data-[state=active]:bg-white/10 h-full font-bold uppercase tracking-widest text-[10px]">As Lender</TabsTrigger>
+                        <TabsTrigger value="borrowing" className="rounded-xl data-[state=active]:bg-white/10 h-full font-bold uppercase tracking-widest text-[10px]">My Borrowings</TabsTrigger>
+                        <TabsTrigger value="lending" className="rounded-xl data-[state=active]:bg-white/10 h-full font-bold uppercase tracking-widest text-[10px]">My Investments</TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="borrowing" className="mt-8 space-y-6">
-                        {reqLoading ? (
-                             <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
-                        ) : myRequests?.length === 0 ? (
-                            <Card className="bg-white/5 border-white/10 border-dashed py-10 text-center">
-                                <p className="text-white/30 text-sm">No P2P requests active.</p>
-                            </Card>
-                        ) : myRequests?.map(req => (
-                            <BorrowerRequestCard key={req.id} req={req} feePercent={platformFeePercent} />
-                        ))}
+                    <TabsContent value="borrowing" className="mt-8 space-y-8">
+                        {/* Active Borrowed Loans */}
+                        <div className="space-y-4">
+                            <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">Active Loans (Must Repay)</h2>
+                            {borrowedLoading ? (
+                                <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
+                            ) : myBorrowedLoans?.filter(l => l.status === 'active').length === 0 ? (
+                                <Card className="bg-white/5 border-white/10 border-dashed py-8 text-center">
+                                    <p className="text-white/30 text-xs uppercase font-bold">No unpaid loans</p>
+                                </Card>
+                            ) : (
+                                myBorrowedLoans?.filter(l => l.status === 'active').map(loan => (
+                                    <ActiveLoanCard key={loan.id} loan={loan} mode="borrower" />
+                                ))
+                            )}
+                        </div>
+
+                        {/* Loan Requests (The marketplace items) */}
+                        <div className="space-y-4">
+                            <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">Open Market Requests</h2>
+                            {reqLoading ? (
+                                <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
+                            ) : myRequests?.filter(r => r.status === 'funding').length === 0 ? (
+                                <Card className="bg-white/5 border-white/10 border-dashed py-8 text-center">
+                                    <p className="text-white/30 text-xs uppercase font-bold">No active bids</p>
+                                </Card>
+                            ) : (
+                                myRequests?.filter(r => r.status === 'funding').map(req => (
+                                    <BorrowerRequestCard key={req.id} req={req} feePercent={platformFeePercent} />
+                                ))
+                            )}
+                        </div>
                     </TabsContent>
 
-                    <TabsContent value="lending" className="mt-8">
-                         <Card className="bg-white/5 border-white/10 border-dashed py-10 text-center">
-                            <Users size={32} className="mx-auto text-white/10 mb-2"/>
-                            <p className="text-white/30 text-sm">Track your investment offers here.</p>
-                            <Button asChild variant="link" className="text-primary text-xs mt-2"><Link href="/p2p-market">Browse Market</Link></Button>
-                        </Card>
+                    <TabsContent value="lending" className="mt-8 space-y-8">
+                        {/* Active Lent Loans */}
+                        <div className="space-y-4">
+                            <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">My Lent Assets</h2>
+                            {lentLoading ? (
+                                <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
+                            ) : myLentLoans?.filter(l => l.status === 'active').length === 0 ? (
+                                <Card className="bg-white/5 border-white/10 border-dashed py-10 text-center">
+                                    <Users size={32} className="mx-auto text-white/10 mb-2"/>
+                                    <p className="text-white/30 text-sm">You haven't funded any loans yet.</p>
+                                    <Button asChild variant="link" className="text-primary text-xs mt-2"><Link href="/p2p-market">Browse Marketplace</Link></Button>
+                                </Card>
+                            ) : (
+                                myLentLoans?.filter(l => l.status === 'active').map(loan => (
+                                    <ActiveLoanCard key={loan.id} loan={loan} mode="lender" />
+                                ))
+                            )}
+                        </div>
+
+                        {/* P2P History */}
+                        <div className="space-y-4">
+                            <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">Settled History</h2>
+                            {borrowedLoading || lentLoading ? null : (
+                                [...(myBorrowedLoans || []), ...(myLentLoans || [])].filter(l => l.status === 'repaid').length === 0 ? (
+                                    <p className="text-center text-[10px] text-white/10 uppercase font-black">No past transactions</p>
+                                ) : (
+                                    [...(myBorrowedLoans || []), ...(myLentLoans || [])]
+                                        .filter(l => l.status === 'repaid')
+                                        .sort((a,b) => b.createdAt.seconds - a.createdAt.seconds)
+                                        .map(loan => (
+                                            <div key={loan.id} className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center">
+                                                        <CheckCircle2 className="text-green-500/50" size={18} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-white/80">{loan.amount.toLocaleString()} Loan</p>
+                                                        <p className="text-[10px] text-white/20 uppercase font-bold">{loan.borrowerId === user?.uid ? `Borrowed from ${loan.lenderName}` : `Lent to ${loan.borrowerName}`}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-black text-white/60">SETTLED</p>
+                                                    <p className="text-[9px] text-white/20 uppercase font-bold">{loan.status}</p>
+                                                </div>
+                                            </div>
+                                        ))
+                                )
+                            )}
+                        </div>
                     </TabsContent>
                 </Tabs>
             </main>
@@ -109,7 +196,7 @@ function BorrowerRequestCard({ req, feePercent }: { req: P2PRequest, feePercent:
     const { data: offers } = useCollection<P2POffer>(`p2pLoanRequests/${req.id}/offers`);
 
     const handleAcceptOffer = async (offer: P2POffer) => {
-        if (!user) return;
+        if (!user || !user.displayName) return;
 
         try {
             await runTransaction(firestore, async (transaction) => {
@@ -119,7 +206,6 @@ function BorrowerRequestCard({ req, feePercent }: { req: P2PRequest, feePercent:
                 const offerRef = doc(firestore, `p2pLoanRequests/${req.id}/offers`, offer.id);
                 const settingsRef = doc(firestore, 'settings', 'admin');
 
-                // PERFORM ALL READS FIRST
                 const lenderDoc = await transaction.get(lenderRef);
                 const borrowerDoc = await transaction.get(borrowerRef);
                 const settingsDoc = await transaction.get(settingsRef);
@@ -135,38 +221,38 @@ function BorrowerRequestCard({ req, feePercent }: { req: P2PRequest, feePercent:
                 const feeAmt = (req.amount * feePercent) / 100;
                 const creditAmt = req.amount - feeAmt;
 
-                // PERFORM ALL WRITES SECOND
-                
-                // 1. Deduct from Lender
-                transaction.update(lenderRef, {
-                    walletBalance: lenderBalance - req.amount
-                });
+                const dueDate = addDays(new Date(), req.duration);
+                const interestAmt = (req.amount * offer.interestRate) / 100;
+                const totalRepayment = req.amount + interestAmt;
 
-                // 2. Add to Borrower
-                transaction.update(borrowerRef, {
-                    walletBalance: (borrowerDoc.data().walletBalance || 0) + creditAmt
-                });
+                // 1. Update Wallets
+                transaction.update(lenderRef, { walletBalance: lenderBalance - req.amount });
+                transaction.update(borrowerRef, { walletBalance: (borrowerDoc.data().walletBalance || 0) + creditAmt });
 
-                // 3. Admin Profit
+                // 2. Admin Profit
                 if (settingsDoc.exists()) {
                     transaction.update(settingsRef, {
                         adminProfitBalance: (settingsDoc.data().adminProfitBalance || 0) + feeAmt
                     });
                 }
 
-                // 4. Update Statuses
+                // 3. Statuses
                 transaction.update(requestRef, { status: 'accepted', acceptedOfferId: offer.id });
                 transaction.update(offerRef, { status: 'accepted' });
 
-                // 5. Active P2P Loan record
-                const p2pHistoryRef = doc(collection(firestore, 'p2pHistory'));
-                transaction.set(p2pHistoryRef, {
+                // 4. Create Active Loan Record
+                const activeLoanRef = doc(collection(firestore, 'p2pActiveLoans'));
+                transaction.set(activeLoanRef, {
                     requestId: req.id,
                     borrowerId: user.uid,
+                    borrowerName: user.displayName,
                     lenderId: offer.lenderId,
+                    lenderName: offer.lenderName,
                     amount: req.amount,
-                    fee: feeAmt,
                     interestRate: offer.interestRate,
+                    totalRepayment: totalRepayment,
+                    dueDate: Timestamp.fromDate(dueDate),
+                    status: 'active',
                     createdAt: serverTimestamp()
                 });
             });
@@ -189,7 +275,7 @@ function BorrowerRequestCard({ req, feePercent }: { req: P2PRequest, feePercent:
                 </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
-                <p className="text-[10px] font-black uppercase tracking-[3px] text-white/20">Active Bids ({offers?.length || 0})</p>
+                <p className="text-[10px] font-black uppercase tracking-[3px] text-white/20">Received Bids ({offers?.length || 0})</p>
                 <div className="space-y-3">
                     {offers?.map(offer => (
                         <div key={offer.id} className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:border-primary/30 transition-all">
@@ -207,12 +293,141 @@ function BorrowerRequestCard({ req, feePercent }: { req: P2PRequest, feePercent:
                             </Button>
                         </div>
                     ))}
-                    {offers?.length === 0 && <p className="text-center text-xs text-white/20 py-4 italic">Waiting for lenders to bid...</p>}
+                    {offers?.length === 0 && <p className="text-center text-xs text-white/20 py-4 italic">Waiting for bids...</p>}
                 </div>
             </CardContent>
         </Card>
     );
 }
+
+function ActiveLoanCard({ loan, mode }: { loan: ActiveP2PLoan, mode: 'borrower' | 'lender' }) {
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const { toast } = useToast();
+    const [isRepaying, setIsRepaying] = useState(false);
+
+    const handleRepay = async () => {
+        if (!user || isRepaying) return;
+        setIsRepaying(true);
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const borrowerRef = doc(firestore, 'users', loan.borrowerId);
+                const lenderRef = doc(firestore, 'users', loan.lenderId);
+                const loanRef = doc(firestore, 'p2pActiveLoans', loan.id);
+
+                const borrowerDoc = await transaction.get(borrowerRef);
+                const lenderDoc = await transaction.get(lenderRef);
+
+                if (!borrowerDoc.exists()) throw new Error("Borrower record not found.");
+                if (!lenderDoc.exists()) throw new Error("Lender record not found.");
+
+                const borrowerBalance = borrowerDoc.data().walletBalance || 0;
+                if (borrowerBalance < loan.totalRepayment) {
+                    throw new Error("Insufficient wallet balance to repay this loan.");
+                }
+
+                const lenderBalance = lenderDoc.data().walletBalance || 0;
+
+                // 1. Deduct from Borrower
+                transaction.update(borrowerRef, { walletBalance: borrowerBalance - loan.totalRepayment });
+                
+                // 2. Credit to Lender
+                transaction.update(lenderRef, { walletBalance: lenderBalance + loan.totalRepayment });
+
+                // 3. Mark Loan as Repaid
+                transaction.update(loanRef, { status: 'repaid', repaidAt: serverTimestamp() });
+            });
+
+            toast({ title: "Loan Repaid!", description: `₹${loan.totalRepayment.toFixed(2)} transferred to ${loan.lenderName}.` });
+        } catch (e: any) {
+            toast({ title: "Repayment Failed", description: e.message, variant: "destructive" });
+        } finally {
+            setIsRepaying(false);
+        }
+    };
+
+    const isOverdue = new Date() > loan.dueDate.toDate();
+
+    return (
+        <Card className={cn(
+            "shadow-xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden group relative",
+            isOverdue && mode === 'borrower' && "border-red-500/30 bg-red-500/[0.02]"
+        )}>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CardHeader className="pb-3 border-b border-white/[0.05] bg-white/[0.01]">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-white/5 text-[9px] font-black">{mode === 'borrower' ? 'MY DEBT' : 'MY ASSET'}</Badge>
+                        <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">#{loan.id.slice(-4)}</p>
+                    </div>
+                    {isOverdue && <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[9px] font-black tracking-widest">OVERDUE</Badge>}
+                </div>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-[9px] text-white/20 uppercase font-black tracking-[2px] mb-1">{mode === 'borrower' ? 'Lender' : 'Borrower'}</p>
+                        <p className="text-sm font-black text-white">{mode === 'borrower' ? loan.lenderName : loan.borrowerName}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[9px] text-white/20 uppercase font-black tracking-[2px] mb-1">Repayment Date</p>
+                        <p className="text-sm font-black text-white/80">{loan.dueDate.toDate().toLocaleDateString()}</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 bg-black/20 p-4 rounded-2xl border border-white/5">
+                    <div>
+                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest mb-1">Principal</p>
+                        <p className="text-lg font-black text-white">₹{loan.amount.toLocaleString()}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest mb-1">Final Amount</p>
+                        <p className="text-lg font-black text-green-400">₹{loan.totalRepayment.toFixed(2)}</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-white/20 px-2">
+                    <span className="flex items-center gap-1.5"><Timer size={14} className="text-primary animate-pulse" /> Time Left</span>
+                    <CountdownTimer endDate={loan.dueDate.toDate()} />
+                </div>
+
+                {mode === 'borrower' && (
+                    <Button 
+                        onClick={handleRepay} 
+                        disabled={isRepaying}
+                        className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-green-500 hover:text-white transition-all shadow-xl shadow-white/5"
+                    >
+                        {isRepaying ? 'Processing Payment...' : 'Repay Full Debt Now'}
+                    </Button>
+                )}
+                {mode === 'lender' && (
+                    <div className="flex items-center justify-center gap-2 py-2 text-primary/40">
+                        <History size={16} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Waiting for borrower settlement</span>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+const CountdownTimer = ({ endDate }: { endDate: Date }) => {
+    const [timeLeft, setTimeLeft] = useState('...');
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const now = new Date();
+            const dist = endDate.getTime() - now.getTime();
+            if (dist < 0) { setTimeLeft("PAST DUE"); clearInterval(interval); return; }
+            const d = Math.floor(dist / (1000 * 60 * 60 * 24));
+            const h = Math.floor((dist % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const m = Math.floor((dist % (1000 * 60 * 60)) / (1000 * 60));
+            setTimeLeft(`${d}d ${h}h ${m}m`);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [endDate]);
+    return <span className="font-mono text-white/60">{timeLeft}</span>;
+};
 
 function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href: string, active?: boolean }) {
   return (
