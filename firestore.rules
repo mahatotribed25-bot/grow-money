@@ -14,11 +14,13 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.email == "admin@tribed.world";
+      return isAuthenticated() && (request.auth.token.email == "admin@tribed.world" || request.auth.token.email == "admin@tribed.com");
     }
 
     function isSubAdmin() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'subadmin';
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'subadmin';
     }
     
     function isManager() {
@@ -31,6 +33,7 @@ service cloud.firestore {
       // Allow read for all authenticated users to support Leaderboard and P2P participant names
       allow read: if isAuthenticated();
       // Allow update for balance adjustments (P2P/Investments), profile updates, and VIP leveling
+      // We allow authenticated users to update others specifically for P2P wallet transfers
       allow update: if isAuthenticated(); 
       allow delete: if isAdmin();
 
@@ -88,6 +91,7 @@ service cloud.firestore {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated();
         allow update: if isAuthenticated();
+        allow delete: if isManager();
     }
     
     match /p2pHistory/{id} {
