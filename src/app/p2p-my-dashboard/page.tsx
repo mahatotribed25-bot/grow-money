@@ -119,24 +119,30 @@ function BorrowerRequestCard({ req, feePercent }: { req: P2PRequest, feePercent:
                 const offerRef = doc(firestore, `p2pLoanRequests/${req.id}/offers`, offer.id);
                 const settingsRef = doc(firestore, 'settings', 'admin');
 
+                // PERFORM ALL READS FIRST
                 const lenderDoc = await transaction.get(lenderRef);
+                const borrowerDoc = await transaction.get(borrowerRef);
                 const settingsDoc = await transaction.get(settingsRef);
 
                 if (!lenderDoc.exists()) throw new Error("Lender not found");
-                if (lenderDoc.data().walletBalance < req.amount) {
+                if (!borrowerDoc.exists()) throw new Error("Borrower not found");
+
+                const lenderBalance = lenderDoc.data().walletBalance || 0;
+                if (lenderBalance < req.amount) {
                     throw new Error("Lender has insufficient balance anymore.");
                 }
 
                 const feeAmt = (req.amount * feePercent) / 100;
                 const creditAmt = req.amount - feeAmt;
 
+                // PERFORM ALL WRITES SECOND
+                
                 // 1. Deduct from Lender
                 transaction.update(lenderRef, {
-                    walletBalance: (lenderDoc.data().walletBalance || 0) - req.amount
+                    walletBalance: lenderBalance - req.amount
                 });
 
                 // 2. Add to Borrower
-                const borrowerDoc = await transaction.get(borrowerRef);
                 transaction.update(borrowerRef, {
                     walletBalance: (borrowerDoc.data().walletBalance || 0) + creditAmt
                 });
@@ -152,7 +158,7 @@ function BorrowerRequestCard({ req, feePercent }: { req: P2PRequest, feePercent:
                 transaction.update(requestRef, { status: 'accepted', acceptedOfferId: offer.id });
                 transaction.update(offerRef, { status: 'accepted' });
 
-                // 5. Active P2P Loan record (Optional but good for history)
+                // 5. Active P2P Loan record
                 const p2pHistoryRef = doc(collection(firestore, 'p2pHistory'));
                 transaction.set(p2pHistoryRef, {
                     requestId: req.id,
