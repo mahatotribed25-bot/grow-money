@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -17,7 +16,8 @@ import {
     Briefcase,
     Users,
     Activity,
-    HandCoins
+    HandCoins,
+    Wallet
 } from 'lucide-react';
 import {
     Table,
