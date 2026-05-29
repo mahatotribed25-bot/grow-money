@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
-import { doc, runTransaction, serverTimestamp, collection, type Timestamp } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp, collection, getDocs, writeBatch, type Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { 
     IndianRupee, 
@@ -17,7 +17,8 @@ import {
     Users,
     Activity,
     HandCoins,
-    Wallet
+    Wallet,
+    RefreshCcw
 } from 'lucide-react';
 import {
     Table,
@@ -36,9 +37,20 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type AdminSettings = {
     adminProfitBalance?: number;
+    profitCalculationStartDate?: Timestamp;
 };
 
 type InvestmentPlan = {
@@ -52,6 +64,7 @@ type Investment = {
     planId: string;
     planName: string;
     investedAmount: number;
+    startDate: Timestamp;
 };
 
 type AdminWithdrawal = {
@@ -77,15 +90,26 @@ export default function AdminFinancePage() {
     const { data: p2pLoans, loading: p2pLoading } = useCollection<ActiveP2PLoan>('p2pActiveLoans');
 
     const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
+    const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
     const [withdrawAmount, setWithdrawAmount] = useState('');
 
     const profitBalance = settings?.adminProfitBalance || 0;
+    const calcStartDate = settings?.profitCalculationStartDate;
 
     const stats = useMemo(() => {
         if (!investments || !plans) return null;
 
+        // Filter based on reset date
+        const filteredInvestments = calcStartDate 
+            ? investments.filter(inv => inv.startDate && inv.startDate.toMillis() > calcStartDate.toMillis())
+            : investments;
+
+        const filteredP2PLoans = calcStartDate
+            ? p2pLoans?.filter(l => l.createdAt && l.createdAt.toMillis() > calcStartDate.toMillis())
+            : p2pLoans;
+
         const planStats = plans.map(plan => {
-            const planInvestments = investments.filter(inv => inv.planName === plan.name);
+            const planInvestments = filteredInvestments.filter(inv => inv.planName === plan.name);
             const totalRevenue = planInvestments.reduce((sum, inv) => sum + (inv.investedAmount || 0), 0);
             const totalProfit = planInvestments.length * (plan.adminProfit || 0);
             
@@ -102,7 +126,7 @@ export default function AdminFinancePage() {
         const planProfits = planStats.reduce((sum, p) => sum + p.totalProfit, 0);
         
         // P2P Profits (2% constant)
-        const p2pProfit = p2pLoans?.reduce((sum, l) => sum + (l.amount * 0.02), 0) || 0;
+        const p2pProfit = filteredP2PLoans?.reduce((sum, l) => sum + (l.amount * 0.02), 0) || 0;
 
         return {
             planStats,
@@ -110,7 +134,7 @@ export default function AdminFinancePage() {
             totalOverallProfit: planProfits + p2pProfit,
             p2pProfit
         };
-    }, [investments, plans, p2pLoans]);
+    }, [investments, plans, p2pLoans, calcStartDate]);
 
     const handleWithdrawProfit = async () => {
         const amount = parseFloat(withdrawAmount);
@@ -149,17 +173,46 @@ export default function AdminFinancePage() {
         }
     };
 
+    const handleResetLedger = async () => {
+        try {
+            // 1. Reset Settings Balance and Start Date
+            const settingsRef = doc(firestore, 'settings', 'admin');
+            await runTransaction(firestore, async (transaction) => {
+                transaction.update(settingsRef, { 
+                    adminProfitBalance: 0,
+                    profitCalculationStartDate: serverTimestamp()
+                });
+            });
+
+            // 2. Clear Withdrawal History
+            const logsSnapshot = await getDocs(collection(firestore, 'adminWithdrawals'));
+            const batch = writeBatch(firestore);
+            logsSnapshot.docs.forEach(d => batch.delete(d.ref));
+            await batch.commit();
+
+            toast({ title: "Ledger Fully Reset", description: "Profit balance and history have been cleared." });
+            setIsResetDialogOpen(false);
+        } catch (e) {
+            toast({ title: "Reset Failed", variant: "destructive" });
+        }
+    };
+
     const loading = settingsLoading || plansLoading || investmentsLoading || logsLoading || p2pLoading;
 
     if (loading) return <div className="flex h-full items-center justify-center"><p className="text-white/20 animate-pulse font-bold tracking-widest text-xs">CALCULATING BALANCES...</p></div>;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center flex-wrap gap-4">
                 <h2 className="text-3xl font-bold tracking-tighter text-white">Finance Hub</h2>
-                <Button onClick={() => setIsWithdrawDialogOpen(true)} className="bg-white text-black hover:bg-primary hover:text-white font-bold h-11 rounded-xl shadow-xl shadow-white/5 transition-all">
-                    <IndianRupee className="mr-2 h-4 w-4" /> Withdraw Earnings
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setIsResetDialogOpen(true)} className="border-red-500/20 text-red-400 hover:bg-red-500/10 font-bold h-11 rounded-xl">
+                        <RefreshCcw className="mr-2 h-4 w-4" /> Reset Ledger
+                    </Button>
+                    <Button onClick={() => setIsWithdrawDialogOpen(true)} className="bg-white text-black hover:bg-primary hover:text-white font-bold h-11 rounded-xl shadow-xl shadow-white/5 transition-all">
+                        <IndianRupee className="mr-2 h-4 w-4" /> Withdraw Earnings
+                    </Button>
+                </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -181,7 +234,7 @@ export default function AdminFinancePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-black text-blue-400 tracking-tighter">₹{stats?.totalOverallRevenue.toFixed(2)}</div>
-                        <p className="text-[10px] text-white/20 mt-1 font-bold uppercase">Total Volume</p>
+                        <p className="text-[10px] text-white/20 mt-1 font-bold uppercase">Volume since reset</p>
                     </CardContent>
                 </Card>
 
@@ -192,7 +245,7 @@ export default function AdminFinancePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-black text-green-400 tracking-tighter">₹{stats?.totalOverallProfit.toFixed(2)}</div>
-                        <p className="text-[10px] text-white/20 mt-1 font-bold uppercase">Lifetime Net</p>
+                        <p className="text-[10px] text-white/20 mt-1 font-bold uppercase">Net since reset</p>
                     </CardContent>
                 </Card>
 
@@ -212,7 +265,7 @@ export default function AdminFinancePage() {
                 <Card className="lg:col-span-4 bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-3xl overflow-hidden shadow-2xl">
                     <CardHeader className="border-b border-white/[0.05] bg-white/[0.01]">
                         <CardTitle className="flex items-center gap-2 text-white font-bold"><Briefcase className="h-5 w-5 text-primary" /> Plan Performance</CardTitle>
-                        <CardDescription className="text-white/30 text-xs">Earnings breakdown by investment tiers.</CardDescription>
+                        <CardDescription className="text-white/30 text-xs">Earnings breakdown based on calculation window.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table>
@@ -277,6 +330,7 @@ export default function AdminFinancePage() {
                 </Card>
             </div>
 
+            {/* Withdraw Dialog */}
             <Dialog open={isWithdrawDialogOpen} onOpenChange={setIsWithdrawDialogOpen}>
                 <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white">
                     <DialogHeader>
@@ -308,6 +362,22 @@ export default function AdminFinancePage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Reset Dialog */}
+            <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                <AlertDialogContent className="bg-[#030408] border-white/10 text-white backdrop-blur-2xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Full Ledger Reset?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-white/40">
+                            This will set the profit wallet to zero, delete all withdrawal logs, and restart revenue tracking from zero. This action is irreversible.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleResetLedger} className="bg-destructive hover:bg-destructive/90">Confirm Full Reset</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
