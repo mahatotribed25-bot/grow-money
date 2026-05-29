@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Wallet,
@@ -23,6 +22,7 @@ import {
   CheckCircle,
   Trophy,
   MessageCircle,
+  BrainCircuit,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -68,6 +68,9 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { isToday, startOfToday } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
+import { AIAdvisor } from '@/components/dashboard/AIAdvisor';
+import { AchievementBadges } from '@/components/dashboard/AchievementBadges';
 
 type UserData = {
   id: string;
@@ -80,6 +83,7 @@ type UserData = {
   role?: 'user' | 'subadmin';
   vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
   lastCheckIn?: Timestamp;
+  trustScore?: number;
 };
 
 type AdminSettings = {
@@ -169,6 +173,7 @@ export default function Dashboard() {
     user ? `users/${user.uid}/loans` : null
   );
   const { data: announcements, loading: announcementsLoading } = useCollection<Announcement>('announcements');
+  const { data: referrals } = useCollection<any>('users', { where: ['referredBy', '==', user?.uid] });
   
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [showDueLoanPopup, setShowDueLoanPopup] = useState(false);
@@ -327,12 +332,21 @@ export default function Dashboard() {
              </Badge>
         </div>
       </header>
+      
+      <ActivityPulse />
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         
         <Announcements announcements={sortedAnnouncements} loading={announcementsLoading} />
         
-        <DailyCheckInCard />
+        <div className="space-y-4">
+             <AchievementBadges stats={{ 
+                 trustScore: userData?.trustScore || 500, 
+                 planCount: activeInvestments?.length || 0, 
+                 referralCount: referrals?.length || 0 
+             }} />
+             <DailyCheckInCard />
+        </div>
 
         <div className="rounded-3xl overflow-hidden shadow-2xl shadow-primary/5">
             <BannerCarousel />
@@ -420,6 +434,8 @@ export default function Dashboard() {
          </Card>
 
       </main>
+
+      <AIAdvisor balance={userData?.walletBalance || 0} userName={userData?.name || 'User'} />
 
       <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
         <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">

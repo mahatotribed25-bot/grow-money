@@ -55,6 +55,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import TrustScoreMeter from '@/components/TrustScoreMeter';
 import { calculateTrustScore } from '@/lib/trust-score';
+import { AchievementBadges } from '@/components/dashboard/AchievementBadges';
 
 type Transaction = {
   id: string;
@@ -447,19 +448,26 @@ export default function ProfilePage() {
                   </CardDescription>
                 </div>
               </div>
-              <Link href="/vip-tiers">
-                <div className={cn(
-                    'group relative px-6 py-2.5 rounded-xl border transition-all hover:scale-105 active:scale-95 flex items-center gap-2 overflow-hidden',
-                    vipLevel === 'Bronze' && 'border-amber-800/50 bg-amber-900/10 text-amber-500',
-                    vipLevel === 'Silver' && 'border-slate-400/50 bg-slate-400/10 text-slate-300',
-                    vipLevel === 'Gold' && 'border-yellow-400/50 bg-yellow-400/10 text-yellow-400',
-                    vipLevel === 'Platinum' && 'border-purple-500/50 bg-purple-500/10 text-purple-400',
-                )}>
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                    <Gem size={18} className="animate-bounce" />
-                    <span className="font-bold tracking-wider uppercase text-sm">{vipLevel} TIER</span>
-                </div>
-               </Link>
+              <div className="flex flex-col items-center sm:items-end gap-3">
+                 <Link href="/vip-tiers">
+                    <div className={cn(
+                        'group relative px-6 py-2.5 rounded-xl border transition-all hover:scale-105 active:scale-95 flex items-center gap-2 overflow-hidden',
+                        vipLevel === 'Bronze' && 'border-amber-800/50 bg-amber-900/10 text-amber-500',
+                        vipLevel === 'Silver' && 'border-slate-400/50 bg-slate-400/10 text-slate-300',
+                        vipLevel === 'Gold' && 'border-yellow-400/50 bg-yellow-400/10 text-yellow-400',
+                        vipLevel === 'Platinum' && 'border-purple-500/50 bg-purple-500/10 text-purple-400',
+                    )}>
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                        <Gem size={18} className="animate-bounce" />
+                        <span className="font-bold tracking-wider uppercase text-sm">{vipLevel} TIER</span>
+                    </div>
+                </Link>
+                <AchievementBadges stats={{ 
+                    trustScore: userData?.trustScore || 500, 
+                    planCount: investments?.length || 0, 
+                    referralCount: referrals?.length || 0 
+                }} />
+              </div>
             </div>
           </CardHeader>
         </Card>
