@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -27,13 +26,13 @@ service cloud.firestore {
       return isAdmin() || isSubAdmin();
     }
 
-    // COLLECTION GROUP RULES - Required for Activity Pulse and Admin Dashboard stats
+    // COLLECTION GROUP RULES - Strictly for Management
     match /{path=**}/investments/{id} {
-      allow list, get: if isAuthenticated();
+      allow list, get: if isManager();
       allow write: if isManager();
     }
     match /{path=**}/loans/{id} {
-      allow list, get: if isAuthenticated();
+      allow list, get: if isManager();
       allow write: if isManager();
     }
     match /{path=**}/offers/{id} {
@@ -54,10 +53,12 @@ service cloud.firestore {
 
       // User's own financial sub-collections (Direct path)
       match /investments/{id} {
-        allow read, write: if isOwner(userId) || isManager();
+        allow read: if isOwner(userId) || isManager();
+        allow write: if isOwner(userId) || isManager();
       }
       match /loans/{id} {
-        allow read, write: if isOwner(userId) || isManager();
+        allow read: if isOwner(userId) || isManager();
+        allow write: if isOwner(userId) || isManager();
       }
     }
 

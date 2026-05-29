@@ -22,7 +22,6 @@ import {
   CheckCircle,
   Trophy,
   MessageCircle,
-  BrainCircuit,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -68,8 +67,6 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { isToday, startOfToday } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
-import { AIAdvisor } from '@/components/dashboard/AIAdvisor';
 import { AchievementBadges } from '@/components/dashboard/AchievementBadges';
 
 type UserData = {
@@ -332,8 +329,6 @@ export default function Dashboard() {
              </Badge>
         </div>
       </header>
-      
-      <ActivityPulse />
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         
@@ -434,8 +429,6 @@ export default function Dashboard() {
          </Card>
 
       </main>
-
-      <AIAdvisor balance={userData?.walletBalance || 0} userName={userData?.name || 'User'} />
 
       <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
         <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
