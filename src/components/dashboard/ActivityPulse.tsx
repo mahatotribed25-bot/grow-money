@@ -1,14 +1,22 @@
+
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useCollection } from '@/firebase';
+import { useEffect, useState, useMemo } from 'react';
+import { useCollection, useUser } from '@/firebase';
 import { orderBy, limit } from 'firebase/firestore';
 import { Zap, Timer } from 'lucide-react';
 
 export function ActivityPulse() {
-    // Pulse targets the 'investments' collection group to show social proof
+    const { user, loading: userLoading } = useUser();
+    
+    // Only target the collection group if the user is authenticated to prevent permission errors
+    const pulsePath = useMemo(() => {
+        if (userLoading || !user) return null;
+        return 'investments';
+    }, [user, userLoading]);
+
     const { data: recentInvestments, loading } = useCollection<any>(
-        'investments', 
+        pulsePath, 
         { subcollections: true },
         orderBy('startDate', 'desc'),
         limit(5)
@@ -17,17 +25,20 @@ export function ActivityPulse() {
     const [displayIndex, setDisplayIndex] = useState(0);
 
     // Dynamic activities from real data, with static fallbacks
-    const activities = recentInvestments && recentInvestments.length > 0 
-        ? recentInvestments.map(inv => ({
-            id: inv.id,
-            text: `${inv.userId?.slice(0,4) || 'User'}... secured the ${inv.planName || 'Investment'} (₹${inv.investedAmount || 0})`
-        }))
-        : [
+    const activities = useMemo(() => {
+        if (recentInvestments && recentInvestments.length > 0) {
+            return recentInvestments.map(inv => ({
+                id: inv.id,
+                text: `${inv.userId?.slice(0,4) || 'User'}... secured the ${inv.planName || 'Investment'} (₹${inv.investedAmount || 0})`
+            }));
+        }
+        return [
             { id: 'f1', text: 'New investor joined the Silver Tier!' },
             { id: 'f2', text: 'P2P Loan worth ₹2000 successfully funded.' },
             { id: 'f3', text: 'Weekly profit payouts processed for 450 users.' },
             { id: 'f4', text: 'Grow Money trust score system is now active.' }
         ];
+    }, [recentInvestments]);
 
     useEffect(() => {
         if (activities.length <= 1) return;

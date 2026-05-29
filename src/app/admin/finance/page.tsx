@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useCollection, useFirestore, useDoc } from '@/firebase';
+import { useCollection, useFirestore, useDoc, useUser } from '@/firebase';
 import { doc, runTransaction, serverTimestamp, collection, getDocs, writeBatch, type Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -83,11 +84,16 @@ type ActiveP2PLoan = {
 export default function AdminFinancePage() {
     const firestore = useFirestore();
     const { toast } = useToast();
-    const { data: settings, loading: settingsLoading } = useDoc<AdminSettings>('settings/admin');
-    const { data: plans, loading: plansLoading } = useCollection<InvestmentPlan>('investmentPlans');
-    const { data: investments, loading: investmentsLoading } = useCollection<Investment>('investments', { subcollections: true });
-    const { data: withdrawalLogs, loading: logsLoading } = useCollection<AdminWithdrawal>('adminWithdrawals');
-    const { data: p2pLoans, loading: p2pLoading } = useCollection<ActiveP2PLoan>('p2pActiveLoans');
+    const { user, loading: userLoading } = useUser();
+    
+    // Only run expensive collection group queries if we are sure the user is an admin
+    const isAdmin = useMemo(() => !userLoading && user?.email === 'admin@tribed.world', [user, userLoading]);
+
+    const { data: settings, loading: settingsLoading } = useDoc<AdminSettings>(isAdmin ? 'settings/admin' : null);
+    const { data: plans, loading: plansLoading } = useCollection<InvestmentPlan>(isAdmin ? 'investmentPlans' : null);
+    const { data: investments, loading: investmentsLoading } = useCollection<Investment>(isAdmin ? 'investments' : null, { subcollections: true });
+    const { data: withdrawalLogs, loading: logsLoading } = useCollection<AdminWithdrawal>(isAdmin ? 'adminWithdrawals' : null);
+    const { data: p2pLoans, loading: p2pLoading } = useCollection<ActiveP2PLoan>(isAdmin ? 'p2pActiveLoans' : null);
 
     const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
     const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
@@ -197,7 +203,7 @@ export default function AdminFinancePage() {
         }
     };
 
-    const loading = settingsLoading || plansLoading || investmentsLoading || logsLoading || p2pLoading;
+    const loading = userLoading || settingsLoading || plansLoading || investmentsLoading || logsLoading || p2pLoading;
 
     if (loading) return <div className="flex h-full items-center justify-center"><p className="text-white/20 animate-pulse font-bold tracking-widest text-xs">CALCULATING BALANCES...</p></div>;
 

@@ -28,6 +28,7 @@ service cloud.firestore {
     }
 
     // COLLECTION GROUP RULES - Defined globally for cross-user lookups and social feeds
+    // These rules allow collectionGroup queries on 'investments', 'loans', etc.
     match /{path=**}/investments/{id} {
       allow read: if isAuthenticated();
       allow write: if isManager();
@@ -48,9 +49,7 @@ service cloud.firestore {
     // Rules for 'users'
     match /users/{userId} {
       allow create: if isOwner(userId);
-      // Allow read for all authenticated users to support Leaderboard, P2P names, and pulse
       allow read: if isAuthenticated();
-      // Allow update for balance adjustments (P2P/Investments), profile updates, and VIP leveling
       allow update: if isAuthenticated(); 
       allow delete: if isAdmin();
 
@@ -69,7 +68,6 @@ service cloud.firestore {
     // Settings
     match /settings/admin {
       allow read: if isAuthenticated();
-      // Allow write for Admin and for P2P fee profit recording/stock decrement (triggered by users during transactions)
       allow write: if isAuthenticated();
     }
 
@@ -109,7 +107,7 @@ service cloud.firestore {
     // Coupons
     match /coupons/{id} {
       allow read: if isAuthenticated();
-      allow update: if isAuthenticated(); // For stock decrement and redemptions array update
+      allow update: if isAuthenticated();
       allow write: if isAdmin();
     }
     
@@ -117,14 +115,14 @@ service cloud.firestore {
     match /investmentPlans/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
-      allow update: if isAuthenticated(); // For stock/limit updates during purchase
+      allow update: if isAuthenticated();
     }
     
     // Group Loan Plans
     match /groupLoanPlans/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
-      allow update: if isAuthenticated(); // For funding updates
+      allow update: if isAuthenticated();
       
       match /investments/{invId} {
           allow read: if isAuthenticated();
