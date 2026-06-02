@@ -349,7 +349,17 @@ export default function CustomLoansPage() {
             const phoneNumber = userDoc.data().phoneNumber;
             const loanAmount = request.requestedAmount.toFixed(2);
             const dueDate = request.dueDate ? request.dueDate.toDate().toLocaleDateString() : 'N/A';
-            const message = `🎉 Loan Approved! 🎉\n\nDear ${request.userName},\n\nCongratulations! Your custom loan of ₹${loanAmount} has been approved and sent to your account.\n\nEnjoy your loan, and please remember to repay it by the due date: *${dueDate}*.\n\nThank you for choosing Grow Money!`;
+            
+            let message = `🎉 *Loan Approved & Active!* 🎉\n\n`;
+            message += `Dear *${request.userName}*,\n\n`;
+            message += `Congratulations! Your custom loan for *₹${loanAmount}* has been approved and successfully transferred to your account. 💰\n\n`;
+            message += `*Loan Summary:*\n`;
+            message += `-----------------------------------\n`;
+            message += `💵 *Amount:* ₹${loanAmount}\n`;
+            message += `🗓️ *Repayment Date:* *${dueDate}*\n`;
+            message += `-----------------------------------\n\n`;
+            message += `Please pay it back on time to grow your trust score and unlock bigger limits. 🙏\n\n`;
+            message += `Thank you for choosing *Grow Money*!`;
             
             const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');

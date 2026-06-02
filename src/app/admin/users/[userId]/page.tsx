@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -883,32 +884,33 @@ function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: Activ
 
     const dueDate = loan.dueDate ? loan.dueDate.toDate().toLocaleDateString() : 'N/A';
     const totalAmountDue = (loan.totalPayable + (loan.penalty || 0)).toFixed(2);
-    const loanAmount = loan.loanAmount || 0;
-    const interest = loan.interest || 0;
-    const platformTax = Math.max(0, loan.totalPayable - loanAmount - interest);
-    const penalty = loan.penalty || 0;
-    const isOverdue = loan.status === 'Due' || penalty > 0;
+    
+    // Logic to detect if it's the "First" installment
+    const isFirstEmi = loan.repaymentMethod === 'EMI' && loan.emis?.every(e => e.status === 'Pending' || e.status === 'Due' || e.status === 'Payment Pending');
 
     let message = `🔔 *Loan Repayment Reminder* 🔔\n\n`;
     message += `Dear *${user.name}*,\n\n`;
-    message += `This is a reminder regarding your active loan for *${loan.planName}*.\n\n`;
+    
+    if (isFirstEmi) {
+        message += `This is a friendly notice that your *FIRST installment* for *${loan.planName}* is coming up soon. Please pay it properly to build a strong trust score! 🚀\n\n`;
+    } else {
+        message += `This is a reminder regarding your active loan for *${loan.planName}*.\n\n`;
+    }
     
     message += `*Loan Breakdown:*\n`;
     message += `-----------------------------------\n`;
-    message += `💵 *Loan Amount:* ₹${loanAmount.toFixed(2)}\n`;
-    message += `📈 *Interest:* ₹${interest.toFixed(2)}\n`;
-    message += `⚙️ *Platform Tax:* ₹${platformTax.toFixed(2)}\n`;
+    message += `💵 *Loan Amount:* ₹${loan.loanAmount.toFixed(2)}\n`;
     
-    if (penalty > 0) {
-        message += `⚠️ *Penalty:* ₹${penalty.toFixed(2)}\n`;
+    if (loan.penalty && loan.penalty > 0) {
+        message += `⚠️ *Penalty:* ₹${loan.penalty.toFixed(2)}\n`;
     }
     
     message += `-----------------------------------\n`;
-    message += `💰 *Total Amount Due:* *₹${totalAmountDue}*\n`;
+    message += `💰 *Amount Due:* *₹${totalAmountDue}*\n`;
     message += `🗓️ *Due Date:* ${dueDate}\n`;
     message += `-----------------------------------\n\n`;
 
-    if (isOverdue) {
+    if (loan.status === 'Due' || (loan.penalty && loan.penalty > 0)) {
         message += `❗ *Urgent:* Your loan is currently *OVERDUE*. Please pay immediately to avoid increasing penalties.\n\n`;
     } else {
         message += `✅ *Tip:* Repay on time to improve your *Trust Score* and unlock higher loan limits!\n\n`;
@@ -990,7 +992,7 @@ function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: Activ
         
         {['Active', 'Due'].includes(loan.status) && (
             <Button onClick={handleSendReminder} variant="outline" size="sm" className="mt-4 w-full text-green-500 hover:text-green-600 border-green-500/50 hover:bg-green-500/10">
-                <Send className="mr-2 h-4 w-4" /> Send Reminder
+                <Send className="mr-2 h-4 w-4" /> Send Reminder (WhatsApp)
             </Button>
         )}
       </CardContent>
