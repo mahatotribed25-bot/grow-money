@@ -635,7 +635,7 @@ export default function UserDetailPage() {
               renderRow={(item: Investment) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.planName}</TableCell>
-                      <TableCell>₹{(item.investedAmount || 0).toFixed(2)} -> ₹{(item.returnAmount || 0).toFixed(2)}</TableCell>
+                      <TableCell>₹{(item.investedAmount || 0).toFixed(2)} {' -> '} ₹{(item.returnAmount || 0).toFixed(2)}</TableCell>
                       <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
                       <TableCell className="text-xs">{formatDate(item.startDate)}</TableCell>
                       <TableCell>
