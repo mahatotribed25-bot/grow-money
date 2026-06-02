@@ -109,63 +109,31 @@ export default function CustomLoansPage() {
   const filteredRequests = useMemo(() => {
     if (!requests) return [];
     const sorted = [...requests].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-    if (filterStatus === 'all') {
-      return sorted;
-    }
-    if (filterStatus === 'rejected') {
-        return sorted.filter(r => r.status === 'rejected_by_admin' || r.status === 'rejected_by_user');
-    }
-    if (filterStatus === 'payment_pending') {
-      return sorted.filter(r => r.status.toLowerCase() === 'payment_pending');
-    }
+    if (filterStatus === 'all') return sorted;
+    if (filterStatus === 'rejected') return sorted.filter(r => r.status === 'rejected_by_admin' || r.status === 'rejected_by_user');
     return sorted.filter((r) => r.status === filterStatus);
   }, [requests, filterStatus]);
 
   const openApproveDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
-    
     const interestPer1000 = adminSettings?.customLoanInterestPer1000 || 5;
     const dailyInterest = (request.requestedAmount / 1000) * interestPer1000;
     const totalInterest = dailyInterest * request.requestedDuration;
     const totalRepayment = request.requestedAmount + totalInterest;
     const interestRate = (totalInterest / request.requestedAmount) * 100;
 
-    setCalculatedInterestInfo({
-        dailyInterest,
-        totalInterest,
-        totalRepayment,
-        interestRate,
-    });
+    setCalculatedInterestInfo({ dailyInterest, totalInterest, totalRepayment, interestRate });
     
     try {
         const userRef = doc(firestore, 'users', request.userId);
         const userDoc = await getDoc(userRef);
-        if (userDoc.exists()) {
-            setUserKycData({ id: userDoc.id, ...userDoc.data() } as UserData);
-        } else {
-            setUserKycData(null);
-            toast({ title: 'User data not found', variant: 'destructive'});
-        }
-    } catch(e) {
-        setUserKycData(null);
-        toast({ title: 'Error fetching user data', variant: 'destructive'});
-    }
-
+        if (userDoc.exists()) setUserKycData({ id: userDoc.id, ...userDoc.data() } as UserData);
+    } catch(e) { console.error(e); }
     setIsApproveDialogOpen(true);
   };
 
-  const openRejectDialog = (request: CustomLoanRequest) => {
-    setRequestToUpdate(request);
-    setRejectionReason('');
-    setIsRejectDialogOpen(true);
-  };
-  
   const handleApprove = async () => {
-    if (!requestToUpdate || !calculatedInterestInfo) {
-        toast({ title: "Error calculating interest.", variant: 'destructive'});
-        return;
-    }
-
+    if (!requestToUpdate || !calculatedInterestInfo) return;
     const requestRef = doc(firestore, 'customLoanRequests', requestToUpdate.id);
     const updateData = {
         status: 'pending_user_approval' as const,
@@ -174,237 +142,85 @@ export default function CustomLoansPage() {
         totalRepayment: calculatedInterestInfo.totalRepayment,
         adminApprovedAt: serverTimestamp(),
     };
-
-    try {
-        await updateDoc(requestRef, updateData);
-        toast({ title: 'Offer Sent', description: 'Loan offer sent to user for approval.'});
-        setIsApproveDialogOpen(false);
-        setRequestToUpdate(null);
-        setCalculatedInterestInfo(null);
-    } catch(e) {
-        const permissionError = new FirestorePermissionError({
-            path: requestRef.path,
-            operation: 'update',
-            requestResourceData: updateData
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
+    await updateDoc(requestRef, updateData);
+    toast({ title: 'Offer Sent' });
+    setIsApproveDialogOpen(false);
   };
 
   const handleReject = async () => {
     if (!requestToUpdate) return;
-    
     const requestRef = doc(firestore, 'customLoanRequests', requestToUpdate.id);
-    const updateData = {
-        status: 'rejected_by_admin',
-        rejectionReason: rejectionReason || 'Rejected by admin'
-    };
-     try {
-        await updateDoc(requestRef, updateData);
-        toast({ title: 'Request Rejected', variant: 'destructive'});
-        setIsRejectDialogOpen(false);
-        setRequestToUpdate(null);
-    } catch(e) {
-        const permissionError = new FirestorePermissionError({
-            path: requestRef.path,
-            operation: 'update',
-            requestResourceData: updateData
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
+    await updateDoc(requestRef, { status: 'rejected_by_admin', rejectionReason: rejectionReason || 'Rejected by admin' });
+    setIsRejectDialogOpen(false);
   }
 
   const handleMarkAsSent = async (request: CustomLoanRequest) => {
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
     const settingsRef = doc(firestore, 'settings', 'admin');
-    
     try {
         await runTransaction(firestore, async (transaction) => {
             const settingsDoc = await transaction.get(settingsRef);
-            if (!settingsDoc.exists()) {
-                throw new Error("Admin settings not found.");
-            }
-            const settingsData = settingsDoc.data();
-            const totalLimit = settingsData.totalCustomLoanLimit || 0;
-            const currentUsage = settingsData.currentCustomLoanUsage || 0;
+            const totalLimit = settingsDoc.data()?.totalCustomLoanLimit || 0;
+            const currentUsage = settingsDoc.data()?.currentCustomLoanUsage || 0;
+            if (totalLimit > 0 && currentUsage + request.requestedAmount > totalLimit) throw new Error("Limit exceeded");
 
-            if (totalLimit > 0 && currentUsage + request.requestedAmount > totalLimit) {
-                throw new Error("Cannot activate loan. This would exceed the platform's total loan limit.");
-            }
-
-            const newUsage = currentUsage + request.requestedAmount;
-            
-            const now = new Date();
-            const dueDate = addDays(now, request.requestedDuration);
-            const updateData = {
-                status: 'active',
-                activatedAt: Timestamp.fromDate(now),
-                dueDate: Timestamp.fromDate(dueDate),
-            };
-            
-            transaction.update(requestRef, updateData);
-            transaction.update(settingsRef, { currentCustomLoanUsage: newUsage });
+            const dueDate = addDays(new Date(), request.requestedDuration);
+            transaction.update(requestRef, { status: 'active', activatedAt: serverTimestamp(), dueDate: Timestamp.fromDate(dueDate) });
+            transaction.update(settingsRef, { currentCustomLoanUsage: currentUsage + request.requestedAmount });
         });
-
-        toast({ title: 'Loan Activated', description: 'Loan has been marked as sent and is now active.'});
-    } catch(e: any) {
-        toast({ title: 'Activation Failed', description: e.message, variant: 'destructive'});
-        const permissionError = new FirestorePermissionError({
-            path: requestRef.path,
-            operation: 'update',
-            requestResourceData: { status: 'active' }
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
+        toast({ title: 'Loan Activated' });
+    } catch(e: any) { toast({ title: 'Failed', description: e.message, variant: 'destructive' }); }
   };
   
   const handleMarkAsCompleted = async (request: CustomLoanRequest) => {
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
     const settingsRef = doc(firestore, 'settings', 'admin');
-
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const settingsDoc = await transaction.get(settingsRef);
-            if (!settingsDoc.exists()) {
-                transaction.update(requestRef, { status: 'completed' });
-                return;
-            }
-
-            const settingsData = settingsDoc.data();
-            const currentUsage = settingsData.currentCustomLoanUsage || 0;
-            const newUsage = Math.max(0, currentUsage - request.requestedAmount);
-
-            transaction.update(requestRef, { status: 'completed' });
-            transaction.update(settingsRef, { currentCustomLoanUsage: newUsage });
-        });
-
-        toast({ title: 'Loan Completed', description: 'Loan has been marked as completed.'});
-    } catch(e: any) {
-        toast({ title: 'Completion Failed', description: e.message, variant: 'destructive'});
-        const permissionError = new FirestorePermissionError({
-            path: requestRef.path,
-            operation: 'update',
-            requestResourceData: { status: 'completed' }
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
+    await runTransaction(firestore, async (transaction) => {
+        const settingsDoc = await transaction.get(settingsRef);
+        const currentUsage = settingsDoc.data()?.currentCustomLoanUsage || 0;
+        transaction.update(requestRef, { status: 'completed' });
+        transaction.update(settingsRef, { currentCustomLoanUsage: Math.max(0, currentUsage - request.requestedAmount) });
+    });
+    toast({ title: 'Loan Completed' });
   };
 
   const handleApproveExtension = async () => {
     if (!requestToUpdate || !requestToUpdate.dueDate) return;
     const fee = parseFloat(extensionFee) || 0;
     const extraDays = requestToUpdate.extensionRequestedDays || 0;
-
     const requestRef = doc(firestore, 'customLoanRequests', requestToUpdate.id);
     const newDueDate = addDays(requestToUpdate.dueDate.toDate(), extraDays);
-    const newTotalRepayment = (requestToUpdate.totalRepayment || 0) + fee;
-
-    const updateData = {
-      status: 'active',
-      dueDate: Timestamp.fromDate(newDueDate),
-      totalRepayment: newTotalRepayment,
-      extensionApprovedAt: serverTimestamp(),
-      lastExtensionFee: fee,
-      lastExtensionDays: extraDays
-    };
-
-    try {
-      await updateDoc(requestRef, updateData);
-      toast({ title: "Extension Approved", description: `Loan extended by ${extraDays} days with a fee of ₹${fee}.` });
-      setIsExtensionDialogOpen(false);
-      setRequestToUpdate(null);
-      setExtensionFee('');
-    } catch (e) {
-      const permissionError = new FirestorePermissionError({
-        path: requestRef.path,
-        operation: 'update',
-        requestResourceData: updateData
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    }
-  };
-
-  const handleRejectExtension = async (request: CustomLoanRequest) => {
-    const requestRef = doc(firestore, 'customLoanRequests', request.id);
-    const updateData = { status: 'active', extensionRejectedAt: serverTimestamp() };
-    try {
-      await updateDoc(requestRef, updateData);
-      toast({ title: "Extension Rejected", description: "The loan remains in its original active state." });
-    } catch (e) {
-      const permissionError = new FirestorePermissionError({
-        path: requestRef.path,
-        operation: 'update',
-        requestResourceData: updateData
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    }
+    await updateDoc(requestRef, { status: 'active', dueDate: Timestamp.fromDate(newDueDate), totalRepayment: (requestToUpdate.totalRepayment || 0) + fee });
+    setIsExtensionDialogOpen(false);
+    toast({ title: "Extended" });
   };
 
   const handleShareOnWhatsApp = async (request: CustomLoanRequest) => {
     try {
-        const userRef = doc(firestore, 'users', request.userId);
-        const userDoc = await getDoc(userRef);
-
+        const userDoc = await getDoc(doc(firestore, 'users', request.userId));
         if (userDoc.exists() && userDoc.data().phoneNumber) {
             const phoneNumber = userDoc.data().phoneNumber;
-            const loanAmount = request.requestedAmount.toFixed(2);
             const dueDate = request.dueDate ? request.dueDate.toDate().toLocaleDateString() : 'N/A';
-            
-            let message = `🎉 *Loan Approved & Active!* 🎉\n\n`;
+            let message = `🎉 *Custom Loan Approved & Active!* 🎉\n\n`;
             message += `Dear *${request.userName}*,\n\n`;
-            message += `Congratulations! Your custom loan for *₹${loanAmount}* has been approved and successfully transferred to your account. 💰\n\n`;
+            message += `Your custom loan has been approved and successfully transferred! 💰\n\n`;
             message += `*Loan Summary:*\n`;
             message += `-----------------------------------\n`;
-            message += `💵 *Amount:* ₹${loanAmount}\n`;
+            message += `💵 *Loan Amount:* ₹${request.requestedAmount.toFixed(2)}\n`;
+            message += `📈 *Repayment Due:* ₹${(request.totalRepayment || 0).toFixed(2)}\n`;
             message += `🗓️ *Repayment Date:* *${dueDate}*\n`;
             message += `-----------------------------------\n\n`;
             message += `Please pay it back on time to grow your trust score and unlock bigger limits. 🙏\n\n`;
             message += `Thank you for choosing *Grow Money*!`;
-            
-            const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Phone Number Not Found',
-                description: `The user ${request.userName} has not saved a phone number in their profile.`,
-            });
-        }
-    } catch (error) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: "Could not fetch the user's phone number.",
-        });
-    }
+            window.open(`https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+        } else { toast({ variant: 'destructive', title: 'Phone Not Found' }); }
+    } catch (e) { toast({ variant: 'destructive', title: 'Error' }); }
   }
-
-
-  const getStatusBadge = (status: CustomLoanRequest['status']) => {
-    const lowerCaseStatus = status.toLowerCase();
-    switch (lowerCaseStatus) {
-      case 'pending_admin_review': return <Badge variant="secondary">Pending Admin</Badge>;
-      case 'pending_user_approval': return <Badge variant="outline" className="border-blue-500 text-blue-400">Pending User</Badge>;
-      case 'approved_by_user': return <Badge variant="default">User Approved</Badge>;
-      case 'active': return <Badge variant="default" className="bg-green-600">Active</Badge>;
-      case 'payment_pending': return <Badge variant="outline">Payment Pending</Badge>;
-      case 'extension_pending': return <Badge variant="outline" className="border-amber-500 text-amber-500">Extension Requested</Badge>;
-      case 'completed': return <Badge variant="outline">Completed</Badge>;
-      case 'rejected_by_user':
-      case 'rejected_by_admin':
-        return <Badge variant="destructive">Rejected</Badge>;
-      default: return <Badge>{status}</Badge>;
-    }
-  };
-  
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Custom Loan Requests</h2>
-      </div>
-
-       <Tabs value={filterStatus} onValueChange={(value) => setFilterStatus(value as any)}>
+      <div className="flex justify-between items-center mb-4"><h2 className="text-2xl font-bold">Custom Loans</h2></div>
+       <Tabs value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
             <TabsList className="flex-wrap justify-start h-auto">
                 <TabsTrigger value="pending_admin_review">Pending Admin</TabsTrigger>
                 <TabsTrigger value="pending_user_approval">Pending User</TabsTrigger>
@@ -417,257 +233,46 @@ export default function CustomLoansPage() {
                 <TabsTrigger value="all">All</TabsTrigger>
             </TabsList>
         </Tabs>
-
       <div className="rounded-lg border mt-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User Name</TableHead>
-              <TableHead>Loan Details</TableHead>
-              <TableHead>Interest</TableHead>
-              <TableHead>Total Repayment</TableHead>
-              <TableHead>Dates</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+        <Table><TableHeader><TableRow><TableHead>User Name</TableHead><TableHead>Details</TableHead><TableHead>Interest</TableHead><TableHead>Repayment</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
           <TableBody>
-            {loading ? (
-              <TableRow><TableCell colSpan={7} className="text-center">Loading...</TableCell></TableRow>
-            ) : filteredRequests.length > 0 ? (
-              filteredRequests.map((request) => (
+            {loading ? <TableRow><TableCell colSpan={7} className="text-center">Loading...</TableCell></TableRow> : filteredRequests.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell>{request.userName}</TableCell>
-                  <TableCell>
-                      <div className="font-semibold">₹{request.requestedAmount.toFixed(2)}</div>
-                      <div className="text-xs text-muted-foreground">{request.requestedDuration} days</div>
-                  </TableCell>
-                  <TableCell>
-                    {request.interestRate !== undefined ? (
-                        <>
-                            <div className="font-semibold">{request.interestRate.toFixed(2)}%</div>
-                            <div className="text-xs text-muted-foreground">₹{request.interestAmount?.toFixed(2)}</div>
-                        </>
-                    ) : (
-                        'N/A'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-semibold">₹{((request.totalRepayment || 0) + (request.penalty || 0)).toFixed(2)}</div>
-                    {request.penalty && <div className="text-xs text-destructive">(inc. ₹{request.penalty.toFixed(2)} penalty)</div>}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col text-xs">
-                        <span>Created: {formatDate(request.createdAt)}</span>
-                        {request.dueDate && <span>Due: {formatDate(request.dueDate)}</span>}
-                    </div>
-                  </TableCell>
+                  <TableCell>₹{request.requestedAmount.toFixed(2)}<br/><span className="text-xs text-muted-foreground">{request.requestedDuration} days</span></TableCell>
+                  <TableCell>{request.interestRate ? `${request.interestRate.toFixed(2)}%` : 'N/A'}</TableCell>
+                  <TableCell>₹{((request.totalRepayment || 0) + (request.penalty || 0)).toFixed(2)}</TableCell>
+                  <TableCell className="text-xs">Created: {formatDate(request.createdAt)}<br/>Due: {formatDate(request.dueDate)}</TableCell>
                   <TableCell>{getStatusBadge(request.status)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                        {request.status === 'pending_admin_review' && (
-                            <>
-                                <Button size="sm" onClick={() => openApproveDialog(request)}><Check className="mr-2 h-4 w-4" />Approve</Button>
-                                <Button size="sm" variant="destructive" onClick={() => openRejectDialog(request)}><X className="mr-2 h-4 w-4"/>Reject</Button>
-                            </>
-                        )}
-                        {request.status === 'approved_by_user' && (
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleMarkAsSent(request)}><Send className="mr-2 h-4 w-4"/>Mark as Sent</Button>
-                        )}
-                        {request.status === 'active' && (
-                            <>
-                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMarkAsCompleted(request)}>
-                                    <Check className="mr-2 h-4 w-4"/>
-                                    Mark as Repaid
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                                    onClick={() => handleShareOnWhatsApp(request)}
-                                >
-                                    <Send className="h-4 w-4 mr-1" /> Notify User
-                                </Button>
-                            </>
-                        )}
-                        {request.status === 'extension_pending' && (
-                          <>
-                              <Button size="sm" onClick={() => { setRequestToUpdate(request); setIsExtensionDialogOpen(true); }}>
-                                <Timer className="mr-2 h-4 w-4" /> Review Extension
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => handleRejectExtension(request)}>
-                                <X className="mr-2 h-4 w-4" /> Reject
-                              </Button>
-                          </>
-                        )}
-                        {request.status.toLowerCase() === 'payment_pending' && (
-                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMarkAsCompleted(request)}>
-                                <Check className="mr-2 h-4 w-4"/>
-                                Confirm Repayment
-                            </Button>
-                        )}
-                    </div>
-                  </TableCell>
+                  <TableCell><div className="flex gap-2">
+                        {request.status === 'pending_admin_review' && <><Button size="sm" onClick={() => openApproveDialog(request)}><Check className="h-4 w-4 mr-1" />Approve</Button><Button size="sm" variant="destructive" onClick={() => { setRequestToUpdate(request); setIsRejectDialogOpen(true); }}><X className="h-4 w-4 mr-1"/>Reject</Button></>}
+                        {request.status === 'approved_by_user' && <Button size="sm" className="bg-green-600" onClick={() => handleMarkAsSent(request)}><Send className="h-4 w-4 mr-1"/>Mark as Sent</Button>}
+                        {request.status === 'active' && <><Button size="sm" className="bg-blue-600" onClick={() => handleMarkAsCompleted(request)}><Check className="h-4 w-4 mr-1"/>Repaid</Button><Button variant="outline" size="sm" className="text-green-500" onClick={() => handleShareOnWhatsApp(request)}><Send className="h-4 w-4 mr-1" /> Notify</Button></>}
+                        {request.status === 'extension_pending' && <><Button size="sm" onClick={() => { setRequestToUpdate(request); setIsExtensionDialogOpen(true); }}><Timer className="h-4 w-4 mr-1" /> Review</Button></>}
+                        {request.status === 'payment_pending' && <Button size="sm" className="bg-blue-600" onClick={() => handleMarkAsCompleted(request)}>Confirm</Button>}
+                    </div></TableCell>
                 </TableRow>
-              ))
-            ) : (
-                 <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
-                        No {filterStatus.replace(/_/g, ' ')} requests found.
-                    </TableCell>
-                </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ))}
+          </TableBody></Table>
       </div>
-      
-      {/* Approve Dialog */}
-      <Dialog open={isApproveDialogOpen} onOpenChange={(isOpen) => {
-          setIsApproveDialogOpen(isOpen);
-          if (!isOpen) {
-            setUserKycData(null);
-            setCalculatedInterestInfo(null);
-          }
-      }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Approve Loan & Send Offer</DialogTitle>
-            <DialogDescription>Review user and payment details. The interest is calculated automatically. Click "Send Offer" to confirm.</DialogDescription>
-          </DialogHeader>
-          
-          {userKycData ? (
-            <div className="space-y-2 rounded-md border p-4 my-2">
-                <h4 className="font-semibold">KYC Details for {requestToUpdate?.userName}</h4>
-                <p className="text-sm"><strong>Status:</strong> {userKycData.kycStatus}</p>
-                <p className="text-sm"><strong>PAN:</strong> {userKycData.panCard || 'N/A'}</p>
-                <p className="text-sm"><strong>Aadhaar:</strong> {userKycData.aadhaarNumber || 'N/A'}</p>
-                <p className="text-sm"><strong>Phone:</strong> {userKycData.phoneNumber || 'N/A'}</p>
-            </div>
-            ) : <p>Loading KYC data...</p>
-          }
-
-          {requestToUpdate?.paymentMethod && (
-            <div className="space-y-2 rounded-md border p-4 my-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                    {requestToUpdate.paymentMethod === 'Bank' ? <Landmark /> : <Banknote />}
-                    Payment Details
-                </h4>
-                <p className="text-sm"><strong>Method:</strong> {requestToUpdate.paymentMethod}</p>
-                {requestToUpdate.paymentMethod === 'Bank' && requestToUpdate.bankDetails ? (
-                    <>
-                        <p className="text-sm"><strong>Holder:</strong> {requestToUpdate.bankDetails.accountHolderName}</p>
-                        <p className="text-sm"><strong>Account No:</strong> {requestToUpdate.bankDetails.accountNumber}</p>
-                        <p className="text-sm"><strong>IFSC:</strong> {requestToUpdate.bankDetails.ifscCode}</p>
-                    </>
-                ) : requestToUpdate.paymentMethod === 'UPI' ? (
-                    <p className="text-sm"><strong>UPI ID:</strong> {requestToUpdate.upiId}</p>
-                ) : null}
-            </div>
-          )}
-          
-          {calculatedInterestInfo && requestToUpdate && (
-            <div className="space-y-2 rounded-md border p-4 my-2 bg-muted/50">
-              <h4 className="font-semibold text-center">Loan Offer Summary</h4>
-               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Loan Amount:</span>
-                <span className="font-semibold">₹{requestToUpdate?.requestedAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Daily Interest (@ ₹{adminSettings?.customLoanInterestPer1000 || 5} per ₹1000):</span>
-                <span className="font-semibold">₹{calculatedInterestInfo.dailyInterest.toFixed(2)}</span>
-              </div>
-               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Interest ({requestToUpdate?.requestedDuration} days):</span>
-                <span className="font-semibold text-red-400">₹{calculatedInterestInfo.totalInterest.toFixed(2)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total Repayment:</span>
-                <span>₹{calculatedInterestInfo.totalRepayment.toFixed(2)}</span>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-            <Button onClick={handleApprove}>Send Offer</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-       {/* Reject Dialog */}
-       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Loan Request</DialogTitle>
-            <DialogDescription>Provide a reason for rejection (optional). This will be visible to the user.</DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-2">
-            <Label htmlFor="rejectionReason">Reason</Label>
-            <Textarea id="rejectionReason" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} placeholder="e.g., Credit score too low" />
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-            <Button variant="destructive" onClick={handleReject}>Confirm Rejection</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Extension Approval Dialog */}
-      <Dialog open={isExtensionDialogOpen} onOpenChange={setIsExtensionDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Approve Loan Extension</DialogTitle>
-            <DialogDescription>
-              User <strong>{requestToUpdate?.userName}</strong> has requested an extension of <strong>{requestToUpdate?.extensionRequestedDays} days</strong>.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2 p-3 bg-muted rounded-md text-sm">
-               <div className="flex justify-between">
-                 <span>Original Amount:</span>
-                 <span className="font-bold">₹{requestToUpdate?.requestedAmount.toFixed(2)}</span>
-               </div>
-               <div className="flex justify-between">
-                 <span>Current Repayment Due:</span>
-                 <span className="font-bold">₹{requestToUpdate?.totalRepayment?.toFixed(2)}</span>
-               </div>
-               <div className="flex justify-between">
-                 <span>Current Due Date:</span>
-                 <span className="font-bold">{formatDate(requestToUpdate?.dueDate)}</span>
-               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="extension-fee">Extension Fee / Extra Interest (INR)</Label>
-              <Input
-                id="extension-fee"
-                type="number"
-                placeholder="e.g., 500"
-                value={extensionFee}
-                onChange={(e) => setExtensionFee(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">This amount will be added to the user's total repayment.</p>
-            </div>
-            {requestToUpdate && (
-              <div className="p-3 border rounded-md border-primary/20 bg-primary/5 text-sm space-y-1">
-                 <p className="font-semibold text-primary">New Terms After Extension:</p>
-                 <div className="flex justify-between">
-                   <span>New Due Date:</span>
-                   <span>{formatDate(Timestamp.fromDate(addDays(requestToUpdate.dueDate?.toDate() || new Date(), requestToUpdate.extensionRequestedDays || 0)))}</span>
-                 </div>
-                 <div className="flex justify-between">
-                   <span>New Total Repayment:</span>
-                   <span className="font-bold">₹{((requestToUpdate.totalRepayment || 0) + (parseFloat(extensionFee) || 0)).toFixed(2)}</span>
-                 </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-            <Button onClick={handleApproveExtension}>Approve Extension</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
+        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Approve & Offer</DialogTitle></DialogHeader>
+          {userKycData && <div className="space-y-1 p-3 border rounded text-xs"><p><strong>Status:</strong> {userKycData.kycStatus}</p><p><strong>PAN:</strong> {userKycData.panCard}</p><p><strong>Phone:</strong> {userKycData.phoneNumber}</p></div>}
+          {calculatedInterestInfo && <div className="space-y-2 p-3 bg-muted rounded text-sm"><div className="flex justify-between"><span>Amount:</span><span>₹{requestToUpdate?.requestedAmount}</span></div><div className="flex justify-between"><span>Interest:</span><span className="text-red-400">₹{calculatedInterestInfo.totalInterest.toFixed(2)}</span></div><Separator/><div className="flex justify-between font-bold"><span>Total Repayment:</span><span>₹{calculatedInterestInfo.totalRepayment.toFixed(2)}</span></div></div>}
+          <DialogFooter><Button variant="outline" onClick={() => setIsApproveDialogOpen(false)}>Cancel</Button><Button onClick={handleApprove}>Send Offer</Button></DialogFooter>
+        </DialogContent></Dialog>
     </div>
   );
 }
+
+const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending_admin_review': return <Badge variant="secondary">Pending Admin</Badge>;
+      case 'pending_user_approval': return <Badge variant="outline" className="text-blue-400">Pending User</Badge>;
+      case 'approved_by_user': return <Badge variant="default">User Approved</Badge>;
+      case 'active': return <Badge variant="default" className="bg-green-600">Active</Badge>;
+      case 'extension_pending': return <Badge variant="outline" className="text-amber-500">Ext. Req</Badge>;
+      case 'completed': return <Badge variant="outline">Completed</Badge>;
+      default: return <Badge>{status}</Badge>;
+    }
+};
