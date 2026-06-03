@@ -14,6 +14,7 @@ import {
   Users as UsersIcon,
   AlertTriangle,
   Trophy,
+  Send,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,8 @@ type LoanPlan = {
 type LoanRequest = {
   id: string;
   userId: string;
+  planName: string;
+  loanAmount: number;
   status: 'pending' | 'approved' | 'rejected' | 'sent';
   createdAt: Timestamp | null;
   rejectionReason?: string;
@@ -62,12 +65,17 @@ type ActiveLoan = {
 }
 
 type UserData = {
+    name?: string;
     panCard?: string;
     upiId?: string;
     aadhaarNumber?: string;
     phoneNumber?: string;
     kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
     kycRejectionReason?: string;
+}
+
+type AdminSettings = {
+    adminPhone?: string;
 }
 
 export default function LoansPage() {
@@ -86,6 +94,7 @@ export default function LoansPage() {
   );
   
   const { data: userData, loading: userLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
 
   const loading = plansLoading || requestsLoading || activeLoansLoading || userLoading;
 
@@ -100,6 +109,17 @@ export default function LoansPage() {
 
   const canApply = !hasMaxLoans && latestRequest?.status !== 'pending' && isKycVerified;
 
+  const handleNotifyAdmin = (request: LoanRequest) => {
+    if (!adminSettings?.adminPhone) {
+        toast({ title: "Admin contact not set", description: "The platform administrator hasn't configured their WhatsApp number yet.", variant: "destructive"});
+        return;
+    }
+
+    const message = `🚀 *Expedite My Loan Request* 🚀\n\nHello Admin,\n\nI am *${userData?.name || user?.displayName}*.\n\nI just submitted a loan request for *${request.planName}* (₹${request.loanAmount.toFixed(2)}).\n\nCould you please review and approve it? \n\n*User ID:* ${user?.uid}\n\nThank you for your assistance! 🙏`;
+    
+    window.open(`https://wa.me/91${adminSettings.adminPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
   const getEligibilityMessage = () => {
     if (loading) return null;
     if (isKycVerified) {
@@ -107,7 +127,15 @@ export default function LoansPage() {
         return <p>You have reached the maximum of 2 active loans. You must repay one before applying for a new one. <Link href="/my-loans" className="underline">View loan details.</Link></p>;
       }
       if (latestRequest?.status === 'pending') {
-        return <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>;
+        return (
+            <div className="space-y-4">
+                <p>You have a loan request that is currently pending review. You cannot apply for another loan at this time.</p>
+                <Button variant="outline" className="text-green-500 border-green-500/50 hover:bg-green-500/10" onClick={() => handleNotifyAdmin(latestRequest)}>
+                    <Send className="mr-2 h-4 w-4" />
+                    Ping Admin on WhatsApp
+                </Button>
+            </div>
+        );
       }
       if (latestRequest?.status === 'rejected') {
         return <p>Your last loan request was rejected. Reason: &quot;{latestRequest.rejectionReason}&quot;. You may apply for a new loan.</p>;

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -10,6 +11,7 @@ import {
   Users as UsersIcon,
   Trophy,
   Info,
+  Send,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -35,10 +37,12 @@ type AdminSettings = {
   totalCustomLoanLimit?: number;
   currentCustomLoanUsage?: number;
   customLoanInterestPer1000?: number;
+  adminPhone?: string;
 };
 
 type CustomLoanRequest = {
     id: string;
+    requestedAmount: number;
     status: string;
 }
 
@@ -58,6 +62,7 @@ export default function CustomLoanPage() {
 
 
   const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>('settings/admin');
+  const { data: userData } = useDoc<any>(user ? `users/${user.uid}` : null);
   const { data: existingRequests, loading: requestsLoading } = useCollection<CustomLoanRequest>(
       user ? query(collection(firestore, 'customLoanRequests'), where('userId', '==', user.uid), where('status', 'in', ['pending_admin_review', 'pending_user_approval', 'approved_by_user'])) : null
   );
@@ -68,6 +73,7 @@ export default function CustomLoanPage() {
   const isServiceEnabled = adminSettings?.totalCustomLoanLimit && adminSettings.totalCustomLoanLimit > 0;
 
   const hasActiveRequest = existingRequests && existingRequests.length > 0;
+  const pendingRequest = existingRequests?.find(r => r.status === 'pending_admin_review');
   
   const calculatedInfo = useMemo(() => {
     const principal = parseFloat(amount);
@@ -172,6 +178,20 @@ export default function CustomLoanPage() {
     }
   };
 
+  const handleNotifyAdmin = () => {
+    if (!adminSettings?.adminPhone) {
+        toast({ title: "Admin contact not set", description: "The platform administrator hasn't configured their WhatsApp number yet.", variant: "destructive"});
+        return;
+    }
+
+    const request = pendingRequest || existingRequests?.[0];
+    if (!request) return;
+
+    const message = `🛠️ *Expedite My Custom Loan* 🛠️\n\nHello Admin,\n\nI am *${userData?.name || user?.displayName}*.\n\nI just submitted a *Custom Flexi Loan* request for ₹${request.requestedAmount.toFixed(2)}.\n\nCould you please review and approve it? \n\n*User ID:* ${user?.uid}\n\nThank you!`;
+    
+    window.open(`https://wa.me/91${adminSettings.adminPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
@@ -211,9 +231,17 @@ export default function CustomLoanPage() {
                         </div>
                     )}
                     {hasActiveRequest ? (
-                        <div className="text-center p-4 rounded-md bg-yellow-500/10 text-yellow-300">
-                            <p className="font-semibold">You have an active request.</p>
-                            <p className="text-sm">Please wait for the admin to process your current custom loan request before creating a new one.</p>
+                        <div className="text-center p-6 rounded-md bg-yellow-500/10 text-yellow-300 space-y-4">
+                            <div>
+                                <p className="font-semibold">You have an active request.</p>
+                                <p className="text-sm">Please wait for the admin to process your current custom loan request before creating a new one.</p>
+                            </div>
+                            {pendingRequest && (
+                                <Button variant="outline" className="text-green-500 border-green-500/50 hover:bg-green-500/10" onClick={handleNotifyAdmin}>
+                                    <Send className="mr-2 h-4 w-4" />
+                                    Notify Admin on WhatsApp
+                                </Button>
+                            )}
                         </div>
                     ) : (
                         <>

@@ -13,8 +13,8 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users } from 'lucide-react';
-import { sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users, Phone } from 'lucide-react';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 
 type AdminSettings = {
   adminUpi?: string;
+  adminPhone?: string;
   minWithdrawal?: number;
   referralBonus?: number;
   withdrawalGstPercentage?: number;
@@ -72,6 +73,7 @@ export default function SettingsPage() {
 
   // General settings state
   const [adminUpi, setAdminUpi] = useState('');
+  const [adminPhone, setAdminPhone] = useState('');
   const [minWithdrawal, setMinWithdrawal] = useState(0);
   const [referralBonus, setReferralBonus] = useState(0);
   const [withdrawalGstPercentage, setWithdrawalGstPercentage] = useState(0);
@@ -110,6 +112,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (settings) {
       setAdminUpi(settings.adminUpi || '');
+      setAdminPhone(settings.adminPhone || '');
       setMinWithdrawal(settings.minWithdrawal || 0);
       setReferralBonus(settings.referralBonus || 0);
       setWithdrawalGstPercentage(settings.withdrawalGstPercentage || 0);
@@ -143,7 +146,8 @@ export default function SettingsPage() {
   const handleSaveGeneral = () => {
     const settingsRef = doc(firestore, 'settings', 'admin');
     const settingsData = { 
-      adminUpi, 
+      adminUpi,
+      adminPhone,
       minWithdrawal: Number(minWithdrawal),
       referralBonus: Number(referralBonus),
       withdrawalGstPercentage: Number(withdrawalGstPercentage),
@@ -580,11 +584,23 @@ export default function SettingsPage() {
                 </div>
                 <Separator />
                 <div>
-                    <CardTitle>Payment Settings</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Mail /> Admin Contact & Payment</CardTitle>
                     <CardDescription>
-                        Configure how users make deposits and withdrawals.
+                        Configure how users reach you and send payments.
                     </CardDescription>
                     <div className="space-y-4 mt-4">
+                         <div className="space-y-2">
+                            <Label htmlFor="admin-phone" className="flex items-center gap-2"><Phone size={14}/> Admin WhatsApp Number</Label>
+                            <Input
+                                id="admin-phone"
+                                placeholder="9876543210 (without +91)"
+                                value={adminPhone}
+                                onChange={(e) => setAdminPhone(e.target.value)}
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                Users will ping this number to expedite loan approvals.
+                            </p>
+                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="admin-upi">Admin UPI ID (for Deposits)</Label>
                             <Input

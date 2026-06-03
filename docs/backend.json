@@ -166,6 +166,26 @@
             "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
             "createdAt": { "type": "string", "format": "date-time" }
         }
+    },
+    "adminSettings": {
+        "title": "Admin Settings",
+        "type": "object",
+        "properties": {
+            "adminPhone": { "type": "string", "description": "WhatsApp number for loan notifications." },
+            "adminUpi": { "type": "string" },
+            "minWithdrawal": { "type": "number" },
+            "referralBonus": { "type": "number" },
+            "withdrawalGstPercentage": { "type": "number" },
+            "loanPenalty": { "type": "number" },
+            "customLoanPenalty": { "type": "number" },
+            "customLoanInterestPer1000": { "type": "number" },
+            "customLoanUpi": { "type": "string" },
+            "kycGoogleFormUrl": { "type": "string" },
+            "maxCustomLoanAmount": { "type": "number" },
+            "totalCustomLoanLimit": { "type": "number" },
+            "currentCustomLoanUsage": { "type": "number" },
+            "p2pPlatformFeePercent": { "type": "number" }
+        }
     }
   },
   "auth": {
