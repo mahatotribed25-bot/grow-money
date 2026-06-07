@@ -749,7 +749,7 @@ export default function ProfilePage() {
                             )}
                             {kycStatus === 'Verified' && (
                                 <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-6 text-center space-y-2">
-                                    <div className="mx-auto w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                                    <div className="mx-auto w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
                                         <ShieldCheck className="text-green-400" size={28} />
                                     </div>
                                     <p className="font-bold text-green-300 text-lg">Account Fully Verified</p>
@@ -1117,4 +1117,30 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
             </CardContent>
         </Card>
     );
+}
+
+function BottomNavItem({
+  icon: Icon,
+  label,
+  href,
+  active = false,
+}: {
+  icon: React.ElementType;
+  label: string;
+  href: string;
+  active?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
+        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
+      )}
+    >
+      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
+      <span className="text-[10px] tracking-tight">{label}</span>
+      {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
+    </Link>
+  );
 }
