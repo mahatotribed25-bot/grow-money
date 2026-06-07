@@ -29,6 +29,7 @@ import {
   X,
   CreditCard as CreditCardIcon,
   CheckCircle2,
+  History as HistoryIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,15 @@ import { cn } from '@/lib/utils';
 import TrustScoreMeter from '@/components/TrustScoreMeter';
 import { calculateTrustScore } from '@/lib/trust-score';
 import { AchievementBadges } from '@/components/dashboard/AchievementBadges';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 type Transaction = {
   id: string;
@@ -70,6 +80,7 @@ type Transaction = {
   totalDelayBonus?: number;
   gstAmount?: number;
   finalAmount?: number;
+  upiId?: string;
 };
 
 type UpiRequest = {
@@ -79,16 +90,6 @@ type UpiRequest = {
   upiId: string;
   upiProvider: string;
 };
-
-type Coupon = {
-  id: string;
-  code: string;
-  amount: number;
-  status: 'active' | 'depleted';
-  stock: number;
-  redemptions: { userId: string, userName: string, redeemedAt: Date }[];
-};
-
 
 type GroupInvestment = {
     id: string;
@@ -129,6 +130,7 @@ type Referral = {
 };
 
 type UserData = {
+  name?: string;
   referralCode?: string;
   upiId?: string;
   upiProvider?: 'PhonePe' | 'Google Pay' | 'Paytm';
@@ -162,20 +164,24 @@ function useUserGroupInvestments(userId?: string) {
             setLoading(true);
             const allInvestments: GroupInvestment[] = [];
             
-            const plansSnapshot = await getDocs(collection(firestore, 'groupLoanPlans'));
+            try {
+                const plansSnapshot = await getDocs(collection(firestore, 'groupLoanPlans'));
 
-            for (const planDoc of plansSnapshot.docs) {
-                const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
-                const q = query(investmentsRef, where('investorId', '==', userId));
-                const investmentSnapshot = await getDocs(iq);
+                for (const planDoc of plansSnapshot.docs) {
+                    const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
+                    const qry = query(investmentsRef, where('investorId', '==', userId));
+                    const investmentSnapshot = await getDocs(qry);
 
-                investmentSnapshot.forEach(invDoc => {
-                    allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
-                });
+                    investmentSnapshot.forEach(invDoc => {
+                        allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
+                    });
+                }
+                setInvestments(allInvestments);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
             }
-            
-            setInvestments(allInvestments);
-            setLoading(false);
         };
 
         fetchInvestments();
@@ -184,6 +190,154 @@ function useUserGroupInvestments(userId?: string) {
     return { data: investments, loading };
 }
 
+function RedeemCouponCard() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleRedeem = async () => {
+    if (!user || !code.trim()) return;
+    setLoading(true);
+
+    try {
+      const couponsRef = collection(firestore, 'coupons');
+      const q = query(couponsRef, where('code', '==', code.trim().toUpperCase()), where('status', '==', 'active'));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        toast({ title: "Invalid Coupon", description: "This code does not exist or has expired.", variant: "destructive" });
+        return;
+      }
+
+      const couponDocSnap = querySnapshot.docs[0];
+      const couponRef = couponDocSnap.ref;
+
+      await runTransaction(firestore, async (transaction) => {
+        const freshCouponDoc = await transaction.get(couponRef);
+        const couponData = freshCouponDoc.data() as any;
+
+        if (couponData.status !== 'active' || couponData.stock <= 0) {
+            throw new Error("This coupon is no longer available.");
+        }
+
+        if (couponData.redemptions?.some((r: any) => r.userId === user.uid)) {
+          throw new Error("You have already redeemed this coupon.");
+        }
+
+        const userRef = doc(firestore, 'users', user.uid);
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists()) throw new Error("User account not found.");
+
+        const newBalance = (userDoc.data().walletBalance || 0) + couponData.amount;
+        const newStock = couponData.stock - 1;
+
+        transaction.update(userRef, { walletBalance: newBalance });
+        transaction.update(couponRef, {
+          stock: newStock,
+          status: newStock <= 0 ? 'depleted' : 'active',
+          redemptions: arrayUnion({
+            userId: user.uid,
+            userName: userDoc.data().name || 'User',
+            redeemedAt: new Date()
+          })
+        });
+      });
+
+      toast({ title: "Coupon Redeemed!", description: "Rewards have been credited to your wallet." });
+      setCode('');
+    } catch (e: any) {
+      toast({ title: "Redemption Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white/90">
+                <TicketPercent className="text-orange-400" /> Redeem Coupon
+            </CardTitle>
+            <CardDescription className="text-white/40">Enter a special code to claim instant wallet rewards.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div className="flex gap-2">
+                <Input 
+                    placeholder="ENTER CODE" 
+                    value={code} 
+                    onChange={(e) => setCode(e.target.value.toUpperCase())}
+                    className="bg-white/5 border-white/10 rounded-xl h-11 font-mono tracking-widest focus:ring-primary"
+                />
+                <Button onClick={handleRedeem} disabled={loading || !code.trim()} className="rounded-xl font-bold px-6 bg-primary text-white">
+                    {loading ? <Timer className="animate-spin h-4 w-4" /> : 'Redeem'}
+                </Button>
+            </div>
+        </CardContent>
+    </Card>
+  );
+}
+
+function WithdrawalDetailModal({ tx, isOpen, onClose }: { tx: Transaction | null, isOpen: boolean, onClose: () => void }) {
+    if (!tx) return null;
+
+    const netPayout = tx.finalAmount ?? tx.amount;
+    const initialRequest = tx.amount;
+    const gst = tx.gstAmount || 0;
+    const bonus = tx.totalDelayBonus || 0;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                        <HistoryIcon className="text-primary" /> Settlement View
+                    </DialogTitle>
+                    <DialogDescription className="text-white/40">Transaction breakdown and receipt.</DialogDescription>
+                </DialogHeader>
+                
+                <div className="py-6 space-y-6">
+                    <div className="text-center space-y-1">
+                        <p className="text-[10px] text-white/30 uppercase tracking-[3px] font-bold">Net Payout Received</p>
+                        <p className="text-4xl font-black text-green-400 tracking-tighter">₹{netPayout.toFixed(2)}</p>
+                    </div>
+
+                    <div className="space-y-3 bg-white/5 rounded-2xl p-5 border border-white/5">
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm text-white/60">Requested Amount</span>
+                            <span className="font-bold text-white">₹{initialRequest.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm text-white/60">Delay Bonus Earned</span>
+                            <span className="font-bold text-blue-400">+₹{bonus.toFixed(2)}</span>
+                        </div>
+                        <Separator className="bg-white/5" />
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm text-white/60">Service Fee (GST)</span>
+                            <span className="font-bold text-red-400">-₹{gst.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                         <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                            <p className="text-[9px] text-white/20 uppercase font-bold mb-1">Status</p>
+                            <Badge className={cn("text-[9px] h-5", tx.status === 'approved' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-white/10 text-white/40 border-white/10')}>{tx.status.toUpperCase()}</Badge>
+                        </div>
+                        <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                            <p className="text-[9px] text-white/20 uppercase font-bold mb-1">Account Path</p>
+                            <p className="text-[10px] font-mono text-white/80 truncate">{tx.upiId || 'SAVED UPI'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button onClick={onClose} className="w-full h-12 rounded-xl font-bold bg-white/5 hover:bg-white/10 text-white border border-white/10">Close Receipt</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 export default function ProfilePage() {
   const auth = useAuth();
@@ -239,11 +393,9 @@ export default function ProfilePage() {
         const currentScore = userData.trustScore || 0;
         const newScore = calculateTrustScore(investments, loans, referrals);
         
-        // Only update if the score has changed to avoid unnecessary writes
         if (newScore !== currentScore) {
             const userRef = doc(firestore, 'users', user.uid);
             updateDoc(userRef, { trustScore: newScore }).catch(error => {
-                // We don't need to show an error to the user for this background task
                 console.error("Failed to update trust score:", error);
             });
         }
@@ -290,7 +442,7 @@ export default function ProfilePage() {
   };
 
   const handleSubmitUpi = () => {
-      if (!user || !user.displayName) {
+      if (!user || !userData) {
           toast({ title: 'User not found.', variant: 'destructive'});
           return;
       }
@@ -301,7 +453,7 @@ export default function ProfilePage() {
 
       const upiRequestData = {
           userId: user.uid,
-          userName: user.displayName,
+          userName: userData.name || user.displayName || 'Investor',
           upiId: upiId,
           upiProvider: upiProvider,
           status: 'pending' as const,
@@ -387,7 +539,7 @@ export default function ProfilePage() {
       phoneNumber: phoneNumber,
       kycTermsAccepted: kycTermsAccepted,
       kycStatus: 'Pending',
-      kycRejectionReason: '', // Clear previous rejection reason
+      kycRejectionReason: '',
       kycSubmissionDate: serverTimestamp(),
     };
 
@@ -441,7 +593,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="text-center sm:text-left">
                   <CardTitle className="text-2xl font-bold text-white mb-1">
-                    {user?.displayName || 'Investor'}
+                    {userData?.name || user?.displayName || 'Investor'}
                   </CardTitle>
                   <CardDescription className="text-white/40 flex items-center justify-center sm:justify-start gap-1">
                     <Mail size={14}/> {user?.email}
@@ -616,14 +768,6 @@ export default function ProfilePage() {
 
                             {kycStatus !== 'Verified' && kycStatus !== 'Pending' && (
                                 <div className="space-y-5">
-                                    {adminSettings?.kycGoogleFormUrl && (
-                                        <Button asChild variant="secondary" className='w-full h-12 rounded-xl bg-white/10 hover:bg-white/20 border-white/5'>
-                                            <a href={adminSettings.kycGoogleFormUrl} target="_blank" rel="noopener noreferrer">
-                                                <FileUp className="mr-2 h-5 w-5" />
-                                                Step 1: Upload Documents
-                                            </a>
-                                        </Button>
-                                    )}
                                     <div className="space-y-4">
                                         <div className="grid gap-4 sm:grid-cols-2">
                                             <div className="space-y-2">
@@ -730,7 +874,7 @@ export default function ProfilePage() {
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-          <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
+          <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" active />
         </div>
       </nav>
@@ -798,79 +942,9 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
   );
 }
 
-
-function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string }) {
-  return (
-    <div className="flex items-center justify-between py-1">
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-white/5">
-            <Icon className="h-4 w-4 text-white/50" />
-        </div>
-        <span className="text-sm font-medium text-white/70">{label}</span>
-      </div>
-      <span className="text-sm text-white/90 font-semibold">{value}</span>
-    </div>
-  );
-}
-
-function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href: string, active?: boolean }) {
-  return (
-    <Link href={href} className={cn(
-        "flex flex-col items-center justify-center gap-1 transition-all h-full",
-        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
-    )}>
-      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
-      <span className="text-[10px] tracking-tight">{label}</span>
-    </Link>
-  );
-}
-
-
-const WithdrawalStatus = ({ tx }: { tx: Transaction }) => {
-    const [waitingDays, setWaitingDays] = useState(0);
-    const [bonusEarned, setBonusEarned] = useState(0);
-
-    useEffect(() => {
-        if (tx.status === 'pending' && tx.delayBonusActive && tx.delayBonusStartDate) {
-            const interval = setInterval(() => {
-                const startDate = tx.delayBonusStartDate.toDate();
-                const now = new Date();
-                const diffTime = Math.abs(now.getTime() - startDate.getTime());
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                setWaitingDays(diffDays);
-                setBonusEarned(diffDays * (tx.delayBonusAmountPerDay || 0));
-            }, 1000);
-            return () => clearInterval(interval);
-        }
-    }, [tx]);
-    
-    if (tx.status === 'pending') {
-        if (tx.delayBonusActive) {
-            return (
-                 <div className="p-3 text-[10px] rounded-xl bg-blue-500/10 text-blue-300 border border-blue-500/20 space-y-1">
-                    <p className="font-bold flex items-center gap-1.5"><Timer size={12}/> DELAY BONUS ACTIVE</p>
-                    <div className="flex justify-between">
-                        <span>Rate</span>
-                        <span className="text-white">₹{tx.delayBonusAmountPerDay}/day</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span>Waiting</span>
-                        <span className="text-white">{waitingDays} days</span>
-                    </div>
-                    <div className="flex justify-between border-t border-blue-500/20 pt-1 mt-1">
-                        <span>Earned</span>
-                        <span className="text-green-400 font-bold">₹{bonusEarned.toFixed(2)}</span>
-                    </div>
-                 </div>
-            )
-        }
-        return <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">In Processing Queue</p>
-    }
-
-    return null;
-};
-
 function TransactionTable({ transactions, type }: { transactions: Transaction[] | undefined | null, type: 'deposit' | 'withdrawal' }) {
+    const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+
     const formatDate = (timestamp: Timestamp) => {
         if (!timestamp) return 'N/A';
         return new Date(timestamp.seconds * 1000).toLocaleDateString();
@@ -891,10 +965,10 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
                     <Table>
                         <TableHeader className="bg-white/[0.02]">
                             <TableRow className="border-white/10">
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Payout</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Amount</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Status</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Details</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Date</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Type</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -903,45 +977,72 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
                                     <TableRow key={tx.id} className="border-white/[0.05] hover:bg-white/[0.02] transition-colors">
                                         <TableCell className="pl-6">
                                             <div className="font-bold text-white tracking-tight">
-                                                {type === 'withdrawal' && tx.status === 'approved'
-                                                    ? `₹${(tx.finalAmount ?? 0).toFixed(2)}`
-                                                    : `₹${tx.amount.toFixed(2)}`
-                                                }
+                                                ₹{(tx.finalAmount ?? tx.amount).toFixed(2)}
                                             </div>
+                                            <div className="text-[10px] text-white/20 mt-0.5">{formatDate(tx.createdAt)}</div>
                                         </TableCell>
                                         <TableCell>
                                             {getStatusBadge(tx.status)}
                                         </TableCell>
                                         <TableCell>
-                                            {type === 'withdrawal' ? (
-                                                <div className="text-[10px] space-y-1 text-white/40">
-                                                    {tx.status === 'approved' && (
-                                                        <>
-                                                            <div className="flex justify-between max-w-[80px]"><span>GST:</span> <span className="text-destructive">-₹{tx.gstAmount?.toFixed(2)}</span></div>
-                                                            {tx.totalDelayBonus! > 0 && <div className="flex justify-between max-w-[80px]"><span>Bonus:</span> <span className="text-green-400">+₹{tx.totalDelayBonus?.toFixed(2)}</span></div>}
-                                                        </>
-                                                    )}
-                                                    {tx.status === 'pending' && <WithdrawalStatus tx={tx} />}
-                                                </div>
-                                            ) : (
-                                                <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Wallet Credit</span>
-                                            )}
+                                            <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">{type}</span>
                                         </TableCell>
-                                        <TableCell className="text-[10px] text-white/30 pr-6">{formatDate(tx.createdAt)}</TableCell>
+                                        <TableCell className="pr-6">
+                                            {type === 'withdrawal' && tx.status === 'approved' && (
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="h-7 text-[10px] uppercase font-bold text-primary hover:bg-primary/10"
+                                                    onClick={() => setSelectedTx(tx)}
+                                                >
+                                                    View Receipt
+                                                </Button>
+                                            )}
+                                            {tx.status === 'pending' && <WithdrawalStatus tx={tx} />}
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center py-10 text-white/20 italic">No transactions found.</TableCell>
+                                    <TableCell colSpan={4} className="text-center py-10 text-white/20 italic">No history found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </div>
             </CardContent>
+            <WithdrawalDetailModal tx={selectedTx} isOpen={!!selectedTx} onClose={() => setSelectedTx(null)} />
         </Card>
     );
 }
+
+function WithdrawalStatus({ tx }: { tx: Transaction }) {
+    const [waitingDays, setWaitingDays] = useState(0);
+    const [bonusEarned, setBonusEarned] = useState(0);
+
+    useEffect(() => {
+        if (tx.status === 'pending' && tx.delayBonusActive && tx.delayBonusStartDate) {
+            const interval = setInterval(() => {
+                const startDate = tx.delayBonusStartDate!.toDate();
+                const now = new Date();
+                const diffTime = Math.abs(now.getTime() - startDate.getTime());
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                setWaitingDays(diffDays);
+                setBonusEarned(diffDays * (tx.delayBonusAmountPerDay || 0));
+            }, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [tx]);
+    
+    if (tx.delayBonusActive) {
+        return (
+             <div className="flex items-center gap-1.5 text-[9px] font-bold text-blue-400 animate-pulse">
+                <Timer size={10}/> ₹{bonusEarned.toFixed(0)} BONUS
+             </div>
+        )
+    }
+    return <span className="text-[9px] text-white/20 uppercase font-bold tracking-widest">Processing</span>;
+};
 
 function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }) {
     const { data: planData } = useDoc<GroupLoanPlan>(investment ? `groupLoanPlans/${investment.planId}`: null);
@@ -984,9 +1085,7 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
     );
 }
 
-
 function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
-
     return (
         <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
             <CardContent className="p-0">
