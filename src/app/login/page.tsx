@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -16,7 +17,9 @@ import {
   Eye,
   User,
   Zap,
-  Briefcase
+  Briefcase,
+  Coins,
+  Timer
 } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -132,6 +135,25 @@ export default function LoginPage() {
                 />
             ))}
         </div>
+      </div>
+
+      {/* Floating Decorative Elements (Restored) */}
+      <div className="absolute top-20 left-0 w-full h-64 pointer-events-none overflow-hidden z-0 opacity-40 select-none">
+          <div className="absolute left-[15%] top-10 animate-bounce duration-[3000ms]">
+              <div className="h-14 w-14 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center backdrop-blur-md shadow-[0_0_25px_rgba(234,179,8,0.2)]">
+                  <Coins className="text-yellow-400/80 h-7 w-7" />
+              </div>
+          </div>
+          <div className="absolute right-[15%] top-20 animate-pulse duration-[2000ms] delay-500">
+              <div className="h-12 w-12 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center backdrop-blur-md shadow-[0_0_20px_rgba(234,179,8,0.2)]">
+                  <Coins className="text-yellow-400/80 h-6 w-6" />
+              </div>
+          </div>
+          <div className="absolute left-1/2 top-5 -translate-x-1/2 animate-pulse duration-[4000ms]">
+              <div className="h-24 w-24 rounded-full bg-green-500/5 border border-green-500/10 flex items-center justify-center backdrop-blur-3xl shadow-[0_0_40px_rgba(34,197,94,0.15)]">
+                  <TrendingUp className="text-green-400/60 h-12 w-12" />
+              </div>
+          </div>
       </div>
 
       <div className="relative z-10 w-full max-w-lg flex flex-col items-center space-y-8">
