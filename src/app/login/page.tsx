@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -56,6 +55,14 @@ export default function LoginPage() {
   const [loginStatus, setLoginStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [showPassword, setShowPassword] = useState(false);
   const [particles, setParticles] = useState<{ top: string; left: string; delay: string }[]>([]);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
   useEffect(() => {
     // Generate particles on client side to avoid hydration mismatch
