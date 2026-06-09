@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Wallet,
@@ -1095,7 +1094,7 @@ function DailyCheckInCard() {
   if (bonusAmount <= 0) return null;
 
   return (
-    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-2xl overflow-hidden relative group shrink-0">
+    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden relative group shrink-0">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-50 pointer-events-none" />
       <CardContent className="pt-4 pb-4 px-4 relative flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
@@ -1129,7 +1128,7 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
         "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
         active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
       )}>
-      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")]} />
+      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
       <span className="text-[10px] tracking-tight">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>
