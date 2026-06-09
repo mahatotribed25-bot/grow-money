@@ -18,7 +18,6 @@ import {
   User,
   Zap,
   Briefcase,
-  Coins,
   Timer
 } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
@@ -50,6 +49,53 @@ const formSchema = z.object({
   }),
 });
 
+/**
+ * Detailed 3D Golden Coin SVG component for high-end visual appeal.
+ */
+function GoldCoin({ className }: { className?: string }) {
+  return (
+    <div className={cn("relative flex items-center justify-center", className)}>
+        {/* Intense Glow effect */}
+        <div className="absolute inset-0 bg-yellow-500/30 blur-3xl rounded-full animate-pulse" />
+        
+        {/* High-visibility Coin SVG with depth */}
+        <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="relative drop-shadow-[0_15px_35px_rgba(0,0,0,0.6)]">
+            {/* Outer edge/rim for 3D effect */}
+            <circle cx="50" cy="50" r="48" fill="url(#gold_edge)" stroke="#78350F" strokeWidth="1"/>
+            
+            {/* Main body of the coin */}
+            <circle cx="50" cy="50" r="42" fill="url(#gold_grad)" stroke="#B45309" strokeWidth="2"/>
+            
+            {/* Inner decorative dashed circle */}
+            <circle cx="50" cy="50" r="34" stroke="#FDE68A" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.4"/>
+            
+            {/* Large high-contrast Dollar sign */}
+            <path 
+                d="M50 25V75M40 35H55C58 35 62 37 62 42.5C62 47.5 58 50 55 50H45C42 50 38 52.5 38 57.5C38 63 42 65 45 65H60" 
+                stroke="#78350F" 
+                strokeWidth="10" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+            />
+            
+            <defs>
+                <linearGradient id="gold_edge" x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#92400E"/>
+                    <stop offset="0.5" stopColor="#F59E0B"/>
+                    <stop offset="1" stopColor="#78350F"/>
+                </linearGradient>
+                <linearGradient id="gold_grad" x1="20" y1="20" x2="80" y2="80" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#FDE68A"/>
+                    <stop offset="0.4" stopColor="#F59E0B"/>
+                    <stop offset="0.7" stopColor="#D97706"/>
+                    <stop offset="1" stopColor="#78350F"/>
+                </linearGradient>
+            </defs>
+        </svg>
+    </div>
+  )
+}
+
 export default function LoginPage() {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -68,7 +114,7 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // Generate particles on client side to avoid hydration mismatch
+    // Generate star background particles on client to avoid hydration errors
     const newParticles = Array.from({ length: 20 }).map(() => ({
       top: `${Math.random() * 100}%`,
       left: `${Math.random() * 100}%`,
@@ -121,7 +167,6 @@ export default function LoginPage() {
         <div className="absolute top-[-10%] -left-[20%] w-[80%] h-[40%] rounded-full bg-primary/10 blur-[150px] animate-pulse" />
         <div className="absolute bottom-[-10%] -right-[20%] w-[80%] h-[40%] rounded-full bg-secondary/10 blur-[150px]" />
         
-        {/* Particle Stars */}
         <div className="absolute inset-0 opacity-30">
             {particles.map((p, i) => (
                 <div 
@@ -137,23 +182,24 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Floating Decorative Elements (Restored) */}
-      <div className="absolute top-20 left-0 w-full h-64 pointer-events-none overflow-hidden z-0 opacity-40 select-none">
-          <div className="absolute left-[15%] top-10 animate-bounce duration-[3000ms]">
-              <div className="h-14 w-14 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center backdrop-blur-md shadow-[0_0_25px_rgba(234,179,8,0.2)]">
-                  <Coins className="text-yellow-400/80 h-7 w-7" />
-              </div>
-          </div>
-          <div className="absolute right-[15%] top-20 animate-pulse duration-[2000ms] delay-500">
-              <div className="h-12 w-12 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center backdrop-blur-md shadow-[0_0_20px_rgba(234,179,8,0.2)]">
-                  <Coins className="text-yellow-400/80 h-6 w-6" />
-              </div>
-          </div>
+      {/* Floating Decorative Elements (High Visibility) */}
+      <div className="absolute top-10 left-0 w-full h-96 pointer-events-none overflow-hidden z-0 select-none">
+          {/* Main Growth Arrow */}
           <div className="absolute left-1/2 top-5 -translate-x-1/2 animate-pulse duration-[4000ms]">
-              <div className="h-24 w-24 rounded-full bg-green-500/5 border border-green-500/10 flex items-center justify-center backdrop-blur-3xl shadow-[0_0_40px_rgba(34,197,94,0.15)]">
-                  <TrendingUp className="text-green-400/60 h-12 w-12" />
+              <div className="h-32 w-32 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center backdrop-blur-3xl shadow-[0_0_60px_rgba(34,197,94,0.4)]">
+                  <TrendingUp className="text-green-400 h-20 w-20 drop-shadow-[0_0_15px_rgba(34,197,94,0.6)]" />
               </div>
           </div>
+
+          {/* Left Large Coin */}
+          <GoldCoin className="absolute left-[5%] top-12 h-28 w-28 animate-bounce duration-[4000ms]" />
+          
+          {/* Right Large Coin */}
+          <GoldCoin className="absolute right-[5%] top-24 h-24 w-24 animate-bounce duration-[3000ms] delay-700" />
+          
+          {/* Lower Floating Coins */}
+          <GoldCoin className="absolute left-[20%] top-56 h-14 w-14 animate-pulse duration-[2500ms] delay-100" />
+          <GoldCoin className="absolute right-[25%] top-10 h-16 w-16 animate-pulse duration-[5500ms] delay-500" />
       </div>
 
       <div className="relative z-10 w-full max-w-lg flex flex-col items-center space-y-8">
