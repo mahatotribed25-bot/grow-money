@@ -24,6 +24,7 @@ import { AuthCard } from "@/components/auth/auth-card";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { LoginStatusAnimation } from "@/components/auth/LoginStatusAnimation";
+import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   email: z.string().email({
