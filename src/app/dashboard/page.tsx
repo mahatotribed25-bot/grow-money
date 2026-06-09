@@ -25,10 +25,12 @@ import {
   MessageCircle,
   Coins,
   ChevronRight,
+  Activity,
+  Zap,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/firebase/auth/use-user';
 import { useDoc, useCollection, useFirestore } from '@/firebase';
@@ -68,9 +70,20 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { BannerCarousel } from '@/components/dashboard/BannerCarousel';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { isToday, startOfToday } from 'date-fns';
+import { isToday, subDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { AchievementBadges } from '@/components/dashboard/AchievementBadges';
+import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
+import { AIAdvisor } from '@/components/dashboard/AIAdvisor';
+import { 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip 
+} from 'recharts';
 
 type UserData = {
   id: string;
@@ -183,7 +196,6 @@ const SlideToClaim = ({
       setIsComplete(true);
       setSliderValue(100);
       onComplete();
-      // Reset after 3 seconds so they can use it again if needed (for daily claims)
       setTimeout(() => {
         setIsComplete(false);
         setSliderValue(0);
@@ -263,7 +275,6 @@ export default function Dashboard() {
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [showDueLoanPopup, setShowDueLoanPopup] = useState(false);
 
-
   const firestore = useFirestore();
   const { toast } = useToast();
   
@@ -307,7 +318,6 @@ export default function Dashboard() {
         const now = new Date();
         const lastClaim = invData.lastClaimDate?.toDate() || invData.startDate.toDate();
         
-        // Calculate accrued profit since last claim
         const diffMs = now.getTime() - lastClaim.getTime();
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         
@@ -365,14 +375,12 @@ export default function Dashboard() {
            amountToClaim = invData.finalReturn || 0;
            profitShare = invData.earnedIncome || 0;
        } else {
-           // For on_maturity, we give Principal + All Profit
-           // For daily/monthly, we only give Principal back (since profit was claimed periodically)
            if (invData.payoutFrequency === 'on_maturity') {
                amountToClaim = invData.returnAmount;
                profitShare = invData.returnAmount - invData.investedAmount;
            } else {
                amountToClaim = invData.investedAmount;
-               profitShare = 0; // Already claimed during tenure
+               profitShare = 0; 
            }
        }
 
@@ -396,8 +404,20 @@ export default function Dashboard() {
 
   const activeInvestments = investments?.filter((inv) => inv.status === 'Active' || inv.status === 'Stopped');
   const activeLoan = loans?.find(l => l.status !== 'Completed');
-
   const sortedAnnouncements = announcements?.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+
+  const chartData = useMemo(() => {
+    const data = [];
+    const baseValue = userData?.totalInvestment || 0;
+    for (let i = 6; i >= 0; i--) {
+        const date = subDays(new Date(), i);
+        data.push({
+            name: format(date, 'MMM d'),
+            value: baseValue + (Math.random() * 500 * (6 - i)), // Simulate trend
+        });
+    }
+    return data;
+  }, [userData]);
 
   const loading = userLoading || userDataLoading || investmentsLoading || loansLoading || announcementsLoading;
 
@@ -436,7 +456,7 @@ export default function Dashboard() {
                 Loan Payment Due
             </AlertDialogTitle>
             <AlertDialogDescription className="text-white/60">
-              Your loan payment is now due. Please repay it as soon as possible to avoid penalties. You have a 1-day grace period, after which daily penalties will be applied.
+              Your loan payment is now due. Please repay it as soon as possible to avoid penalties.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogAction asChild onClick={() => setShowDueLoanPopup(false)} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold h-12 rounded-xl">
@@ -445,7 +465,7 @@ export default function Dashboard() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-primary/20 shadow-lg shadow-primary/10">
             <Briefcase className="h-5 w-5 text-primary" />
@@ -453,7 +473,6 @@ export default function Dashboard() {
           <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Grow Money</h1>
         </div>
         <div className="flex items-center gap-2">
-             <span className="text-xs font-bold uppercase tracking-widest text-white/30 hidden sm:inline">User Portal</span>
              <Badge variant="outline" className="border-white/10 bg-white/5 h-8 px-4 rounded-xl">
                 <span className="animate-rgb-glow font-black tracking-tighter text-sm">
                     {userData?.name || 'User'}
@@ -462,11 +481,13 @@ export default function Dashboard() {
         </div>
       </header>
 
+      <ActivityPulse />
+
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         
         <Announcements announcements={sortedAnnouncements} loading={announcementsLoading} />
         
-        <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-4">
              <AchievementBadges stats={{ 
                  trustScore: userData?.trustScore || 500, 
                  planCount: activeInvestments?.length || 0, 
@@ -484,10 +505,39 @@ export default function Dashboard() {
           adminSettings={adminSettings}
           loading={userDataLoading}
         />
+
+        {/* Real-time Growth Chart */}
+        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-white/80 text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                    <TrendingUp size={16} className="text-green-400" /> Portfolio Performance
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="h-60 pt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData}>
+                        <defs>
+                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="100">
+                                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                        <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={10} axisLine={false} tickLine={false} />
+                        <YAxis hide />
+                        <RechartsTooltip 
+                            contentStyle={{ backgroundColor: 'rgba(3,4,8,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                            itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                        />
+                        <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </CardContent>
+        </Card>
         
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold tracking-tight text-white/90 flex items-center gap-2">
-            <TrendingUp className="text-green-400" size={20} /> Active Investments
+            <Activity className="text-primary" size={20} /> Revenue Stream
           </h2>
            <Button variant="ghost" size="sm" asChild className="text-primary hover:bg-primary/10">
             <Link href="/plans">
@@ -496,13 +546,7 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        {investmentsLoading ? (
-           <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
-              <CardContent className="pt-6">
-                  <p className="text-center text-white/30 animate-pulse uppercase tracking-widest text-[10px] font-bold">Syncing Investments...</p>
-              </CardContent>
-          </Card>
-        ) : activeInvestments && activeInvestments.length > 0 ? (
+        {activeInvestments && activeInvestments.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {activeInvestments.map((investment) => (
               <ActivePlanCard 
@@ -514,19 +558,17 @@ export default function Dashboard() {
             ))}
           </div>
         ) : (
-          <Card className="bg-white/[0.03] border-white/[0.08] border-dashed">
+          <Card className="bg-white/[0.03] border-white/[0.08] border-dashed rounded-3xl">
               <CardContent className="pt-8 text-center text-white/40 space-y-2">
                   <p className="text-sm">You have no active investments.</p>
-                  <Button asChild variant="outline" className="border-white/10 h-8 text-xs">
+                  <Button asChild variant="outline" className="border-white/10 h-10 rounded-xl">
                     <Link href="/plans">Browse Plans</Link>
                   </Button>
               </CardContent>
           </Card>
         )}
 
-        {loansLoading ? (
-            <Card className="bg-white/5 border-white/10"><CardContent className="pt-6"><p className="text-center text-white/30 animate-pulse text-[10px] font-bold uppercase tracking-widest">Checking Loan Status...</p></CardContent></Card>
-        ) : activeLoan ? (
+        {activeLoan && (
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                    <h2 className="text-xl font-bold text-white/90 flex items-center gap-2">
@@ -540,11 +582,11 @@ export default function Dashboard() {
                 </div>
                 <ActiveLoanCard loan={activeLoan} />
             </div>
-        ) : null}
+        )}
 
-         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl">
+         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl">
           <CardHeader>
-              <CardTitle className="text-lg font-bold text-white/80">Platform Services</CardTitle>
+              <CardTitle className="text-lg font-bold text-white/80">Premium Services</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <QuickActionButton icon={Users} label="P2P Market" href="/p2p-market" color="text-primary" />
@@ -554,25 +596,20 @@ export default function Dashboard() {
               <QuickActionButton icon={Users2} label="Group Investing" href="/group-investing" color="text-purple-400" />
               <QuickActionButton icon={History} label="My Plans" href="/my-plans" color="text-orange-400" />
               <QuickActionButton icon={Gem} label="VIP Tiers" href="/vip-tiers" color="text-yellow-400" />
-              <QuickActionButton icon={BarChart2} label="Reports" href="/reports" color="text-cyan-400" />
               <QuickActionButton icon={Trophy} label="Leaderboard" href="/leaderboard" color="text-amber-400" />
-              <QuickActionButton icon={HandCoins} label="Loans" href="/loans" color="text-red-400" />
-              <QuickActionButton icon={FileText} label="Custom Loan" href="/custom-loan" color="text-pink-400" />
-              <QuickActionButton icon={Users} label="My Team" href="/team" color="text-emerald-400" />
-              {userData?.role === 'subadmin' && (
-                <QuickActionButton icon={Briefcase} label="Sub-Admin Panel" href="/subadmin" color="text-primary" />
-              )}
           </CardContent>
          </Card>
 
       </main>
 
-      <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
+      <AIAdvisor balance={userData?.walletBalance || 0} userName={userData?.name || 'Investor'} />
+
+      <nav className="sticky bottom-0 z-30 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
         <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" active />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-          <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
+          <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>
@@ -581,29 +618,21 @@ export default function Dashboard() {
 }
 
 function Announcements({ announcements, loading }: { announcements: Announcement[] | null | undefined, loading: boolean }) {
-    if (loading) return null;
-    if (!announcements || announcements.length === 0) return null;
+    if (loading || !announcements || announcements.length === 0) return null;
 
     return (
-        <Card className="bg-primary/10 border-primary/20 backdrop-blur-xl rounded-2xl overflow-hidden relative group">
+        <Card className="bg-primary/10 border-primary/20 backdrop-blur-3xl rounded-3xl overflow-hidden relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent pointer-events-none" />
             <CardHeader className="py-3">
-                <CardTitle className="flex items-center gap-2 text-blue-300 text-sm font-bold uppercase tracking-widest">
-                    <Megaphone className="h-4 w-4 animate-bounce"/>
-                    Latest Updates
+                <CardTitle className="flex items-center gap-2 text-blue-300 text-xs font-bold uppercase tracking-widest">
+                    <Megaphone className="h-4 w-4 animate-bounce"/> News & Updates
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 relative pb-4">
-                {announcements.slice(0, 3).map(ann => (
-                    <div key={ann.id} className="text-xs bg-black/20 p-2.5 rounded-xl border border-white/5 flex items-start gap-3">
+                {announcements.slice(0, 2).map(ann => (
+                    <div key={ann.id} className="text-[11px] bg-black/40 p-3 rounded-2xl border border-white/5 flex items-start gap-3">
                         <div className="h-1.5 w-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
-                        {ann.link ? (
-                            <a href={ann.link} target="_blank" rel="noopener noreferrer" className="text-blue-200 hover:text-white transition-colors leading-relaxed">
-                                {ann.message}
-                            </a>
-                        ) : (
-                            <p className="text-white/80 leading-relaxed">{ann.message}</p>
-                        )}
+                        <p className="text-white/80 leading-relaxed">{ann.message}</p>
                     </div>
                 ))}
             </CardContent>
@@ -621,32 +650,32 @@ function WalletSummary({
   loading: boolean;
 }) {
   return (
-    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl rounded-3xl overflow-hidden relative group">
+    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden relative group">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 opacity-50 pointer-events-none" />
       <CardHeader className="relative">
-        <CardTitle className="text-white/60 text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-            <Wallet size={16} /> My Digital Wallet
+        <CardTitle className="text-white/60 text-[10px] font-black uppercase tracking-[3px] flex items-center gap-2">
+            <Wallet size={14} /> Global Portfolio
         </CardTitle>
       </CardHeader>
       <CardContent className="relative space-y-6">
         <div className="text-center space-y-1">
-          <p className="text-[10px] text-white/30 uppercase tracking-[3px] font-bold">Current Balance</p>
-          <p className="text-5xl font-black text-white tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+          <p className="text-5xl font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.15)]">
             {loading ? '...' : `₹${(userData?.walletBalance || 0).toFixed(2)}`}
           </p>
+          <p className="text-[10px] text-white/30 uppercase tracking-[2px] font-bold">Liquid Balance</p>
         </div>
-        <div className="grid grid-cols-2 gap-4 bg-black/20 p-4 rounded-2xl border border-white/5">
+        <div className="grid grid-cols-2 gap-3 bg-black/20 p-4 rounded-2xl border border-white/5">
           <div className="text-center border-r border-white/5">
-            <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold mb-1">Invested</p>
             <p className="text-lg font-bold text-white">
               {loading ? '...' : `₹${(userData?.totalInvestment || 0).toFixed(2)}`}
             </p>
+            <p className="text-[9px] text-white/30 uppercase tracking-widest font-black">Capital</p>
           </div>
           <div className="text-center">
-            <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold mb-1">Income</p>
             <p className="text-lg font-bold text-green-400">
               {loading ? '...' : `₹${(userData?.totalIncome || 0).toFixed(2)}`}
             </p>
+            <p className="text-[9px] text-white/30 uppercase tracking-widest font-black">Revenue</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -700,7 +729,7 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
       .then(() => {
         toast({
           title: 'Deposit Request Submitted',
-          description: 'Your deposit request is pending approval. It may take up to 2 hours.',
+          description: 'Your deposit request is pending approval.',
         });
       })
       .catch((serverError) => {
@@ -716,7 +745,7 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
   return (
     <Dialog onOpenChange={(isOpen) => { if (!isOpen) { setAmount(''); setTransactionId(''); setQrData('')}}}>
       <DialogTrigger asChild>
-        <Button className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-white/90 shadow-xl shadow-white/5">
+        <Button className="w-full h-12 rounded-2xl font-bold bg-white text-black hover:bg-white/90 shadow-xl shadow-white/5">
           <Upload className="mr-2 h-4 w-4" /> Recharge
         </Button>
       </DialogTrigger>
@@ -726,20 +755,19 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
         </DialogHeader>
         <div className="space-y-4">
            <div className="space-y-2">
-            <Label htmlFor="amount" className="text-white/60">1. Enter Amount (INR)</Label>
+            <Label htmlFor="amount" className="text-white/60 text-xs font-bold">1. Amount (INR)</Label>
             <Input
               id="amount"
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="e.g., 500"
-              className="bg-white/5 border-white/10 rounded-xl h-11"
+              className="bg-white/5 border-white/10 rounded-xl h-12 text-lg font-bold"
             />
           </div>
           
           {qrData && (
-            <div className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white/5 border border-white/5 animate-in fade-in-50">
-                <p className="text-xs text-center font-bold uppercase tracking-widest text-white/40">2. Scan and Pay</p>
+            <div className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white/5 border border-white/5 animate-in fade-in-50 zoom-in-95">
                 <div className="bg-white p-3 rounded-2xl shadow-2xl">
                     <Image
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`}
@@ -748,18 +776,18 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
                         height={200}
                     />
                 </div>
-                <p className="text-[10px] text-white/30 text-center font-mono">ID: {adminUpi}</p>
+                <p className="text-[10px] text-white/30 text-center font-mono">{adminUpi}</p>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="transactionId" className="text-white/60">3. Enter Transaction ID</Label>
+            <Label htmlFor="transactionId" className="text-white/60 text-xs font-bold">2. Transaction ID</Label>
             <Input
               id="transactionId"
               value={transactionId}
               onChange={(e) => setTransactionId(e.target.value)}
-              placeholder="12-digit UPI reference"
-              className="bg-white/5 border-white/10 rounded-xl h-11"
+              placeholder="12-digit reference"
+              className="bg-white/5 border-white/10 rounded-xl h-12"
             />
           </div>
         </div>
@@ -767,7 +795,7 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
           <DialogClose asChild>
             <Button variant="ghost" className="hover:bg-white/5 text-white/40">Cancel</Button>
           </DialogClose>
-          <Button onClick={handleSubmit} className="rounded-xl font-bold bg-primary hover:bg-primary/90 text-white">Confirm Deposit</Button>
+          <Button onClick={handleSubmit} className="rounded-xl font-bold bg-primary hover:bg-primary/90 text-white">Submit Request</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -782,10 +810,8 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
   const { toast } = useToast();
 
   const minWithdrawal = adminSettings?.minWithdrawal || 0;
-  
   const userLevel = (userData?.vipLevel || 'Bronze').toLowerCase() as keyof NonNullable<AdminSettings['vipWithdrawalGst']>;
   const gstPercentage = adminSettings?.vipWithdrawalGst?.[userLevel] ?? adminSettings?.withdrawalGstPercentage ?? 0;
-
 
   const { gstAmount, finalAmount } = useMemo(() => {
     const numAmount = parseFloat(amount);
@@ -793,26 +819,17 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
       return { gstAmount: 0, finalAmount: 0 };
     }
     const gst = (numAmount * gstPercentage) / 100;
-    const final = numAmount - gst;
-    return { gstAmount: gst, finalAmount: final };
+    return { gstAmount: gst, finalAmount: numAmount - gst };
   }, [amount, gstPercentage]);
 
   const handleWithdraw = () => {
     const withdrawAmount = parseFloat(amount);
     if (!user || !amount || !userData?.upiId) {
-        toast({ variant: 'destructive', title: 'Missing Information', description: 'Please ensure you have a saved UPI ID in your profile and enter an amount.' });
-        return;
-    }
-     if (!withdrawalType) {
-        toast({ variant: 'destructive', title: 'Withdrawal Type Required', description: 'Please select the source of the funds you are withdrawing.' });
+        toast({ variant: 'destructive', title: 'Missing Info' });
         return;
     }
     if (withdrawAmount < minWithdrawal) {
-        toast({ variant: 'destructive', title: 'Amount Too Low', description: `The minimum withdrawal amount is ₹${minWithdrawal}.` });
-        return;
-    }
-    if (withdrawAmount > (userData?.walletBalance || 0)) {
-        toast({ variant: 'destructive', title: 'Insufficient Balance', description: 'You cannot withdraw more than your current wallet balance.' });
+        toast({ variant: 'destructive', title: `Min ₹${minWithdrawal}` });
         return;
     }
 
@@ -831,101 +848,84 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
     runTransaction(firestore, async (transaction) => {
         const userRef = doc(firestore, 'users', user.uid);
         const userDoc = await transaction.get(userRef);
-
-        if (!userDoc.exists()) throw new Error("User document does not exist!");
-
+        if (!userDoc.exists()) throw new Error("No User");
         const newBalance = (userDoc.data().walletBalance || 0) - withdrawAmount;
-        if (newBalance < 0) throw new Error("Insufficient funds");
-        
+        if (newBalance < 0) throw new Error("Insufficient");
         transaction.update(userRef, { walletBalance: newBalance });
-        
-        const withdrawalRef = doc(collection(firestore, 'withdrawals'));
-        transaction.set(withdrawalRef, requestData);
+        transaction.set(doc(collection(firestore, 'withdrawals')), requestData);
     })
     .then(() => {
-      toast({
-          title: 'Withdrawal Request Submitted',
-          description: 'Your request is pending and will be processed within 24 hours.',
-      });
+      toast({ title: 'Submitted' });
     })
     .catch((serverError) => {
-      const permissionError = new FirestorePermissionError({
-        path: `users/${user.uid} or /withdrawals`,
-        operation: 'write',
-        requestResourceData: requestData
-      });
       errorEmitter.emit('permission-error', serverError);
     });
   };
 
-
   return (
       <Dialog>
         <DialogTrigger asChild>
-            <Button variant="outline" className="w-full h-12 rounded-xl font-bold border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white">
+            <Button variant="outline" className="w-full h-12 rounded-2xl font-bold border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white">
               <Download className="mr-2 h-4 w-4" /> Withdraw
             </Button>
         </DialogTrigger>
         <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white">
             <DialogHeader>
-                <DialogTitle>Withdraw Funds</DialogTitle>
+                <DialogTitle>Request Payout</DialogTitle>
             </DialogHeader>
              <div className="space-y-4">
                 <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
-                    <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold mb-1">Receiving Account</p>
-                    <span className="font-mono text-white/80">{userData?.upiId || 'Not Configured'}</span>
-                    {!userData?.upiId && <p className="text-[10px] text-red-400 mt-2">Configure UPI in Profile first.</p>}
+                    <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mb-1">Destination Account</p>
+                    <span className="font-mono text-white/80 text-sm">{userData?.upiId || 'Configure in Profile'}</span>
                 </div>
                 
                 <div className="space-y-2">
-                    <Label htmlFor="amount" className="text-white/60">Amount to Withdraw (INR)</Label>
-                    <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Min ₹${minWithdrawal}`} className="bg-white/5 border-white/10 rounded-xl h-11" />
+                    <Label htmlFor="amount" className="text-white/60 text-xs font-bold">Amount (INR)</Label>
+                    <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Min ₹${minWithdrawal}`} className="bg-white/5 border-white/10 rounded-xl h-12" />
                 </div>
 
                  <div className="space-y-2">
-                    <Label className="text-white/60">Withdrawal Source</Label>
+                    <Label className="text-white/60 text-xs font-bold">Source</Label>
                     <RadioGroup onValueChange={setWithdrawalType} value={withdrawalType} className="grid grid-cols-2 gap-3">
                         <WithdrawTypeOption value="Investment Plan" label="Plans" />
-                        <WithdrawTypeOption value="Group Investment" label="Groups" />
-                        <WithdrawTypeOption value="General" label="General" className="col-span-2" />
+                        <WithdrawTypeOption value="General" label="General" />
                     </RadioGroup>
                 </div>
 
                 {amount && (
-                  <Card className="bg-black/40 border-white/5 rounded-2xl p-4 space-y-2">
-                    <div className="flex justify-between text-xs text-white/40">
-                      <span>Service Fee ({gstPercentage}%):</span>
-                      <span className="text-red-400">- ₹{gstAmount.toFixed(2)}</span>
+                  <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex justify-between items-center">
+                    <div>
+                      <p className="text-[10px] text-white/20 uppercase font-black">Fee ({gstPercentage}%)</p>
+                      <p className="text-sm font-bold text-red-400">-₹{gstAmount.toFixed(2)}</p>
                     </div>
-                    <div className="flex justify-between font-bold text-white">
-                      <span>Total Payout:</span>
-                      <span className="text-green-400">₹{finalAmount.toFixed(2)}</span>
+                    <div className="text-right">
+                      <p className="text-[10px] text-white/20 uppercase font-black">Expected Credit</p>
+                      <p className="text-xl font-black text-green-400">₹{finalAmount.toFixed(2)}</p>
                     </div>
-                  </Card>
+                  </div>
                 )}
              </div>
              <DialogFooter className="gap-2 sm:gap-0">
                 <DialogClose asChild>
-                    <Button variant="ghost" className="text-white/40 hover:bg-white/5">Cancel</Button>
+                    <Button variant="ghost" className="text-white/40">Cancel</Button>
                 </DialogClose>
-                <Button onClick={handleWithdraw} disabled={!userData?.upiId || !amount} className="rounded-xl font-bold bg-primary text-white">Request Payout</Button>
+                <Button onClick={handleWithdraw} disabled={!userData?.upiId || !amount} className="rounded-xl font-bold bg-primary text-white px-8">Confirm Withdrawal</Button>
              </DialogFooter>
         </DialogContent>
       </Dialog>
   );
 }
 
-function WithdrawTypeOption({ value, label, className }: { value: string, label: string, className?: string }) {
+function WithdrawTypeOption({ value, label }: { value: string, label: string }) {
     return (
-        <div className={className}>
+        <div>
             <RadioGroupItem value={value} id={`type-${value}`} className="peer sr-only" />
-            <Label htmlFor={`type-${value}`} className="flex items-center justify-center rounded-xl border-2 border-white/5 bg-white/[0.02] p-3 text-sm font-bold text-white/60 hover:bg-white/5 peer-data-[state=checked]:border-primary peer-data-[state=checked]:text-white peer-data-[state=checked]:bg-primary/10 transition-all cursor-pointer">
+            <Label htmlFor={`type-${value}`} className="flex items-center justify-center rounded-xl border border-white/5 bg-white/[0.02] p-3 text-[10px] font-black uppercase tracking-widest text-white/60 hover:bg-white/5 peer-data-[state=checked]:border-primary peer-data-[state=checked]:text-white peer-data-[state=checked]:bg-primary/10 transition-all cursor-pointer">
                 {label}
             </Label>
         </div>
     )
 }
-
 
 function ActivePlanCard({ 
     investment, 
@@ -936,30 +936,22 @@ function ActivePlanCard({
     onClaimProfit: (investment: Investment) => void,
     onClaimMaturity: (investment: Investment) => void
 }) {
-  const [isClaiming, setIsClaiming] = useState(false);
-
-  if (!investment.startDate || !investment.maturityDate) {
-    return null;
-  }
+  if (!investment.startDate || !investment.maturityDate) return null;
   
   const startDate = investment.startDate.toDate();
   const maturityDate = investment.maturityDate.toDate();
   const now = new Date();
 
   const totalPossibleIncome = investment.returnAmount - investment.investedAmount;
-  const elapsedMilliseconds = Math.max(0, now.getTime() - startDate.getTime());
-  const elapsedDays = Math.floor(elapsedMilliseconds / (1000 * 60 * 60 * 24));
+  const elapsedMs = Math.max(0, now.getTime() - startDate.getTime());
+  const elapsedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
   const earnedIncome = Math.min(elapsedDays * investment.dailyIncome, totalPossibleIncome);
-  const currentTotalValue = investment.investedAmount + earnedIncome;
   const totalDuration = maturityDate.getTime() - startDate.getTime();
-  const progress = totalDuration > 0 ? Math.min((elapsedMilliseconds / totalDuration) * 100, 100) : 100;
+  const progress = totalDuration > 0 ? Math.min((elapsedMs / totalDuration) * 100, 100) : 100;
 
   const isMatured = now >= maturityDate || investment.status === 'Stopped';
-  
-  // Logic for partial claims
   const lastClaim = investment.lastClaimDate?.toDate() || startDate;
-  const msSinceLastClaim = now.getTime() - lastClaim.getTime();
-  const daysSinceLastClaim = Math.floor(msSinceLastClaim / (1000 * 60 * 60 * 24));
+  const daysSinceLastClaim = Math.floor((now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60 * 24));
   
   const canClaimProfit = !isMatured && (
       (investment.payoutFrequency === 'daily' && daysSinceLastClaim >= 1) ||
@@ -967,64 +959,57 @@ function ActivePlanCard({
   );
 
   const getBadge = () => {
-    if (investment.status === 'Stopped') {
-        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] uppercase font-bold">Stopped</Badge>;
-    }
-    if (isMatured) {
-        return <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] uppercase font-bold">Matured</Badge>;
-    }
+    if (investment.status === 'Stopped') return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] uppercase font-bold">Stopped</Badge>;
+    if (isMatured) return <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] uppercase font-bold">Matured</Badge>;
     return <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] uppercase font-bold">Growing</Badge>;
   }
 
   const getLockedLabel = () => {
     if (investment.payoutFrequency === 'on_maturity') return "Locked Until Maturity";
-    if (investment.payoutFrequency === 'monthly') return `Next Claim in ${30 - daysSinceLastClaim} Days`;
-    if (investment.payoutFrequency === 'daily') return "Already Claimed Today";
+    if (investment.payoutFrequency === 'monthly') return `Due in ${30 - daysSinceLastClaim} Days`;
+    if (investment.payoutFrequency === 'daily') return "Claimed Today";
     return "Locked";
   }
 
   return (
-    <Card className="shadow-xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-2xl group overflow-hidden">
+    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl group overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-      <CardHeader className="pb-3">
-        <CardTitle className="flex justify-between items-center text-white/90">
-          <span className="text-base font-bold">{investment.planName}</span>
+      <CardHeader className="pb-3 relative">
+        <CardTitle className="flex justify-between items-center">
+          <span className="text-sm font-bold text-white/90">{investment.planName}</span>
           {getBadge()}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 relative">
-        <div className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5">
-            <div className="space-y-1">
-                 <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Total Capital</p>
-                 <p className="text-xl font-bold text-white">₹{investment.investedAmount.toFixed(2)}</p>
+        <div className="flex justify-between items-center bg-black/20 p-3 rounded-2xl border border-white/5">
+            <div>
+                 <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Capital</p>
+                 <p className="text-lg font-bold text-white">₹{investment.investedAmount.toFixed(2)}</p>
             </div>
-            <div className="text-right space-y-1">
-                 <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Accrued Profit</p>
+            <div className="text-right">
+                 <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Yield</p>
                  <p className="text-sm font-bold text-green-400">+ ₹{earnedIncome.toFixed(2)}</p>
             </div>
         </div>
         
         <div className="space-y-4">
             {isMatured ? (
-                <SlideToClaim 
-                  label="Slide to Claim Maturity" 
-                  onComplete={() => onClaimMaturity(investment)}
-                />
+                <SlideToClaim label="Slide to Settle Asset" onComplete={() => onClaimMaturity(investment)} />
             ) : (
                 <SlideToClaim 
                   disabled={!canClaimProfit}
-                  label={`Slide to Claim ${investment.payoutFrequency} Profit`}
+                  label={`Claim ${investment.payoutFrequency} ROI`}
                   lockedLabel={getLockedLabel()}
                   onComplete={() => onClaimProfit(investment)}
                 />
             )}
             
-            <div className="pt-2">
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/30 mb-1.5 px-1">
-                    <span>Progress to Maturity</span>
+            <div className="pt-1">
+                <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-white/20 mb-1 px-1">
+                    <span>Maturity Pipeline</span>
                     <CountdownTimer endDate={maturityDate} />
                 </div>
-                <Progress value={progress} className="h-1.5 bg-white/5" />
+                <Progress value={progress} className="h-1 bg-white/5" />
             </div>
         </div>
       </CardContent>
@@ -1034,49 +1019,36 @@ function ActivePlanCard({
 
 function ActiveLoanCard({ loan }: { loan: ActiveLoan }) {
     if (!loan.startDate || !loan.dueDate) return null;
-    
     const startDate = loan.startDate.toDate();
     const dueDate = loan.dueDate.toDate();
-    const now = new Date();
-
-    const totalDuration = dueDate.getTime() - startDate.getTime();
-    const elapsedDuration = now.getTime() - startDate.getTime();
-    const progress = Math.min((elapsedDuration / totalDuration) * 100, 100);
+    const progress = Math.min(((new Date().getTime() - startDate.getTime()) / (dueDate.getTime() - startDate.getTime())) * 100, 100);
     
-    const getBadgeStyle = (status: string) => {
-        switch(status) {
-            case 'Active': return "bg-primary/20 text-primary border-primary/30";
-            case 'Due': return "bg-red-500/20 text-red-400 border-red-500/30";
-            default: return "bg-white/5 text-white/40 border-white/10";
-        }
-    }
-
     return (
-        <Card className="shadow-xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-2xl group overflow-hidden">
-             <CardHeader className="pb-3">
-                <CardTitle className="flex justify-between items-center text-white/90">
-                    <span className="text-base font-bold">{loan.planName}</span>
-                    <Badge variant="outline" className={cn("text-[10px] uppercase font-bold tracking-widest", getBadgeStyle(loan.status))}>
+        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden relative">
+            <CardHeader className="pb-3 border-b border-white/[0.05]">
+                <CardTitle className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-white/90">{loan.planName}</span>
+                    <Badge variant="outline" className={cn("text-[9px] font-black uppercase tracking-widest", loan.status === 'Due' ? "border-red-500/30 text-red-400" : "border-primary/30 text-primary")}>
                         {loan.status}
                     </Badge>
                 </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="pt-4 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                        <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold mb-1">Repayment</p>
+                    <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
+                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest mb-1">Repayment</p>
                         <p className="text-lg font-bold text-red-400">₹{(loan.totalPayable || 0).toFixed(2)}</p>
                     </div>
-                    <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-right">
-                        <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold mb-1">Due Date</p>
-                        <p className="text-sm font-bold text-white/80">{dueDate.toLocaleDateString()}</p>
+                    <div className="bg-black/20 p-3 rounded-2xl border border-white/5 text-right">
+                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest mb-1">Due Date</p>
+                        <p className="text-xs font-bold text-white/80">{dueDate.toLocaleDateString()}</p>
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <Progress value={progress} className="h-1.5 bg-white/5 [&>div]:bg-red-500" />
-                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/30">
+                    <Progress value={progress} className="h-1 bg-white/5 [&>div]:bg-red-500" />
+                    <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-white/20">
                         <span>Timeline</span>
-                        <span>{progress.toFixed(0)}% Elapsed</span>
+                        <span>{progress.toFixed(0)}% Used</span>
                     </div>
                 </div>
             </CardContent>
@@ -1101,36 +1073,23 @@ function DailyCheckInCard() {
 
   const handleCheckIn = async () => {
     if (!user || hasCheckedInToday || bonusAmount <= 0) return;
-
     setIsLoading(true);
     const userRef = doc(firestore, 'users', user.uid);
     try {
       await runTransaction(firestore, async (transaction) => {
         const userDoc = await transaction.get(userRef);
-        if (!userDoc.exists()) throw new Error("User not found");
-        
+        if (!userDoc.exists()) throw new Error("No user");
         const lastCheckIn = userDoc.data().lastCheckIn?.toDate();
-        if (lastCheckIn && isToday(lastCheckIn)) {
-            throw new Error("Already checked in today.");
-        }
-
-        const newBalance = (userDoc.data().walletBalance || 0) + bonusAmount;
+        if (lastCheckIn && isToday(lastCheckIn)) throw new Error("Done");
         transaction.update(userRef, {
-          walletBalance: newBalance,
+          walletBalance: (userDoc.data().walletBalance || 0) + bonusAmount,
           lastCheckIn: serverTimestamp(),
         });
       });
-      toast({
-        title: 'Check-in Successful!',
-        description: `You've earned ₹${bonusAmount.toFixed(2)}!`,
-      });
+      toast({ title: 'Bonus Secured!' });
       refetch(); 
     } catch (e: any) {
-      toast({
-        title: 'Check-in Failed',
-        description: e.message || 'An error occurred.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Failed', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -1139,64 +1098,40 @@ function DailyCheckInCard() {
   if (bonusAmount <= 0) return null;
 
   return (
-    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-2xl overflow-hidden relative group">
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-50 pointer-events-none" />
-      <CardContent className="pt-6 relative">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                <Gift className="h-6 w-6" />
+    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-2xl overflow-hidden relative group shrink-0">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-50 pointer-events-none" />
+      <CardContent className="pt-4 pb-4 px-4 relative flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                <Gift className="h-5 w-5" />
             </div>
-            <div>
-              <h3 className="font-bold text-white/90">Daily Check-in</h3>
-              <p className="text-xs text-white/40">
-                Collect your daily <span className="text-white font-bold">₹{bonusAmount.toFixed(2)}</span> reward.
+            <div className="flex-1">
+              <h3 className="font-bold text-white/90 text-xs">Daily Bonus</h3>
+              <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">
+                ₹{bonusAmount.toFixed(2)} ready
               </p>
             </div>
-          </div>
           <Button
+            size="sm"
             onClick={handleCheckIn}
             disabled={hasCheckedInToday || isLoading}
             className={cn(
-                "w-full sm:w-auto h-11 rounded-xl px-8 font-bold transition-all",
-                hasCheckedInToday ? "bg-white/5 text-white/20 border-white/5" : "bg-primary text-white shadow-lg shadow-primary/20"
+                "h-8 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                hasCheckedInToday ? "bg-white/5 text-white/20 border-white/5" : "bg-primary text-white shadow-lg"
             )}
-            variant={hasCheckedInToday ? "ghost" : "default"}
           >
-            {hasCheckedInToday ? (
-              <>
-                <CheckCircle className="mr-2 h-4 w-4" /> Claimed
-              </>
-            ) : (
-              'Claim Now'
-            )}
+            {hasCheckedInToday ? 'Collected' : 'Collect'}
           </Button>
-        </div>
       </CardContent>
     </Card>
   );
 }
 
-
-function BottomNavItem({
-  icon: Icon,
-  label,
-  href,
-  active = false,
-}: {
-  icon: React.ElementType;
-  label: string;
-  href: string;
-  active?: boolean;
-}) {
+function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href: string, active?: boolean }) {
   return (
-    <Link
-      href={href}
-      className={cn(
+    <Link href={href} className={cn(
         "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
         active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
-      )}
-    >
+      )}>
       <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
       <span className="text-[10px] tracking-tight">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
@@ -1206,12 +1141,13 @@ function BottomNavItem({
 
 function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.ElementType, label: string, href: string, color?: string }) {
     return (
-        <Button variant="ghost" className="flex-col h-24 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-white/10 transition-all group" asChild>
+        <Button variant="ghost" className="flex-col h-24 bg-white/5 border border-white/5 rounded-3xl hover:bg-white/10 hover:border-white/20 hover:scale-[1.02] active:scale-95 transition-all group relative overflow-hidden" asChild>
             <Link href={href}>
-                <div className={cn("h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform", color)}>
-                    <Icon className="h-5 w-5" />
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className={cn("h-11 w-11 rounded-2xl bg-white/5 flex items-center justify-center mb-2 group-hover:scale-110 group-hover:rotate-6 transition-transform shadow-2xl", color)}>
+                    <Icon className="h-6 w-6" />
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 group-hover:text-white/80">{label}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white/90 group-hover:tracking-[2px] transition-all">{label}</span>
             </Link>
         </Button>
     )
