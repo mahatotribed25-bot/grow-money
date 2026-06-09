@@ -2,7 +2,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -16,11 +15,9 @@ import {
   Wallet, 
   TrendingUp, 
   Eye,
-  Smartphone,
   User,
-  ArrowUpRight,
   Zap,
-  Star
+  Briefcase
 } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -126,7 +123,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="relative z-10 w-full max-w-lg flex flex-col items-center space-y-10">
+      <div className="relative z-10 w-full max-w-lg flex flex-col items-center space-y-8">
         
         {/* Top Header Status Bars */}
         <div className="w-full flex justify-between items-center px-4">
@@ -140,41 +137,16 @@ export default function LoginPage() {
             </div>
         </div>
 
-        {/* Mascot Area with Coins & Arrow */}
-        <div className="relative flex flex-col items-center w-full max-w-[400px]">
-          {/* Growth Arrow SVG */}
-          <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-60">
-             <svg viewBox="0 0 200 200" className="w-full h-full fill-none stroke-[#22c55e] stroke-[2] stroke-linecap-round stroke-linejoin-round">
-                <path d="M40,140 Q80,140 100,100 T160,60" className="animate-dash" strokeDasharray="300" strokeDashoffset="300" />
-                <path d="M150,60 L160,60 L160,70" />
-             </svg>
+        {/* Branding Section */}
+        <div className="flex flex-col items-center space-y-2 text-center py-4">
+          <div className="h-16 w-16 rounded-2xl bg-primary/20 flex items-center justify-center mb-2 shadow-2xl shadow-primary/20 border border-primary/20">
+            <Briefcase size={32} className="text-primary" />
           </div>
-
-          {/* Floating Coins */}
-          <FloatingCoin className="top-10 left-10 scale-75" delay={0} />
-          <FloatingCoin className="bottom-20 -left-4 scale-90" delay={1.5} />
-          <FloatingCoin className="top-20 right-4" delay={0.8} />
-          <FloatingCoin className="bottom-10 right-10 scale-75" delay={2.2} />
-
-          <div className="relative group">
-             <div className="absolute -inset-10 bg-primary/20 blur-[60px] rounded-full animate-pulse transition-all group-hover:bg-primary/30" />
-             <Image 
-                src="https://picsum.photos/seed/financecat1/600/600" 
-                alt="Grow Money Mascot" 
-                width={220} 
-                height={220} 
-                className="relative z-10 drop-shadow-[0_0_30px_rgba(var(--primary),0.4)] hover:scale-105 transition-transform duration-500"
-                data-ai-hint="robot cat thumbs up"
-             />
-          </div>
-          
-          <div className="mt-6 text-center space-y-2">
-            <h1 className="text-5xl font-black tracking-tighter text-white flex items-center justify-center gap-3">
-                Grow <span className="text-[#22c55e]">Money</span>
-                <span className="text-4xl">💰</span>
-            </h1>
-            <p className="text-sm font-bold text-white/40 tracking-wider">Invest Smart, Earn More, Grow Together</p>
-          </div>
+          <h1 className="text-4xl font-black tracking-tighter text-white flex items-center justify-center gap-3">
+              Grow <span className="text-[#22c55e]">Money</span>
+              <span className="text-3xl">💰</span>
+          </h1>
+          <p className="text-xs font-bold text-white/40 tracking-[3px] uppercase">Elite Investment Network</p>
         </div>
 
         {/* Stats Strip */}
@@ -205,7 +177,7 @@ export default function LoginPage() {
                                         <div className="relative group">
                                             <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors" />
                                             <Input
-                                                placeholder="admin@tribed.world"
+                                                placeholder="investor@tribed.world"
                                                 {...field}
                                                 className="pl-12 bg-white/5 border-white/10 rounded-xl h-14 focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10 text-base"
                                             />
@@ -302,37 +274,8 @@ export default function LoginPage() {
             <FooterBadge icon={Headset} label="Priority" desc="Tech Support" color="text-blue-400" />
         </div>
       </div>
-      
-      <style jsx global>{`
-        @keyframes dash {
-          to { stroke-dashoffset: 0; }
-        }
-        .animate-dash {
-          animation: dash 3s ease-out forwards;
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          50% { transform: translateY(-15px) rotate(5deg); }
-        }
-        .animate-float {
-          animation: float 4s ease-in-out infinite;
-        }
-      `}</style>
     </main>
   );
-}
-
-function FloatingCoin({ className, delay }: { className: string, delay: number }) {
-    return (
-        <div 
-            className={cn("absolute z-20 animate-float pointer-events-none", className)}
-            style={{ animationDelay: `${delay}s` }}
-        >
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-yellow-300 to-amber-600 border-2 border-yellow-200/50 shadow-[0_0_20px_rgba(245,158,11,0.4)] flex items-center justify-center">
-                <span className="text-yellow-100 font-black text-lg">₹</span>
-            </div>
-        </div>
-    )
 }
 
 function StatsMiniCard({ icon: Icon, label, desc, color }: { icon: any, label: string, desc: string, color: string }) {
@@ -358,5 +301,4 @@ function FooterBadge({ icon: Icon, label, desc, color }: { icon: any, label: str
                 <p className="text-[8px] font-bold text-white/20 leading-none uppercase tracking-[1px]">{desc}</p>
             </div>
         </div>
-    )
 }
