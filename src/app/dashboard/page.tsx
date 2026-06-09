@@ -74,7 +74,6 @@ import { isToday, subDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { AchievementBadges } from '@/components/dashboard/AchievementBadges';
 import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
-import { AIAdvisor } from '@/components/dashboard/AIAdvisor';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -165,7 +164,7 @@ const CountdownTimer = ({ endDate }: { endDate: Date }) => {
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-            setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}`);
+            setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
         }, 1000);
 
         return () => clearInterval(interval);
@@ -589,20 +588,18 @@ export default function Dashboard() {
               <CardTitle className="text-lg font-bold text-white/80">Premium Services</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" color="text-green-400" />
+              <QuickActionButton icon={HandCoins} label="Apply Loan" href="/loans" color="text-orange-400" />
+              <QuickActionButton icon={FileText} label="Flexi Loan" href="/custom-loan" color="text-red-400" />
               <QuickActionButton icon={Users} label="P2P Market" href="/p2p-market" color="text-primary" />
               <QuickActionButton icon={HandCoins} label="P2P Hub" href="/p2p-my-dashboard" color="text-yellow-400" />
-              <QuickActionButton icon={MessageCircle} label="Private Chats" href="/user-chats" color="text-blue-400" />
-              <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" color="text-green-400" />
               <QuickActionButton icon={Users2} label="Group Investing" href="/group-investing" color="text-purple-400" />
-              <QuickActionButton icon={History} label="My Plans" href="/my-plans" color="text-orange-400" />
+              <QuickActionButton icon={MessageCircle} label="Private Chats" href="/user-chats" color="text-blue-400" />
               <QuickActionButton icon={Gem} label="VIP Tiers" href="/vip-tiers" color="text-yellow-400" />
-              <QuickActionButton icon={Trophy} label="Leaderboard" href="/leaderboard" color="text-amber-400" />
           </CardContent>
          </Card>
 
       </main>
-
-      <AIAdvisor balance={userData?.walletBalance || 0} userName={userData?.name || 'Investor'} />
 
       <nav className="sticky bottom-0 z-30 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
         <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
@@ -1132,7 +1129,7 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
         "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
         active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
       )}>
-      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
+      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")]} />
       <span className="text-[10px] tracking-tight">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>
