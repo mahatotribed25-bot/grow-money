@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -19,7 +18,8 @@ import {
   Zap,
   Briefcase,
   Timer,
-  RefreshCcw
+  RefreshCcw,
+  Coins
 } from "lucide-react";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -220,29 +221,20 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Floating Decorative Elements (High Visibility) */}
+      {/* Floating Decorative Elements */}
       <div className="absolute top-10 left-0 w-full h-96 pointer-events-none overflow-hidden z-0 select-none">
-          {/* Main Growth Arrow */}
           <div className="absolute left-1/2 top-5 -translate-x-1/2 animate-pulse duration-[4000ms]">
               <div className="h-32 w-32 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center backdrop-blur-3xl shadow-[0_0_60px_rgba(34,197,94,0.4)]">
                   <TrendingUp className="text-green-400 h-20 w-20 drop-shadow-[0_0_15px_rgba(34,197,94,0.6)]" />
               </div>
           </div>
-
-          {/* Left Large Coin */}
           <GoldCoin className="absolute left-[5%] top-12 h-28 w-28 animate-bounce duration-[4000ms]" />
-          
-          {/* Right Large Coin */}
           <GoldCoin className="absolute right-[5%] top-24 h-24 w-24 animate-bounce duration-[3000ms] delay-700" />
-          
-          {/* Lower Floating Coins */}
           <GoldCoin className="absolute left-[20%] top-56 h-14 w-14 animate-pulse duration-[2500ms] delay-100" />
           <GoldCoin className="absolute right-[25%] top-10 h-16 w-16 animate-pulse duration-[5500ms] delay-500" />
       </div>
 
       <div className="relative z-10 w-full max-w-lg flex flex-col items-center space-y-8">
-        
-        {/* Top Header Status Bars */}
         <div className="w-full flex justify-between items-center px-4">
             <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl">
                 <div className="h-2.5 w-2.5 rounded-full bg-[#22c55e] shadow-[0_0_10px_#22c55e]" />
@@ -254,7 +246,6 @@ export default function LoginPage() {
             </div>
         </div>
 
-        {/* Branding Section */}
         <div className="flex flex-col items-center space-y-2 text-center py-4">
           <div className="h-16 w-16 rounded-2xl bg-primary/20 flex items-center justify-center mb-2 shadow-2xl shadow-primary/20 border border-primary/20">
             <Briefcase size={32} className="text-primary" />
@@ -266,14 +257,12 @@ export default function LoginPage() {
           <p className="text-xs font-bold text-white/40 tracking-[3px] uppercase">Elite Investment Network</p>
         </div>
 
-        {/* Stats Strip */}
         <div className="grid grid-cols-3 gap-3 w-full px-2">
             <StatsMiniCard icon={Users} label="5,000+" desc="Investors" color="text-purple-400" />
             <StatsMiniCard icon={Wallet} label="₹12.45L+" desc="Paid Out" color="text-blue-400" />
             <StatsMiniCard icon={TrendingUp} label="99.8%" desc="Success" color="text-[#22c55e]" />
         </div>
 
-        {/* Authentication Card */}
         <div className="w-full max-w-md relative group px-2">
             <div className="absolute -inset-1 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-[2.5rem] blur-2xl opacity-50 group-hover:opacity-100 transition duration-500" />
             <div className="relative w-full bg-white/[0.04] backdrop-blur-[40px] border border-white/10 shadow-2xl rounded-[2rem] p-8 space-y-7">
@@ -373,7 +362,6 @@ export default function LoginPage() {
             </div>
         </div>
 
-        {/* Live Pulse Ticker */}
         <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 flex items-center gap-4 backdrop-blur-xl shadow-2xl">
             <div className="h-2.5 w-2.5 rounded-full bg-[#22c55e] animate-ping shrink-0" />
             <span className="text-[10px] font-black uppercase tracking-[2px] text-[#22c55e] shrink-0">Live Pulse</span>
@@ -389,16 +377,14 @@ export default function LoginPage() {
             <span className="text-[10px] font-black text-white/20 whitespace-nowrap">Now</span>
         </div>
 
-        {/* Footer Badges */}
         <div className="grid grid-cols-4 gap-2 w-full pt-4">
             <FooterBadge icon={ShieldCheck} label="Bank-Grade" desc="Encryption" color="text-[#22c55e]" />
             <FooterBadge icon={Zap} label="Instant" desc="Withdrawals" color="text-yellow-400" />
             <FooterBadge icon={Users} label="Verified" desc="Community" color="text-purple-400" />
-            <FooterBadge icon={Headset} label="Priority" desc="Tech Support" color="text-blue-400" />
+            <FooterBadge icon={Headset} label="Priority" desc="Support" color="text-blue-400" />
         </div>
       </div>
 
-      {/* Forgot Password Dialog */}
       <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
         <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white sm:max-w-md">
             <DialogHeader>
