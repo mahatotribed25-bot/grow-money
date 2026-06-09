@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Wallet,
@@ -22,6 +23,7 @@ import {
   CheckCircle,
   Trophy,
   MessageCircle,
+  Coins,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -107,6 +109,8 @@ type Investment = {
   dailyIncome: number;
   lastIncomeDate?: Timestamp;
   finalReturn?: number;
+  payoutFrequency?: 'daily' | 'monthly' | 'on_maturity';
+  lastClaimDate?: Timestamp;
 };
 
 type ActiveLoan = {
@@ -203,7 +207,54 @@ export default function Dashboard() {
     }
   }, [overdueLoan]);
 
-  const handleClaimReturn = (investment: Investment) => {
+  const handleClaimProfit = (investment: Investment) => {
+    if (!user) return;
+
+    const transactionPromise = runTransaction(firestore, async (transaction) => {
+        const userRef = doc(firestore, 'users', user.uid);
+        const invRef = doc(firestore, 'users', user.uid, 'investments', investment.id);
+        
+        const userDoc = await transaction.get(userRef);
+        const invDoc = await transaction.get(invRef);
+
+        if (!userDoc.exists() || !invDoc.exists()) throw new Error("Sync failure. Please refresh.");
+
+        const invData = invDoc.data() as Investment;
+        const now = new Date();
+        const lastClaim = invData.lastClaimDate?.toDate() || invData.startDate.toDate();
+        
+        // Calculate accrued profit since last claim
+        const diffMs = now.getTime() - lastClaim.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 1 && invData.payoutFrequency === 'daily') throw new Error("Daily claim already processed.");
+        if (diffDays < 30 && invData.payoutFrequency === 'monthly') throw new Error("Monthly claim not yet due.");
+
+        const amountToClaim = diffDays * invData.dailyIncome;
+        if (amountToClaim <= 0) throw new Error("No profit accumulated yet.");
+
+        transaction.update(userRef, {
+            walletBalance: (userDoc.data().walletBalance || 0) + amountToClaim,
+            totalIncome: (userDoc.data().totalIncome || 0) + amountToClaim
+        });
+
+        transaction.update(invRef, {
+            lastClaimDate: serverTimestamp()
+        });
+
+        return { amount: amountToClaim };
+    });
+
+    transactionPromise.then((result) => {
+        if (result?.amount) {
+            toast({ title: 'Profit Claimed!', description: `₹${result.amount.toFixed(2)} added to wallet.` });
+        }
+    }).catch((e) => {
+        toast({ title: 'Claim Failed', description: e.message, variant: 'destructive' });
+    });
+  };
+
+  const handleClaimMaturity = (investment: Investment) => {
      if (!user) return;
 
      const transactionPromise = runTransaction(firestore, async (transaction) => {
@@ -215,50 +266,47 @@ export default function Dashboard() {
 
        if (!userDoc.exists() || !invDoc.exists()) throw new Error("Document not found.");
        
-       const invData = invDoc.data();
-       if (invData.status === 'Matured') {
-          return { claimed: false, message: 'Already claimed' };
-       }
+       const invData = invDoc.data() as Investment;
+       if (invData.status === 'Matured') throw new Error('Already claimed');
        
+       const now = new Date();
+       if (invData.status !== 'Stopped' && now < invData.maturityDate.toDate()) {
+           throw new Error("Plan is still maturing.");
+       }
+
        let amountToClaim = 0;
-       if (invData.status === 'Stopped' && invData.finalReturn) {
-           amountToClaim = invData.finalReturn;
-       } else if (invData.status === 'Active') {
-           amountToClaim = investment.returnAmount;
+       let profitShare = 0;
+
+       if (invData.status === 'Stopped') {
+           amountToClaim = invData.finalReturn || 0;
+           profitShare = invData.earnedIncome || 0;
        } else {
-           throw new Error("Investment is not in a claimable state.");
+           // For on_maturity, we give Principal + All Profit
+           // For daily/monthly, we only give Principal back (since profit was claimed periodically)
+           if (invData.payoutFrequency === 'on_maturity') {
+               amountToClaim = invData.returnAmount;
+               profitShare = invData.returnAmount - invData.investedAmount;
+           } else {
+               amountToClaim = invData.investedAmount;
+               profitShare = 0; // Already claimed during tenure
+           }
        }
 
-       let newWalletBalance = userDoc.data().walletBalance || 0;
-       let newTotalInvestment = userDoc.data().totalInvestment || 0;
-       
        transaction.update(invRef, { status: 'Matured' });
-       newWalletBalance += amountToClaim;
-       newTotalInvestment -= investment.investedAmount;
-
+       
        transaction.update(userRef, {
-         walletBalance: newWalletBalance,
-         totalInvestment: newTotalInvestment < 0 ? 0 : newTotalInvestment,
-         totalIncome: (userDoc.data().totalIncome || 0) + (amountToClaim - investment.investedAmount)
+         walletBalance: (userDoc.data().walletBalance || 0) + amountToClaim,
+         totalInvestment: Math.max(0, (userDoc.data().totalInvestment || 0) - invData.investedAmount),
+         totalIncome: (userDoc.data().totalIncome || 0) + profitShare
        });
 
        return { claimed: true };
      });
 
-     transactionPromise.then((result) => {
-      if (result?.claimed) {
-        toast({
-          title: 'Investment Claimed!',
-          description: `Your return has been added to your wallet.`,
-        });
-      }
+     transactionPromise.then(() => {
+        toast({ title: 'Plan Settled!', description: `Funds returned to your wallet.` });
      }).catch((error) => {
-        const permissionError = new FirestorePermissionError({
-          path: `users/${user.uid}/investments/${investment.id}`,
-          operation: 'write',
-          requestResourceData: { investmentId: investment.id, action: 'claim' }
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        toast({ title: 'Settlement Failed', description: error.message, variant: 'destructive' });
      });
   };
 
@@ -373,7 +421,12 @@ export default function Dashboard() {
         ) : activeInvestments && activeInvestments.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {activeInvestments.map((investment) => (
-              <ActivePlanCard key={investment.id} investment={investment} onClaim={handleClaimReturn} />
+              <ActivePlanCard 
+                key={investment.id} 
+                investment={investment} 
+                onClaimProfit={handleClaimProfit} 
+                onClaimMaturity={handleClaimMaturity} 
+              />
             ))}
           </div>
         ) : (
@@ -790,8 +843,15 @@ function WithdrawTypeOption({ value, label, className }: { value: string, label:
 }
 
 
-function ActivePlanCard({ investment, onClaim }: { investment: Investment, onClaim: (investment: Investment) => void }) {
-  const [isClaimable, setIsClaimable] = useState(false);
+function ActivePlanCard({ 
+    investment, 
+    onClaimProfit, 
+    onClaimMaturity 
+}: { 
+    investment: Investment, 
+    onClaimProfit: (investment: Investment) => void,
+    onClaimMaturity: (investment: Investment) => void
+}) {
   const [isClaiming, setIsClaiming] = useState(false);
 
   if (!investment.startDate || !investment.maturityDate) {
@@ -810,22 +870,33 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
   const totalDuration = maturityDate.getTime() - startDate.getTime();
   const progress = totalDuration > 0 ? Math.min((elapsedMilliseconds / totalDuration) * 100, 100) : 100;
 
-  useEffect(() => {
-    if (investment.status === 'Stopped' || (investment.status === 'Active' && now >= maturityDate)) {
-      setIsClaimable(true);
-    }
-  }, [now, maturityDate, investment.status]);
+  const isMatured = now >= maturityDate || investment.status === 'Stopped';
+  
+  // Logic for partial claims
+  const lastClaim = investment.lastClaimDate?.toDate() || startDate;
+  const msSinceLastClaim = now.getTime() - lastClaim.getTime();
+  const daysSinceLastClaim = Math.floor(msSinceLastClaim / (1000 * 60 * 60 * 24));
+  
+  const canClaimProfit = !isMatured && (
+      (investment.payoutFrequency === 'daily' && daysSinceLastClaim >= 1) ||
+      (investment.payoutFrequency === 'monthly' && daysSinceLastClaim >= 30)
+  );
 
   const handleClaimClick = () => {
     setIsClaiming(true);
-    onClaim(investment);
+    if (isMatured) {
+        onClaimMaturity(investment);
+    } else {
+        onClaimProfit(investment);
+    }
+    setTimeout(() => setIsClaiming(false), 2000);
   }
   
   const getBadge = () => {
     if (investment.status === 'Stopped') {
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] uppercase font-bold">Stopped</Badge>;
     }
-    if (isClaimable) {
+    if (isMatured) {
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] uppercase font-bold">Matured</Badge>;
     }
     return <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] uppercase font-bold">Growing</Badge>;
@@ -843,28 +914,45 @@ function ActivePlanCard({ investment, onClaim }: { investment: Investment, onCla
       <CardContent className="space-y-4 relative">
         <div className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5">
             <div className="space-y-1">
-                 <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Current Value</p>
-                 <p className="text-xl font-bold text-green-400">₹{currentTotalValue.toFixed(2)}</p>
+                 <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Total Capital</p>
+                 <p className="text-xl font-bold text-white">₹{investment.investedAmount.toFixed(2)}</p>
             </div>
             <div className="text-right space-y-1">
-                 <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Earnings</p>
-                 <p className="text-sm font-bold text-white/80">+ ₹{earnedIncome.toFixed(2)}</p>
+                 <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Accrued Profit</p>
+                 <p className="text-sm font-bold text-green-400">+ ₹{earnedIncome.toFixed(2)}</p>
             </div>
         </div>
         
-        {isClaimable ? (
-            <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full h-11 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20">
-                {isClaiming ? 'Processing...' : 'Claim Full Return'}
-            </Button>
-        ) : (
-            <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/30">
-                    <span>Target Date: {maturityDate.toLocaleDateString()}</span>
+        <div className="space-y-2">
+            {isMatured ? (
+                <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full h-11 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20">
+                    {isClaiming ? 'Settling Account...' : 'Claim Full Return'}
+                </Button>
+            ) : investment.payoutFrequency === 'on_maturity' ? (
+                <div className="py-2 text-center text-[10px] font-black uppercase tracking-widest text-white/20 bg-white/5 rounded-xl border border-white/5">
+                    Locks until {maturityDate.toLocaleDateString()}
+                </div>
+            ) : (
+                <Button 
+                    onClick={handleClaimClick} 
+                    disabled={isClaiming || !canClaimProfit} 
+                    className={cn(
+                        "w-full h-11 rounded-xl font-bold transition-all",
+                        canClaimProfit ? "bg-green-600 text-white shadow-lg shadow-green-500/20" : "bg-white/5 text-white/20"
+                    )}
+                >
+                    {isClaiming ? 'Transferring...' : canClaimProfit ? `Claim ${investment.payoutFrequency} Profit` : `${investment.payoutFrequency.toUpperCase()} Claim Locked`}
+                </Button>
+            )}
+            
+            <div className="pt-2">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/30 mb-1.5 px-1">
+                    <span>Progress to Maturity</span>
                     <CountdownTimer endDate={maturityDate} />
                 </div>
                 <Progress value={progress} className="h-1.5 bg-white/5" />
             </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

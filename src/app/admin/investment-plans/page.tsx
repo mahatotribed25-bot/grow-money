@@ -21,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCollection, useFirestore } from '@/firebase';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   addDoc,
   collection,
@@ -53,18 +53,18 @@ type InvestmentPlan = {
   status: 'Available' | 'Coming Soon';
   stock?: number;
   adminProfit?: number;
+  payoutFrequency: 'daily' | 'monthly' | 'on_maturity';
 };
 
-const emptyPlan: Omit<InvestmentPlan, 'id'> = {
+const emptyPlan: Omit<InvestmentPlan, 'id' | 'totalIncome' | 'finalReturn'> = {
   name: '',
   price: 0,
   dailyIncome: 0,
   validity: 1,
-  totalIncome: 0,
-  finalReturn: 0,
   status: 'Available',
   stock: 100,
   adminProfit: 0,
+  payoutFrequency: 'on_maturity',
 };
 
 export default function InvestmentPlansPage() {
@@ -118,6 +118,7 @@ export default function InvestmentPlansPage() {
         status: editingPlan.status || 'Available',
         stock: Number(editingPlan.stock || 0),
         adminProfit: Number(editingPlan.adminProfit || 0),
+        payoutFrequency: editingPlan.payoutFrequency || 'on_maturity',
     };
 
     if ('id' in planToSave && planToSave.id) {
@@ -173,66 +174,71 @@ export default function InvestmentPlansPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Investment Plans</h2>
-        <Button onClick={handleCreateNew}>
+        <h2 className="text-2xl font-bold text-white">Investment Plans</h2>
+        <Button onClick={handleCreateNew} className="rounded-xl font-bold bg-white text-black hover:bg-primary hover:text-white">
           <PlusCircle className="h-4 w-4 mr-2" />
           Create New Plan
         </Button>
       </div>
-      <div className="rounded-lg border">
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Plan Name</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Final Return</TableHead>
-              <TableHead>Admin Profit</TableHead>
-              <TableHead>Validity</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
+          <TableHeader className="bg-white/[0.02]">
+            <TableRow className="border-white/10">
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest pl-6">Plan Name</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest">Price</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest">Payout</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest">Admin Profit</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest">Validity</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest">Stock</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest">Status</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest pr-6">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center">
-                  Loading...
+                <TableCell colSpan={8} className="text-center py-20 text-white/20 animate-pulse font-bold tracking-widest">
+                  SYNCING VAULT...
                 </TableCell>
               </TableRow>
             ) : (
               plans?.map((plan) => (
-                <TableRow key={plan.id}>
-                  <TableCell>{plan.name}</TableCell>
-                  <TableCell>₹{(plan.price || 0).toFixed(2)}</TableCell>
-                  <TableCell>₹{(plan.finalReturn || 0).toFixed(2)}</TableCell>
+                <TableRow key={plan.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                  <TableCell className="pl-6 font-bold text-white">{plan.name}</TableCell>
+                  <TableCell className="text-white/80">₹{(plan.price || 0).toLocaleString()}</TableCell>
                   <TableCell>
-                    <span className="font-bold text-green-500">
-                      ₹{(plan.adminProfit || 0).toFixed(2)}
+                      <Badge variant="outline" className="capitalize border-primary/20 text-primary text-[9px] font-black">
+                          {plan.payoutFrequency?.replace('_', ' ')}
+                      </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-bold text-green-400">
+                      ₹{(plan.adminProfit || 0).toLocaleString()}
                     </span>
                   </TableCell>
-                  <TableCell>{plan.validity} days</TableCell>
-                  <TableCell>{plan.stock ?? 'N/A'}</TableCell>
+                  <TableCell className="text-white/60 text-xs">{plan.validity} days</TableCell>
+                  <TableCell className="text-white/60 text-xs">{plan.stock ?? 'N/A'}</TableCell>
                   <TableCell>
-                    <Badge variant={getStatusVariant(plan.status)}>
-                        {plan.status}
+                    <Badge variant={getStatusVariant(plan.status)} className="text-[9px] font-black">
+                        {plan.status.toUpperCase()}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
+                  <TableCell className="pr-6">
+                    <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleEdit(plan)}
+                        className="h-8 w-8 hover:bg-white/10"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-red-500 hover:text-red-600"
+                        className="h-8 w-8 text-red-500/40 hover:text-red-500 hover:bg-red-500/10"
                         onClick={() => handleDelete(plan.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -247,27 +253,27 @@ export default function InvestmentPlansPage() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingPlan && 'id' in editingPlan ? 'Edit Plan' : 'Create New Plan'}
+              {editingPlan && 'id' in editingPlan ? 'Edit Investment Plan' : 'Create High-Yield Plan'}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-6">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
+              <Label htmlFor="name" className="text-right text-white/60">
+                Plan Name
               </Label>
               <Input
                 id="name"
                 value={editingPlan?.name || ''}
                 onChange={(e) => handleFieldChange('name', e.target.value)}
-                className="col-span-3"
+                className="col-span-3 bg-white/5 border-white/10 rounded-xl"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="price" className="text-right">
-                Price
+              <Label htmlFor="price" className="text-right text-white/60">
+                Price (₹)
               </Label>
               <Input
                 id="price"
@@ -276,80 +282,98 @@ export default function InvestmentPlansPage() {
                 onChange={(e) =>
                   handleFieldChange('price', e.target.value)
                 }
-                className="col-span-3"
+                className="col-span-3 bg-white/5 border-white/10 rounded-xl"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="dailyIncome" className="text-right">
-                Daily Income
+              <Label htmlFor="dailyIncome" className="text-right text-white/60">
+                Daily ROI (₹)
               </Label>
               <Input
                 id="dailyIncome"
                 type="number"
                 value={editingPlan?.dailyIncome || 0}
                 onChange={(e) => handleFieldChange('dailyIncome', e.target.value)}
-                className="col-span-3"
+                className="col-span-3 bg-white/5 border-white/10 rounded-xl"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="validity" className="text-right">
-                Validity (Days)
+              <Label htmlFor="validity" className="text-right text-white/60">
+                Term (Days)
               </Label>
               <Input
                 id="validity"
                 type="number"
                 value={editingPlan?.validity || 1}
                 onChange={(e) => handleFieldChange('validity', e.target.value)}
-                className="col-span-3"
+                className="col-span-3 bg-white/5 border-white/10 rounded-xl"
               />
             </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="payoutFrequency" className="text-right text-white/60">
+                    Payout Type
+                </Label>
+                <Select
+                    value={editingPlan?.payoutFrequency || 'on_maturity'}
+                    onValueChange={(value) => handleFieldChange('payoutFrequency', value)}
+                >
+                    <SelectTrigger className="col-span-3 bg-white/5 border-white/10 rounded-xl">
+                        <SelectValue placeholder="Select payout frequency" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#030408] border-white/10">
+                        <SelectItem value="daily">Daily Claims</SelectItem>
+                        <SelectItem value="monthly">Monthly Claims</SelectItem>
+                        <SelectItem value="on_maturity">End of Term Only</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="adminProfit" className="text-right">
-                    Admin Profit
+                <Label htmlFor="adminProfit" className="text-right text-white/60">
+                    Platform Fee
                 </Label>
                 <Input
                     id="adminProfit"
                     type="number"
                     value={editingPlan?.adminProfit || 0}
                     onChange={(e) => handleFieldChange('adminProfit', e.target.value)}
-                    className="col-span-3"
+                    className="col-span-3 bg-white/5 border-white/10 rounded-xl"
                 />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="stock" className="text-right">
-                    Stock
+                <Label htmlFor="stock" className="text-right text-white/60">
+                    Total Stock
                 </Label>
                 <Input
                     id="stock"
                     type="number"
                     value={editingPlan?.stock || 100}
                     onChange={(e) => handleFieldChange('stock', e.target.value)}
-                    className="col-span-3"
+                    className="col-span-3 bg-white/5 border-white/10 rounded-xl"
                 />
             </div>
              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status" className="text-right">
-                    Status
+                <Label htmlFor="status" className="text-right text-white/60">
+                    Availability
                 </Label>
                 <Select
                     value={editingPlan?.status || 'Available'}
                     onValueChange={(value) => handleFieldChange('status', value)}
                 >
-                    <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select a status" />
+                    <SelectTrigger className="col-span-3 bg-white/5 border-white/10 rounded-xl">
+                        <SelectValue placeholder="Select status" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-[#030408] border-white/10">
                         <SelectItem value="Available">Available</SelectItem>
                         <SelectItem value="Coming Soon">Coming Soon</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <DialogClose asChild>
-              <Button variant="outline" onClick={() => { setIsDialogOpen(false); setEditingPlan(null); }}>Cancel</Button>
+              <Button variant="ghost" className="text-white/40 hover:bg-white/5" onClick={() => { setIsDialogOpen(false); setEditingPlan(null); }}>Cancel</Button>
             </DialogClose>
-            <Button onClick={handleSave}>Save Plan</Button>
+            <Button onClick={handleSave} className="rounded-xl font-bold bg-white text-black hover:bg-primary hover:text-white px-8">Save Master Plan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

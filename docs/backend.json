@@ -138,6 +138,18 @@
         "email"
       ]
     },
+    "investmentPlan": {
+        "title": "Investment Plan",
+        "type": "object",
+        "properties": {
+            "name": { "type": "string" },
+            "price": { "type": "number" },
+            "dailyIncome": { "type": "number" },
+            "validity": { "type": "number" },
+            "payoutFrequency": { "type": "string", "enum": ["daily", "monthly", "on_maturity"] },
+            "status": { "type": "string", "enum": ["Available", "Coming Soon"] }
+        }
+    },
     "p2pLoanRequest": {
         "title": "P2P Loan Request",
         "description": "A public loan request in the marketplace.",
@@ -205,6 +217,12 @@
         "$ref": "#/entities/adminSettings"
       },
       "description": "Stores admin-specific settings."
+    },
+    "/investmentPlans/{planId}": {
+      "schema": {
+        "$ref": "#/entities/investmentPlan"
+      },
+      "description": "Stores available investment plans."
     },
     "/p2pLoanRequests/{requestId}": {
         "schema": { "$ref": "#/entities/p2pLoanRequest" },

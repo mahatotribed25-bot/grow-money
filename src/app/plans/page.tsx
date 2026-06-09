@@ -37,6 +37,7 @@ type InvestmentPlan = {
   status: 'Available' | 'Coming Soon';
   stock?: number;
   adminProfit?: number;
+  payoutFrequency?: 'daily' | 'monthly' | 'on_maturity';
 };
 
 type UserData = {
@@ -144,9 +145,11 @@ export default function PlansPage() {
             investedAmount: plan.price || 0,
             returnAmount: plan.finalReturn || 0,
             dailyIncome: plan.dailyIncome || 0,
+            payoutFrequency: plan.payoutFrequency || 'on_maturity',
             startDate: serverTimestamp(),
             maturityDate: maturityDate,
             lastIncomeDate: serverTimestamp(),
+            lastClaimDate: serverTimestamp(),
             status: 'Active'
         });
     })
@@ -238,7 +241,7 @@ export default function PlansPage() {
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" active />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-          <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
+          <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
         </div>
       </nav>
@@ -265,8 +268,13 @@ function PlanCard({ plan, onInvest, userBalance }: { plan: InvestmentPlan, onInv
       </div>
       
       <CardHeader className="pb-4">
-        <CardTitle className="text-xl font-bold text-white group-hover:text-primary transition-colors">{plan.name}</CardTitle>
-        <CardDescription className="text-white/40 flex items-center gap-1.5">
+        <div className="flex flex-col gap-1">
+            <CardTitle className="text-xl font-bold text-white group-hover:text-primary transition-colors">{plan.name}</CardTitle>
+            <Badge variant="outline" className="w-fit text-[8px] h-4 uppercase font-black tracking-widest border-primary/20 text-primary">
+                {plan.payoutFrequency?.replace('_', ' ')}
+            </Badge>
+        </div>
+        <CardDescription className="text-white/40 flex items-center gap-1.5 mt-1">
            <TrendingUp size={14} /> ₹{(plan.price || 0).toLocaleString()} Entry
         </CardDescription>
       </CardHeader>
