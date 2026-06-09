@@ -107,6 +107,7 @@ export default function LoginPage() {
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0">
         <div className="absolute top-[-10%] -left-[20%] w-[80%] h-[40%] rounded-full bg-primary/10 blur-[150px] animate-pulse" />
         <div className="absolute bottom-[-10%] -right-[20%] w-[80%] h-[40%] rounded-full bg-secondary/10 blur-[150px]" />
+        
         {/* Particle Stars */}
         <div className="absolute inset-0 opacity-30">
             {Array.from({ length: 20 }).map((_, i) => (
@@ -270,7 +271,7 @@ export default function LoginPage() {
         <div className="grid grid-cols-4 gap-2 w-full pt-4">
             <FooterBadge icon={ShieldCheck} label="Bank-Grade" desc="Encryption" color="text-[#22c55e]" />
             <FooterBadge icon={Zap} label="Instant" desc="Withdrawals" color="text-yellow-400" />
-            <FooterBadge icon={Users} label="verified" desc="Community" color="text-purple-400" />
+            <FooterBadge icon={Users} label="Verified" desc="Community" color="text-purple-400" />
             <FooterBadge icon={Headset} label="Priority" desc="Tech Support" color="text-blue-400" />
         </div>
       </div>
@@ -301,4 +302,5 @@ function FooterBadge({ icon: Icon, label, desc, color }: { icon: any, label: str
                 <p className="text-[8px] font-bold text-white/20 leading-none uppercase tracking-[1px]">{desc}</p>
             </div>
         </div>
+    );
 }
