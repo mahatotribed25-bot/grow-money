@@ -24,6 +24,7 @@ import {
   Trophy,
   MessageCircle,
   Coins,
+  ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -51,7 +52,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   collection,
   addDoc,
@@ -111,6 +112,7 @@ type Investment = {
   finalReturn?: number;
   payoutFrequency?: 'daily' | 'monthly' | 'on_maturity';
   lastClaimDate?: Timestamp;
+  earnedIncome?: number;
 };
 
 type ActiveLoan = {
@@ -159,6 +161,88 @@ const CountdownTimer = ({ endDate }: { endDate: Date }) => {
     return <span className="font-mono">{timeLeft}</span>;
 };
 
+const SlideToClaim = ({ 
+  onComplete, 
+  disabled, 
+  label, 
+  lockedLabel 
+}: { 
+  onComplete: () => void, 
+  disabled?: boolean, 
+  label: string, 
+  lockedLabel?: string 
+}) => {
+  const [sliderValue, setSliderValue] = useState(0);
+  const [isCompleted, setIsComplete] = useState(false);
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled || isCompleted) return;
+    const value = parseInt(e.target.value);
+    setSliderValue(value);
+    if (value >= 95) {
+      setIsComplete(true);
+      setSliderValue(100);
+      onComplete();
+      // Reset after 3 seconds so they can use it again if needed (for daily claims)
+      setTimeout(() => {
+        setIsComplete(false);
+        setSliderValue(0);
+      }, 3000);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (sliderValue < 95) {
+      setSliderValue(0);
+    }
+  };
+
+  return (
+    <div className={cn(
+      "relative h-12 w-full rounded-xl overflow-hidden border transition-all duration-300",
+      disabled ? "bg-white/5 border-white/5 opacity-50" : "bg-white/10 border-white/10"
+    )}>
+      <div 
+        className="absolute inset-y-0 left-0 bg-primary/20 transition-all duration-75"
+        style={{ width: `${sliderValue}%` }}
+      />
+      
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <span className={cn(
+          "text-[10px] font-black uppercase tracking-widest transition-all",
+          disabled ? "text-white/20" : "text-white/40"
+        )}>
+          {disabled ? (lockedLabel || "Action Locked") : (isCompleted ? "Success!" : label)}
+        </span>
+      </div>
+
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={sliderValue}
+        onChange={handleSliderChange}
+        onMouseUp={handleMouseUp}
+        onTouchEnd={handleMouseUp}
+        disabled={disabled || isCompleted}
+        className={cn(
+          "absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed",
+          isCompleted && "pointer-events-none"
+        )}
+      />
+
+      <div 
+        className={cn(
+          "absolute top-1 left-1 bottom-1 aspect-square rounded-lg flex items-center justify-center transition-all duration-75 pointer-events-none",
+          disabled ? "bg-white/10 text-white/20" : "bg-white text-black shadow-lg"
+        )}
+        style={{ left: `calc(${sliderValue}% - ${sliderValue > 0 ? '40px' : '0px'})`, marginLeft: sliderValue > 0 ? '0' : '4px' }}
+      >
+        <ChevronRight className={cn("h-5 w-5", !disabled && "animate-pulse")} />
+      </div>
+    </div>
+  );
+};
 
 export default function Dashboard() {
   const { user, loading: userLoading } = useUser();
@@ -882,16 +966,6 @@ function ActivePlanCard({
       (investment.payoutFrequency === 'monthly' && daysSinceLastClaim >= 30)
   );
 
-  const handleClaimClick = () => {
-    setIsClaiming(true);
-    if (isMatured) {
-        onClaimMaturity(investment);
-    } else {
-        onClaimProfit(investment);
-    }
-    setTimeout(() => setIsClaiming(false), 2000);
-  }
-  
   const getBadge = () => {
     if (investment.status === 'Stopped') {
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] uppercase font-bold">Stopped</Badge>;
@@ -900,6 +974,13 @@ function ActivePlanCard({
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] uppercase font-bold">Matured</Badge>;
     }
     return <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] uppercase font-bold">Growing</Badge>;
+  }
+
+  const getLockedLabel = () => {
+    if (investment.payoutFrequency === 'on_maturity') return "Locked Until Maturity";
+    if (investment.payoutFrequency === 'monthly') return `Next Claim in ${30 - daysSinceLastClaim} Days`;
+    if (investment.payoutFrequency === 'daily') return "Already Claimed Today";
+    return "Locked";
   }
 
   return (
@@ -923,26 +1004,19 @@ function ActivePlanCard({
             </div>
         </div>
         
-        <div className="space-y-2">
+        <div className="space-y-4">
             {isMatured ? (
-                <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full h-11 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20">
-                    {isClaiming ? 'Settling Account...' : 'Claim Full Return'}
-                </Button>
-            ) : investment.payoutFrequency === 'on_maturity' ? (
-                <div className="py-2 text-center text-[10px] font-black uppercase tracking-widest text-white/20 bg-white/5 rounded-xl border border-white/5">
-                    Locks until {maturityDate.toLocaleDateString()}
-                </div>
+                <SlideToClaim 
+                  label="Slide to Claim Maturity" 
+                  onComplete={() => onClaimMaturity(investment)}
+                />
             ) : (
-                <Button 
-                    onClick={handleClaimClick} 
-                    disabled={isClaiming || !canClaimProfit} 
-                    className={cn(
-                        "w-full h-11 rounded-xl font-bold transition-all",
-                        canClaimProfit ? "bg-green-600 text-white shadow-lg shadow-green-500/20" : "bg-white/5 text-white/20"
-                    )}
-                >
-                    {isClaiming ? 'Transferring...' : canClaimProfit ? `Claim ${investment.payoutFrequency} Profit` : `${investment.payoutFrequency.toUpperCase()} Claim Locked`}
-                </Button>
+                <SlideToClaim 
+                  disabled={!canClaimProfit}
+                  label={`Slide to Claim ${investment.payoutFrequency} Profit`}
+                  lockedLabel={getLockedLabel()}
+                  onComplete={() => onClaimProfit(investment)}
+                />
             )}
             
             <div className="pt-2">
