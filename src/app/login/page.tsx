@@ -18,9 +18,10 @@ import {
   User,
   Zap,
   Briefcase,
-  Timer
+  Timer,
+  RefreshCcw
 } from "lucide-react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { useState, useEffect } from "react";
@@ -39,6 +40,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+    DialogClose,
+} from "@/components/ui/dialog";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -104,6 +114,11 @@ export default function LoginPage() {
   const [loginStatus, setLoginStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [showPassword, setShowPassword] = useState(false);
   const [particles, setParticles] = useState<{ top: string; left: string; delay: string }[]>([]);
+  
+  // Forgot Password States
+  const [isResetOpen, setIsResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -159,6 +174,29 @@ export default function LoginPage() {
         setTimeout(() => setLoginStatus('idle'), 2000);
     }
   }
+
+  const handleResetPassword = async () => {
+    if (!resetEmail) {
+        toast({ title: "Email Required", description: "Please enter your registered email address.", variant: "destructive" });
+        return;
+    }
+    setResetLoading(true);
+    try {
+        await sendPasswordResetEmail(auth, resetEmail);
+        toast({ 
+            title: "Reset Link Sent", 
+            description: `A recovery link has been dispatched to ${resetEmail}. Check your inbox/spam folder.` 
+        });
+        setIsResetOpen(false);
+        setResetEmail('');
+    } catch (e: any) {
+        let errorMsg = "Could not send reset link.";
+        if (e.code === 'auth/user-not-found') errorMsg = "No account found with this email.";
+        toast({ title: "Recovery Failed", description: errorMsg, variant: "destructive" });
+    } finally {
+        setResetLoading(false);
+    }
+  };
 
   return (
     <main className="relative flex min-h-screen w-full flex-col items-center bg-[#020306] overflow-x-hidden pt-4 pb-12 px-4">
@@ -302,7 +340,13 @@ export default function LoginPage() {
                                 <Checkbox id="remember" className="border-white/20 data-[state=checked]:bg-primary h-5 w-5 rounded-lg" />
                                 <label htmlFor="remember" className="text-xs font-bold text-white/40 cursor-pointer select-none">Stay Logged In</label>
                             </div>
-                            <Link href="#" className="text-xs font-bold text-primary hover:text-white transition-colors">Recover Account</Link>
+                            <button 
+                                type="button" 
+                                onClick={() => setIsResetOpen(true)}
+                                className="text-xs font-bold text-primary hover:text-white transition-colors"
+                            >
+                                Recover Account
+                            </button>
                         </div>
 
                         <Button 
@@ -353,6 +397,48 @@ export default function LoginPage() {
             <FooterBadge icon={Headset} label="Priority" desc="Tech Support" color="text-blue-400" />
         </div>
       </div>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
+        <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white sm:max-w-md">
+            <DialogHeader>
+                <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4 mx-auto">
+                    <RefreshCcw className={cn("text-primary", resetLoading && "animate-spin")} />
+                </div>
+                <DialogTitle className="text-2xl font-black text-center tracking-tight">Account Recovery</DialogTitle>
+                <DialogDescription className="text-white/40 text-center">
+                    Enter the email associated with your portfolio to receive a secure reset link.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-6 space-y-4">
+                <div className="space-y-2">
+                    <Label className="text-white/50 text-[10px] font-black uppercase tracking-widest pl-1">Email Address</Label>
+                    <div className="relative group">
+                        <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors" />
+                        <Input
+                            placeholder="investor@tribed.world"
+                            type="email"
+                            value={resetEmail}
+                            onChange={(e) => setResetEmail(e.target.value)}
+                            className="pl-12 bg-white/5 border-white/10 rounded-xl h-14 focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10"
+                        />
+                    </div>
+                </div>
+            </div>
+            <DialogFooter className="flex-col sm:flex-col gap-3">
+                <Button 
+                    onClick={handleResetPassword} 
+                    className="w-full h-14 rounded-xl font-black bg-primary text-white shadow-2xl shadow-primary/20"
+                    disabled={resetLoading}
+                >
+                    {resetLoading ? "Processing..." : "Send Reset Link"}
+                </Button>
+                <DialogClose asChild>
+                    <Button variant="ghost" className="w-full text-white/40 hover:text-white">Return to Login</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
