@@ -17,10 +17,10 @@ import {
   TrendingUp, 
   Eye,
   Smartphone,
-  CheckCircle2,
+  User,
+  ArrowUpRight,
   Zap,
-  Star,
-  User
+  Star
 } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -94,96 +94,120 @@ export default function LoginPage() {
       }, 1000);
 
     } catch (error: any) {
-       let errorMessage = "Invalid credentials. Please try again.";
         setLoginStatus('error');
         toast({
             variant: "destructive",
             title: "Authentication Failed",
-            description: errorMessage,
+            description: "Invalid credentials. Please try again.",
         });
         setTimeout(() => setLoginStatus('idle'), 2000);
     }
   }
 
   return (
-    <main className="relative flex min-h-screen w-full flex-col items-center bg-[#030408] overflow-x-hidden pt-4 pb-12 px-4">
-      {/* Dynamic Background Blurs */}
-      <div className="fixed top-[-10%] -left-[20%] w-[80%] h-[40%] rounded-full bg-primary/20 blur-[150px] pointer-events-none animate-pulse z-0" />
-      <div className="fixed bottom-[-10%] -right-[20%] w-[80%] h-[40%] rounded-full bg-secondary/10 blur-[150px] pointer-events-none z-0" />
-      <div className="fixed top-[30%] left-[40%] w-[30%] h-[30%] rounded-full bg-purple-500/10 blur-[120px] pointer-events-none z-0" />
+    <main className="relative flex min-h-screen w-full flex-col items-center bg-[#020306] overflow-x-hidden pt-4 pb-12 px-4">
+      {/* Background Atmosphere */}
+      <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0">
+        <div className="absolute top-[-10%] -left-[20%] w-[80%] h-[40%] rounded-full bg-primary/10 blur-[150px] animate-pulse" />
+        <div className="absolute bottom-[-10%] -right-[20%] w-[80%] h-[40%] rounded-full bg-secondary/10 blur-[150px]" />
+        {/* Particle Stars */}
+        <div className="absolute inset-0 opacity-30">
+            {Array.from({ length: 20 }).map((_, i) => (
+                <div 
+                    key={i} 
+                    className="absolute h-1 w-1 bg-white rounded-full animate-pulse"
+                    style={{ 
+                        top: `${Math.random() * 100}%`, 
+                        left: `${Math.random() * 100}%`,
+                        animationDelay: `${Math.random() * 5}s`
+                    }}
+                />
+            ))}
+        </div>
+      </div>
 
-      <div className="relative z-10 w-full max-md flex flex-col items-center space-y-8">
+      <div className="relative z-10 w-full max-w-lg flex flex-col items-center space-y-10">
         
-        {/* Top Status Bar */}
-        <div className="w-full flex justify-between items-center px-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">100% Secure</span>
+        {/* Top Header Status Bars */}
+        <div className="w-full flex justify-between items-center px-4">
+            <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl">
+                <div className="h-2.5 w-2.5 rounded-full bg-[#22c55e] shadow-[0_0_10px_#22c55e]" />
+                <span className="text-[11px] font-black text-white/90 uppercase tracking-[1px]">100% Secure</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-                <Headset size={14} className="text-white/60" />
-                <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">24/7 Support</span>
+            <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl">
+                <Headset size={16} className="text-white/70" />
+                <span className="text-[11px] font-black text-white/90 uppercase tracking-[1px]">24/7 Support</span>
             </div>
         </div>
 
-        {/* Mascot & Branding Header */}
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="relative">
-             <div className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full animate-pulse" />
+        {/* Mascot Area with Coins & Arrow */}
+        <div className="relative flex flex-col items-center w-full max-w-[400px]">
+          {/* Growth Arrow SVG */}
+          <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-60">
+             <svg viewBox="0 0 200 200" className="w-full h-full fill-none stroke-[#22c55e] stroke-[2] stroke-linecap-round stroke-linejoin-round">
+                <path d="M40,140 Q80,140 100,100 T160,60" className="animate-dash" strokeDasharray="300" strokeDashoffset="300" />
+                <path d="M150,60 L160,60 L160,70" />
+             </svg>
+          </div>
+
+          {/* Floating Coins */}
+          <FloatingCoin className="top-10 left-10 scale-75" delay={0} />
+          <FloatingCoin className="bottom-20 -left-4 scale-90" delay={1.5} />
+          <FloatingCoin className="top-20 right-4" delay={0.8} />
+          <FloatingCoin className="bottom-10 right-10 scale-75" delay={2.2} />
+
+          <div className="relative group">
+             <div className="absolute -inset-10 bg-primary/20 blur-[60px] rounded-full animate-pulse transition-all group-hover:bg-primary/30" />
              <Image 
-                src="https://picsum.photos/seed/catbot1/400/400" 
+                src="https://picsum.photos/seed/financecat1/600/600" 
                 alt="Grow Money Mascot" 
-                width={160} 
-                height={160} 
-                className="relative z-10 drop-shadow-[0_0_30px_rgba(var(--primary),0.3)]"
-                data-ai-hint="futuristic cat robot financial"
+                width={220} 
+                height={220} 
+                className="relative z-10 drop-shadow-[0_0_30px_rgba(var(--primary),0.4)] hover:scale-105 transition-transform duration-500"
+                data-ai-hint="robot cat thumbs up"
              />
-             <TrendingUp className="absolute -top-2 -right-4 text-green-400 h-8 w-8 animate-bounce" />
-             <div className="absolute top-1/2 -left-8 bg-yellow-400/20 border border-yellow-400/40 rounded-lg p-1.5 backdrop-blur-md rotate-[-15deg]">
-                <span className="text-yellow-400 text-xs font-bold">₹</span>
-             </div>
           </div>
           
-          <div className="space-y-1">
-            <h1 className="text-4xl font-black tracking-tight text-white flex items-center gap-3">
-                Grow <span className="text-green-400">Money</span>
-                <span className="text-3xl">💰</span>
+          <div className="mt-6 text-center space-y-2">
+            <h1 className="text-5xl font-black tracking-tighter text-white flex items-center justify-center gap-3">
+                Grow <span className="text-[#22c55e]">Money</span>
+                <span className="text-4xl">💰</span>
             </h1>
-            <p className="text-xs font-medium text-white/40 tracking-wide">Invest Smart, Earn More, Grow Together</p>
+            <p className="text-sm font-bold text-white/40 tracking-wider">Invest Smart, Earn More, Grow Together</p>
           </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-2 w-full">
-            <StatsMiniCard icon={Users} label="5,000+" desc="Happy Investors" color="text-purple-400" />
-            <StatsMiniCard icon={Wallet} label="₹12.45L+" desc="Paid to Users" color="text-blue-400" />
-            <StatsMiniCard icon={TrendingUp} label="99.8%" desc="Success Rate" color="text-green-400" />
+        {/* Stats Strip */}
+        <div className="grid grid-cols-3 gap-3 w-full px-2">
+            <StatsMiniCard icon={Users} label="5,000+" desc="Investors" color="text-purple-400" />
+            <StatsMiniCard icon={Wallet} label="₹12.45L+" desc="Paid Out" color="text-blue-400" />
+            <StatsMiniCard icon={TrendingUp} label="99.8%" desc="Success" color="text-[#22c55e]" />
         </div>
 
-        {/* Auth Card */}
-        <div className="w-full relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-br from-primary/30 to-secondary/30 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition duration-500" />
-            <div className="relative w-full bg-white/[0.03] backdrop-blur-3xl border border-white/[0.08] shadow-2xl rounded-3xl p-6 sm:p-8 space-y-6">
+        {/* Authentication Card */}
+        <div className="w-full max-w-md relative group px-2">
+            <div className="absolute -inset-1 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-[2.5rem] blur-2xl opacity-50 group-hover:opacity-100 transition duration-500" />
+            <div className="relative w-full bg-white/[0.04] backdrop-blur-[40px] border border-white/10 shadow-2xl rounded-[2rem] p-8 space-y-7">
                 <div className="text-center space-y-1">
-                    <h2 className="text-2xl font-bold text-white tracking-tight">Welcome Back 👋</h2>
-                    <p className="text-xs text-white/40">Log in to your Grow Money account</p>
+                    <h2 className="text-2xl font-black text-white tracking-tight">Secure Access Portal</h2>
+                    <p className="text-[11px] font-bold text-white/30 uppercase tracking-[2px]">Enter your credentials</p>
                 </div>
 
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         <FormField
                             control={form.control}
                             name="email"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="text-white/60 text-xs font-bold uppercase tracking-wider">Email Address</FormLabel>
+                                    <FormLabel className="text-white/50 text-[10px] font-black uppercase tracking-widest pl-1">Email Identifier</FormLabel>
                                     <FormControl>
                                         <div className="relative group">
                                             <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors" />
                                             <Input
-                                                placeholder="name@example.com"
+                                                placeholder="admin@tribed.world"
                                                 {...field}
-                                                className="pl-12 bg-white/5 border-white/10 rounded-xl h-12 focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10"
+                                                className="pl-12 bg-white/5 border-white/10 rounded-xl h-14 focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10 text-base"
                                             />
                                         </div>
                                     </FormControl>
@@ -196,7 +220,7 @@ export default function LoginPage() {
                             name="password"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="text-white/60 text-xs font-bold uppercase tracking-wider">Password</FormLabel>
+                                    <FormLabel className="text-white/50 text-[10px] font-black uppercase tracking-widest pl-1">Security Key</FormLabel>
                                     <FormControl>
                                         <div className="relative group">
                                             <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors" />
@@ -204,16 +228,16 @@ export default function LoginPage() {
                                                 type={showPassword ? "text" : "password"}
                                                 placeholder="••••••••"
                                                 {...field}
-                                                className="pl-12 pr-12 bg-white/5 border-white/10 rounded-xl h-12 focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10"
+                                                className="pl-12 pr-12 bg-white/5 border-white/10 rounded-xl h-14 focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10 text-base"
                                             />
                                             <Button 
                                                 type="button" 
                                                 variant="ghost" 
                                                 size="icon" 
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-white/20 hover:text-white hover:bg-transparent"
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 text-white/20 hover:text-white hover:bg-transparent"
                                                 onClick={() => setShowPassword(!showPassword)}
                                             >
-                                                <Eye size={16} />
+                                                <Eye size={18} />
                                             </Button>
                                         </div>
                                     </FormControl>
@@ -222,111 +246,117 @@ export default function LoginPage() {
                             )}
                         />
 
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between px-1">
                             <div className="flex items-center space-x-2">
-                                <Checkbox id="remember" className="border-white/20 data-[state=checked]:bg-primary" />
-                                <label htmlFor="remember" className="text-xs font-bold text-white/60 cursor-pointer">Remember me</label>
+                                <Checkbox id="remember" className="border-white/20 data-[state=checked]:bg-primary h-5 w-5 rounded-lg" />
+                                <label htmlFor="remember" className="text-xs font-bold text-white/40 cursor-pointer select-none">Stay Logged In</label>
                             </div>
-                            <Link href="#" className="text-xs font-bold text-primary hover:text-primary/80 transition-colors">Forgot Password?</Link>
+                            <Link href="#" className="text-xs font-bold text-primary hover:text-white transition-colors">Recover Account</Link>
                         </div>
 
                         <Button 
                             type="submit" 
-                            className="w-full h-14 rounded-2xl text-lg font-black bg-primary text-white shadow-2xl shadow-primary/30 transition-all hover:scale-[1.02] active:scale-95 gap-2"
+                            className="w-full h-15 rounded-2xl text-lg font-black bg-primary text-white shadow-2xl shadow-primary/40 transition-all hover:scale-[1.02] active:scale-95 gap-3"
                             disabled={loginStatus === 'loading'}
                         >
-                            {loginStatus === 'loading' ? 'Verifying...' : 'Log In'}
-                            <ChevronRight size={20} />
+                            {loginStatus === 'loading' ? 'Authenticating...' : 'Authorize Login'}
+                            <ChevronRight size={22} className={cn(loginStatus === 'loading' && "hidden")} />
                         </Button>
                     </form>
                 </Form>
 
-                <div className="relative py-4">
-                    <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-white/5"></div>
-                    </div>
-                    <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[3px]">
-                        <span className="bg-transparent px-4 text-white/20">or continue with</span>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <Button variant="outline" className="h-12 rounded-xl bg-white/5 border-white/10 hover:bg-white/10 gap-2 font-bold text-xs">
-                        <svg className="h-4 w-4" viewBox="0 0 24 24">
-                            <path fill="#EA4335" d="M12 11h9v2h-9z" />
-                            <path fill="#FBBC05" d="M4 11h16v2H4z" />
-                            <path fill="#4285F4" d="M21 12c0-5-4-9-9-9s-9 4-9 9 4 9 9 9 9-4 9-9" />
-                            <path fill="#34A853" d="M12 4c2 0 4 1 5 2l2-2C17 2 15 1 12 1 6 1 1 6 1 12s5 11 11 11c3 0 5-1 7-2l-2-2c-1 1-3 1-5 1-4 0-8-3-8-8s4-8 8-8" />
-                        </svg>
-                        Google
-                    </Button>
-                    <Button variant="outline" className="h-12 rounded-xl bg-white/5 border-white/10 hover:bg-white/10 gap-2 font-bold text-xs">
-                        <Smartphone size={16} />
-                        Phone
-                    </Button>
-                </div>
-
-                <div className="pt-2 flex flex-col items-center gap-4">
+                <div className="flex flex-col items-center gap-5 pt-4">
                     <p className="text-xs font-bold text-white/30 tracking-tight">
-                        Don't have an account?{" "}
-                        <Link href="/register" className="text-primary hover:underline underline-offset-4">Register</Link>
+                        New to the platform?{" "}
+                        <Link href="/register" className="text-primary hover:text-white transition-colors underline underline-offset-4">Create Account</Link>
                     </p>
-                    <div className="h-px w-20 bg-white/5" />
+                    <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                     <Link href="/admin/login" className="text-[10px] font-black uppercase tracking-[4px] text-white/20 hover:text-white transition-colors">
-                        Admin Login
+                        Admin Terminal
                     </Link>
                 </div>
             </div>
         </div>
 
-        {/* Live Activity Section */}
-        <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 flex items-center gap-3 backdrop-blur-xl animate-in slide-in-from-bottom duration-1000">
-            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-green-500 shrink-0">Live Activity</span>
-            <div className="h-4 w-px bg-white/10 mx-1 shrink-0" />
-            <div className="flex-1 flex items-center gap-2 truncate overflow-hidden">
-                <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <User size={12} className="text-primary" />
+        {/* Live Pulse Ticker */}
+        <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 flex items-center gap-4 backdrop-blur-xl shadow-2xl">
+            <div className="h-2.5 w-2.5 rounded-full bg-[#22c55e] animate-ping shrink-0" />
+            <span className="text-[10px] font-black uppercase tracking-[2px] text-[#22c55e] shrink-0">Live Pulse</span>
+            <div className="h-4 w-px bg-white/10 shrink-0" />
+            <div className="flex-1 flex items-center gap-2.5 truncate overflow-hidden">
+                <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20">
+                    <User size={14} className="text-primary" />
                 </div>
-                <p className="text-[11px] font-bold text-white/80 truncate">
-                    Rahul <span className="text-white/40 font-normal">just invested</span> <span className="text-green-400">₹5,000</span>
+                <p className="text-[11px] font-bold text-white/90 truncate">
+                    Harsh <span className="text-white/40 font-normal">verified</span> <span className="text-[#22c55e]">₹10,000 Portfolio</span>
                 </p>
             </div>
-            <span className="text-[10px] font-bold text-white/20 whitespace-nowrap">2s ago</span>
+            <span className="text-[10px] font-black text-white/20 whitespace-nowrap">Now</span>
         </div>
 
         {/* Footer Badges */}
-        <div className="grid grid-cols-4 gap-4 w-full pt-4">
-            <FooterBadge icon={ShieldCheck} label="Secure Platform" desc="100% Safe" color="text-green-500" />
-            <FooterBadge icon={Zap} label="Fast Pay" desc="Instant Payout" color="text-yellow-500" />
-            <FooterBadge icon={Users} label="Community" desc="5000+ Trust" color="text-purple-500" />
-            <FooterBadge icon={Headset} label="Support" desc="24/7 Help" color="text-blue-500" />
+        <div className="grid grid-cols-4 gap-2 w-full pt-4">
+            <FooterBadge icon={ShieldCheck} label="Bank-Grade" desc="Encryption" color="text-[#22c55e]" />
+            <FooterBadge icon={Zap} label="Instant" desc="Withdrawals" color="text-yellow-400" />
+            <FooterBadge icon={Users} label="verified" desc="Community" color="text-purple-400" />
+            <FooterBadge icon={Headset} label="Priority" desc="Tech Support" color="text-blue-400" />
         </div>
       </div>
+      
+      <style jsx global>{`
+        @keyframes dash {
+          to { stroke-dashoffset: 0; }
+        }
+        .animate-dash {
+          animation: dash 3s ease-out forwards;
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-15px) rotate(5deg); }
+        }
+        .animate-float {
+          animation: float 4s ease-in-out infinite;
+        }
+      `}</style>
     </main>
   );
 }
 
+function FloatingCoin({ className, delay }: { className: string, delay: number }) {
+    return (
+        <div 
+            className={cn("absolute z-20 animate-float pointer-events-none", className)}
+            style={{ animationDelay: `${delay}s` }}
+        >
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-yellow-300 to-amber-600 border-2 border-yellow-200/50 shadow-[0_0_20px_rgba(245,158,11,0.4)] flex items-center justify-center">
+                <span className="text-yellow-100 font-black text-lg">₹</span>
+            </div>
+        </div>
+    )
+}
+
 function StatsMiniCard({ icon: Icon, label, desc, color }: { icon: any, label: string, desc: string, color: string }) {
     return (
-        <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/[0.03] border border-white/5 backdrop-blur-xl">
-            <div className={cn("p-2 rounded-xl bg-white/5 mb-2", color)}>
-                <Icon size={16} />
+        <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-3xl shadow-xl hover:bg-white/[0.06] transition-all">
+            <div className={cn("p-2.5 rounded-xl bg-white/5 mb-2.5", color)}>
+                <Icon size={18} />
             </div>
-            <span className="text-sm font-black text-white tracking-tighter">{label}</span>
-            <span className="text-[8px] font-bold uppercase tracking-widest text-white/20 text-center leading-tight">{desc}</span>
+            <span className="text-base font-black text-white tracking-tighter">{label}</span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-white/20 text-center leading-tight mt-1">{desc}</span>
         </div>
     )
 }
 
 function FooterBadge({ icon: Icon, label, desc, color }: { icon: any, label: string, desc: string, color: string }) {
     return (
-        <div className="flex flex-col items-center text-center space-y-1">
-            <div className={cn("p-2 rounded-xl bg-white/[0.02] border border-white/5", color)}>
-                <Icon size={18} />
+        <div className="flex flex-col items-center text-center space-y-1.5 opacity-60 hover:opacity-100 transition-opacity">
+            <div className={cn("p-2.5 rounded-2xl bg-white/[0.03] border border-white/5", color)}>
+                <Icon size={20} />
             </div>
-            <p className="text-[9px] font-black text-white/80 leading-none">{label}</p>
-            <p className="text-[8px] font-bold text-white/20 leading-none">{desc}</p>
+            <div className="space-y-0.5">
+                <p className="text-[10px] font-black text-white/90 leading-none tracking-tight">{label}</p>
+                <p className="text-[8px] font-bold text-white/20 leading-none uppercase tracking-[1px]">{desc}</p>
+            </div>
         </div>
     )
 }
