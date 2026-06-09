@@ -19,12 +19,13 @@ import {
   Smartphone,
   CheckCircle2,
   Zap,
-  Star
+  Star,
+  User
 } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +41,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -112,7 +112,7 @@ export default function LoginPage() {
       <div className="fixed bottom-[-10%] -right-[20%] w-[80%] h-[40%] rounded-full bg-secondary/10 blur-[150px] pointer-events-none z-0" />
       <div className="fixed top-[30%] left-[40%] w-[30%] h-[30%] rounded-full bg-purple-500/10 blur-[120px] pointer-events-none z-0" />
 
-      <div className="relative z-10 w-full max-w-md flex flex-col items-center space-y-8">
+      <div className="relative z-10 w-full max-md flex flex-col items-center space-y-8">
         
         {/* Top Status Bar */}
         <div className="w-full flex justify-between items-center px-2">
@@ -138,7 +138,6 @@ export default function LoginPage() {
                 className="relative z-10 drop-shadow-[0_0_30px_rgba(var(--primary),0.3)]"
                 data-ai-hint="futuristic cat robot financial"
              />
-             {/* Floating UI elements decoration */}
              <TrendingUp className="absolute -top-2 -right-4 text-green-400 h-8 w-8 animate-bounce" />
              <div className="absolute top-1/2 -left-8 bg-yellow-400/20 border border-yellow-400/40 rounded-lg p-1.5 backdrop-blur-md rotate-[-15deg]">
                 <span className="text-yellow-400 text-xs font-bold">₹</span>
@@ -161,7 +160,7 @@ export default function LoginPage() {
             <StatsMiniCard icon={TrendingUp} label="99.8%" desc="Success Rate" color="text-green-400" />
         </div>
 
-        {/* Auth Card Redesign */}
+        {/* Auth Card */}
         <div className="w-full relative group">
             <div className="absolute -inset-0.5 bg-gradient-to-br from-primary/30 to-secondary/30 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition duration-500" />
             <div className="relative w-full bg-white/[0.03] backdrop-blur-3xl border border-white/[0.08] shadow-2xl rounded-3xl p-6 sm:p-8 space-y-6">
@@ -247,7 +246,7 @@ export default function LoginPage() {
                         <div className="w-full border-t border-white/5"></div>
                     </div>
                     <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[3px]">
-                        <span className="bg-[#030408]/0 px-4 text-white/20">or continue with</span>
+                        <span className="bg-transparent px-4 text-white/20">or continue with</span>
                     </div>
                 </div>
 
@@ -298,10 +297,10 @@ export default function LoginPage() {
 
         {/* Footer Badges */}
         <div className="grid grid-cols-4 gap-4 w-full pt-4">
-            <FooterBadge icon={ShieldCheck} label="Secure Platform" desc="100% Safe & Secure" color="text-green-500" />
-            <FooterBadge icon={Zap} label="Fast Payments" desc="Instant Withdrawals" color="text-yellow-500" />
-            <FooterBadge icon={Users} label="Trusted by 5000+" desc="Happy Investors" color="text-purple-500" />
-            <FooterBadge icon={Headset} label="24/7 Support" desc="We are here" color="text-blue-500" />
+            <FooterBadge icon={ShieldCheck} label="Secure Platform" desc="100% Safe" color="text-green-500" />
+            <FooterBadge icon={Zap} label="Fast Pay" desc="Instant Payout" color="text-yellow-500" />
+            <FooterBadge icon={Users} label="Community" desc="5000+ Trust" color="text-purple-500" />
+            <FooterBadge icon={Headset} label="Support" desc="24/7 Help" color="text-blue-500" />
         </div>
       </div>
     </main>
