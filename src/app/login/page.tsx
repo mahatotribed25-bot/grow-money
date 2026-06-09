@@ -22,7 +22,7 @@ import {
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -55,14 +55,17 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [loginStatus, setLoginStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [showPassword, setShowPassword] = useState(false);
+  const [particles, setParticles] = useState<{ top: string; left: string; delay: string }[]>([]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  });
+  useEffect(() => {
+    // Generate particles on client side to avoid hydration mismatch
+    const newParticles = Array.from({ length: 20 }).map(() => ({
+      top: `${Math.random() * 100}%`,
+      left: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 5}s`,
+    }));
+    setParticles(newParticles);
+  }, []);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoginStatus('loading');
@@ -110,14 +113,14 @@ export default function LoginPage() {
         
         {/* Particle Stars */}
         <div className="absolute inset-0 opacity-30">
-            {Array.from({ length: 20 }).map((_, i) => (
+            {particles.map((p, i) => (
                 <div 
                     key={i} 
                     className="absolute h-1 w-1 bg-white rounded-full animate-pulse"
                     style={{ 
-                        top: `${Math.random() * 100}%`, 
-                        left: `${Math.random() * 100}%`,
-                        animationDelay: `${Math.random() * 5}s`
+                        top: p.top, 
+                        left: p.left,
+                        animationDelay: p.delay
                     }}
                 />
             ))}
