@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -26,14 +25,16 @@ export function AuthCard({
 }: AuthCardProps) {
   return (
     <div className="relative w-full">
-        <div className="absolute -inset-0.5 rounded-lg bg-[conic-gradient(from_180deg_at_50%_50%,hsl(var(--chart-1)),hsl(var(--chart-2)),hsl(var(--chart-3)),hsl(var(--chart-4)),hsl(var(--chart-5)),hsl(var(--chart-1)))] animate-border-spin" />
-        <Card className="w-full relative">
-            <CardHeader className="text-center">
-                <CardTitle className="text-2xl font-bold tracking-tight">{title}</CardTitle>
-                <CardDescription>{description}</CardDescription>
+        {/* Subtle outer glow */}
+        <div className="absolute -inset-1 rounded-3xl bg-primary/20 blur-2xl pointer-events-none" />
+        
+        <Card className="w-full relative bg-white/[0.03] backdrop-blur-2xl border-white/[0.08] shadow-2xl rounded-3xl overflow-hidden">
+            <CardHeader className="text-center pt-8">
+                <CardTitle className="text-2xl font-bold tracking-tight text-white">{title}</CardTitle>
+                <CardDescription className="text-white/40">{description}</CardDescription>
             </CardHeader>
-            <CardContent>{children}</CardContent>
-            <CardFooter className="flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+            <CardContent className="pb-8">{children}</CardContent>
+            <CardFooter className="flex flex-col items-center justify-center gap-4 text-sm text-white/40 pb-8 border-t border-white/[0.05] bg-black/20">
                 {footer}
             </CardFooter>
         </Card>

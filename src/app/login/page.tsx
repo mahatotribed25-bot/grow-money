@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -56,12 +55,11 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // Check if user is blocked
       const userDocRef = doc(firestore, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (userDoc.exists() && userDoc.data().status === 'Blocked') {
-        await auth.signOut(); // Sign out the blocked user
+        await auth.signOut();
         setLoginStatus('error');
         toast({
           variant: "destructive",
@@ -93,56 +91,62 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen w-full flex-col items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm space-y-4">
-        <div className="flex flex-col items-center space-y-2 text-center">
+    <main className="relative flex min-h-screen w-full flex-col items-center justify-center bg-[#030408] p-4 overflow-hidden">
+      {/* Background Glow Blobs */}
+      <div className="fixed top-[-10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px] pointer-events-none animate-pulse z-0" />
+      <div className="fixed bottom-[-10%] -right-[10%] w-[50%] h-[50%] rounded-full bg-secondary/5 blur-[120px] pointer-events-none z-0" />
+      
+      <div className="relative z-10 w-full max-w-sm space-y-8">
+        <div className="flex flex-col items-center space-y-4 text-center">
           <LoginStatusAnimation status={loginStatus} />
-          <h1 className="text-3xl font-bold tracking-tight text-white">
-            Grow Money 💰
-          </h1>
+          <div className="space-y-1">
+            <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-2xl">
+                Grow Money
+            </h1>
+            <p className="text-[10px] font-black uppercase tracking-[5px] text-primary">Wealth Simplified</p>
+          </div>
         </div>
+
         <AuthCard
-          title="Welcome Back"
-          description="Log in to your Grow Money account"
+          title="Secure Access"
+          description="Log in to manage your digital assets"
           footer={
-            <>
+            <div className="flex flex-col items-center gap-3">
               <p>
                 Don't have an account?{" "}
                 <Link
                   href="/register"
-                  className="font-medium text-primary underline-offset-4 hover:underline"
+                  className="font-bold text-primary hover:text-white transition-colors underline-offset-4 hover:underline"
                 >
-                  Register
+                  Join Now
                 </Link>
               </p>
-              <p>
-                Are you an admin?{" "}
-                <Link
-                  href="/admin/login"
-                  className="font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  Admin Login
-                </Link>
-              </p>
-            </>
+              <Separator className="w-20 bg-white/5" />
+              <Link
+                href="/admin/login"
+                className="text-[10px] font-bold uppercase tracking-widest text-white/20 hover:text-white transition-colors"
+              >
+                Administrator Entry
+              </Link>
+            </div>
           }
         >
           <fieldset disabled={loginStatus === 'loading' || loginStatus === 'success'}>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel className="text-white/60">Email Address</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20" />
                           <Input
                             placeholder="name@example.com"
                             {...field}
-                            className="pl-10"
+                            className="pl-10 bg-white/5 border-white/10 rounded-xl h-11 focus:ring-primary text-white"
                           />
                         </div>
                       </FormControl>
@@ -155,15 +159,15 @@ export default function LoginPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel className="text-white/60">Password</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20" />
                           <Input
                             type="password"
                             placeholder="••••••••"
                             {...field}
-                            className="pl-10"
+                            className="pl-10 bg-white/5 border-white/10 rounded-xl h-11 focus:ring-primary text-white"
                           />
                         </div>
                       </FormControl>
@@ -171,8 +175,8 @@ export default function LoginPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={loginStatus === 'loading' || loginStatus === 'success'}>
-                  Log In
+                <Button type="submit" className="w-full h-12 rounded-xl text-base font-bold shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95" disabled={loginStatus === 'loading' || loginStatus === 'success'}>
+                  Log In Securely
                 </Button>
               </form>
             </Form>
@@ -181,4 +185,8 @@ export default function LoginPage() {
       </div>
     </main>
   );
+}
+
+function Separator({ className }: { className?: string }) {
+    return <div className={cn("h-px w-full bg-border", className)} />
 }

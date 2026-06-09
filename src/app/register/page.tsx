@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -16,9 +15,6 @@ import {
   query,
   where,
   getDocs,
-  writeBatch,
-  getDoc,
-  Timestamp,
   serverTimestamp,
 } from "firebase/firestore";
 
@@ -36,7 +32,7 @@ import { AuthCard } from "@/components/auth/auth-card";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { LoginStatusAnimation } from "@/components/auth/LoginStatusAnimation";
-
+import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -118,6 +114,8 @@ export default function RegisterPage() {
         kycStatus: 'Not Submitted',
         upiStatus: 'Unverified',
         createdAt: serverTimestamp(),
+        trustScore: 500,
+        vipLevel: 'Bronze'
       });
 
       router.push("/");
@@ -135,23 +133,31 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-4">
-        <div className="flex flex-col items-center space-y-2 text-center">
+    <main className="relative flex min-h-screen w-full items-center justify-center bg-[#030408] p-4 overflow-hidden">
+      {/* Background Glow Blobs */}
+      <div className="fixed top-[-10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px] pointer-events-none animate-pulse z-0" />
+      <div className="fixed bottom-[-10%] -right-[10%] w-[50%] h-[50%] rounded-full bg-secondary/5 blur-[120px] pointer-events-none z-0" />
+
+      <div className="relative z-10 w-full max-w-sm space-y-8">
+        <div className="flex flex-col items-center space-y-4 text-center">
           <LoginStatusAnimation status={'idle'} />
-          <h1 className="text-3xl font-bold tracking-tight text-primary">
-            Grow Money 💰
-          </h1>
+          <div className="space-y-1">
+            <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-2xl">
+                Grow Money
+            </h1>
+            <p className="text-[10px] font-black uppercase tracking-[5px] text-primary">Join the Network</p>
+          </div>
         </div>
+
         <AuthCard
-          title="Create an Account"
-          description="Join Grow Money to get started"
+          title="Create Account"
+          description="Start your journey to financial growth"
           footer={
             <p>
               Already have an account?{" "}
               <Link
                 href="/login"
-                className="font-medium text-primary underline-offset-4 hover:underline"
+                className="font-bold text-primary hover:text-white transition-colors underline-offset-4 hover:underline"
               >
                 Log In
               </Link>
@@ -165,14 +171,14 @@ export default function RegisterPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel className="text-white/60">Full Name</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20" />
                         <Input
                           placeholder="John Doe"
                           {...field}
-                          className="pl-10"
+                          className="pl-10 bg-white/5 border-white/10 rounded-xl h-11 focus:ring-primary text-white"
                         />
                       </div>
                     </FormControl>
@@ -185,14 +191,14 @@ export default function RegisterPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel className="text-white/60">Email Address</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20" />
                         <Input
                           placeholder="name@example.com"
                           {...field}
-                          className="pl-10"
+                          className="pl-10 bg-white/5 border-white/10 rounded-xl h-11 focus:ring-primary text-white"
                         />
                       </div>
                     </FormControl>
@@ -205,15 +211,15 @@ export default function RegisterPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel className="text-white/60">Password</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20" />
                         <Input
                           type="password"
                           placeholder="••••••••"
                           {...field}
-                          className="pl-10"
+                          className="pl-10 bg-white/5 border-white/10 rounded-xl h-11 focus:ring-primary text-white"
                         />
                       </div>
                     </FormControl>
@@ -226,14 +232,14 @@ export default function RegisterPage() {
                 name="referralCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Referral Code (Optional)</FormLabel>
+                    <FormLabel className="text-white/60">Referral Code (Optional)</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Gift className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Gift className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20" />
                         <Input
-                          placeholder="Enter referral code"
+                          placeholder="ENTER CODE"
                           {...field}
-                          className="pl-10"
+                          className="pl-10 bg-white/5 border-white/10 rounded-xl h-11 font-mono tracking-widest focus:ring-primary text-white"
                         />
                       </div>
                     </FormControl>
@@ -241,8 +247,8 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
-                Create Account
+              <Button type="submit" className="w-full h-12 rounded-xl text-base font-bold shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95 mt-4">
+                Establish My Account
               </Button>
             </form>
           </Form>
