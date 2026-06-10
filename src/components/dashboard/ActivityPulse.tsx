@@ -5,13 +5,13 @@ import { useCollection, useUser } from '@/firebase';
 import { orderBy, limit } from 'firebase/firestore';
 import { Zap, Timer } from 'lucide-react';
 
-const ADMIN_EMAIL = 'admin@tribed.world';
+const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
 export function ActivityPulse() {
     const { user, loading: userLoading } = useUser();
     
     // Only admins have permission to query across all investments via collectionGroup
-    const isAdmin = useMemo(() => user?.email === ADMIN_EMAIL, [user]);
+    const isAdmin = useMemo(() => user?.email && ADMIN_EMAILS.includes(user.email), [user]);
 
     const pulsePath = useMemo(() => {
         if (userLoading || !user || !isAdmin) return null;

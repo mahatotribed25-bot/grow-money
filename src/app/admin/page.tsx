@@ -76,6 +76,7 @@ type AdminSettings = {
     profitCalculationStartDate?: Timestamp;
 }
 
+const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
 const processSalesProfitData = (
   investments: Investment[] | null,
@@ -131,7 +132,7 @@ const processUserSignupData = (users: User[] | null) => {
 
 export default function AdminDashboard() {
   const { user, loading: userIsLoading } = useUser();
-  const isAdmin = !userIsLoading && user?.email === 'admin@tribed.world';
+  const isAdmin = useMemo(() => !userIsLoading && user?.email && ADMIN_EMAILS.includes(user.email), [user, userIsLoading]);
   
   const { data: users, loading: usersLoading } = useCollection<User>(isAdmin ? 'users' : null);
   const { data: allDeposits, loading: depositsLoading } = useCollection<Transaction>(isAdmin ? 'deposits' : null);
@@ -197,7 +198,7 @@ export default function AdminDashboard() {
     usersLoading || depositsLoading || withdrawalsLoading || investmentPlansLoading || loanPlansLoading || loansLoading || groupLoanPlansLoading || kycLoading || allInvestmentsLoading || settingsLoading || allActiveLoansLoading;
 
   const totalUsers =
-    users?.filter((u) => u.email !== 'admin@tribed.world').length || 0;
+    users?.filter((u) => !u.email || !ADMIN_EMAILS.includes(u.email)).length || 0;
   const totalWalletBalance =
     users?.reduce((sum, user) => sum + (user.walletBalance || 0), 0) || 0;
   
@@ -331,4 +332,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-

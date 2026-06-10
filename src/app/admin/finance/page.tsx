@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -81,13 +80,15 @@ type ActiveP2PLoan = {
     createdAt: Timestamp;
 };
 
+const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
+
 export default function AdminFinancePage() {
     const firestore = useFirestore();
     const { toast } = useToast();
     const { user, loading: userLoading } = useUser();
     
     // Only run expensive collection group queries if we are sure the user is an admin
-    const isAdmin = useMemo(() => !userLoading && user?.email === 'admin@tribed.world', [user, userLoading]);
+    const isAdmin = useMemo(() => !userLoading && user?.email && ADMIN_EMAILS.includes(user.email), [user, userLoading]);
 
     const { data: settings, loading: settingsLoading } = useDoc<AdminSettings>(isAdmin ? 'settings/admin' : null);
     const { data: plans, loading: plansLoading } = useCollection<InvestmentPlan>(isAdmin ? 'investmentPlans' : null);
