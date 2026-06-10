@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useDoc } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -34,12 +34,19 @@ type ActiveP2PLoan = {
     createdAt: Timestamp;
 }
 
+type AdminSettings = {
+    p2pPlatformFeePercent?: number;
+}
+
 export default function AdminP2PLoansPage() {
     const firestore = useFirestore();
     const { toast } = useToast();
     
     const { data: requests, loading: reqLoading } = useCollection<P2PRequest>('p2pLoanRequests');
     const { data: activeLoans, loading: activeLoading } = useCollection<ActiveP2PLoan>('p2pActiveLoans');
+    const { data: settings } = useDoc<AdminSettings>('settings/admin');
+
+    const feePercent = settings?.p2pPlatformFeePercent || 2;
 
     const handleDeleteRequest = async (id: string) => {
         try {
@@ -52,10 +59,9 @@ export default function AdminP2PLoansPage() {
 
     const stats = useMemo(() => {
         const volume = activeLoans?.reduce((sum, l) => sum + (l.amount || 0), 0) || 0;
-        // Assuming 2% fee based on previous implementation
-        const estProfit = activeLoans?.reduce((sum, l) => sum + (l.amount * 0.02), 0) || 0;
+        const estProfit = activeLoans?.reduce((sum, l) => sum + (l.amount * (feePercent / 100)), 0) || 0;
         return { volume, estProfit };
-    }, [activeLoans]);
+    }, [activeLoans, feePercent]);
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -89,7 +95,7 @@ export default function AdminP2PLoansPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-black text-green-400 tracking-tighter">₹{stats.estProfit.toLocaleString()}</div>
-                        <p className="text-[10px] text-white/20 mt-1 font-bold">FROM 2% MATCHING FEES</p>
+                        <p className="text-[10px] text-white/20 mt-1 font-bold">FROM {feePercent}% MATCHING FEES</p>
                     </CardContent>
                 </Card>
                 <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-2xl">
@@ -182,7 +188,7 @@ export default function AdminP2PLoansPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <span className="text-xs font-black text-green-400">+₹{(loan.amount * 0.02).toFixed(2)}</span>
+                                                <span className="text-xs font-black text-green-400">+₹{(loan.amount * (feePercent / 100)).toFixed(2)}</span>
                                             </TableCell>
                                             <TableCell className="pr-6 text-right">
                                                 <Badge variant="outline" className={cn(

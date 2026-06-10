@@ -179,6 +179,18 @@
             "createdAt": { "type": "string", "format": "date-time" }
         }
     },
+    "p2pActiveLoan": {
+        "title": "Active P2P Loan",
+        "type": "object",
+        "properties": {
+            "borrowerId": { "type": "string" },
+            "lenderId": { "type": "string" },
+            "amount": { "type": "number" },
+            "totalRepayment": { "type": "number" },
+            "status": { "type": "string", "enum": ["active", "repaid"] },
+            "dueDate": { "type": "string", "format": "date-time" }
+        }
+    },
     "adminSettings": {
         "title": "Admin Settings",
         "type": "object",
@@ -231,6 +243,10 @@
     "/p2pLoanRequests/{requestId}/offers/{offerId}": {
         "schema": { "$ref": "#/entities/p2pLoanOffer" },
         "description": "Stores bidding offers for a P2P request."
+    },
+    "/p2pActiveLoans/{loanId}": {
+        "schema": { "$ref": "#/entities/p2pActiveLoan" },
+        "description": "Stores matched and ongoing P2P loans."
     }
   }
 }

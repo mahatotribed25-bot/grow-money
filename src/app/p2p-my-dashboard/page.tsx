@@ -1,13 +1,14 @@
+
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useUser, useCollection, useFirestore, useDoc } from '@/firebase';
-import { collection, query, where, doc, runTransaction, serverTimestamp, Timestamp, addDoc } from 'firebase/firestore';
+import { collection, query, where, doc, runTransaction, serverTimestamp, Timestamp, addDoc, getDocs, deleteDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, Timer, CheckCircle2, XCircle, Users, ArrowUpRight, Wallet, History, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, Timer, CheckCircle2, XCircle, Users, ArrowUpRight, Wallet, History, AlertCircle, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,7 @@ type P2POffer = {
     status: string;
     createdAt: Timestamp;
     lenderId: string;
+    requestId: string;
 }
 
 type ActiveP2PLoan = {
@@ -66,6 +68,10 @@ export default function P2PMyDashboard() {
         user ? query(collection(firestore, 'p2pActiveLoans'), where('lenderId', '==', user.uid)) : null
     );
 
+    const { data: allOffers } = useCollection<P2POffer>(
+        user ? query(collection(firestore, 'offers'), { subcollections: true }, where('lenderId', '==', user.uid)) : null
+    );
+
     const platformFeePercent = adminSettings?.p2pPlatformFeePercent || 2;
 
     return (
@@ -92,7 +98,7 @@ export default function P2PMyDashboard() {
                     <TabsContent value="borrowing" className="mt-8 space-y-8">
                         {/* Active Borrowed Loans */}
                         <div className="space-y-4">
-                            <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">Active Loans (Must Repay)</h2>
+                            <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">Active Loans</h2>
                             {borrowedLoading ? (
                                 <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
                             ) : myBorrowedLoans?.filter(l => l.status === 'active').length === 0 ? (
@@ -113,7 +119,7 @@ export default function P2PMyDashboard() {
                                 <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
                             ) : myRequests?.filter(r => r.status === 'funding').length === 0 ? (
                                 <Card className="bg-white/5 border-white/10 border-dashed py-8 text-center">
-                                    <p className="text-white/30 text-xs uppercase font-bold">No active bids</p>
+                                    <p className="text-white/30 text-xs uppercase font-bold">No active requests</p>
                                 </Card>
                             ) : (
                                 myRequests?.filter(r => r.status === 'funding').map(req => (
@@ -126,7 +132,7 @@ export default function P2PMyDashboard() {
                     <TabsContent value="lending" className="mt-8 space-y-8">
                         {/* Active Lent Loans */}
                         <div className="space-y-4">
-                            <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">My Lent Assets</h2>
+                            <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">My Active Assets</h2>
                             {lentLoading ? (
                                 <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
                             ) : myLentLoans?.filter(l => l.status === 'active').length === 0 ? (
@@ -138,6 +144,18 @@ export default function P2PMyDashboard() {
                             ) : (
                                 myLentLoans?.filter(l => l.status === 'active').map(loan => (
                                     <ActiveLoanCard key={loan.id} loan={loan} mode="lender" />
+                                ))
+                            )}
+                        </div>
+
+                        {/* Sent Bids Tracker */}
+                        <div className="space-y-4">
+                            <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">Pending Bids</h2>
+                            {allOffers?.filter(o => o.status === 'pending').length === 0 ? (
+                                <p className="text-center text-[10px] text-white/10 uppercase font-black py-4">No active bids in market</p>
+                            ) : (
+                                allOffers?.filter(o => o.status === 'pending').map(offer => (
+                                    <SentBidItem key={offer.id} offer={offer} />
                                 ))
                             )}
                         </div>
@@ -185,6 +203,35 @@ export default function P2PMyDashboard() {
                     <BottomNavItem icon={User} label="Profile" href="/profile" />
                 </div>
             </nav>
+        </div>
+    );
+}
+
+function SentBidItem({ offer }: { offer: P2POffer }) {
+    const firestore = useFirestore();
+    const { toast } = useToast();
+
+    const handleCancelBid = async () => {
+        try {
+            await deleteDoc(doc(firestore, `p2pLoanRequests/${offer.requestId}/offers`, offer.id));
+            toast({ title: "Bid Withdrawn", description: "Your offer has been removed from the request." });
+        } catch (e) {
+            toast({ title: "Error", variant: "destructive" });
+        }
+    };
+
+    return (
+        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+                <p className="text-[10px] text-white/30 uppercase font-bold mb-1">Bid ID: {offer.id.slice(-4)}</p>
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-white">{offer.interestRate}% Interest Offer</span>
+                    <Badge variant="outline" className="text-[8px] h-4 border-white/10 text-white/40 uppercase">Pending</Badge>
+                </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleCancelBid} className="text-red-400/40 hover:text-red-400 hover:bg-red-400/10 h-10 w-10 rounded-xl">
+                <Trash2 size={16} />
+            </Button>
         </div>
     );
 }
