@@ -96,7 +96,6 @@ export default function P2PMyDashboard() {
                     </TabsList>
 
                     <TabsContent value="borrowing" className="mt-8 space-y-8">
-                        {/* Active Borrowed Loans */}
                         <div className="space-y-4">
                             <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">Active Loans</h2>
                             {borrowedLoading ? (
@@ -112,7 +111,6 @@ export default function P2PMyDashboard() {
                             )}
                         </div>
 
-                        {/* Loan Requests (The marketplace items) */}
                         <div className="space-y-4">
                             <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">Open Market Requests</h2>
                             {reqLoading ? (
@@ -130,7 +128,6 @@ export default function P2PMyDashboard() {
                     </TabsContent>
 
                     <TabsContent value="lending" className="mt-8 space-y-8">
-                        {/* Active Lent Loans */}
                         <div className="space-y-4">
                             <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">My Active Assets</h2>
                             {lentLoading ? (
@@ -148,7 +145,6 @@ export default function P2PMyDashboard() {
                             )}
                         </div>
 
-                        {/* Sent Bids Tracker */}
                         <div className="space-y-4">
                             <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">Pending Bids</h2>
                             {allOffers?.filter(o => o.status === 'pending').length === 0 ? (
@@ -160,7 +156,6 @@ export default function P2PMyDashboard() {
                             )}
                         </div>
 
-                        {/* P2P History */}
                         <div className="space-y-4">
                             <h2 className="text-xs font-black uppercase tracking-[3px] text-white/20 pl-2">Settled History</h2>
                             {borrowedLoading || lentLoading ? null : (
@@ -252,6 +247,9 @@ function BorrowerRequestCard({ req, feePercent }: { req: P2PRequest, feePercent:
                 const requestRef = doc(firestore, 'p2pLoanRequests', req.id);
                 const offerRef = doc(firestore, `p2pLoanRequests/${req.id}/offers`, offer.id);
                 const settingsRef = doc(firestore, 'settings', 'admin');
+                
+                const lenderHistoryRef = doc(collection(firestore, 'users', offer.lenderId, 'walletHistory'));
+                const borrowerHistoryRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
 
                 const lenderDoc = await transaction.get(lenderRef);
                 const borrowerDoc = await transaction.get(borrowerRef);
@@ -276,18 +274,34 @@ function BorrowerRequestCard({ req, feePercent }: { req: P2PRequest, feePercent:
                 transaction.update(lenderRef, { walletBalance: lenderBalance - req.amount });
                 transaction.update(borrowerRef, { walletBalance: (borrowerDoc.data().walletBalance || 0) + creditAmt });
 
-                // 2. Admin Profit
+                // 2. Add History
+                transaction.set(lenderHistoryRef, {
+                    amount: req.amount,
+                    type: 'debit',
+                    category: 'P2P Asset',
+                    description: `Funded P2P loan for ${user.displayName}`,
+                    createdAt: serverTimestamp()
+                });
+                transaction.set(borrowerHistoryRef, {
+                    amount: creditAmt,
+                    type: 'credit',
+                    category: 'P2P Loan',
+                    description: `P2P Loan credited (After ${feePercent}% platform fee)`,
+                    createdAt: serverTimestamp()
+                });
+
+                // 3. Admin Profit
                 if (settingsDoc.exists()) {
                     transaction.update(settingsRef, {
                         adminProfitBalance: (settingsDoc.data().adminProfitBalance || 0) + feeAmt
                     });
                 }
 
-                // 3. Statuses
+                // 4. Statuses
                 transaction.update(requestRef, { status: 'accepted', acceptedOfferId: offer.id });
                 transaction.update(offerRef, { status: 'accepted' });
 
-                // 4. Create Active Loan Record
+                // 5. Create Active Loan Record
                 const activeLoanRef = doc(collection(firestore, 'p2pActiveLoans'));
                 transaction.set(activeLoanRef, {
                     requestId: req.id,
@@ -364,6 +378,9 @@ function ActiveLoanCard({ loan, mode }: { loan: ActiveP2PLoan, mode: 'borrower' 
                 const borrowerRef = doc(firestore, 'users', loan.borrowerId);
                 const lenderRef = doc(firestore, 'users', loan.lenderId);
                 const loanRef = doc(firestore, 'p2pActiveLoans', loan.id);
+                
+                const borrowerHistoryRef = doc(collection(firestore, 'users', loan.borrowerId, 'walletHistory'));
+                const lenderHistoryRef = doc(collection(firestore, 'users', loan.lenderId, 'walletHistory'));
 
                 const borrowerDoc = await transaction.get(borrowerRef);
                 const lenderDoc = await transaction.get(lenderRef);
@@ -384,7 +401,23 @@ function ActiveLoanCard({ loan, mode }: { loan: ActiveP2PLoan, mode: 'borrower' 
                 // 2. Credit to Lender
                 transaction.update(lenderRef, { walletBalance: lenderBalance + repaymentAmount });
 
-                // 3. Mark Loan as Repaid
+                // 3. Add History
+                transaction.set(borrowerHistoryRef, {
+                    amount: repaymentAmount,
+                    type: 'debit',
+                    category: 'P2P Repayment',
+                    description: `Repaid loan of ₹${loan.amount} to ${loan.lenderName}`,
+                    createdAt: serverTimestamp()
+                });
+                transaction.set(lenderHistoryRef, {
+                    amount: repaymentAmount,
+                    type: 'credit',
+                    category: 'P2P Asset Settlement',
+                    description: `Received repayment from ${loan.borrowerName}`,
+                    createdAt: serverTimestamp()
+                });
+
+                // 4. Mark Loan as Repaid
                 transaction.update(loanRef, { status: 'repaid', repaidAt: serverTimestamp() });
             });
 
@@ -437,11 +470,6 @@ function ActiveLoanCard({ loan, mode }: { loan: ActiveP2PLoan, mode: 'borrower' 
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-white/20 px-2">
-                    <span className="flex items-center gap-1.5"><Timer size={14} className="text-primary animate-pulse" /> Time Left</span>
-                    <CountdownTimer endDate={loan.dueDate.toDate()} />
-                </div>
-
                 {mode === 'borrower' && (
                     <Button 
                         onClick={handleRepay} 
@@ -450,12 +478,6 @@ function ActiveLoanCard({ loan, mode }: { loan: ActiveP2PLoan, mode: 'borrower' 
                     >
                         {isRepaying ? 'Processing Payment...' : 'Repay Full Debt Now'}
                     </Button>
-                )}
-                {mode === 'lender' && (
-                    <div className="flex items-center justify-center gap-2 py-2 text-primary/40">
-                        <History size={16} />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Waiting for borrower settlement</span>
-                    </div>
                 )}
             </CardContent>
         </Card>

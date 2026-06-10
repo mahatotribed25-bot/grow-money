@@ -24,17 +24,6 @@
           "enum": ["user", "subadmin"],
           "description": "The role of the user, determining their access level."
         },
-        "permissions": {
-            "type": "object",
-            "description": "Specific permissions for sub-admin users.",
-            "properties": {
-                "canManageDeposits": { "type": "boolean", "description": "Can approve/reject deposit requests." },
-                "canManageWithdrawals": { "type": "boolean", "description": "Can approve/reject withdrawal requests." },
-                "canManageKyc": { "type": "boolean", "description": "Can approve/reject KYC requests." },
-                "canManagePlanLoans": { "type": "boolean", "description": "Can approve/reject standard loan plan requests." },
-                "canManageCustomLoans": { "type": "boolean", "description": "Can manage the entire custom loan lifecycle." }
-            }
-        },
         "walletBalance": {
           "type": "number",
           "description": "The user's current wallet balance."
@@ -47,96 +36,30 @@
           "type": "number",
           "description": "The total income the user has earned from investments."
         },
-        "referralCode": {
-          "type": "string",
-          "description": "The user's unique referral code."
-        },
-        "referredBy": {
-          "type": "string",
-          "description": "The UID of the user who referred this user."
-        },
         "status": {
             "type": "string",
-            "enum": ["Active", "Blocked"],
-            "description": "The status of the user's account."
-        },
-        "upiId": {
-          "type": "string",
-          "description": "The user's verified UPI ID for receiving withdrawals."
-        },
-        "upiProvider": {
-            "type": "string",
-            "enum": ["PhonePe", "Google Pay", "Paytm"],
-            "description": "The provider for the user's verified UPI ID."
-        },
-        "upiStatus": {
-            "type": "string",
-            "enum": ["Unverified", "Pending", "Verified", "Rejected"],
-            "description": "The verification status of the user's UPI ID."
-        },
-        "panCard": {
-            "type": "string",
-            "description": "The user's PAN card number."
-        },
-        "aadhaarNumber": {
-            "type": "string",
-            "description": "The user's 12-digit Aadhaar card number."
-        },
-        "phoneNumber": {
-            "type": "string",
-            "description": "The user's phone number."
-        },
-        "kycTermsAccepted": {
-            "type": "boolean",
-            "description": "Indicates if the user has accepted the KYC terms and conditions for loans."
-        },
-        "kycStatus": {
-            "type": "string",
-            "enum": ["Not Submitted", "Pending", "Verified", "Rejected"],
-            "description": "The verification status of the user's KYC documents."
-        },
-        "kycRejectionReason": {
-            "type": "string",
-            "description": "The reason provided by the admin for rejecting a KYC submission."
-        },
-        "kycSubmissionDate": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The timestamp when the user submitted their KYC details."
-        },
-        "isOnline": {
-            "type": "boolean",
-            "description": "Indicates if the user is currently online."
-        },
-        "lastSeen": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The last time the user was seen online."
-        },
-        "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Timestamp when the user account was created."
-        },
-        "vipLevel": {
-          "type": "string",
-          "enum": ["Bronze", "Silver", "Gold", "Platinum"],
-          "description": "The VIP level of the user, determining their benefits."
+            "enum": ["Active", "Blocked"]
         },
         "trustScore": {
-            "type": "number",
-            "description": "The user's internal trust score, calculated based on their activity."
-        },
-        "lastCheckIn": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The timestamp of the user's last daily check-in."
+            "type": "number"
         }
       },
       "required": [
         "uid",
         "email"
       ]
+    },
+    "walletTransaction": {
+        "title": "Wallet Transaction",
+        "description": "A record of a credit or debit to a user's wallet.",
+        "type": "object",
+        "properties": {
+            "amount": { "type": "number" },
+            "type": { "type": "string", "enum": ["credit", "debit"] },
+            "category": { "type": "string" },
+            "description": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        }
     },
     "investmentPlan": {
         "title": "Investment Plan",
@@ -145,70 +68,7 @@
             "name": { "type": "string" },
             "price": { "type": "number" },
             "dailyIncome": { "type": "number" },
-            "validity": { "type": "number" },
-            "payoutFrequency": { "type": "string", "enum": ["daily", "monthly", "on_maturity"] },
-            "status": { "type": "string", "enum": ["Available", "Coming Soon"] }
-        }
-    },
-    "p2pLoanRequest": {
-        "title": "P2P Loan Request",
-        "description": "A public loan request in the marketplace.",
-        "type": "object",
-        "properties": {
-            "borrowerId": { "type": "string" },
-            "borrowerName": { "type": "string" },
-            "borrowerTrustScore": { "type": "number" },
-            "amount": { "type": "number" },
-            "duration": { "type": "number" },
-            "status": { "type": "string", "enum": ["funding", "accepted", "completed", "expired"] },
-            "createdAt": { "type": "string", "format": "date-time" },
-            "expiresAt": { "type": "string", "format": "date-time" },
-            "acceptedOfferId": { "type": "string" }
-        }
-    },
-    "p2pLoanOffer": {
-        "title": "P2P Loan Offer",
-        "description": "An interest offer from a potential lender.",
-        "type": "object",
-        "properties": {
-            "requestId": { "type": "string" },
-            "lenderId": { "type": "string" },
-            "lenderName": { "type": "string" },
-            "interestRate": { "type": "number" },
-            "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
-            "createdAt": { "type": "string", "format": "date-time" }
-        }
-    },
-    "p2pActiveLoan": {
-        "title": "Active P2P Loan",
-        "type": "object",
-        "properties": {
-            "borrowerId": { "type": "string" },
-            "lenderId": { "type": "string" },
-            "amount": { "type": "number" },
-            "totalRepayment": { "type": "number" },
-            "status": { "type": "string", "enum": ["active", "repaid"] },
-            "dueDate": { "type": "string", "format": "date-time" }
-        }
-    },
-    "adminSettings": {
-        "title": "Admin Settings",
-        "type": "object",
-        "properties": {
-            "adminPhone": { "type": "string", "description": "WhatsApp number for loan notifications." },
-            "adminUpi": { "type": "string" },
-            "minWithdrawal": { "type": "number" },
-            "referralBonus": { "type": "number" },
-            "withdrawalGstPercentage": { "type": "number" },
-            "loanPenalty": { "type": "number" },
-            "customLoanPenalty": { "type": "number" },
-            "customLoanInterestPer1000": { "type": "number" },
-            "customLoanUpi": { "type": "string" },
-            "kycGoogleFormUrl": { "type": "string" },
-            "maxCustomLoanAmount": { "type": "number" },
-            "totalCustomLoanLimit": { "type": "number" },
-            "currentCustomLoanUsage": { "type": "number" },
-            "p2pPlatformFeePercent": { "type": "number" }
+            "validity": { "type": "number" }
         }
     }
   },
@@ -224,29 +84,13 @@
       },
       "description": "Stores user profile information."
     },
+    "/users/{userId}/walletHistory/{txId}": {
+        "schema": { "$ref": "#/entities/walletTransaction" },
+        "description": "Logs every balance change for the user."
+    },
     "/settings/admin": {
-      "schema": {
-        "$ref": "#/entities/adminSettings"
-      },
+      "schema": { "type": "object" },
       "description": "Stores admin-specific settings."
-    },
-    "/investmentPlans/{planId}": {
-      "schema": {
-        "$ref": "#/entities/investmentPlan"
-      },
-      "description": "Stores available investment plans."
-    },
-    "/p2pLoanRequests/{requestId}": {
-        "schema": { "$ref": "#/entities/p2pLoanRequest" },
-        "description": "Stores public P2P loan marketplace requests."
-    },
-    "/p2pLoanRequests/{requestId}/offers/{offerId}": {
-        "schema": { "$ref": "#/entities/p2pLoanOffer" },
-        "description": "Stores bidding offers for a P2P request."
-    },
-    "/p2pActiveLoans/{loanId}": {
-        "schema": { "$ref": "#/entities/p2pActiveLoan" },
-        "description": "Stores matched and ongoing P2P loans."
     }
   }
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -6,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown, Timer, Send } from 'lucide-react';
+import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown, Timer, Send, TrendingUp, TrendingDown, History as HistoryIcon } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp, orderBy } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -24,7 +25,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -59,6 +60,15 @@ type UserData = {
   role?: 'user' | 'subadmin';
   permissions?: UserPermissions;
 };
+
+type WalletHistoryEntry = {
+    id: string;
+    amount: number;
+    type: 'credit' | 'debit';
+    category: string;
+    description: string;
+    createdAt: Timestamp;
+}
 
 type Investment = {
   id: string;
@@ -252,13 +262,14 @@ export default function UserDetailPage() {
   const [permissions, setPermissions] = useState<UserPermissions>(defaultPermissions);
 
   const { data: user, loading: userLoading, refetch: refetchUser } = useDoc<UserData>(userId ? `users/${userId}` : null);
+  const { data: walletHistory, loading: historyLoading } = useCollection<WalletHistoryEntry>(userId ? `users/${userId}/walletHistory` : null, undefined, orderBy('createdAt', 'desc'));
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
   const { data: loans, loading: loansLoading } = useCollection<ActiveLoan>(userId ? `users/${userId}/loans` : null);
   const { data: deposits, loading: depositsLoading } = useCollection<Transaction>(`deposits`, { where: ['userId', '==', userId] });
   const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(`withdrawals`, { where: ['userId', '==', userId]});
   const { data: groupInvestments, loading: groupInvestmentsLoading } = useUserGroupInvestments(userId);
   
-  const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading || loansLoading || groupInvestmentsLoading;
+  const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading || loansLoading || groupInvestmentsLoading || historyLoading;
 
   useEffect(() => {
     if (user?.permissions) {
@@ -364,6 +375,9 @@ export default function UserDetailPage() {
 
       const loansSnapshot = await getDocs(collection(firestore, 'users', userId, 'loans'));
       loansSnapshot.forEach(doc => docRefsToDelete.push(doc.ref));
+
+      const historySnapshot = await getDocs(collection(firestore, 'users', userId, 'walletHistory'));
+      historySnapshot.forEach(doc => docRefsToDelete.push(doc.ref));
       
       const collectionsToClean = ['deposits', 'withdrawals', 'loanRequests', 'customLoanRequests', 'upiRequests'];
       for (const colName of collectionsToClean) {
@@ -587,46 +601,34 @@ export default function UserDetailPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle>Sub-Admin Permissions</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {Object.entries(permissionLabels).map(([key, label]) => (
-                <div key={key} className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <Label htmlFor={key} className="font-medium">{label}</Label>
-                    <Switch id={key} checked={permissions[key as keyof UserPermissions] || false} onCheckedChange={(value) => handlePermissionChange(key as keyof UserPermissions, value)} />
-                </div>
-            ))}
-            </div>
-             <Button onClick={handleSavePermissions}>Save Permissions</Button>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader><CardTitle>KYC Management</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <InfoBox title="PAN Card" value={user.panCard || 'Not Provided'} icon={CreditCard} />
-          <InfoBox title="Aadhaar" value={user.aadhaarNumber || 'Not Provided'} icon={Fingerprint} />
-          <InfoBox title="Phone" value={user.phoneNumber || 'Not Provided'} icon={Phone} />
-          {user.kycStatus === 'Pending' ? (
-            <div className="flex gap-4 pt-4">
-              <Button onClick={() => handleKycApproval('Verified')}><ShieldCheck className="mr-2 h-4 w-4" /> Approve</Button>
-              <Button variant="destructive" onClick={() => setIsRejectDialogOpen(true)}><ShieldX className="mr-2 h-4 w-4" /> Reject</Button>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Status: <span className="font-bold">{user.kycStatus || 'Not Submitted'}</span></p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="investments">
-        <TabsList className="grid w-full grid-cols-5">
+      <Tabs defaultValue="history">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="investments">Investments</TabsTrigger>
           <TabsTrigger value="group-investments">Groups</TabsTrigger>
           <TabsTrigger value="loans">Loans</TabsTrigger>
           <TabsTrigger value="deposits">Deposits</TabsTrigger>
           <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
         </TabsList>
+        <TabsContent value="history">
+             <HistoryTable
+              headers={['Category', 'Amount', 'Type', 'Date']}
+              items={walletHistory}
+              renderRow={(item: WalletHistoryEntry) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                          <div className="font-medium">{item.category}</div>
+                          <div className="text-[10px] text-muted-foreground">{item.description}</div>
+                      </TableCell>
+                      <TableCell className={cn("font-bold", item.type === 'credit' ? 'text-green-500' : 'text-red-500')}>
+                          {item.type === 'credit' ? '+' : '-'}₹{item.amount.toFixed(2)}
+                      </TableCell>
+                      <TableCell><Badge variant="outline" className="capitalize">{item.type}</Badge></TableCell>
+                      <TableCell className="text-xs">{formatDate(item.createdAt)}</TableCell>
+                    </TableRow>
+                )}
+            />
+        </TabsContent>
         <TabsContent value="investments">
            <HistoryTable
               headers={['Plan', 'Details', 'Status', 'Dates', 'Action']}
@@ -681,17 +683,6 @@ export default function UserDetailPage() {
             />
         </TabsContent>
       </Tabs>
-      
-      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Reason for KYC Rejection</DialogTitle></DialogHeader>
-          <div className="py-4"><Textarea placeholder="e.g., PAN details do not match." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} /></div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-            <Button variant="destructive" onClick={handleConfirmRejection}>Confirm</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -728,34 +719,12 @@ function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: Activ
     const emiAmount = nextPendingEmi?.emiAmount || totalRepayment;
     const dueDateStr = nextPendingEmi ? new Date(nextPendingEmi.dueDate.seconds * 1000).toLocaleDateString() : (loan.dueDate ? loan.dueDate.toDate().toLocaleDateString() : 'N/A');
     
-    const isFirstEmi = loan.repaymentMethod === 'EMI' && loan.emis?.every(e => e.status !== 'Paid');
-
     let message = `🔔 *Loan Repayment Reminder* 🔔\n\n`;
     message += `Dear *${user.name}*,\n\n`;
-    
-    if (isFirstEmi) {
-        message += `Your *FIRST installment* for *${loan.planName}* is due soon. Paying on time boosts your Trust Score! 🚀\n\n`;
-    } else {
-        message += `This is a reminder for your active loan installment for *${loan.planName}*.\n\n`;
-    }
-    
-    message += `*Installment Breakdown:*\n`;
-    message += `-----------------------------------\n`;
+    message += `This is a reminder for your active loan installment for *${loan.planName}*.\n\n`;
     message += `💰 *Installment Amount:* ₹${emiAmount.toFixed(2)}\n`;
-    
-    if (loan.penalty && loan.penalty > 0) {
-        message += `⚠️ *Late Penalty:* ₹${loan.penalty.toFixed(2)}\n`;
-    }
-    
-    message += `🗓️ *Due Date:* ${dueDateStr}\n`;
-    message += `-----------------------------------\n\n`;
-
-    if (loan.status === 'Due') {
-        message += `❗ *Urgent:* Payment is now *OVERDUE*. Pay immediately to avoid more penalties.\n\n`;
-    } else {
-        message += `✅ Pay properly to unlock higher loan limits in the future!\n\n`;
-    }
-
+    if (loan.penalty && loan.penalty > 0) message += `⚠️ *Late Penalty:* ₹${loan.penalty.toFixed(2)}\n`;
+    message += `🗓️ *Due Date:* ${dueDateStr}\n\n`;
     message += `Grow Money - Your Wealth Partner 💰`;
 
     window.open(`https://wa.me/91${user.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
@@ -781,18 +750,14 @@ function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: Activ
             <CollapsibleContent className="mt-4">
               <Table><TableHeader><TableRow><TableHead>Amt</TableHead><TableHead>Due</TableHead><TableHead>Status</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {loan.emis.map((emi, index) => {
-                      const isNextDue = loan.emis?.findIndex(e => e.status !== 'Paid') === index;
-                      const isPendingPayment = emi.status === 'Payment Pending';
-                      return (
-                        <TableRow key={index} className={isNextDue || isPendingPayment ? "bg-primary/5" : ""}>
+                  {loan.emis.map((emi, index) => (
+                        <TableRow key={index}>
                             <TableCell>₹{emi.emiAmount.toFixed(2)}</TableCell>
                             <TableCell className="text-xs">{formatDate(emi.dueDate)}</TableCell>
                             <TableCell><Badge variant={getStatusVariant(emi.status)}>{emi.status}</Badge></TableCell>
                             <TableCell>{emi.status === 'Payment Pending' && <Button size="sm" onClick={() => onConfirmEmi(loan, index)}>Confirm</Button>}</TableCell>
                         </TableRow>
-                      )
-                  })}
+                      ))}
                 </TableBody>
               </Table>
             </CollapsibleContent>

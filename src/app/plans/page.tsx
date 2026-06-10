@@ -87,6 +87,7 @@ export default function PlansPage() {
         const userRef = doc(firestore, 'users', user.uid);
         const planRef = doc(firestore, 'investmentPlans', plan.id);
         const settingsRef = doc(firestore, 'settings', 'admin');
+        const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
 
         const userDoc = await transaction.get(userRef);
         const planDoc = await transaction.get(planRef);
@@ -123,6 +124,14 @@ export default function PlansPage() {
             walletBalance: newWalletBalance,
             totalInvestment: newTotalInvestment,
             vipLevel: newVipLevel,
+        });
+
+        transaction.set(historyRef, {
+            amount: planPrice,
+            type: 'debit',
+            category: 'Investment',
+            description: `Secured plan: ${plan.name}`,
+            createdAt: serverTimestamp()
         });
 
         // Track Admin Profit

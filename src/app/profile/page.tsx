@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -30,6 +31,8 @@ import {
   CreditCard as CreditCardIcon,
   CheckCircle2,
   History as HistoryIcon,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -42,7 +45,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection } from '@/firebase';
-import { Timestamp, doc, updateDoc, collection, query, where, getDocs, runTransaction, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc, collection, query, where, getDocs, runTransaction, serverTimestamp, arrayUnion, orderBy } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -82,6 +85,15 @@ type Transaction = {
   finalAmount?: number;
   upiId?: string;
 };
+
+type WalletHistoryEntry = {
+    id: string;
+    amount: number;
+    type: 'credit' | 'debit';
+    category: string;
+    description: string;
+    createdAt: Timestamp;
+}
 
 type UpiRequest = {
   id: string;
@@ -243,6 +255,15 @@ function RedeemCouponCard() {
             redeemedAt: new Date()
           })
         });
+
+        const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
+        transaction.set(historyRef, {
+            amount: couponData.amount,
+            type: 'credit',
+            category: 'Coupon',
+            description: `Redeemed coupon code: ${code.trim().toUpperCase()}`,
+            createdAt: serverTimestamp()
+        });
       });
 
       toast({ title: "Coupon Redeemed!", description: "Rewards have been credited to your wallet." });
@@ -352,9 +373,13 @@ export default function ProfilePage() {
   const { data: referrals } = useCollection<Referral>(user ? 'users' : null, { where: ['referredBy', '==', user?.uid] });
   const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null, { where: ['userId', '==', user?.uid]});
   const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null, { where: ['userId', '==', user?.uid]});
+  const { data: walletHistory, loading: historyLoading } = useCollection<WalletHistoryEntry>(
+    user ? `users/${user.uid}/walletHistory` : null,
+    undefined,
+    orderBy('createdAt', 'desc')
+  );
   const { data: groupInvestments } = useUserGroupInvestments(user?.uid);
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
-  const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   
   // KYC State
   const [panCard, setPanCard] = useState('');
@@ -561,7 +586,6 @@ export default function ProfilePage() {
   
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#030408] text-foreground relative overflow-hidden">
-      {/* Glow Blobs */}
       <div className="absolute top-[-10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/20 blur-[120px] pointer-events-none animate-pulse" />
       <div className="absolute bottom-[-10%] -right-[10%] w-[50%] h-[50%] rounded-full bg-secondary/10 blur-[120px] pointer-events-none" />
 
@@ -576,7 +600,6 @@ export default function ProfilePage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 relative z-10 max-w-4xl mx-auto w-full space-y-6">
-        {/* Profile Info Card */}
         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl transition-all hover:bg-white/[0.05]">
           <CardHeader>
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -614,17 +637,11 @@ export default function ProfilePage() {
                         <span className="font-bold tracking-wider uppercase text-sm">{vipLevel} TIER</span>
                     </div>
                 </Link>
-                <AchievementBadges stats={{ 
-                    trustScore: userData?.trustScore || 500, 
-                    planCount: investments?.length || 0, 
-                    referralCount: referrals?.length || 0 
-                }} />
               </div>
             </div>
           </CardHeader>
         </Card>
 
-        {/* Trust Score Card */}
         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardHeader>
@@ -646,7 +663,6 @@ export default function ProfilePage() {
 
         <RedeemCouponCard />
 
-        {/* Verification Sections */}
         <div className="grid gap-6">
             {awaitingConfirmationRequest ? (
                 <AmountVerificationCard request={awaitingConfirmationRequest}/>
@@ -686,7 +702,7 @@ export default function ProfilePage() {
                                         <p className="text-sm text-blue-200/60">Our team is reviewing your UPI ID. This usually takes less than 1 hour.</p>
                                     </div>
                                 )}
-                                {upiStatus === 'Unverified' || upiStatus === 'Rejected' ? (
+                                {(upiStatus === 'Unverified' || upiStatus === 'Rejected') && (
                                     <div className="space-y-5">
                                         {upiStatus === 'Rejected' && (
                                             <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive flex items-start gap-3">
@@ -721,7 +737,7 @@ export default function ProfilePage() {
                                             Verify Identity
                                         </Button>
                                     </div>
-                                ): null}
+                                )}
                             </>
                         )}
                     </CardContent>
@@ -810,7 +826,6 @@ export default function ProfilePage() {
             </Card>
         </div>
 
-        {/* Referral Card */}
         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-50 group-hover:opacity-100 transition-opacity" />
           <CardHeader>
@@ -833,21 +848,60 @@ export default function ProfilePage() {
                 <Copy className="h-6 w-6" />
               </Button>
             </div>
-            <div className="flex items-center gap-3 text-sm text-white/40 bg-white/[0.02] p-4 rounded-2xl">
-                <Users2 className="shrink-0 text-white/20" />
-                <p>Earn <span className="text-white font-bold">₹500</span> bonus instantly when a friend starts their first plan!</p>
-            </div>
           </CardContent>
         </Card>
 
-        {/* History Tabs */}
-        <Tabs defaultValue="deposits" className="mt-8">
-            <TabsList className="grid w-full grid-cols-3 bg-white/5 border-white/10 p-1.5 h-14 rounded-2xl">
-                <TabsTrigger value="deposits" className="rounded-xl data-[state=active]:bg-white/10 data-[state=active]:text-white transition-all h-full">Deposits</TabsTrigger>
-                <TabsTrigger value="withdrawals" className="rounded-xl data-[state=active]:bg-white/10 data-[state=active]:text-white transition-all h-full">Withdrawals</TabsTrigger>
-                <TabsTrigger value="group-investments" className="rounded-xl data-[state=active]:bg-white/10 data-[state=active]:text-white transition-all h-full text-[10px] sm:text-sm">Group Plans</TabsTrigger>
+        <Tabs defaultValue="history" className="mt-8">
+            <TabsList className="grid w-full grid-cols-4 bg-white/5 border-white/10 p-1.5 h-14 rounded-2xl">
+                <TabsTrigger value="history" className="rounded-xl data-[state=active]:bg-white/10 h-full text-[10px] sm:text-sm">History</TabsTrigger>
+                <TabsTrigger value="deposits" className="rounded-xl data-[state=active]:bg-white/10 h-full text-[10px] sm:text-sm">Deposits</TabsTrigger>
+                <TabsTrigger value="withdrawals" className="rounded-xl data-[state=active]:bg-white/10 h-full text-[10px] sm:text-sm">Payouts</TabsTrigger>
+                <TabsTrigger value="group-investments" className="rounded-xl data-[state=active]:bg-white/10 h-full text-[10px] sm:text-sm">Groups</TabsTrigger>
             </TabsList>
             <div className="mt-6">
+                <TabsContent value="history">
+                    <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader className="bg-white/[0.02]">
+                                    <TableRow className="border-white/10">
+                                        <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Detail</TableHead>
+                                        <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest text-right pr-6">Amount</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {historyLoading ? (
+                                         <TableRow><TableCell colSpan={2} className="text-center py-10 opacity-20"><Timer className="animate-spin mx-auto" /></TableCell></TableRow>
+                                    ) : walletHistory && walletHistory.length > 0 ? (
+                                        walletHistory.map(entry => (
+                                            <TableRow key={entry.id} className="border-white/[0.05] hover:bg-white/[0.02]">
+                                                <TableCell className="pl-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", entry.type === 'credit' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400')}>
+                                                            {entry.type === 'credit' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-bold text-white/80">{entry.category}</p>
+                                                            <p className="text-[10px] text-white/30">{entry.description}</p>
+                                                            <p className="text-[9px] text-white/20 mt-0.5">{new Date(entry.createdAt?.seconds * 1000).toLocaleString()}</p>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right pr-6 font-mono font-bold text-sm">
+                                                    <span className={entry.type === 'credit' ? 'text-green-400' : 'text-red-400'}>
+                                                        {entry.type === 'credit' ? '+' : '-'}₹{entry.amount.toFixed(2)}
+                                                    </span>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow><TableCell colSpan={2} className="text-center py-10 text-white/20 italic">No wallet history found.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
                 <TabsContent value="deposits">
                     <TransactionTable transactions={deposits} type="deposit" />
                 </TabsContent>
@@ -865,7 +919,6 @@ export default function ProfilePage() {
             <LogOut className="mr-2 h-5 w-5" />
             Sign Out Securely
             </Button>
-            <p className="text-center text-[10px] text-white/20 uppercase tracking-[4px] font-bold mt-8">Grow Money Protected Platform</p>
         </div>
       </main>
 
@@ -967,7 +1020,6 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
                             <TableRow className="border-white/10">
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Amount</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Status</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Type</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Action</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -984,9 +1036,6 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
                                         <TableCell>
                                             {getStatusBadge(tx.status)}
                                         </TableCell>
-                                        <TableCell>
-                                            <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">{type}</span>
-                                        </TableCell>
                                         <TableCell className="pr-6">
                                             {type === 'withdrawal' && tx.status === 'approved' && (
                                                 <Button 
@@ -998,13 +1047,12 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
                                                     View Receipt
                                                 </Button>
                                             )}
-                                            {tx.status === 'pending' && <WithdrawalStatus tx={tx} />}
                                         </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center py-10 text-white/20 italic">No history found.</TableCell>
+                                    <TableCell colSpan={3} className="text-center py-10 text-white/20 italic">No history found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -1015,34 +1063,6 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
         </Card>
     );
 }
-
-function WithdrawalStatus({ tx }: { tx: Transaction }) {
-    const [waitingDays, setWaitingDays] = useState(0);
-    const [bonusEarned, setBonusEarned] = useState(0);
-
-    useEffect(() => {
-        if (tx.status === 'pending' && tx.delayBonusActive && tx.delayBonusStartDate) {
-            const interval = setInterval(() => {
-                const startDate = tx.delayBonusStartDate!.toDate();
-                const now = new Date();
-                const diffTime = Math.abs(now.getTime() - startDate.getTime());
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                setWaitingDays(diffDays);
-                setBonusEarned(diffDays * (tx.delayBonusAmountPerDay || 0));
-            }, 1000);
-            return () => clearInterval(interval);
-        }
-    }, [tx]);
-    
-    if (tx.delayBonusActive) {
-        return (
-             <div className="flex items-center gap-1.5 text-[9px] font-bold text-blue-400 animate-pulse">
-                <Timer size={10}/> ₹{bonusEarned.toFixed(0)} BONUS
-             </div>
-        )
-    }
-    return <span className="text-[9px] text-white/20 uppercase font-bold tracking-widest">Processing</span>;
-};
 
 function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }) {
     const { data: planData } = useDoc<GroupLoanPlan>(investment ? `groupLoanPlans/${investment.planId}`: null);
@@ -1070,12 +1090,11 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
             <TableCell className="text-white/80 font-medium">₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
             <TableCell className="text-cyan-400 font-bold">₹{(totalProfitShare || 0).toFixed(2)}</TableCell>
             <TableCell className="text-green-400 font-bold">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-yellow-400 font-bold">₹{(remainingAmount > 0 ? remainingAmount : 0).toFixed(2)}</TableCell>
             <TableCell className="pr-6">
                 {planData ? (
                     <div className="w-24 space-y-1">
                         <Progress value={repaymentProgress} className="h-1.5 bg-white/5" />
-                        <span className="text-[10px] text-white/30 font-bold">{repaymentProgress.toFixed(0)}% PAID BACK</span>
+                        <span className="text-[10px] text-white/30 font-bold">{repaymentProgress.toFixed(0)}% PAID</span>
                     </div>
                 ) : (
                     <span className="text-[10px] text-white/20 animate-pulse">SYNCING...</span>
@@ -1097,7 +1116,6 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Invested</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Profit</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Received</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Remaining</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Progress</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -1108,7 +1126,7 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-10 text-white/20 italic">No group investments found.</TableCell>
+                                    <TableCell colSpan={5} className="text-center py-10 text-white/20 italic">No group investments found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

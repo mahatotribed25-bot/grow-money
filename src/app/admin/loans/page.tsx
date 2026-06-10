@@ -20,6 +20,7 @@ import {
   writeBatch,
   collection,
   Timestamp,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { addDays, addWeeks, addMonths, addYears } from 'date-fns';
@@ -111,6 +112,7 @@ export default function LoanRequestsPage() {
     batch.update(requestRef, { status: 'sent' });
     
     const loanRef = doc(collection(firestore, 'users', request.userId, 'loans'));
+    const historyRef = doc(collection(firestore, 'users', request.userId, 'walletHistory'));
     const startDate = new Date();
     let dueDate;
     let addDuration;
@@ -142,14 +144,13 @@ export default function LoanRequestsPage() {
     if (request.repaymentMethod === 'EMI') {
         const emis = [];
         let numberOfEmis = 0;
-        let addEmiDuration: (date: Date, num: number) => Date = addMonths; // Default to monthly for EMI
+        let addEmiDuration: (date: Date, num: number) => Date = addMonths; 
 
         if (plan.durationType === 'Months') {
             numberOfEmis = plan.duration;
         } else if (plan.durationType === 'Years') {
             numberOfEmis = plan.duration * 12;
         } else if (plan.durationType === 'Weeks') {
-            // Weekly EMIs if duration is in weeks
             numberOfEmis = plan.duration;
             addEmiDuration = addWeeks;
         }
@@ -167,8 +168,16 @@ export default function LoanRequestsPage() {
         }
     }
 
-
     batch.set(loanRef, activeLoanData);
+
+    // Add to wallet history for disbursement
+    batch.set(historyRef, {
+        amount: plan.loanAmount,
+        type: 'credit',
+        category: 'Loan Disbursal',
+        description: `Disbursed loan for ${plan.name}`,
+        createdAt: serverTimestamp()
+    });
 
     batch.commit()
         .then(() => {
@@ -243,14 +252,13 @@ export default function LoanRequestsPage() {
               <TableHead>User UPI</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Reason</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -276,7 +284,6 @@ export default function LoanRequestsPage() {
                       {request.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{request.rejectionReason || 'N/A'}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                        {request.status === 'pending' && (

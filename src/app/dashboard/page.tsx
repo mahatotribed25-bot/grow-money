@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Wallet,
@@ -306,6 +307,7 @@ export default function Dashboard() {
     const transactionPromise = runTransaction(firestore, async (transaction) => {
         const userRef = doc(firestore, 'users', user.uid);
         const invRef = doc(firestore, 'users', user.uid, 'investments', investment.id);
+        const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
         
         const userDoc = await transaction.get(userRef);
         const invDoc = await transaction.get(invRef);
@@ -334,6 +336,14 @@ export default function Dashboard() {
             lastClaimDate: serverTimestamp()
         });
 
+        transaction.set(historyRef, {
+            amount: amountToClaim,
+            type: 'credit',
+            category: 'ROI Claim',
+            description: `ROI claimed from ${investment.planName}`,
+            createdAt: serverTimestamp()
+        });
+
         return { amount: amountToClaim };
     });
 
@@ -352,6 +362,7 @@ export default function Dashboard() {
      const transactionPromise = runTransaction(firestore, async (transaction) => {
        const userRef = doc(firestore, 'users', user.uid);
        const invRef = doc(firestore, 'users', user.uid, 'investments', investment.id);
+       const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
        
        const userDoc = await transaction.get(userRef);
        const invDoc = await transaction.get(invRef);
@@ -389,6 +400,14 @@ export default function Dashboard() {
          totalInvestment: Math.max(0, (userDoc.data().totalInvestment || 0) - invData.investedAmount),
          totalIncome: (userDoc.data().totalIncome || 0) + profitShare
        });
+
+       transaction.set(historyRef, {
+            amount: amountToClaim,
+            type: 'credit',
+            category: 'Maturity Settlement',
+            description: `Full settlement for matured plan: ${investment.planName}`,
+            createdAt: serverTimestamp()
+        });
 
        return { claimed: true };
      });
@@ -504,7 +523,6 @@ export default function Dashboard() {
           loading={userDataLoading}
         />
 
-        {/* Real-time Growth Chart */}
         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden">
             <CardHeader className="pb-2">
                 <CardTitle className="text-white/80 text-sm font-bold uppercase tracking-widest flex items-center gap-2">
@@ -627,9 +645,8 @@ function Announcements({ announcements, loading }: { announcements: Announcement
             </CardHeader>
             <CardContent className="space-y-3 relative pb-4">
                 {announcements.slice(0, 2).map(ann => (
-                    <div key={ann.id} className="text-[11px] bg-black/40 p-3 rounded-2xl border border-white/5 flex items-start gap-3">
-                        <div className="h-1.5 w-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
-                        <p className="text-white/80 leading-relaxed">{ann.message}</p>
+                    <div key={ann.id} className="text-[11px] font-bold text-white/90 leading-relaxed truncate">
+                        • {ann.message}
                     </div>
                 ))}
             </CardContent>
@@ -844,12 +861,21 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
 
     runTransaction(firestore, async (transaction) => {
         const userRef = doc(firestore, 'users', user.uid);
+        const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
         const userDoc = await transaction.get(userRef);
         if (!userDoc.exists()) throw new Error("No User");
         const newBalance = (userDoc.data().walletBalance || 0) - withdrawAmount;
         if (newBalance < 0) throw new Error("Insufficient");
+        
         transaction.update(userRef, { walletBalance: newBalance });
         transaction.set(doc(collection(firestore, 'withdrawals')), requestData);
+        transaction.set(historyRef, {
+            amount: withdrawAmount,
+            type: 'debit',
+            category: 'Withdrawal Request',
+            description: `Payout requested to UPI: ${userData.upiId}`,
+            createdAt: serverTimestamp()
+        });
     })
     .then(() => {
       toast({ title: 'Submitted' });
@@ -1072,15 +1098,26 @@ function DailyCheckInCard() {
     if (!user || hasCheckedInToday || bonusAmount <= 0) return;
     setIsLoading(true);
     const userRef = doc(firestore, 'users', user.uid);
+    const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
+
     try {
       await runTransaction(firestore, async (transaction) => {
         const userDoc = await transaction.get(userRef);
         if (!userDoc.exists()) throw new Error("No user");
         const lastCheckIn = userDoc.data().lastCheckIn?.toDate();
         if (lastCheckIn && isToday(lastCheckIn)) throw new Error("Done");
+        
         transaction.update(userRef, {
           walletBalance: (userDoc.data().walletBalance || 0) + bonusAmount,
           lastCheckIn: serverTimestamp(),
+        });
+        
+        transaction.set(historyRef, {
+            amount: bonusAmount,
+            type: 'credit',
+            category: 'Bonus',
+            description: 'Daily platform check-in reward',
+            createdAt: serverTimestamp()
         });
       });
       toast({ title: 'Bonus Secured!' });

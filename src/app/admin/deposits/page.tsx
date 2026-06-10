@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Check, X, Send } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, runTransaction, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, runTransaction, getDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -69,6 +69,16 @@ export default function DepositsPage() {
         const newBalance = (userDoc.data().walletBalance || 0) + deposit.amount;
         transaction.update(userRef, { walletBalance: newBalance });
         transaction.update(depositRef, { status: newStatus });
+
+        // Add to wallet history
+        const historyRef = doc(collection(firestore, 'users', deposit.userId, 'walletHistory'));
+        transaction.set(historyRef, {
+            amount: deposit.amount,
+            type: 'credit',
+            category: 'Deposit',
+            description: `Approved recharge request ID: ${deposit.transactionId}`,
+            createdAt: serverTimestamp()
+        });
       })
       .then(() => {
           toast({
