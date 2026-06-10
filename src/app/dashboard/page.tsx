@@ -221,7 +221,7 @@ const SlideToClaim = ({
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <span className={cn(
           "text-[10px] font-black uppercase tracking-widest transition-all",
-          disabled ? "text-white/20" : "text-white/40"
+          disabled ? (lockedLabel || "Action Locked") : (isCompleted ? "Success!" : label)
         )}>
           {disabled ? (lockedLabel || "Action Locked") : (isCompleted ? "Success!" : label)}
         </span>
