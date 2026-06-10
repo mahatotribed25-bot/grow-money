@@ -357,6 +357,8 @@ function ActiveLoanCard({ loan, mode }: { loan: ActiveP2PLoan, mode: 'borrower' 
         if (!user || isRepaying) return;
         setIsRepaying(true);
 
+        const repaymentAmount = Number(loan.totalRepayment);
+
         try {
             await runTransaction(firestore, async (transaction) => {
                 const borrowerRef = doc(firestore, 'users', loan.borrowerId);
@@ -370,25 +372,26 @@ function ActiveLoanCard({ loan, mode }: { loan: ActiveP2PLoan, mode: 'borrower' 
                 if (!lenderDoc.exists()) throw new Error("Lender record not found.");
 
                 const borrowerBalance = borrowerDoc.data().walletBalance || 0;
-                if (borrowerBalance < loan.totalRepayment) {
-                    throw new Error("Insufficient wallet balance to repay this loan.");
+                if (borrowerBalance < repaymentAmount) {
+                    throw new Error(`Insufficient wallet balance. You need ₹${repaymentAmount.toFixed(2)} to repay this debt.`);
                 }
 
                 const lenderBalance = lenderDoc.data().walletBalance || 0;
 
                 // 1. Deduct from Borrower
-                transaction.update(borrowerRef, { walletBalance: borrowerBalance - loan.totalRepayment });
+                transaction.update(borrowerRef, { walletBalance: borrowerBalance - repaymentAmount });
                 
                 // 2. Credit to Lender
-                transaction.update(lenderRef, { walletBalance: lenderBalance + loan.totalRepayment });
+                transaction.update(lenderRef, { walletBalance: lenderBalance + repaymentAmount });
 
                 // 3. Mark Loan as Repaid
                 transaction.update(loanRef, { status: 'repaid', repaidAt: serverTimestamp() });
             });
 
-            toast({ title: "Loan Repaid!", description: `₹${loan.totalRepayment.toFixed(2)} transferred to ${loan.lenderName}.` });
+            toast({ title: "Loan Repaid!", description: `₹${repaymentAmount.toFixed(2)} transferred to ${loan.lenderName}.` });
         } catch (e: any) {
-            toast({ title: "Repayment Failed", description: e.message, variant: "destructive" });
+            console.error("Repayment Error:", e);
+            toast({ title: "Repayment Failed", description: e.message || "An unexpected error occurred during repayment.", variant: "destructive" });
         } finally {
             setIsRepaying(false);
         }
