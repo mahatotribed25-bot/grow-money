@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -457,7 +456,7 @@ export default function UserDetailPage() {
     
     const loanRef = doc(firestore, 'users', userId, 'loans', loan.id);
     const updatedEmis = loan.emis.map((emi, index) => 
-      index === emiIndex ? { ...emi, status: 'Paid' } : emi
+      index === emiIndex ? { ...emi, status: 'Paid' as const } : emi
     );
     
     const allPaid = updatedEmis.every(emi => emi.status === 'Paid');
@@ -784,8 +783,9 @@ function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: Activ
                 <TableBody>
                   {loan.emis.map((emi, index) => {
                       const isNextDue = loan.emis?.findIndex(e => e.status !== 'Paid') === index;
+                      const isPendingPayment = emi.status === 'Payment Pending';
                       return (
-                        <TableRow key={index} className={isNextDue ? "bg-primary/5" : ""}>
+                        <TableRow key={index} className={isNextDue || isPendingPayment ? "bg-primary/5" : ""}>
                             <TableCell>₹{emi.emiAmount.toFixed(2)}</TableCell>
                             <TableCell className="text-xs">{formatDate(emi.dueDate)}</TableCell>
                             <TableCell><Badge variant={getStatusVariant(emi.status)}>{emi.status}</Badge></TableCell>

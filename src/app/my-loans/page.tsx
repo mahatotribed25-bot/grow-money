@@ -12,6 +12,7 @@ import {
   Timer,
   PlusCircle,
   AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ import {
 } from '@/components/ui/select';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
@@ -68,8 +70,8 @@ type Loan = {
   duration: number;
   durationType: DurationType;
   repaymentMethod: 'EMI' | 'Direct';
-  emis?: EMI[];
   interest?: number;
+  emis?: EMI[];
 };
 
 type AdminSettings = {
@@ -142,7 +144,7 @@ export default function MyLoansPage() {
     isOpen: boolean;
     loan: Loan | CustomLoanRequest;
     isEmi: boolean;
-    emiIndex?: number;
+    emiIndices?: number[];
     amount: number;
     upiId: string;
   } | null>(null);
@@ -155,7 +157,7 @@ export default function MyLoansPage() {
   const sortedLoans = allLoans?.sort((a,b) => b.startDate.seconds - a.startDate.seconds);
   const sortedCustomLoans = customLoans?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds);
 
-  const handlePaymentInitiation = (loan: Loan | CustomLoanRequest, amount: number, isEmi: boolean = false, emiIndex?: number) => {
+  const handlePaymentInitiation = (loan: Loan | CustomLoanRequest, amount: number, isEmi: boolean = false, emiIndices?: number[]) => {
     const isCustom = 'requestedAmount' in loan;
     const upiIdForPayment = isCustom 
         ? adminSettings?.customLoanUpi || adminSettings?.adminUpi || '' 
@@ -171,7 +173,7 @@ export default function MyLoansPage() {
       loan,
       amount,
       isEmi,
-      emiIndex,
+      emiIndices,
       upiId: upiIdForPayment,
     });
   };
@@ -179,19 +181,19 @@ export default function MyLoansPage() {
   const handlePaymentConfirmation = async () => {
     if (!user || !paymentDetails || !paymentDetails.loan) return;
 
-    const { loan, isEmi, emiIndex } = paymentDetails;
+    const { loan, isEmi, emiIndices } = paymentDetails;
     const isCustom = 'requestedAmount' in loan;
     const collectionName = isCustom ? 'customLoanRequests' : `users/${user.uid}/loans`;
     const loanRef = doc(firestore, collectionName, loan.id);
     
     let dataToUpdate: any;
 
-    if (!isCustom && isEmi && emiIndex !== undefined) {
+    if (!isCustom && isEmi && emiIndices && emiIndices.length > 0) {
       const planLoan = loan as Loan;
       if (!planLoan.emis) return;
       
       const updatedEmis = planLoan.emis.map((emi, index) => 
-          index === emiIndex ? { ...emi, status: 'Payment Pending' } : emi
+          emiIndices.includes(index) ? { ...emi, status: 'Payment Pending' } : emi
       );
       dataToUpdate = { emis: updatedEmis };
     } else {
@@ -371,7 +373,7 @@ export default function MyLoansPage() {
                 </div>
 
                 {upiDeeplink && (
-                    <Button asChild className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-white/90 shadow-xl shadow-white/5">
+                    <Button asChild className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-white/90 shadow-xl shadow-white/5 transition-all">
                         <a href={upiDeeplink}>
                             <QrCode className="mr-2" /> Pay with UPI App
                         </a>
@@ -411,7 +413,7 @@ export default function MyLoansPage() {
               </Select>
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <DialogClose asChild><Button variant="ghost" className="text-white/40 hover:bg-white/5">Discard</Button></DialogClose>
             <Button onClick={handleRequestExtension} className="rounded-xl font-bold bg-primary text-white">Apply Extension</Button>
           </DialogFooter>
@@ -419,30 +421,6 @@ export default function MyLoansPage() {
       </Dialog>
     </div>
   );
-}
-
-function getStatusVariant(status: string) {
-    switch (status) {
-        case 'Active':
-        case 'active':
-        case 'Paid':
-        case 'approved_by_user':
-             return 'default';
-        case 'Due':
-        case 'rejected_by_user':
-        case 'rejected_by_admin':
-            return 'destructive';
-        case 'Payment Pending':
-        case 'payment_pending':
-        case 'pending_user_approval':
-        case 'extension_pending':
-             return 'outline';
-        case 'Completed':
-        case 'completed':
-        case 'pending_admin_review':
-            return 'secondary';
-        default: return 'secondary';
-    }
 }
 
 function getBadgeStyle(status: string) {
@@ -476,11 +454,12 @@ function InfoItem({ label, value, isBadge = false, status }: { label: string, va
 }
 
 
-function LoanCard({ loan, adminSettings, onPayNow }: { loan: Loan, adminSettings: AdminSettings | null, onPayNow: (loan: Loan, amount: number, isEmi: boolean, emiIndex?: number) => void }) {
+function LoanCard({ loan, adminSettings, onPayNow }: { loan: Loan, adminSettings: AdminSettings | null, onPayNow: (loan: Loan, amount: number, isEmi: boolean, emiIndices?: number[]) => void }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
+  const [selectedEmis, setSelectedEmis] = useState<number[]>([]);
 
 
   useEffect(() => {
@@ -541,9 +520,16 @@ function LoanCard({ loan, adminSettings, onPayNow }: { loan: Loan, adminSettings
   
   const totalRepayment = loan.totalPayable + (loan.penalty || 0);
 
-  const isEmiPayable = (emi: EMI) => {
-      return currentTime && (new Date(emi.dueDate.seconds * 1000) <= currentTime) && emi.status === 'Pending';
+  const toggleEmiSelection = (index: number) => {
+    setSelectedEmis(prev => 
+        prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+    );
   }
+
+  const selectedTotal = useMemo(() => {
+    if (!loan.emis) return 0;
+    return selectedEmis.reduce((sum, index) => sum + (loan.emis![index]?.emiAmount || 0), 0);
+  }, [selectedEmis, loan.emis]);
 
   return (
     <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden relative group">
@@ -585,33 +571,47 @@ function LoanCard({ loan, adminSettings, onPayNow }: { loan: Loan, adminSettings
         )}
         
         {loan.repaymentMethod === 'EMI' && loan.emis ? (
-            <div className="space-y-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-2">Repayment Schedule</p>
+            <div className="space-y-4">
+                <div className="flex items-center justify-between pl-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Repayment Schedule</p>
+                    {selectedEmis.length > 0 && (
+                        <Button 
+                            size="sm" 
+                            className="h-8 rounded-lg text-[10px] font-black uppercase tracking-widest bg-green-500 hover:bg-green-600 text-white animate-in zoom-in-95"
+                            onClick={() => onPayNow(loan, selectedTotal, true, selectedEmis)}
+                        >
+                            Pay Selected (₹{selectedTotal.toFixed(2)})
+                        </Button>
+                    )}
+                </div>
                 <div className="rounded-2xl border border-white/5 overflow-hidden">
                     <Table>
                         <TableHeader className="bg-white/[0.02]">
                             <TableRow className="border-white/5">
+                                <TableHead className="w-10 pl-4"></TableHead>
                                 <TableHead className="text-[9px] uppercase font-black tracking-widest text-white/20">Due Date</TableHead>
                                 <TableHead className="text-[9px] uppercase font-black tracking-widest text-white/20">Installment</TableHead>
-                                <TableHead className="text-right pr-4 text-[9px] uppercase font-black tracking-widest text-white/20">Action</TableHead>
+                                <TableHead className="text-right pr-4 text-[9px] uppercase font-black tracking-widest text-white/20">Status</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loan.emis.map((emi, index) => (
-                                <TableRow key={index} className="border-white/[0.02]">
+                                <TableRow key={index} className="border-white/[0.02] hover:bg-white/[0.01] transition-colors">
+                                    <TableCell className="pl-4">
+                                        {emi.status === 'Pending' && (
+                                            <Checkbox 
+                                                checked={selectedEmis.includes(index)} 
+                                                onCheckedChange={() => toggleEmiSelection(index)}
+                                                className="border-white/20 data-[state=checked]:bg-primary"
+                                            />
+                                        )}
+                                    </TableCell>
                                     <TableCell className="text-xs text-white/60">{new Date(emi.dueDate.seconds * 1000).toLocaleDateString()}</TableCell>
                                     <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-white">₹{emi.emiAmount.toFixed(2)}</span>
-                                            <Badge variant="outline" className={cn("text-[8px] h-4 border-white/5 uppercase", getBadgeStyle(emi.status))}>{emi.status}</Badge>
-                                        </div>
+                                        <span className="text-sm font-bold text-white">₹{emi.emiAmount.toFixed(2)}</span>
                                     </TableCell>
                                     <TableCell className="text-right pr-4">
-                                        {loan.status !== 'Completed' && emi.status === 'Pending' && (
-                                             <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold border-white/10 hover:bg-white/10" onClick={() => onPayNow(loan, emi.emiAmount, true, index)} disabled={!isEmiPayable(emi)}>
-                                                Pay Installment
-                                            </Button>
-                                        )}
+                                        <Badge variant="outline" className={cn("text-[8px] h-4 border-white/5 uppercase", getBadgeStyle(emi.status))}>{emi.status}</Badge>
                                     </TableCell>
                                 </TableRow>
                             ))}
