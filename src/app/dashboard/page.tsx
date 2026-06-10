@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Activity,
   Zap,
+  TrendingDown,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -62,6 +63,8 @@ import {
   doc,
   runTransaction,
   updateDoc,
+  orderBy,
+  limit,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -142,6 +145,15 @@ type Announcement = {
     id: string;
     message: string;
     link?: string;
+    createdAt: Timestamp;
+}
+
+type WalletHistoryEntry = {
+    id: string;
+    amount: number;
+    type: 'credit' | 'debit';
+    category: string;
+    description: string;
     createdAt: Timestamp;
 }
 
@@ -271,6 +283,13 @@ export default function Dashboard() {
   const { data: announcements, loading: announcementsLoading } = useCollection<Announcement>('announcements');
   const { data: referrals } = useCollection<any>('users', { where: ['referredBy', '==', user?.uid] });
   
+  const { data: walletHistory, loading: historyLoading } = useCollection<WalletHistoryEntry>(
+    user ? `users/${user.uid}/walletHistory` : null,
+    undefined,
+    orderBy('createdAt', 'desc'),
+    limit(5)
+  );
+
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [showDueLoanPopup, setShowDueLoanPopup] = useState(false);
 
@@ -548,6 +567,53 @@ export default function Dashboard() {
                         <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
                     </AreaChart>
                 </ResponsiveContainer>
+            </CardContent>
+        </Card>
+
+        {/* Recent Activity Section */}
+        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-white/80 text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                    <History size={16} className="text-blue-400" /> Recent Activity
+                </CardTitle>
+                <Button variant="ghost" size="sm" asChild className="h-7 text-[10px] uppercase font-black tracking-widest text-primary hover:bg-primary/10">
+                    <Link href="/profile">View All</Link>
+                </Button>
+            </CardHeader>
+            <CardContent className="space-y-3 px-0">
+                {historyLoading ? (
+                    <div className="flex flex-col items-center justify-center py-6 gap-2 opacity-20">
+                        <Timer className="animate-spin h-4 w-4" />
+                        <p className="text-[10px] font-bold uppercase tracking-widest">Syncing Logs</p>
+                    </div>
+                ) : walletHistory && walletHistory.length > 0 ? (
+                    <div className="divide-y divide-white/[0.03]">
+                        {walletHistory.map(entry => (
+                            <div key={entry.id} className="flex items-center justify-between px-6 py-3 hover:bg-white/[0.01] transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                        "h-8 w-8 rounded-xl flex items-center justify-center shadow-lg",
+                                        entry.type === 'credit' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                                    )}>
+                                        {entry.type === 'credit' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-white/80 leading-none">{entry.category}</p>
+                                        <p className="text-[10px] text-white/30 mt-1 truncate max-w-[140px]">{entry.description}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className={cn("text-sm font-black tracking-tight", entry.type === 'credit' ? 'text-green-400' : 'text-red-400')}>
+                                        {entry.type === 'credit' ? '+' : '-'}₹{entry.amount.toFixed(2)}
+                                    </p>
+                                    <p className="text-[9px] text-white/20 font-bold uppercase mt-1">{format(entry.createdAt?.toDate() || new Date(), 'h:mm a')}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-center py-6 text-[10px] text-white/20 uppercase font-black tracking-widest italic">No activity recorded yet</p>
+                )}
             </CardContent>
         </Card>
         
