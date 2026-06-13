@@ -108,28 +108,28 @@ function GoldCoin({ className }: { className?: string }) {
 }
 
 /**
- * Animated Falling Cash / Rupee elements for background atmosphere.
+ * Animated Falling Cash emojis for background atmosphere.
  */
 function FallingAtmosphere() {
   const [items, setItems] = useState<{ id: number; left: string; delay: string; duration: string; size: number }[]>([]);
 
   useEffect(() => {
-    const newItems = Array.from({ length: 12 }).map((_, i) => ({
+    const newItems = Array.from({ length: 15 }).map((_, i) => ({
       id: i,
       left: `${Math.random() * 100}%`,
       delay: `${Math.random() * 10}s`,
-      duration: `${Math.random() * 8 + 7}s`,
-      size: Math.random() * 20 + 15,
+      duration: `${Math.random() * 12 + 8}s`,
+      size: Math.random() * 25 + 20,
     }));
     setItems(newItems);
   }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-20">
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-30">
       {items.map((item) => (
         <div 
           key={item.id}
-          className="absolute top-[-10%] text-green-500 font-bold animate-fall"
+          className="absolute top-[-10%] select-none animate-fall"
           style={{
             left: item.left,
             animationDelay: item.delay,
@@ -137,7 +137,7 @@ function FallingAtmosphere() {
             fontSize: `${item.size}px`,
           }}
         >
-          ₹
+          💸
         </div>
       ))}
     </div>
@@ -420,7 +420,7 @@ export default function LoginPage() {
             <FooterBadge icon={ShieldCheck} label="Bank-Grade" desc="Encryption" color="text-[#22c55e]" />
             <FooterBadge icon={Zap} label="Instant" desc="Withdrawals" color="text-yellow-400" />
             <FooterBadge icon={Users} label="Verified" desc="Community" color="text-purple-400" />
-            <FooterBadge icon={Headset} label="Priority" desc="Support" color="text-blue-400" />
+            <FooterBadge icon={Headset} iconSize={20} label="Priority" desc="Support" color="text-blue-400" />
         </div>
       </div>
 
@@ -480,11 +480,11 @@ function StatsMiniCard({ icon: Icon, label, desc, color }: { icon: any, label: s
     )
 }
 
-function FooterBadge({ icon: Icon, label, desc, color }: { icon: any, label: string, desc: string, color: string }) {
+function FooterBadge({ icon: Icon, label, desc, color, iconSize = 20 }: { icon: any, label: string, desc: string, color: string, iconSize?: number }) {
     return (
         <div className="flex flex-col items-center text-center space-y-1.5 opacity-60 hover:opacity-100 transition-opacity">
             <div className={cn("p-2.5 rounded-2xl bg-white/[0.03] border border-white/5", color)}>
-                <Icon size={20} />
+                <Icon size={iconSize} />
             </div>
             <div className="space-y-0.5">
                 <p className="text-[10px] font-black text-white/90 leading-none tracking-tight">{label}</p>
