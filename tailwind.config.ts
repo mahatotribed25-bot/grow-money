@@ -123,10 +123,13 @@ export default {
           '100%': { stroke: 'hsl(var(--primary))' },
         },
         fall: {
-          '0%': { transform: 'translateY(-10%) rotate(0deg)', opacity: '0' },
-          '10%': { opacity: '0.8' },
-          '90%': { opacity: '0.8' },
-          '100%': { transform: 'translateY(110vh) rotate(360deg)', opacity: '0' },
+          '0%': { transform: 'translateY(-10vh) translateX(0) rotate(0deg)', opacity: '0' },
+          '10%': { opacity: '1' },
+          '20%': { transform: 'translateY(20vh) translateX(20px) rotate(45deg)' },
+          '40%': { transform: 'translateY(40vh) translateX(-20px) rotate(90deg)' },
+          '60%': { transform: 'translateY(60vh) translateX(20px) rotate(135deg)' },
+          '80%': { transform: 'translateY(80vh) translateX(-20px) rotate(180deg)' },
+          '100%': { transform: 'translateY(110vh) translateX(0) rotate(225deg)', opacity: '0' },
         },
       },
       animation: {

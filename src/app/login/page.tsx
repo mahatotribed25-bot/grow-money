@@ -109,27 +109,31 @@ function GoldCoin({ className }: { className?: string }) {
 
 /**
  * Animated Falling Cash emojis for background atmosphere.
+ * Optimized to match the dense 'Money Rain' reference.
  */
 function FallingAtmosphere() {
-  const [items, setItems] = useState<{ id: number; left: string; delay: string; duration: string; size: number }[]>([]);
+  const [items, setItems] = useState<{ id: number; left: string; delay: string; duration: string; size: number; symbol: string }[]>([]);
 
   useEffect(() => {
-    const newItems = Array.from({ length: 15 }).map((_, i) => ({
+    const symbols = ['💸', '💵', '💰', '💴', '💶'];
+    // Higher count for the dense effect seen in the user's reference image
+    const newItems = Array.from({ length: 60 }).map((_, i) => ({
       id: i,
       left: `${Math.random() * 100}%`,
-      delay: `${Math.random() * 10}s`,
-      duration: `${Math.random() * 12 + 8}s`,
-      size: Math.random() * 25 + 20,
+      delay: `${Math.random() * 20}s`,
+      duration: `${Math.random() * 8 + 8}s`,
+      size: Math.random() * 30 + 15,
+      symbol: symbols[Math.floor(Math.random() * symbols.length)]
     }));
     setItems(newItems);
   }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-30">
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40">
       {items.map((item) => (
         <div 
           key={item.id}
-          className="absolute top-[-10%] select-none animate-fall"
+          className="absolute top-[-15%] select-none animate-fall"
           style={{
             left: item.left,
             animationDelay: item.delay,
@@ -137,7 +141,7 @@ function FallingAtmosphere() {
             fontSize: `${item.size}px`,
           }}
         >
-          💸
+          {item.symbol}
         </div>
       ))}
     </div>
