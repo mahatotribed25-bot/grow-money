@@ -61,7 +61,7 @@ const formSchema = z.object({
 });
 
 /**
- * Detailed 3D Golden Coin SVG component for high-end visual appeal.
+ * Detailed 3D Golden Rupee Coin SVG component.
  */
 function GoldCoin({ className }: { className?: string }) {
   return (
@@ -80,9 +80,9 @@ function GoldCoin({ className }: { className?: string }) {
             {/* Inner decorative dashed circle */}
             <circle cx="50" cy="50" r="34" stroke="#FDE68A" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.4"/>
             
-            {/* Large high-contrast Dollar sign */}
+            {/* High-contrast Rupee (₹) sign */}
             <path 
-                d="M50 25V75M40 35H55C58 35 62 37 62 42.5C62 47.5 58 50 55 50H45C42 50 38 52.5 38 57.5C38 63 42 65 45 65H60" 
+                d="M30 32h40 M30 44h40 M65 32c0 0 0 28-30 28 M40 60c15 0 25 15 25 25" 
                 stroke="#78350F" 
                 strokeWidth="10" 
                 strokeLinecap="round" 
@@ -105,6 +105,43 @@ function GoldCoin({ className }: { className?: string }) {
         </svg>
     </div>
   )
+}
+
+/**
+ * Animated Falling Cash / Rupee elements for background atmosphere.
+ */
+function FallingAtmosphere() {
+  const [items, setItems] = useState<{ id: number; left: string; delay: string; duration: string; size: number }[]>([]);
+
+  useEffect(() => {
+    const newItems = Array.from({ length: 12 }).map((_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 10}s`,
+      duration: `${Math.random() * 8 + 7}s`,
+      size: Math.random() * 20 + 15,
+    }));
+    setItems(newItems);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-20">
+      {items.map((item) => (
+        <div 
+          key={item.id}
+          className="absolute top-[-10%] text-green-500 font-bold animate-fall"
+          style={{
+            left: item.left,
+            animationDelay: item.delay,
+            animationDuration: item.duration,
+            fontSize: `${item.size}px`,
+          }}
+        >
+          ₹
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function LoginPage() {
@@ -220,6 +257,8 @@ export default function LoginPage() {
             ))}
         </div>
       </div>
+
+      <FallingAtmosphere />
 
       {/* Floating Decorative Elements */}
       <div className="absolute top-10 left-0 w-full h-96 pointer-events-none overflow-hidden z-0 select-none">

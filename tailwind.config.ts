@@ -1,5 +1,4 @@
-
-import type {Config} from 'tailwindcss';
+import type {Config} from 'tailwind-merge';
 
 export default {
   darkMode: ['class'],
@@ -108,7 +107,7 @@ export default {
           '20%': { color: '#ffff00', textShadow: '0 0 10px rgba(255, 255, 0, 0.8), 0 0 20px rgba(255, 255, 0, 0.4)' },
           '40%': { color: '#00ff00', textShadow: '0 0 10px rgba(0, 255, 0, 0.8), 0 0 20px rgba(0, 255, 0, 0.4)' },
           '60%': { color: '#00ffff', textShadow: '0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4)' },
-          '80%': { color: '#0000ff', textShadow: '0 0 10px rgba(0, 0, 255, 0.8), 0 0 20px rgba(0, 0, 255, 0.4)' },
+          '80%': { color: '#0000ff', textShadow: '0 0 10px rgba(0, 255, 0, 0.8), 0 0 20px rgba(0, 255, 0, 0.4)' },
           '100%': { color: '#ff00ff', textShadow: '0 0 10px rgba(255, 0, 255, 0.8), 0 0 20px rgba(255, 0, 255, 0.4)' },
         },
         blink: {
@@ -123,6 +122,12 @@ export default {
           '75%': { stroke: 'hsl(var(--chart-5))' },
           '100%': { stroke: 'hsl(var(--primary))' },
         },
+        fall: {
+          '0%': { transform: 'translateY(-10%) rotate(0deg)', opacity: '0' },
+          '10%': { opacity: '0.8' },
+          '90%': { opacity: '0.8' },
+          '100%': { transform: 'translateY(110vh) rotate(360deg)', opacity: '0' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -133,6 +138,7 @@ export default {
         'rgb-glow': 'rgb-glow 8s linear infinite',
         blink: 'blink 4s linear infinite',
         'color-cycle': 'color-cycle 8s linear infinite',
+        fall: 'fall 10s linear infinite',
       },
     },
   },
