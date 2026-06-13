@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -69,6 +68,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -998,7 +998,7 @@ export default function ProfilePage() {
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
           <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
-          <BottomNavItem icon={User} label="Profile" href="/profile" active />
+          <BottomNavItem icon={User} label="Profile" active />
         </div>
       </nav>
     </div>
