@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Wallet,
@@ -87,6 +86,7 @@ import {
   CartesianGrid, 
   Tooltip as RechartsTooltip 
 } from 'recharts';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 type UserData = {
   id: string;
@@ -94,6 +94,7 @@ type UserData = {
   totalInvestment: number;
   totalIncome: number;
   name?: string;
+  photoURL?: string;
   email?: string;
   upiId?: string;
   role?: 'user' | 'subadmin';
@@ -511,11 +512,19 @@ export default function Dashboard() {
           <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Grow Money</h1>
         </div>
         <div className="flex items-center gap-2">
-             <Badge variant="outline" className="border-white/10 bg-white/5 h-8 px-4 rounded-xl">
-                <span className="animate-rgb-glow font-black tracking-tighter text-sm">
-                    {userData?.name || 'User'}
-                </span>
-             </Badge>
+             <Link href="/profile">
+                <Badge variant="outline" className="border-white/10 bg-white/5 h-10 px-3 pl-1.5 rounded-full flex items-center gap-2 hover:bg-white/10 transition-colors">
+                    <Avatar className="h-7 w-7 border border-white/10">
+                        <AvatarImage src={userData?.photoURL} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-black uppercase">
+                            {userData?.name?.charAt(0) || 'U'}
+                        </AvatarFallback>
+                    </Avatar>
+                    <span className="animate-rgb-glow font-black tracking-tighter text-xs">
+                        {userData?.name || 'User'}
+                    </span>
+                </Badge>
+             </Link>
         </div>
       </header>
 

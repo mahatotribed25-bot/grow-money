@@ -33,13 +33,14 @@ import {
   TrendingUp,
   TrendingDown,
   UserCheck,
+  Camera,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useAuth, useDoc, useFirestore } from '@/firebase';
-import { signOut } from 'firebase/auth';
+import { signOut, updateProfile } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
@@ -71,6 +72,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 type Transaction = {
   id: string;
@@ -148,6 +150,7 @@ type Referral = {
 
 type UserData = {
   name?: string;
+  photoURL?: string;
   referralCode?: string;
   upiId?: string;
   upiProvider?: 'PhonePe' | 'Google Pay' | 'Paytm';
@@ -372,7 +375,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const { data: userData, loading: userDataloading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+  const { data: userData, loading: userDataloading, refetch: refetchUser } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   const { data: investments } = useCollection<Investment>(user ? `users/${user.uid}/investments` : null);
   const { data: loans } = useCollection<Loan>(user ? `users/${user.uid}/loans` : null);
   const { data: referrals } = useCollection<Referral>(user ? 'users' : null, { where: ['referredBy', '==', user?.uid] });
@@ -386,6 +389,12 @@ export default function ProfilePage() {
   const { data: groupInvestments } = useUserGroupInvestments(user?.uid);
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
   
+  // Profile Edit State
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhotoUrl, setEditPhotoUrl] = useState('');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
   // KYC State
   const [panCard, setPanCard] = useState('');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
@@ -409,6 +418,8 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (userData) {
+      setEditName(userData.name || '');
+      setEditPhotoUrl(userData.photoURL || '');
       setPanCard(userData.panCard || '');
       setAadhaarNumber(userData.aadhaarNumber || '');
       setPhoneNumber(userData.phoneNumber || '');
@@ -446,6 +457,34 @@ export default function ProfilePage() {
         title: "Copied!",
         description: "Your referral code has been copied to the clipboard.",
       });
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!user || !auth.currentUser) return;
+    setIsUpdatingProfile(true);
+
+    try {
+        // Update Firebase Auth
+        await updateProfile(auth.currentUser, {
+            displayName: editName,
+            photoURL: editPhotoUrl
+        });
+
+        // Update Firestore
+        const userRef = doc(firestore, 'users', user.uid);
+        await updateDoc(userRef, {
+            name: editName,
+            photoURL: editPhotoUrl
+        });
+
+        toast({ title: "Profile Updated", description: "Your identity details have been refreshed." });
+        setIsEditProfileOpen(false);
+        if (refetchUser) refetchUser();
+    } catch (e: any) {
+        toast({ title: "Update Failed", description: e.message, variant: "destructive" });
+    } finally {
+        setIsUpdatingProfile(false);
     }
   };
 
@@ -609,23 +648,36 @@ export default function ProfilePage() {
           <CardHeader>
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary to-secondary p-[2px] shadow-lg">
-                    <div className="h-full w-full rounded-2xl bg-[#030408] flex items-center justify-center">
-                       <User size={40} className="text-white/80" />
-                    </div>
+                <div className="relative group cursor-pointer" onClick={() => setIsEditProfileOpen(true)}>
+                  <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-primary via-purple-500 to-secondary p-[3px] shadow-2xl overflow-hidden">
+                    <Avatar className="h-full w-full rounded-[20px] border-4 border-[#030408]">
+                        <AvatarImage src={userData?.photoURL} />
+                        <AvatarFallback className="bg-[#030408] text-white/20 text-3xl font-black">
+                            {userData?.name?.charAt(0) || 'U'}
+                        </AvatarFallback>
+                    </Avatar>
                   </div>
-                  <div className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-green-500 border-4 border-[#030408] flex items-center justify-center">
-                    <ShieldCheck size={16} className="text-white" />
+                  <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-xl bg-primary border-2 border-[#030408] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Camera size={14} className="text-white" />
                   </div>
                 </div>
-                <div className="text-center sm:text-left">
-                  <CardTitle className="text-2xl font-bold text-white mb-1">
-                    {userData?.name || user?.displayName || 'Investor'}
-                  </CardTitle>
-                  <CardDescription className="text-white/40 flex items-center justify-center sm:justify-start gap-1">
-                    <Mail size={14}/> {user?.email}
+                <div className="text-center sm:text-left space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-2xl font-black text-white tracking-tight">
+                        {userData?.name || user?.displayName || 'Investor'}
+                    </CardTitle>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-white/20 hover:text-white" onClick={() => setIsEditProfileOpen(true)}>
+                        <Pencil size={12} />
+                    </Button>
+                  </div>
+                  <CardDescription className="text-white/40 flex items-center justify-center sm:justify-start gap-1 font-medium">
+                    <Mail size={12}/> {user?.email}
                   </CardDescription>
+                  <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
+                      <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20 text-[10px] h-5 font-black uppercase tracking-widest">
+                          <ShieldCheck size={10} className="mr-1" /> Active Node
+                      </Badge>
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col items-center sm:items-end gap-3">
@@ -992,12 +1044,54 @@ export default function ProfilePage() {
         </div>
       </main>
 
+      <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
+        <DialogContent className="bg-[#030408]/95 backdrop-blur-3xl border-white/10 text-white sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle className="text-2xl font-black tracking-tight">Modify Identity</DialogTitle>
+                <DialogDescription className="text-white/40">Keep your profile current for administrative trust.</DialogDescription>
+            </DialogHeader>
+            <div className="py-6 space-y-6">
+                <div className="space-y-2">
+                    <Label className="text-white/50 text-[10px] font-black uppercase tracking-widest pl-1">Display Name</Label>
+                    <Input 
+                        value={editName} 
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Enter full name"
+                        className="bg-white/5 border-white/10 rounded-xl h-12 font-bold"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label className="text-white/50 text-[10px] font-black uppercase tracking-widest pl-1">Avatar Resource Link</Label>
+                    <Input 
+                        value={editPhotoUrl} 
+                        onChange={(e) => setEditPhotoUrl(e.target.value)}
+                        placeholder="https://image-url.com/photo.jpg"
+                        className="bg-white/5 border-white/10 rounded-xl h-12 font-mono text-xs"
+                    />
+                    <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest pl-1">Preferred format: Square image, transparent or dark background.</p>
+                </div>
+            </div>
+            <DialogFooter className="flex-col sm:flex-col gap-3">
+                <Button 
+                    onClick={handleUpdateProfile} 
+                    className="w-full h-14 rounded-xl font-black bg-primary text-white shadow-2xl shadow-primary/20"
+                    disabled={isUpdatingProfile}
+                >
+                    {isUpdatingProfile ? "Refreshing Node..." : "Apply Transformations"}
+                </Button>
+                <DialogClose asChild>
+                    <Button variant="ghost" className="w-full text-white/40 hover:text-white">Discard Changes</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
         <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-          <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
+          <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" active />
         </div>
       </nav>
