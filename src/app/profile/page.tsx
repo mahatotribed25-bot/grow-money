@@ -33,6 +33,7 @@ import {
   History as HistoryIcon,
   TrendingUp,
   TrendingDown,
+  UserCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -69,6 +70,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type Transaction = {
   id: string;
@@ -138,7 +140,10 @@ type Loan = {
 
 type Referral = {
   id: string;
+  name: string;
+  email: string;
   totalInvestment?: number;
+  createdAt?: Timestamp;
 };
 
 type UserData = {
@@ -663,6 +668,96 @@ export default function ProfilePage() {
 
         <RedeemCouponCard />
 
+        <div className="grid gap-6 sm:grid-cols-2">
+            <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-50 group-hover:opacity-100 transition-opacity" />
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white/90">
+                    <Gift className="text-pink-400" /> Share & Earn
+                </CardTitle>
+                <CardDescription className="text-white/40">Invite friends and earn rewards.</CardDescription>
+              </CardHeader>
+              <CardContent className="relative space-y-4">
+                <div className="flex items-center justify-between rounded-2xl bg-black/40 border border-white/5 p-4">
+                  <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-xl bg-white/5">
+                        <UsersIcon size={24} className="text-white/80" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Referral ID</p>
+                        <span className="text-xl font-mono font-bold text-white tracking-tighter">{userData?.referralCode || '••••••'}</span>
+                      </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={handleCopyCode} className="h-12 w-12 rounded-xl hover:bg-white/10 text-white/60">
+                    <Copy className="h-6 w-6" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl relative overflow-hidden group">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white/90">
+                    <Users2 className="text-blue-400" /> Referral Network
+                </CardTitle>
+                <CardDescription className="text-white/40">Track your successful invites.</CardDescription>
+              </CardHeader>
+              <CardContent className="relative">
+                <div className="bg-black/20 rounded-2xl p-4 border border-white/5 h-[100px] flex flex-col justify-center">
+                    {userDataloading ? <Timer className="animate-spin h-5 w-5 mx-auto opacity-20" /> : (
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">Total Members</p>
+                                <p className="text-3xl font-black text-white tracking-tighter">{referrals?.length || 0}</p>
+                            </div>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase font-black tracking-widest text-primary hover:bg-primary/10">
+                                        View Track
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>Referral Network</DialogTitle>
+                                        <DialogDescription className="text-white/40">List of users who joined via your link.</DialogDescription>
+                                    </DialogHeader>
+                                    <ScrollArea className="h-[300px] pr-4">
+                                        <div className="space-y-3 py-4">
+                                            {referrals && referrals.length > 0 ? referrals.map(ref => (
+                                                <div key={ref.id} className="bg-white/5 border border-white/5 rounded-xl p-3 flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                                                            <User size={14} className="text-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-bold text-white/90">{ref.name}</p>
+                                                            <p className="text-[10px] text-white/30 truncate max-w-[120px]">{ref.email}</p>
+                                                        </div>
+                                                    </div>
+                                                    {(ref.totalInvestment || 0) > 0 ? (
+                                                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[9px] font-black uppercase h-5">
+                                                            <UserCheck size={10} className="mr-1" /> Active
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="text-white/20 border-white/5 text-[9px] font-black uppercase h-5">
+                                                            Joined
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            )) : (
+                                                <p className="text-center py-10 text-[10px] text-white/20 uppercase font-black">No one in your network yet.</p>
+                                            )}
+                                        </div>
+                                    </ScrollArea>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    )}
+                </div>
+              </CardContent>
+            </Card>
+        </div>
+
         <div className="grid gap-6">
             {awaitingConfirmationRequest ? (
                 <AmountVerificationCard request={awaitingConfirmationRequest}/>
@@ -825,31 +920,6 @@ export default function ProfilePage() {
                 </CardContent>
             </Card>
         </div>
-
-        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-50 group-hover:opacity-100 transition-opacity" />
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white/90">
-                <Gift className="text-pink-400" /> Share & Earn
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="relative space-y-4">
-            <div className="flex items-center justify-between rounded-2xl bg-black/40 border border-white/5 p-4">
-              <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-white/5">
-                    <UsersIcon size={24} className="text-white/80" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Referral ID</p>
-                    <span className="text-xl font-mono font-bold text-white tracking-tighter">{userData?.referralCode || '••••••'}</span>
-                  </div>
-              </div>
-              <Button variant="ghost" size="icon" onClick={handleCopyCode} className="h-12 w-12 rounded-xl hover:bg-white/10 text-white/60">
-                <Copy className="h-6 w-6" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
 
         <Tabs defaultValue="history" className="mt-8">
             <TabsList className="grid w-full grid-cols-4 bg-white/5 border-white/10 p-1.5 h-14 rounded-2xl">
