@@ -28,6 +28,7 @@ import {
   Activity,
   Zap,
   TrendingDown,
+  Timer,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -116,6 +117,7 @@ type AdminSettings = {
 
 type Investment = {
   id: string;
+  planId: string;
   planName: string;
   investedAmount: number;
   returnAmount: number;

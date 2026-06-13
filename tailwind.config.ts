@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwind-merge';
 
 export default {
@@ -107,7 +108,7 @@ export default {
           '20%': { color: '#ffff00', textShadow: '0 0 10px rgba(255, 255, 0, 0.8), 0 0 20px rgba(255, 255, 0, 0.4)' },
           '40%': { color: '#00ff00', textShadow: '0 0 10px rgba(0, 255, 0, 0.8), 0 0 20px rgba(0, 255, 0, 0.4)' },
           '60%': { color: '#00ffff', textShadow: '0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4)' },
-          '80%': { color: '#0000ff', textShadow: '0 0 10px rgba(0, 255, 0, 0.8), 0 0 20px rgba(0, 255, 0, 0.4)' },
+          '80%': { color: '#0000ff', textShadow: '0 0 10px rgba(0, 0, 255, 0.8), 0 0 20px rgba(0, 0, 255, 0.4)' },
           '100%': { color: '#ff00ff', textShadow: '0 0 10px rgba(255, 0, 255, 0.8), 0 0 20px rgba(255, 0, 255, 0.4)' },
         },
         blink: {
@@ -131,6 +132,10 @@ export default {
           '80%': { transform: 'translateY(80vh) translateX(-20px) rotate(180deg)' },
           '100%': { transform: 'translateY(110vh) translateX(0) rotate(225deg)', opacity: '0' },
         },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -142,6 +147,7 @@ export default {
         blink: 'blink 4s linear infinite',
         'color-cycle': 'color-cycle 8s linear infinite',
         fall: 'fall 10s linear infinite',
+        shimmer: 'shimmer 3s infinite linear',
       },
     },
   },
