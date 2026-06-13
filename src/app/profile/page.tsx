@@ -998,7 +998,7 @@ export default function ProfilePage() {
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
           <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
-          <BottomNavItem icon={User} label="Profile" active />
+          <BottomNavItem icon={User} label="Profile" href="/profile" active />
         </div>
       </nav>
     </div>
@@ -1215,12 +1215,12 @@ function BottomNavItem({
 }: {
   icon: React.ElementType;
   label: string;
-  href: string;
+  href?: string;
   active?: boolean;
 }) {
   return (
     <Link
-      href={href}
+      href={href || '#'}
       className={cn(
         "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
         active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
