@@ -282,7 +282,10 @@ const SlideToClaim = ({
 };
 
 export default function Dashboard() {
+  const firestore = useFirestore();
   const { user, loading: userLoading } = useUser();
+  const { toast } = useToast();
+
   const { data: userData, loading: userDataLoading, refetch: refetchUser } = useDoc<UserData>(
     user ? `users/${user.uid}` : null
   );
@@ -304,17 +307,20 @@ export default function Dashboard() {
     limit(5)
   );
 
-  const { data: pendingRewards } = useCollection<ScratchCardData>(
-    user ? query(collection(useFirestore(), 'scratchCards'), where('userId', '==', user.uid), where('status', '==', 'unscratched')) : null
-  );
+  const scratchCardsQuery = useMemo(() => {
+    if (!user) return null;
+    return query(
+        collection(firestore, 'scratchCards'), 
+        where('userId', '==', user.uid), 
+        where('status', '==', 'unscratched')
+    );
+  }, [user, firestore]);
+
+  const { data: pendingRewards } = useCollection<ScratchCardData>(scratchCardsQuery);
 
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [showDueLoanPopup, setShowDueLoanPopup] = useState(false);
-  const [activeReward, setActiveReward] = useState<ScratchCardData | null>(null);
 
-  const firestore = useFirestore();
-  const { toast } = useToast();
-  
   useEffect(() => {
     if (!userLoading && user && userData) {
         const hasSeenPopup = sessionStorage.getItem('welcomePopupShown');
@@ -512,9 +518,9 @@ export default function Dashboard() {
     return data;
   }, [userData]);
 
-  const loading = userLoading || userDataLoading || investmentsLoading || loansLoading || announcementsLoading;
+  const appLoading = userLoading || userDataLoading || investmentsLoading || loansLoading || announcementsLoading;
 
-  if (loading) {
+  if (appLoading) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-[#030408]">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
