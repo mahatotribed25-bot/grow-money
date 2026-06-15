@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -24,6 +25,14 @@ service cloud.firestore {
     
     function isManager() {
       return isAdmin() || isSubAdmin();
+    }
+
+    // scratchCards rules
+    match /scratchCards/{id} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
+      allow create: if isManager();
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
+      allow delete: if isManager();
     }
 
     // COLLECTION GROUP RULES - Strictly for Management
@@ -59,6 +68,10 @@ service cloud.firestore {
       match /loans/{id} {
         allow read: if isOwner(userId) || isManager();
         allow write: if isOwner(userId) || isManager();
+      }
+      match /walletHistory/{id} {
+        allow read: if isOwner(userId) || isManager();
+        allow write: if isManager();
       }
     }
 

@@ -23,6 +23,7 @@ import {
   MessageSquare,
   Network,
   IndianRupee,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -208,6 +209,7 @@ export default function AdminLayout({
               <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
               <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance & Earnings</AdminNavItem>
               <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
+              <AdminNavItem icon={Sparkles} href="/admin/rewards">User Rewards</AdminNavItem>
               <AdminNavItem icon={Network} href="/admin/user-chats">User Chat Bridge</AdminNavItem>
               <AdminNavItem icon={HandCoins} href="/admin/p2p-loans">P2P Market Oversight</AdminNavItem>
               <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>
@@ -259,6 +261,7 @@ export default function AdminLayout({
                     <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
                     <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance & Earnings</AdminNavItem>
                     <AdminNavItem icon={Users} href="/admin/users">Users</AdminNavItem>
+                    <AdminNavItem icon={Sparkles} href="/admin/rewards">User Rewards</AdminNavItem>
                     <AdminNavItem icon={Network} href="/admin/user-chats">User Chat Bridge</AdminNavItem>
                     <AdminNavItem icon={HandCoins} href="/admin/p2p-loans">P2P Market</AdminNavItem>
                     <AdminNavItem icon={Briefcase} href="/admin/investment-plans">Investment Plans</AdminNavItem>

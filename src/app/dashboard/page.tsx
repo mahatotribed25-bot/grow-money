@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Wallet,
@@ -28,6 +29,7 @@ import {
   Zap,
   TrendingDown,
   Timer,
+  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -65,6 +67,8 @@ import {
   updateDoc,
   orderBy,
   limit,
+  where,
+  query,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -87,6 +91,7 @@ import {
   Tooltip as RechartsTooltip 
 } from 'recharts';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScratchCard } from '@/components/dashboard/ScratchCard';
 
 type UserData = {
   id: string;
@@ -158,6 +163,12 @@ type WalletHistoryEntry = {
     category: string;
     description: string;
     createdAt: Timestamp;
+}
+
+type ScratchCardData = {
+  id: string;
+  amount: number;
+  status: 'unscratched' | 'scratched';
 }
 
 const CountdownTimer = ({ endDate }: { endDate: Date }) => {
@@ -272,7 +283,7 @@ const SlideToClaim = ({
 
 export default function Dashboard() {
   const { user, loading: userLoading } = useUser();
-  const { data: userData, loading: userDataLoading } = useDoc<UserData>(
+  const { data: userData, loading: userDataLoading, refetch: refetchUser } = useDoc<UserData>(
     user ? `users/${user.uid}` : null
   );
   const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
@@ -293,8 +304,13 @@ export default function Dashboard() {
     limit(5)
   );
 
+  const { data: pendingRewards } = useCollection<ScratchCardData>(
+    user ? query(collection(useFirestore(), 'scratchCards'), where('userId', '==', user.uid), where('status', '==', 'unscratched')) : null
+  );
+
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [showDueLoanPopup, setShowDueLoanPopup] = useState(false);
+  const [activeReward, setActiveReward] = useState<ScratchCardData | null>(null);
 
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -441,6 +457,44 @@ export default function Dashboard() {
      });
   };
 
+  const handleScratchComplete = (reward: ScratchCardData) => {
+    if (!user) return;
+    
+    runTransaction(firestore, async (transaction) => {
+      const userRef = doc(firestore, 'users', user.uid);
+      const cardRef = doc(firestore, 'scratchCards', reward.id);
+      const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
+      
+      const userDoc = await transaction.get(userRef);
+      const cardDoc = await transaction.get(cardRef);
+      
+      if(!userDoc.exists() || !cardDoc.exists()) throw new Error("Reward processing error");
+      if(cardDoc.data().status === 'scratched') throw new Error("Already claimed");
+      
+      transaction.update(userRef, {
+        walletBalance: (userDoc.data().walletBalance || 0) + reward.amount
+      });
+      
+      transaction.update(cardRef, {
+        status: 'scratched',
+        scratchedAt: serverTimestamp()
+      });
+      
+      transaction.set(historyRef, {
+        amount: reward.amount,
+        type: 'credit',
+        category: 'Scratch Card Win',
+        description: `Won from mystery scratch card`,
+        createdAt: serverTimestamp()
+      });
+    }).then(() => {
+      toast({ title: "Victory!", description: `₹${reward.amount} added to your wallet.` });
+      refetchUser();
+    }).catch(e => {
+      console.error(e);
+    });
+  };
+
   const activeInvestments = investments?.filter((inv) => inv.status === 'Active' || inv.status === 'Stopped');
   const activeLoan = loans?.find(l => l.status !== 'Completed');
   const sortedAnnouncements = announcements?.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
@@ -542,6 +596,40 @@ export default function Dashboard() {
              }} />
              <DailyCheckInCard />
         </div>
+
+        {pendingRewards && pendingRewards.length > 0 && (
+            <Card className="bg-gradient-to-br from-primary/20 to-purple-500/10 border-primary/30 rounded-3xl overflow-hidden shadow-2xl relative group">
+                <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/gift/400/400')] opacity-5 mix-blend-overlay" />
+                <CardHeader className="relative flex flex-row items-center justify-between pb-3">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary animate-bounce">
+                            <Gift size={22} />
+                        </div>
+                        <div>
+                            <CardTitle className="text-white text-sm font-bold">Unclaimed Gifts</CardTitle>
+                            <p className="text-[10px] text-white/40 uppercase font-black tracking-widest">{pendingRewards.length} Secret Rewards Found</p>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="relative flex overflow-x-auto gap-4 pb-4 no-scrollbar">
+                    {pendingRewards.map(reward => (
+                        <Dialog key={reward.id}>
+                            <DialogTrigger asChild>
+                                <div className="flex-shrink-0 w-32 aspect-square rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 hover:scale-105 transition-all">
+                                    <Sparkles className="text-yellow-400 mb-2 h-6 w-6" />
+                                    <span className="text-[9px] font-black uppercase text-white/40">Open Gift</span>
+                                </div>
+                            </DialogTrigger>
+                            <DialogContent className="bg-transparent border-none shadow-none max-w-sm p-0 overflow-visible">
+                                <div className="p-4 flex justify-center">
+                                    <ScratchCard amount={reward.amount} onComplete={() => handleScratchComplete(reward)} />
+                                </div>
+                            </DialogContent>
+                        </Dialog>
+                    ))}
+                </CardContent>
+            </Card>
+        )}
 
         <div className="rounded-3xl overflow-hidden shadow-2xl shadow-primary/5">
             <BannerCarousel />

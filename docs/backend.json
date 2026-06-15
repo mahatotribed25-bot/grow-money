@@ -70,6 +70,18 @@
             "dailyIncome": { "type": "number" },
             "validity": { "type": "number" }
         }
+    },
+    "scratchCard": {
+      "title": "Scratch Card",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["unscratched", "scratched"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "scratchedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -87,6 +99,10 @@
     "/users/{userId}/walletHistory/{txId}": {
         "schema": { "$ref": "#/entities/walletTransaction" },
         "description": "Logs every balance change for the user."
+    },
+    "/scratchCards/{cardId}": {
+      "schema": { "$ref": "#/entities/scratchCard" },
+      "description": "Stores issued scratch cards."
     },
     "/settings/admin": {
       "schema": { "type": "object" },
