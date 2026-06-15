@@ -17,6 +17,8 @@ export function ScratchCard({ amount, onComplete, isCompleted = false }: Scratch
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScratched, setIsScratched] = useState(isCompleted);
   const [scratchProgress, setScratchProgress] = useState(0);
+  const [rubCount, setRubCount] = useState(0);
+  const isCurrentlyRubbing = useRef(false);
 
   useEffect(() => {
     if (isCompleted || !canvasRef.current) return;
@@ -59,6 +61,12 @@ export function ScratchCard({ amount, onComplete, isCompleted = false }: Scratch
     const scratch = (e: MouseEvent | TouchEvent) => {
       if (!isDrawing) return;
 
+      // Detect if this is the start of a new rub action
+      if (!isCurrentlyRubbing.current) {
+        isCurrentlyRubbing.current = true;
+        setRubCount(prev => prev + 1);
+      }
+
       const rect = canvas.getBoundingClientRect();
       let x, y;
 
@@ -72,7 +80,7 @@ export function ScratchCard({ amount, onComplete, isCompleted = false }: Scratch
 
       ctx.globalCompositeOperation = 'destination-out';
       ctx.beginPath();
-      ctx.arc(x, y, 20, 0, Math.PI * 2);
+      ctx.arc(x, y, 25, 0, Math.PI * 2);
       ctx.fill();
 
       // Check progress
@@ -88,14 +96,26 @@ export function ScratchCard({ amount, onComplete, isCompleted = false }: Scratch
       const progress = (transparentCount / (pixels.length / 4)) * 100;
       setScratchProgress(progress);
 
-      if (progress > 60 && !isScratched) {
+      // Finish if > 60% scratched OR if rub count reaches 3
+      if ((progress > 60 || rubCount >= 3) && !isScratched) {
         setIsScratched(true);
         onComplete();
       }
     };
 
-    const startDrawing = () => { isDrawing = true; };
-    const stopDrawing = () => { isDrawing = false; };
+    const startDrawing = () => { 
+        isDrawing = true; 
+    };
+    
+    const stopDrawing = () => { 
+        isDrawing = false; 
+        isCurrentlyRubbing.current = false;
+        // Final check on rub count after releasing
+        if (rubCount >= 3 && !isScratched) {
+            setIsScratched(true);
+            onComplete();
+        }
+    };
 
     canvas.addEventListener('mousedown', startDrawing);
     canvas.addEventListener('touchstart', startDrawing);
@@ -112,7 +132,7 @@ export function ScratchCard({ amount, onComplete, isCompleted = false }: Scratch
       canvas.removeEventListener('mousemove', scratch);
       canvas.removeEventListener('touchmove', scratch);
     };
-  }, [onComplete, isScratched, isCompleted]);
+  }, [onComplete, isScratched, isCompleted, rubCount]);
 
   return (
     <div 
@@ -157,7 +177,7 @@ export function ScratchCard({ amount, onComplete, isCompleted = false }: Scratch
       {!isScratched && !isCompleted && (
           <div className="absolute bottom-4 left-0 w-full text-center pointer-events-none">
               <span className="px-4 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-black uppercase tracking-[2px] text-white/60 animate-pulse">
-                Rub to Reveal Gift
+                {rubCount === 0 ? "Rub to Reveal Gift" : `Rubbing... (${rubCount}/3)`}
               </span>
           </div>
       )}
