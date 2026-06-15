@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -13,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Gift, Trash2, Send, Sparkles, User, Timer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 type UserData = {
     id: string;
