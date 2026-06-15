@@ -61,6 +61,32 @@ const formSchema = z.object({
 });
 
 /**
+ * Smooth Counting Animation Component
+ */
+function Counter({ value, duration = 2000, decimals = 0 }: { value: number, duration?: number, decimals?: number }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let startTime: number | null = null;
+    let animationFrame: number;
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      setCount(progress * value);
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [value, duration]);
+
+  return <>{count.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}</>;
+}
+
+/**
  * Detailed 3D Golden Rupee Coin SVG component.
  */
 function GoldCoin({ className }: { className?: string }) {
@@ -301,9 +327,9 @@ export default function LoginPage() {
         </div>
 
         <div className="grid grid-cols-3 gap-3 w-full px-2">
-            <StatsMiniCard icon={Users} label="5,000+" desc="Investors" color="text-purple-400" />
-            <StatsMiniCard icon={Wallet} label="₹12.45L+" desc="Paid Out" color="text-blue-400" />
-            <StatsMiniCard icon={TrendingUp} label="99.8%" desc="Success" color="text-[#22c55e]" />
+            <StatsMiniCard icon={Users} value={5000} suffix="+" desc="Investors" color="text-purple-400" />
+            <StatsMiniCard icon={Wallet} value={12.45} prefix="₹" suffix="L+" desc="Paid Out" color="text-blue-400" decimals={2} />
+            <StatsMiniCard icon={TrendingUp} value={99.8} suffix="%" desc="Success" color="text-[#22c55e]" decimals={1} />
         </div>
 
         <div className="w-full max-w-md relative group px-2">
@@ -472,13 +498,15 @@ export default function LoginPage() {
   );
 }
 
-function StatsMiniCard({ icon: Icon, label, desc, color }: { icon: any, label: string, desc: string, color: string }) {
+function StatsMiniCard({ icon: Icon, value, suffix = "", prefix = "", desc, color, decimals = 0 }: { icon: any, value: number, suffix?: string, prefix?: string, desc: string, color: string, decimals?: number }) {
     return (
         <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-3xl shadow-xl hover:bg-white/[0.06] transition-all">
             <div className={cn("p-2.5 rounded-xl bg-white/5 mb-2.5", color)}>
                 <Icon size={18} />
             </div>
-            <span className="text-base font-black text-white tracking-tighter">{label}</span>
+            <span className="text-base font-black text-white tracking-tighter">
+                {prefix}<Counter value={value} decimals={decimals} />{suffix}
+            </span>
             <span className="text-[9px] font-black uppercase tracking-widest text-white/20 text-center leading-tight mt-1">{desc}</span>
         </div>
     )
