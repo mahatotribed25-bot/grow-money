@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Wallet,
@@ -81,15 +80,6 @@ import { isToday, subDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { AchievementBadges } from '@/components/dashboard/AchievementBadges';
 import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip as RechartsTooltip 
-} from 'recharts';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScratchCard } from '@/components/dashboard/ScratchCard';
 
@@ -505,19 +495,6 @@ export default function Dashboard() {
   const activeLoan = loans?.find(l => l.status !== 'Completed');
   const sortedAnnouncements = announcements?.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
 
-  const chartData = useMemo(() => {
-    const data = [];
-    const baseValue = userData?.totalInvestment || 0;
-    for (let i = 6; i >= 0; i--) {
-        const date = subDays(new Date(), i);
-        data.push({
-            name: format(date, 'MMM d'),
-            value: baseValue + (Math.random() * 500 * (6 - i)), // Simulate trend
-        });
-    }
-    return data;
-  }, [userData]);
-
   const appLoading = userLoading || userDataLoading || investmentsLoading || loansLoading || announcementsLoading;
 
   if (appLoading) {
@@ -646,34 +623,6 @@ export default function Dashboard() {
           adminSettings={adminSettings}
           loading={userDataLoading}
         />
-
-        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden">
-            <CardHeader className="pb-2">
-                <CardTitle className="text-white/80 text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                    <TrendingUp size={16} className="text-green-400" /> Portfolio Performance
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="h-60 pt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData}>
-                        <defs>
-                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="100">
-                                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                        <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={10} axisLine={false} tickLine={false} />
-                        <YAxis hide />
-                        <RechartsTooltip 
-                            contentStyle={{ backgroundColor: 'rgba(3,4,8,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                            itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
-                        />
-                        <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </CardContent>
-        </Card>
 
         {/* Recent Activity Section */}
         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden">
