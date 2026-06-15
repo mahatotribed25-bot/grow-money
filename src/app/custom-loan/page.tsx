@@ -11,6 +11,7 @@ import {
   Trophy,
   Info,
   Send,
+  Timer,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 type AdminSettings = {
   maxCustomLoanAmount?: number;
@@ -67,9 +69,12 @@ export default function CustomLoanPage() {
   );
 
   const maxAmount = adminSettings?.maxCustomLoanAmount || 0;
-  const availableLimit = (adminSettings?.totalCustomLoanLimit || 0) - (adminSettings?.currentCustomLoanUsage || 0);
+  const totalLimit = adminSettings?.totalCustomLoanLimit || 0;
+  const currentUsage = adminSettings?.currentCustomLoanUsage || 0;
+  const availableLimit = totalLimit - currentUsage;
 
-  const isServiceEnabled = adminSettings?.totalCustomLoanLimit && adminSettings.totalCustomLoanLimit > 0;
+  const isServiceEnabled = totalLimit > 0;
+  const isLimitExhausted = isServiceEnabled && availableLimit <= 0;
 
   const hasActiveRequest = existingRequests && existingRequests.length > 0;
   const pendingRequest = existingRequests?.find(r => r.status === 'pending_admin_review');
@@ -206,13 +211,36 @@ export default function CustomLoanPage() {
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {(settingsLoading || requestsLoading) ? <p>Loading...</p> : (
             !isServiceEnabled ? (
-                <Card>
+                <Card className="bg-white/5 border-white/10 backdrop-blur-xl rounded-3xl p-10 text-center border-dashed">
                     <CardHeader>
-                    <CardTitle>Service Unavailable</CardTitle>
-                    <CardDescription>
-                        The custom loan service is currently not available. This may be because the admin has not set a lending limit. Please check back later.
+                    <CardTitle className="text-white/80">Service Offline</CardTitle>
+                    <CardDescription className="text-white/40">
+                        The custom loan service is currently not available. Our administrative team is currently adjusting the platform limits.
                     </CardDescription>
                     </CardHeader>
+                </Card>
+            ) : isLimitExhausted ? (
+                <Card className="border-amber-500/50 bg-amber-500/5 backdrop-blur-3xl rounded-[2rem] overflow-hidden shadow-2xl">
+                    <CardHeader className="text-center pt-10">
+                        <div className="mx-auto w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(245,158,11,0.1)]">
+                            <Timer className="text-amber-400 h-10 w-10 animate-pulse" />
+                        </div>
+                        <CardTitle className="text-white text-3xl font-black tracking-tight">Coming Soon</CardTitle>
+                        <CardDescription className="text-amber-400/60 font-black uppercase tracking-[4px] text-[10px] mt-2">New Borrow Limit Pending</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-center space-y-6 pb-12 px-8">
+                        <p className="text-sm text-white/50 leading-relaxed max-w-xs mx-auto">
+                            The current platform-wide custom loan allocation has been fully exhausted by our investors. 
+                        </p>
+                        <div className="inline-flex flex-col items-center gap-2 p-5 bg-white/5 rounded-2xl border border-white/5">
+                             <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Platform Status</p>
+                             <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                                <p className="text-sm font-black text-white">REFILLING RESERVES</p>
+                             </div>
+                        </div>
+                        <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest pt-4">Check back in 24-48 hours</p>
+                    </CardContent>
                 </Card>
             ) : (
                 <Card className="bg-gradient-to-br from-card to-card/70">
