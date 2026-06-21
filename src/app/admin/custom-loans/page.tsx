@@ -37,7 +37,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { addDays } from 'date-fns';
+import { addDays, isAfter } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 
@@ -147,13 +147,6 @@ export default function CustomLoansPage() {
     setIsApproveDialogOpen(false);
   };
 
-  const handleReject = async () => {
-    if (!requestToUpdate) return;
-    const requestRef = doc(firestore, 'customLoanRequests', requestToUpdate.id);
-    await updateDoc(requestRef, { status: 'rejected_by_admin', rejectionReason: rejectionReason || 'Rejected by admin' });
-    setIsRejectDialogOpen(false);
-  }
-
   const handleMarkAsSent = async (request: CustomLoanRequest) => {
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
     const settingsRef = doc(firestore, 'settings', 'admin');
@@ -201,17 +194,63 @@ export default function CustomLoansPage() {
         if (userDoc.exists() && userDoc.data().phoneNumber) {
             const phoneNumber = userDoc.data().phoneNumber;
             const dueDate = request.dueDate ? request.dueDate.toDate().toLocaleDateString() : 'N/A';
-            let message = `🎉 *Custom Loan Approved & Active!* 🎉\n\n`;
-            message += `Dear *${request.userName}*,\n\n`;
-            message += `Your custom loan has been approved and successfully transferred! 💰\n\n`;
-            message += `*Loan Summary:*\n`;
-            message += `-----------------------------------\n`;
-            message += `💵 *Loan Amount:* ₹${request.requestedAmount.toFixed(2)}\n`;
-            message += `📈 *Repayment Due:* ₹${(request.totalRepayment || 0).toFixed(2)}\n`;
-            message += `🗓️ *Repayment Date:* *${dueDate}*\n`;
-            message += `-----------------------------------\n\n`;
-            message += `Please pay it back on time to grow your trust score and unlock bigger limits. 🙏\n\n`;
-            message += `Thank you for choosing *Grow Money*!`;
+            const totalRepaymentWithPenalty = (request.totalRepayment || 0) + (request.penalty || 0);
+            
+            let message = "";
+
+            if (request.status === 'active' || request.status === 'payment_pending' || request.status === 'extension_pending') {
+                const now = new Date();
+                const isOverdue = request.dueDate && isAfter(now, request.dueDate.toDate());
+
+                if (isOverdue) {
+                    // Scenario: Overdue message
+                    message = `⚠️ *URGENT: Custom Loan Overdue Notice* ⚠️\n\n`;
+                    message += `Dear *${request.userName}*,\n\n`;
+                    message += `Your custom loan repayment is now *OVERDUE*. Please settle it immediately to avoid further penalties and account suspension.\n\n`;
+                    message += `*Settlement Summary:*\n`;
+                    message += `-----------------------------------\n`;
+                    message += `💵 *Loan Amount:* ₹${request.requestedAmount.toFixed(2)}\n`;
+                    message += `📈 *Total Payable:* ₹${totalRepaymentWithPenalty.toFixed(2)}\n`;
+                    message += `🗓️ *Was Due On:* *${dueDate}*\n`;
+                    message += `-----------------------------------\n\n`;
+                    message += `Please pay now to protect your *Trust Score*. 🙏\n\n`;
+                    message += `*Grow Money* - Your trusted partner.`;
+                } else {
+                    // Scenario: Gentle Reminder
+                    message = `🔔 *Repayment Reminder: Grow Money* 🔔\n\n`;
+                    message += `Dear *${request.userName}*,\n\n`;
+                    message += `This is a gentle reminder regarding your active Custom Loan. Paying on time helps you unlock higher limits! 🚀\n\n`;
+                    message += `*Loan Details:*\n`;
+                    message += `-----------------------------------\n`;
+                    message += `💵 *Loan Amount:* ₹${request.requestedAmount.toFixed(2)}\n`;
+                    message += `📈 *Repayment Due:* ₹${totalRepaymentWithPenalty.toFixed(2)}\n`;
+                    message += `🗓️ *Due Date:* *${dueDate}*\n`;
+                    message += `-----------------------------------\n\n`;
+                    message += `Thank you for choosing *Grow Money*!`;
+                }
+            } else if (request.status === 'completed') {
+                // Scenario: Completed / Thank you message
+                message = `✅ *Loan Successfully Settled!* ✅\n\n`;
+                message += `Dear *${request.userName}*,\n\n`;
+                message += `Congratulations! Your custom loan of *₹${request.requestedAmount.toFixed(2)}* has been fully repaid and settled. 🥂\n\n`;
+                message += `Your *Trust Score* has improved, making you eligible for better offers in the future.\n\n`;
+                message += `We look forward to serving you again! 💰\n\n`;
+                message += `*Grow Money* - Smart Investing, Easy Lending.`;
+            } else {
+                // Fallback for Activation (Initial)
+                message = `🎉 *Custom Loan Approved & Active!* 🎉\n\n`;
+                message += `Dear *${request.userName}*,\n\n`;
+                message += `Your custom loan has been approved and successfully transferred! 💰\n\n`;
+                message += `*Loan Summary:*\n`;
+                message += `-----------------------------------\n`;
+                message += `💵 *Loan Amount:* ₹${request.requestedAmount.toFixed(2)}\n`;
+                message += `📈 *Repayment Due:* ₹${totalRepaymentWithPenalty.toFixed(2)}\n`;
+                message += `🗓️ *Repayment Date:* *${dueDate}*\n`;
+                message += `-----------------------------------\n\n`;
+                message += `Please pay it back on time to grow your trust score. 🙏\n\n`;
+                message += `*Grow Money* - Your wealth partner.`;
+            }
+
             window.open(`https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
         } else { toast({ variant: 'destructive', title: 'Phone Not Found' }); }
     } catch (e) { toast({ variant: 'destructive', title: 'Error' }); }
@@ -247,9 +286,15 @@ export default function CustomLoansPage() {
                   <TableCell><div className="flex gap-2">
                         {request.status === 'pending_admin_review' && <><Button size="sm" onClick={() => openApproveDialog(request)}><Check className="h-4 w-4 mr-1" />Approve</Button><Button size="sm" variant="destructive" onClick={() => { setRequestToUpdate(request); setIsRejectDialogOpen(true); }}><X className="h-4 w-4 mr-1"/>Reject</Button></>}
                         {request.status === 'approved_by_user' && <Button size="sm" className="bg-green-600" onClick={() => handleMarkAsSent(request)}><Send className="h-4 w-4 mr-1"/>Mark as Sent</Button>}
-                        {request.status === 'active' && <><Button size="sm" className="bg-blue-600" onClick={() => handleMarkAsCompleted(request)}><Check className="h-4 w-4 mr-1"/>Repaid</Button><Button variant="outline" size="sm" className="text-green-500" onClick={() => handleShareOnWhatsApp(request)}><Send className="h-4 w-4 mr-1" /> Notify</Button></>}
-                        {request.status === 'extension_pending' && <><Button size="sm" onClick={() => { setRequestToUpdate(request); setIsExtensionDialogOpen(true); }}><Timer className="h-4 w-4 mr-1" /> Review</Button></>}
-                        {request.status === 'payment_pending' && <Button size="sm" className="bg-blue-600" onClick={() => handleMarkAsCompleted(request)}>Confirm</Button>}
+                        {(request.status === 'active' || request.status === 'extension_pending' || request.status === 'payment_pending') && (
+                            <div className="flex gap-2">
+                                <Button size="sm" className="bg-blue-600" onClick={() => handleMarkAsCompleted(request)}><Check className="h-4 w-4 mr-1"/>Repaid</Button>
+                                <Button variant="outline" size="sm" className="text-green-500" onClick={() => handleShareOnWhatsApp(request)}><Send className="h-4 w-4 mr-1" /> Notify</Button>
+                            </div>
+                        )}
+                        {request.status === 'completed' && (
+                             <Button variant="outline" size="sm" className="text-green-500" onClick={() => handleShareOnWhatsApp(request)}><Send className="h-4 w-4 mr-1" /> Settled Msg</Button>
+                        )}
                     </div></TableCell>
                 </TableRow>
               ))}
@@ -276,3 +321,4 @@ const getStatusBadge = (status: string) => {
       default: return <Badge>{status}</Badge>;
     }
 };
+
