@@ -46,9 +46,11 @@ type UserData = {
     referredBy?: string;
     totalInvestment?: number;
     vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+    referralBonusPaid?: boolean;
 }
 
 type AdminSettings = {
+    referralBonus?: number;
     vipTiers?: {
         silver: number;
         gold: number;
@@ -105,9 +107,39 @@ export default function PlansPage() {
             transaction.update(planRef, { stock: currentStock - 1 });
         }
 
+        const currentTotalInvestment = userDoc.data().totalInvestment || 0;
         const newWalletBalance = (userDoc.data().walletBalance || 0) - planPrice;
-        const newTotalInvestment = (userDoc.data().totalInvestment || 0) + planPrice;
+        const newTotalInvestment = currentTotalInvestment + planPrice;
         
+        // Handle Referral Bonus on First Investment
+        const referredBy = userDoc.data().referredBy;
+        const bonusAlreadyPaid = userDoc.data().referralBonusPaid || false;
+        const referralBonusAmount = settingsDoc.exists() ? (settingsDoc.data().referralBonus || 0) : 0;
+
+        if (referredBy && !bonusAlreadyPaid && currentTotalInvestment === 0 && referralBonusAmount > 0) {
+            const referrerRef = doc(firestore, 'users', referredBy);
+            const referrerDoc = await transaction.get(referrerRef);
+            
+            if (referrerDoc.exists()) {
+                const referrerBalance = referrerDoc.data().walletBalance || 0;
+                transaction.update(referrerRef, { walletBalance: referrerBalance + referralBonusAmount });
+                
+                // Add to Referrer's history
+                const referrerHistoryRef = doc(collection(firestore, 'users', referredBy, 'walletHistory'));
+                transaction.set(referrerHistoryRef, {
+                    amount: referralBonusAmount,
+                    type: 'credit',
+                    category: 'Referral Reward',
+                    description: `Bonus for ${userDoc.data().name || 'a friend'}'s first investment`,
+                    createdAt: serverTimestamp()
+                });
+
+                // Mark as paid on the referred user
+                transaction.update(userRef, { referralBonusPaid: true });
+            }
+        }
+
+
         let newVipLevel = userDoc.data().vipLevel || 'Bronze';
         if (adminSettings?.vipTiers) {
             if (newTotalInvestment >= adminSettings.vipTiers.platinum) {

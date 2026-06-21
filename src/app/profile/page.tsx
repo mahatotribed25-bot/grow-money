@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -146,6 +147,7 @@ type Referral = {
   email: string;
   totalInvestment?: number;
   createdAt?: Timestamp;
+  referralBonusPaid?: boolean;
 };
 
 type UserData = {
@@ -167,6 +169,7 @@ type UserData = {
 
 type AdminSettings = {
     kycGoogleFormUrl?: string;
+    referralBonus?: number;
 };
 
 function useUserGroupInvestments(userId?: string) {
@@ -376,6 +379,7 @@ export default function ProfilePage() {
   const { toast } = useToast();
 
   const { data: userData, loading: userDataloading, refetch: refetchUser } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+  const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   const { data: investments } = useCollection<Investment>(user ? `users/${user.uid}/investments` : null);
   const { data: loans } = useCollection<Loan>(user ? `users/${user.uid}/loans` : null);
   const { data: referrals } = useCollection<Referral>(user ? 'users' : null, { where: ['referredBy', '==', user?.uid] });
@@ -727,7 +731,7 @@ export default function ProfilePage() {
                 <CardTitle className="flex items-center gap-2 text-white/90">
                     <Gift className="text-pink-400" /> Share & Earn
                 </CardTitle>
-                <CardDescription className="text-white/40">Invite friends and earn rewards.</CardDescription>
+                <CardDescription className="text-white/40">Earn ₹{adminSettings?.referralBonus || 0} for every friend's first investment.</CardDescription>
               </CardHeader>
               <CardContent className="relative space-y-4">
                 <div className="flex items-center justify-between rounded-2xl bg-black/40 border border-white/5 p-4">
@@ -752,7 +756,7 @@ export default function ProfilePage() {
                 <CardTitle className="flex items-center gap-2 text-white/90">
                     <Users2 className="text-blue-400" /> Referral Network
                 </CardTitle>
-                <CardDescription className="text-white/40">Track your successful invites.</CardDescription>
+                <CardDescription className="text-white/40">Track your rewards line-wise.</CardDescription>
               </CardHeader>
               <CardContent className="relative">
                 <div className="bg-black/20 rounded-2xl p-4 border border-white/5 h-[100px] flex flex-col justify-center">
@@ -770,34 +774,44 @@ export default function ProfilePage() {
                                 </DialogTrigger>
                                 <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-md">
                                     <DialogHeader>
-                                        <DialogTitle>Referral Network</DialogTitle>
-                                        <DialogDescription className="text-white/40">List of users who joined via your link.</DialogDescription>
+                                        <DialogTitle>Referral Progress Track</DialogTitle>
+                                        <DialogDescription className="text-white/40">Line-wise status of your invites and rewards.</DialogDescription>
                                     </DialogHeader>
-                                    <ScrollArea className="h-[300px] pr-4">
-                                        <div className="space-y-3 py-4">
-                                            {referrals && referrals.length > 0 ? referrals.map(ref => (
-                                                <div key={ref.id} className="bg-white/5 border border-white/5 rounded-xl p-3 flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                                                            <User size={14} className="text-primary" />
+                                    <ScrollArea className="h-[400px] pr-4">
+                                        <div className="space-y-6 py-4">
+                                            {referrals && referrals.length > 0 ? referrals.map(ref => {
+                                                const hasInvested = (ref.totalInvestment || 0) > 0;
+                                                const bonusPaid = ref.referralBonusPaid;
+                                                
+                                                return (
+                                                    <div key={ref.id} className="space-y-3 p-4 bg-white/5 border border-white/5 rounded-2xl transition-all hover:border-primary/30">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                                                                    <User size={14} className="text-primary" />
+                                                                </div>
+                                                                <p className="text-sm font-bold text-white/90">{ref.name}</p>
+                                                            </div>
+                                                            <Badge variant="outline" className="text-[8px] h-4 text-white/40 border-white/10 uppercase tracking-tighter">ID: {ref.id.slice(0, 5)}</Badge>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-sm font-bold text-white/90">{ref.name}</p>
-                                                            <p className="text-[10px] text-white/30 truncate max-w-[120px]">{ref.email}</p>
+                                                        
+                                                        {/* Progress Line */}
+                                                        <div className="relative pt-2 pb-1">
+                                                            <div className="absolute top-[13px] left-3 right-3 h-0.5 bg-white/10" />
+                                                            <div 
+                                                                className="absolute top-[13px] left-3 h-0.5 bg-primary transition-all duration-500" 
+                                                                style={{ width: bonusPaid ? '100%' : hasInvested ? '50%' : '0%' }}
+                                                            />
+                                                            <div className="flex justify-between relative z-10">
+                                                                <TrackStep label="Joined" active={true} />
+                                                                <TrackStep label="Invested" active={hasInvested} />
+                                                                <TrackStep label="Bonus" active={bonusPaid} />
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    {(ref.totalInvestment || 0) > 0 ? (
-                                                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[9px] font-black uppercase h-5">
-                                                            <UserCheck size={10} className="mr-1" /> Active
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="outline" className="text-white/20 border-white/5 text-[9px] font-black uppercase h-5">
-                                                            Joined
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                            )) : (
-                                                <p className="text-center py-10 text-[10px] text-white/20 uppercase font-black">No one in your network yet.</p>
+                                                )
+                                            }) : (
+                                                <p className="text-center py-20 text-[10px] text-white/20 uppercase font-black">Your referral list is empty.</p>
                                             )}
                                         </div>
                                     </ScrollArea>
@@ -1097,6 +1111,20 @@ export default function ProfilePage() {
       </nav>
     </div>
   );
+}
+
+function TrackStep({ label, active }: { label: string, active: boolean }) {
+    return (
+        <div className="flex flex-col items-center gap-1.5 w-full">
+            <div className={cn(
+                "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-500",
+                active ? "bg-primary border-primary text-white scale-110 shadow-[0_0_10px_rgba(139,92,246,0.5)]" : "bg-[#030408] border-white/10 text-white/20"
+            )}>
+                {active ? <CheckCircle2 size={14} /> : <div className="h-1.5 w-1.5 rounded-full bg-current" />}
+            </div>
+            <span className={cn("text-[9px] font-black uppercase tracking-tighter", active ? "text-white" : "text-white/20")}>{label}</span>
+        </div>
+    )
 }
 
 function AmountVerificationCard({ request }: { request: UpiRequest }) {
