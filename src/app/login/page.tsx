@@ -121,7 +121,7 @@ function GoldCoin({ className }: { className?: string }) {
                     <stop offset="0.5" stopColor="#F59E0B"/>
                     <stop offset="1" stopColor="#78350F"/>
                 </linearGradient>
-                <linearGradient id="gold_grad" x1="20" y1="20" x2="80" y2="80" gradientUnits="userSpaceOnUse">
+                <linearGradient id="gold_grad" x1="20" x2="80" y1="20" y2="80" gradientUnits="userSpaceOnUse">
                     <stop stopColor="#FDE68A"/>
                     <stop offset="0.4" stopColor="#F59E0B"/>
                     <stop offset="0.7" stopColor="#D97706"/>
@@ -309,10 +309,15 @@ export default function LoginPage() {
                 <div className="h-2.5 w-2.5 rounded-full bg-[#22c55e] shadow-[0_0_10px_#22c55e]" />
                 <span className="text-[11px] font-black text-white/90 uppercase tracking-[1px]">100% Secure</span>
             </div>
-            <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl">
-                <Headset size={16} className="text-white/70" />
+            <a 
+                href="https://t.me/growmoney3" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl hover:bg-white/10 transition-colors group cursor-pointer"
+            >
+                <Headset size={16} className="text-white/70 group-hover:text-primary transition-colors" />
                 <span className="text-[11px] font-black text-white/90 uppercase tracking-[1px]">24/7 Support</span>
-            </div>
+            </a>
         </div>
 
         <div className="flex flex-col items-center space-y-2 text-center py-4">
