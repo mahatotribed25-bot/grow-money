@@ -3,33 +3,45 @@
   "placeholderImages": [
     {
       "id": "banner-offer",
-      "description": "Special offer banner",
-      "imageUrl": "https://picsum.photos/seed/offer1/1200/400",
-      "imageHint": "special offer"
+      "description": "Exclusive bonus offer for investors",
+      "imageUrl": "https://picsum.photos/seed/finance-bonus/1200/400",
+      "imageHint": "money bonus"
     },
     {
       "id": "banner-active-plan",
-      "description": "Active plan announcement",
-      "imageUrl": "https://picsum.photos/seed/activeplan/1200/400",
-      "imageHint": "premium investment"
+      "description": "High yield investment plan highlight",
+      "imageUrl": "https://picsum.photos/seed/crypto-growth/1200/400",
+      "imageHint": "investment chart"
     },
     {
       "id": "banner-invest",
-      "description": "Invest more earn more",
-      "imageUrl": "https://picsum.photos/seed/banner1/1200/400",
-      "imageHint": "finance growth"
+      "description": "Grow your wealth with fixed returns",
+      "imageUrl": "https://picsum.photos/seed/wealth-build/1200/400",
+      "imageHint": "gold coins"
     },
     {
       "id": "banner-referral",
-      "description": "Referral program",
-      "imageUrl": "https://picsum.photos/seed/banner2/1200/400",
-      "imageHint": "team friends"
+      "description": "Invite friends and earn rewards",
+      "imageUrl": "https://picsum.photos/seed/team-reward/1200/400",
+      "imageHint": "happy team"
     },
     {
       "id": "banner-group",
-      "description": "Group loans",
-      "imageUrl": "https://picsum.photos/seed/banner3/1200/400",
-      "imageHint": "teamwork community"
+      "description": "Shared profits through group loans",
+      "imageUrl": "https://picsum.photos/seed/community-pool/1200/400",
+      "imageHint": "business meeting"
+    },
+    {
+      "id": "banner-vip",
+      "description": "VIP Tiers and exclusive benefits",
+      "imageUrl": "https://picsum.photos/seed/vip-luxury/1200/400",
+      "imageHint": "luxury gold"
+    },
+    {
+      "id": "banner-security",
+      "description": "Safe and secure transactions",
+      "imageUrl": "https://picsum.photos/seed/cyber-security/1200/400",
+      "imageHint": "secure vault"
     },
     {
       "id": "plan-standard",
@@ -66,6 +78,54 @@
       "description": "High Yield Alpha Plan",
       "imageUrl": "https://picsum.photos/seed/p6/600/400",
       "imageHint": "investment analysis"
+    },
+    {
+      "id": "plan-realestate",
+      "description": "Property Yield Plan",
+      "imageUrl": "https://picsum.photos/seed/real-estate/600/400",
+      "imageHint": "modern building"
+    },
+    {
+      "id": "plan-commodities",
+      "description": "Safe Haven Metal Plan",
+      "imageUrl": "https://picsum.photos/seed/gold-bars/600/400",
+      "imageHint": "gold bars"
+    },
+    {
+      "id": "avatar-boy1",
+      "description": "Cool Boy Avatar 1",
+      "imageUrl": "https://picsum.photos/seed/avatar-boy1/200/200",
+      "imageHint": "boy cartoon"
+    },
+    {
+      "id": "avatar-boy2",
+      "description": "Cool Boy Avatar 2",
+      "imageUrl": "https://picsum.photos/seed/avatar-boy2/200/200",
+      "imageHint": "boy cartoon"
+    },
+    {
+      "id": "avatar-boy3",
+      "description": "Cool Boy Avatar 3",
+      "imageUrl": "https://picsum.photos/seed/avatar-boy3/200/200",
+      "imageHint": "boy cartoon"
+    },
+    {
+      "id": "avatar-girl1",
+      "description": "Smart Girl Avatar 1",
+      "imageUrl": "https://picsum.photos/seed/avatar-girl1/200/200",
+      "imageHint": "girl cartoon"
+    },
+    {
+      "id": "avatar-girl2",
+      "description": "Smart Girl Avatar 2",
+      "imageUrl": "https://picsum.photos/seed/avatar-girl2/200/200",
+      "imageHint": "girl cartoon"
+    },
+    {
+      "id": "avatar-girl3",
+      "description": "Smart Girl Avatar 3",
+      "imageUrl": "https://picsum.photos/seed/avatar-girl3/200/200",
+      "imageHint": "girl cartoon"
     }
   ]
 }

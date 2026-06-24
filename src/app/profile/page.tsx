@@ -37,6 +37,7 @@ import {
   Camera,
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -74,6 +75,7 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 type Transaction = {
   id: string;
@@ -396,7 +398,6 @@ export default function ProfilePage() {
   // Profile Edit State
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [editName, setEditName] = useState('');
-  const [editPhotoUrl, setEditPhotoUrl] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
   // KYC State
@@ -423,7 +424,6 @@ export default function ProfilePage() {
   useEffect(() => {
     if (userData) {
       setEditName(userData.name || '');
-      setEditPhotoUrl(userData.photoURL || '');
       setPanCard(userData.panCard || '');
       setAadhaarNumber(userData.aadhaarNumber || '');
       setPhoneNumber(userData.phoneNumber || '');
@@ -464,26 +464,45 @@ export default function ProfilePage() {
     }
   };
 
-  const handleUpdateProfile = async () => {
+  const handleUpdateName = async () => {
     if (!user || !auth.currentUser) return;
     setIsUpdatingProfile(true);
 
     try {
-        // Update Firebase Auth
         await updateProfile(auth.currentUser, {
             displayName: editName,
-            photoURL: editPhotoUrl
         });
 
-        // Update Firestore
         const userRef = doc(firestore, 'users', user.uid);
         await updateDoc(userRef, {
             name: editName,
-            photoURL: editPhotoUrl
         });
 
-        toast({ title: "Profile Updated", description: "Your identity details have been refreshed." });
+        toast({ title: "Name Updated", description: "Your display name has been updated." });
         setIsEditProfileOpen(false);
+        if (refetchUser) refetchUser();
+    } catch (e: any) {
+        toast({ title: "Update Failed", description: e.message, variant: "destructive" });
+    } finally {
+        setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleUpdateAvatar = async (imageUrl: string) => {
+    if (!user || !auth.currentUser) return;
+    setIsUpdatingProfile(true);
+
+    try {
+        await updateProfile(auth.currentUser, {
+            photoURL: imageUrl
+        });
+
+        const userRef = doc(firestore, 'users', user.uid);
+        await updateDoc(userRef, {
+            photoURL: imageUrl
+        });
+
+        toast({ title: "Avatar Updated", description: "Your profile photo has been refreshed." });
         if (refetchUser) refetchUser();
     } catch (e: any) {
         toast({ title: "Update Failed", description: e.message, variant: "destructive" });
@@ -631,6 +650,7 @@ export default function ProfilePage() {
   }
   
   const vipLevel = userData?.vipLevel || 'Bronze';
+  const avatarOptions = PlaceHolderImages.filter(img => img.id.startsWith('avatar-'));
   
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#030408] text-foreground relative overflow-hidden">
@@ -652,19 +672,54 @@ export default function ProfilePage() {
           <CardHeader>
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="relative group cursor-pointer" onClick={() => setIsEditProfileOpen(true)}>
-                  <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-primary via-purple-500 to-secondary p-[3px] shadow-2xl overflow-hidden">
-                    <Avatar className="h-full w-full rounded-[20px] border-4 border-[#030408]">
-                        <AvatarImage src={userData?.photoURL} />
-                        <AvatarFallback className="bg-[#030408] text-white/20 text-3xl font-black">
-                            {userData?.name?.charAt(0) || 'U'}
-                        </AvatarFallback>
-                    </Avatar>
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-xl bg-primary border-2 border-[#030408] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                    <Camera size={14} className="text-white" />
-                  </div>
-                </div>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <div className="relative group cursor-pointer">
+                            <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-primary via-purple-500 to-secondary p-[3px] shadow-2xl overflow-hidden">
+                                <Avatar className="h-full w-full rounded-[20px] border-4 border-[#030408]">
+                                    <AvatarImage src={userData?.photoURL} />
+                                    <AvatarFallback className="bg-[#030408] text-white/20 text-3xl font-black">
+                                        {userData?.name?.charAt(0) || 'U'}
+                                    </AvatarFallback>
+                                </Avatar>
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-xl bg-primary border-2 border-[#030408] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                <Camera size={14} className="text-white" />
+                            </div>
+                        </div>
+                    </DialogTrigger>
+                    <DialogContent className="bg-[#030408]/95 backdrop-blur-3xl border-white/10 text-white sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-black tracking-tight text-center">Choose Avatar</DialogTitle>
+                            <DialogDescription className="text-white/40 text-center">Select an identity that represents you best.</DialogDescription>
+                        </DialogHeader>
+                        <div className="grid grid-cols-3 gap-4 py-6">
+                            {avatarOptions.map(avatar => (
+                                <div 
+                                    key={avatar.id} 
+                                    onClick={() => handleUpdateAvatar(avatar.imageUrl)}
+                                    className={cn(
+                                        "relative aspect-square rounded-2xl overflow-hidden cursor-pointer border-2 transition-all hover:scale-110",
+                                        userData?.photoURL === avatar.imageUrl ? "border-primary shadow-[0_0_20px_rgba(139,92,246,0.5)]" : "border-white/10 opacity-60 hover:opacity-100"
+                                    )}
+                                >
+                                    <Image src={avatar.imageUrl} alt={avatar.description} fill className="object-cover" />
+                                    {userData?.photoURL === avatar.imageUrl && (
+                                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                            <CheckCircle2 className="text-white" size={24} />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button className="w-full h-12 rounded-xl font-bold bg-white/5 hover:bg-white/10 text-white">Done</Button>
+                            </DialogClose>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
                 <div className="text-center sm:text-left space-y-1">
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-2xl font-black text-white tracking-tight">
@@ -1061,8 +1116,8 @@ export default function ProfilePage() {
       <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
         <DialogContent className="bg-[#030408]/95 backdrop-blur-3xl border-white/10 text-white sm:max-w-md">
             <DialogHeader>
-                <DialogTitle className="text-2xl font-black tracking-tight">Modify Identity</DialogTitle>
-                <DialogDescription className="text-white/40">Keep your profile current for administrative trust.</DialogDescription>
+                <DialogTitle className="text-2xl font-black tracking-tight">Modify Name</DialogTitle>
+                <DialogDescription className="text-white/40">Keep your display name current for administrative trust.</DialogDescription>
             </DialogHeader>
             <div className="py-6 space-y-6">
                 <div className="space-y-2">
@@ -1074,20 +1129,10 @@ export default function ProfilePage() {
                         className="bg-white/5 border-white/10 rounded-xl h-12 font-bold"
                     />
                 </div>
-                <div className="space-y-2">
-                    <Label className="text-white/50 text-[10px] font-black uppercase tracking-widest pl-1">Avatar Resource Link</Label>
-                    <Input 
-                        value={editPhotoUrl} 
-                        onChange={(e) => setEditPhotoUrl(e.target.value)}
-                        placeholder="https://image-url.com/photo.jpg"
-                        className="bg-white/5 border-white/10 rounded-xl h-12 font-mono text-xs"
-                    />
-                    <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest pl-1">Preferred format: Square image, transparent or dark background.</p>
-                </div>
             </div>
             <DialogFooter className="flex-col sm:flex-col gap-3">
                 <Button 
-                    onClick={handleUpdateProfile} 
+                    onClick={handleUpdateName} 
                     className="w-full h-14 rounded-xl font-black bg-primary text-white shadow-2xl shadow-primary/20"
                     disabled={isUpdatingProfile}
                 >
