@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users, Phone } from 'lucide-react';
+import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users, Phone, Zap } from 'lucide-react';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
@@ -50,6 +51,8 @@ type AdminSettings = {
   maxBonusDays?: number;
   dailyCheckInBonus?: number;
   p2pPlatformFeePercent?: number;
+  spinCost?: number;
+  spinRewards?: number[];
   vipTiers?: {
     silver: number;
     gold: number;
@@ -87,6 +90,10 @@ export default function SettingsPage() {
   const [maintenanceDuration, setMaintenanceDuration] = useState(5);
   const [profitStartDate, setProfitStartDate] = useState<Date | null>(null);
   const [p2pFee, setP2pFee] = useState(2);
+
+  // Spin Settings
+  const [spinCost, setSpinCost] = useState(0);
+  const [spinRewards, setSpinRewards] = useState<string>('0, 2, 5, 10, 20, 50, 100, 0');
 
   // Delay Bonus State
   const [delayCompensationEnabled, setDelayCompensationEnabled] = useState(false);
@@ -131,6 +138,11 @@ export default function SettingsPage() {
       setDailyCheckInBonus(settings.dailyCheckInBonus || 0);
       setP2pFee(settings.p2pPlatformFeePercent || 2);
 
+      setSpinCost(settings.spinCost || 0);
+      if (settings.spinRewards) {
+          setSpinRewards(settings.spinRewards.join(', '));
+      }
+
       setVipTiers(settings.vipTiers || { silver: 0, gold: 0, platinum: 0 });
       setVipGst(settings.vipWithdrawalGst || { bronze: 0, silver: 0, gold: 0, platinum: 0 });
 
@@ -143,6 +155,12 @@ export default function SettingsPage() {
   },[settings]);
 
   const handleSaveGeneral = () => {
+    const rewardsArray = spinRewards.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n));
+    if (rewardsArray.length !== 8) {
+        toast({ title: "Lucky Spin Error", description: "You must provide exactly 8 reward values separated by commas.", variant: "destructive" });
+        return;
+    }
+
     const settingsRef = doc(firestore, 'settings', 'admin');
     const settingsData = { 
       adminUpi,
@@ -162,6 +180,8 @@ export default function SettingsPage() {
       maxBonusDays: Number(maxBonusDays),
       dailyCheckInBonus: Number(dailyCheckInBonus),
       p2pPlatformFeePercent: Number(p2pFee),
+      spinCost: Number(spinCost),
+      spinRewards: rewardsArray,
       vipTiers,
       vipWithdrawalGst: vipGst,
     };
@@ -510,6 +530,42 @@ export default function SettingsPage() {
                     </div>
                 </div>
                 <Separator />
+                
+                {/* Lucky Spin Section */}
+                <div>
+                    <CardTitle className="flex items-center gap-2"><Zap className="text-yellow-400" /> Lucky Spin Settings</CardTitle>
+                     <CardDescription>
+                        Configure the cost and rewards for the Lucky Wheel.
+                    </CardDescription>
+                    <div className="space-y-4 mt-4 p-4 border border-yellow-500/20 rounded-xl bg-yellow-500/5">
+                        <div className="space-y-2">
+                            <Label htmlFor="spin-cost">Cost per Spin (₹)</Label>
+                            <Input 
+                                id="spin-cost" 
+                                type="number" 
+                                placeholder="e.g., 20" 
+                                value={spinCost} 
+                                onChange={(e) => setSpinCost(Number(e.target.value))} 
+                                className="bg-white/5 border-white/10"
+                            />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="spin-rewards">Spin Rewards (Exactly 8 values, comma separated)</Label>
+                            <Input 
+                                id="spin-rewards" 
+                                placeholder="0, 5, 10, 50, 100, 0, 5, 10" 
+                                value={spinRewards} 
+                                onChange={(e) => setSpinRewards(e.target.value)} 
+                                className="bg-white/5 border-white/10 font-mono"
+                            />
+                            <p className="text-[10px] text-white/40 uppercase font-black tracking-widest">
+                                Tip: These will appear in order on the wheel slices.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <Separator />
+
                  <div>
                     <CardTitle className="flex items-center gap-2"><Gem /> VIP Level Settings</CardTitle>
                      <CardDescription>

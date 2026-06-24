@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Wallet,
@@ -727,6 +728,7 @@ export default function Dashboard() {
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" color="text-green-400" />
               <QuickActionButton icon={Briefcase} label="My Plans" href="/my-plans" color="text-cyan-400" />
+              <QuickActionButton icon={Zap} label="Lucky Spin" href="/lucky-spin" color="text-yellow-400" />
               <QuickActionButton icon={HandCoins} label="Apply Loan" href="/loans" color="text-orange-400" />
               <QuickActionButton icon={FileText} label="Flexi Loan" href="/custom-loan" color="text-red-400" />
               <QuickActionButton icon={Users} label="P2P Market" href="/p2p-market" color="text-primary" />
