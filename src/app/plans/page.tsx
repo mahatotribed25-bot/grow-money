@@ -12,6 +12,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
@@ -25,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 type InvestmentPlan = {
   id: string;
@@ -247,8 +249,8 @@ export default function PlansPage() {
           <>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {availablePlans && availablePlans.length > 0 ? (
-                availablePlans.map((plan) => (
-                    <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} />
+                availablePlans.map((plan, index) => (
+                    <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} index={index} />
                 ))
             ) : (
                 !comingSoonPlans?.length && (
@@ -267,8 +269,8 @@ export default function PlansPage() {
                 <div className="space-y-6">
                     <h2 className="text-xl font-bold text-white/40 uppercase tracking-widest pl-2">Coming Soon</h2>
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {comingSoonPlans.map((plan) => (
-                            <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} />
+                        {comingSoonPlans.map((plan, index) => (
+                            <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} index={index + 10} />
                         ))}
                     </div>
                 </div>
@@ -290,32 +292,47 @@ export default function PlansPage() {
   );
 }
 
-function PlanCard({ plan, onInvest, userBalance }: { plan: InvestmentPlan, onInvest: (plan: InvestmentPlan) => void, userBalance: number }) {
+function PlanCard({ plan, onInvest, userBalance, index }: { plan: InvestmentPlan, onInvest: (plan: InvestmentPlan) => void, userBalance: number, index: number }) {
   const canAfford = userBalance >= (plan.price || 0);
   const isAvailable = plan.status === 'Available';
   const isOutOfStock = plan.stock !== undefined && plan.stock <= 0;
+
+  // Select image based on index or name
+  const planImages = PlaceHolderImages.filter(img => img.id.startsWith('plan-'));
+  const planImage = planImages[index % planImages.length] || planImages[0];
 
   return (
     <Card className={cn(
         "shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden transition-all duration-300 relative group",
         (!isAvailable || isOutOfStock) ? 'opacity-40 grayscale' : 'hover:scale-[1.02] hover:bg-white/[0.06] hover:border-white/20'
     )}>
-      <div className="absolute top-0 right-0 p-4">
-         {isOutOfStock ? (
-            <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] font-bold">SOLD OUT</Badge>
-         ) : !isAvailable && (
-            <Badge className="bg-white/10 text-white/40 border-white/10 text-[10px] font-bold">UPCOMING</Badge>
-         )}
+      {/* Plan Hero Image */}
+      <div className="relative h-44 w-full overflow-hidden">
+        <Image 
+            src={planImage.imageUrl} 
+            alt={plan.name} 
+            fill 
+            className="object-cover transition-transform duration-500 group-hover:scale-110"
+            data-ai-hint={planImage.imageHint}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#030408] via-[#030408]/40 to-transparent" />
+        <div className="absolute top-4 right-4">
+             {isOutOfStock ? (
+                <Badge className="bg-red-500/80 text-white border-none text-[10px] font-bold">SOLD OUT</Badge>
+             ) : !isAvailable && (
+                <Badge className="bg-white/20 text-white border-none text-[10px] font-bold backdrop-blur-md">UPCOMING</Badge>
+             )}
+        </div>
       </div>
-      
-      <CardHeader className="pb-4">
+
+      <CardHeader className="pb-4 relative -mt-8">
         <div className="flex flex-col gap-1">
             <CardTitle className="text-xl font-bold text-white group-hover:text-primary transition-colors">{plan.name}</CardTitle>
             <Badge variant="outline" className="w-fit text-[8px] h-4 uppercase font-black tracking-widest border-primary/20 text-primary">
                 {plan.payoutFrequency?.replace('_', ' ')}
             </Badge>
         </div>
-        <CardDescription className="text-white/40 flex items-center gap-1.5 mt-1">
+        <CardDescription className="text-white/40 flex items-center gap-1.5 mt-1 font-bold">
            <TrendingUp size={14} /> ₹{(plan.price || 0).toLocaleString()} Entry
         </CardDescription>
       </CardHeader>
