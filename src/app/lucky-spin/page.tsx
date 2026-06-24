@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -6,7 +5,7 @@ import { useUser, useDoc, useFirestore } from '@/firebase';
 import { doc, runTransaction, serverTimestamp, collection } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, Zap, Wallet, History, Sparkles, Coins } from 'lucide-react';
+import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, Zap, Wallet, History, Sparkles, Coins, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -209,7 +208,7 @@ export default function LuckySpinPage() {
                     <BottomNavItem icon={Home} label="Home" href="/dashboard" />
                     <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
                     <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-                    <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
+                    <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
                     <BottomNavItem icon={User} label="Profile" href="/profile" />
                 </div>
             </nav>
