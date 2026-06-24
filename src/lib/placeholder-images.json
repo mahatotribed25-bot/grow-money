@@ -29,6 +29,42 @@
       "description": "Shared profits through group loans",
       "imageUrl": "https://picsum.photos/seed/community-pool/1200/400",
       "imageHint": "business meeting"
+    },
+    {
+      "id": "plan-standard",
+      "description": "Standard Investment Plan",
+      "imageUrl": "https://picsum.photos/seed/p1/600/400",
+      "imageHint": "coins savings"
+    },
+    {
+      "id": "plan-premium",
+      "description": "Premium Investment Plan",
+      "imageUrl": "https://picsum.photos/seed/p2/600/400",
+      "imageHint": "gold bullions"
+    },
+    {
+      "id": "plan-elite",
+      "description": "Elite Investment Plan",
+      "imageUrl": "https://picsum.photos/seed/p3/600/400",
+      "imageHint": "stock growth"
+    },
+    {
+      "id": "plan-gold",
+      "description": "Gold Tier Plan",
+      "imageUrl": "https://picsum.photos/seed/p4/600/400",
+      "imageHint": "treasure chest"
+    },
+    {
+      "id": "plan-crypto",
+      "description": "Tech Growth Plan",
+      "imageUrl": "https://picsum.photos/seed/p5/600/400",
+      "imageHint": "digital currency"
+    },
+    {
+      "id": "plan-alpha",
+      "description": "High Yield Alpha Plan",
+      "imageUrl": "https://picsum.photos/seed/p6/600/400",
+      "imageHint": "investment analysis"
     }
   ]
 }

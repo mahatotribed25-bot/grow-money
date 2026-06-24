@@ -299,7 +299,7 @@ function PlanCard({ plan, onInvest, userBalance, index }: { plan: InvestmentPlan
 
   // Select image based on index or name
   const planImages = PlaceHolderImages.filter(img => img.id.startsWith('plan-'));
-  const planImage = planImages[index % planImages.length] || planImages[0];
+  const planImage = planImages[index % planImages.length] || planImages[0] || { imageUrl: 'https://picsum.photos/seed/investment/600/400', imageHint: 'investment' };
 
   return (
     <Card className={cn(
