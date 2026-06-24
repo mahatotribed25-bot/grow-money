@@ -1,3 +1,34 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "banner-offer",
+      "description": "Exclusive bonus offer for investors",
+      "imageUrl": "https://picsum.photos/seed/finance-bonus/1200/400",
+      "imageHint": "money bonus"
+    },
+    {
+      "id": "banner-active-plan",
+      "description": "High yield investment plan highlight",
+      "imageUrl": "https://picsum.photos/seed/crypto-growth/1200/400",
+      "imageHint": "investment chart"
+    },
+    {
+      "id": "banner-invest",
+      "description": "Grow your wealth with fixed returns",
+      "imageUrl": "https://picsum.photos/seed/wealth-build/1200/400",
+      "imageHint": "gold coins"
+    },
+    {
+      "id": "banner-referral",
+      "description": "Invite friends and earn rewards",
+      "imageUrl": "https://picsum.photos/seed/team-reward/1200/400",
+      "imageHint": "happy team"
+    },
+    {
+      "id": "banner-group",
+      "description": "Shared profits through group loans",
+      "imageUrl": "https://picsum.photos/seed/community-pool/1200/400",
+      "imageHint": "business meeting"
+    }
+  ]
 }
