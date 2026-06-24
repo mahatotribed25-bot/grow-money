@@ -28,11 +28,25 @@ export function BannerCarousel() {
       buttonLink: '/plans',
     },
     {
+      id: 'banner-vip',
+      title: 'Join the VIP Elite',
+      description: 'Unlock lower withdrawal fees and priority support today.',
+      buttonText: 'See Benefits',
+      buttonLink: '/vip-tiers',
+    },
+    {
       id: 'banner-active-plan',
       title: 'Elite Plan is Active',
       description: 'The high-yield Alpha Pro plan is now open for limited slots.',
       buttonText: 'Invest Now',
       buttonLink: '/plans',
+    },
+    {
+      id: 'banner-security',
+      title: 'Your Funds are Safe',
+      description: 'We use bank-grade encryption to protect your financial assets.',
+      buttonText: 'How it works',
+      buttonLink: '/profile',
     },
     {
       id: 'banner-invest',
@@ -44,7 +58,7 @@ export function BannerCarousel() {
     {
       id: 'banner-referral',
       title: 'Invite Friends, Get Cash',
-      description: 'Earn ₹50 for every friend who joins and invests today.',
+      description: 'Earn rewards for every friend who joins and invests today.',
       buttonText: 'Get Code',
       buttonLink: '/profile',
     },

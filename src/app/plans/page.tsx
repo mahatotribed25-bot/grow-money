@@ -113,7 +113,6 @@ export default function PlansPage() {
         const newWalletBalance = (userDoc.data().walletBalance || 0) - planPrice;
         const newTotalInvestment = currentTotalInvestment + planPrice;
         
-        // Handle Referral Bonus on First Investment
         const referredBy = userDoc.data().referredBy;
         const bonusAlreadyPaid = userDoc.data().referralBonusPaid || false;
         const referralBonusAmount = settingsDoc.exists() ? (settingsDoc.data().referralBonus || 0) : 0;
@@ -126,7 +125,6 @@ export default function PlansPage() {
                 const referrerBalance = referrerDoc.data().walletBalance || 0;
                 transaction.update(referrerRef, { walletBalance: referrerBalance + referralBonusAmount });
                 
-                // Add to Referrer's history
                 const referrerHistoryRef = doc(collection(firestore, 'users', referredBy, 'walletHistory'));
                 transaction.set(referrerHistoryRef, {
                     amount: referralBonusAmount,
@@ -136,11 +134,9 @@ export default function PlansPage() {
                     createdAt: serverTimestamp()
                 });
 
-                // Mark as paid on the referred user
                 transaction.update(userRef, { referralBonusPaid: true });
             }
         }
-
 
         let newVipLevel = userDoc.data().vipLevel || 'Bronze';
         if (adminSettings?.vipTiers) {
@@ -152,7 +148,6 @@ export default function PlansPage() {
                 newVipLevel = 'Silver';
             }
         }
-
 
         transaction.update(userRef, {
             walletBalance: newWalletBalance,
@@ -168,7 +163,6 @@ export default function PlansPage() {
             createdAt: serverTimestamp()
         });
 
-        // Track Admin Profit
         const adminProfitFromThisSale = plan.adminProfit || 0;
         if (adminProfitFromThisSale > 0 && settingsDoc.exists()) {
             const currentProfitBalance = settingsDoc.data().adminProfitBalance || 0;
@@ -217,7 +211,6 @@ export default function PlansPage() {
 
   const availablePlans = plans?.filter(p => p.status === 'Available');
   const comingSoonPlans = plans?.filter(p => p.status === 'Coming Soon');
-
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground relative z-10">
@@ -297,16 +290,14 @@ function PlanCard({ plan, onInvest, userBalance, index }: { plan: InvestmentPlan
   const isAvailable = plan.status === 'Available';
   const isOutOfStock = plan.stock !== undefined && plan.stock <= 0;
 
-  // Select image based on index or name
   const planImages = PlaceHolderImages.filter(img => img.id.startsWith('plan-'));
-  const planImage = planImages[index % planImages.length] || planImages[0] || { imageUrl: 'https://picsum.photos/seed/investment/600/400', imageHint: 'investment' };
+  const planImage = planImages[index % planImages.length] || { imageUrl: 'https://picsum.photos/seed/investment/600/400', imageHint: 'investment' };
 
   return (
     <Card className={cn(
         "shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden transition-all duration-300 relative group",
         (!isAvailable || isOutOfStock) ? 'opacity-40 grayscale' : 'hover:scale-[1.02] hover:bg-white/[0.06] hover:border-white/20'
     )}>
-      {/* Plan Hero Image */}
       <div className="relative h-44 w-full overflow-hidden">
         <Image 
             src={planImage.imageUrl} 

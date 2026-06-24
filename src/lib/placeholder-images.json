@@ -31,6 +31,18 @@
       "imageHint": "business meeting"
     },
     {
+      "id": "banner-vip",
+      "description": "VIP Tiers and exclusive benefits",
+      "imageUrl": "https://picsum.photos/seed/vip-luxury/1200/400",
+      "imageHint": "luxury gold"
+    },
+    {
+      "id": "banner-security",
+      "description": "Safe and secure transactions",
+      "imageUrl": "https://picsum.photos/seed/cyber-security/1200/400",
+      "imageHint": "secure vault"
+    },
+    {
       "id": "plan-standard",
       "description": "Standard Investment Plan",
       "imageUrl": "https://picsum.photos/seed/p1/600/400",
@@ -65,6 +77,18 @@
       "description": "High Yield Alpha Plan",
       "imageUrl": "https://picsum.photos/seed/p6/600/400",
       "imageHint": "investment analysis"
+    },
+    {
+      "id": "plan-realestate",
+      "description": "Property Yield Plan",
+      "imageUrl": "https://picsum.photos/seed/real-estate/600/400",
+      "imageHint": "modern building"
+    },
+    {
+      "id": "plan-commodities",
+      "description": "Safe Haven Metal Plan",
+      "imageUrl": "https://picsum.photos/seed/gold-bars/600/400",
+      "imageHint": "gold bars"
     }
   ]
 }
