@@ -1,0 +1,35 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "banner-offer",
+      "description": "Special offer banner",
+      "imageUrl": "https://picsum.photos/seed/offer1/1200/400",
+      "imageHint": "special offer"
+    },
+    {
+      "id": "banner-active-plan",
+      "description": "Active plan announcement",
+      "imageUrl": "https://picsum.photos/seed/activeplan/1200/400",
+      "imageHint": "premium investment"
+    },
+    {
+      "id": "banner-invest",
+      "description": "Invest more earn more",
+      "imageUrl": "https://picsum.photos/seed/banner1/1200/400",
+      "imageHint": "finance growth"
+    },
+    {
+      "id": "banner-referral",
+      "description": "Referral program",
+      "imageUrl": "https://picsum.photos/seed/banner2/1200/400",
+      "imageHint": "team friends"
+    },
+    {
+      "id": "banner-group",
+      "description": "Group loans",
+      "imageUrl": "https://picsum.photos/seed/banner3/1200/400",
+      "imageHint": "teamwork community"
+    }
+  ]
+}
