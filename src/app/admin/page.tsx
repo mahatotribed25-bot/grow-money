@@ -52,7 +52,7 @@ import Link from 'next/link';
 
 type User = { id: string; name: string; walletBalance?: number; email?: string; isOnline?: boolean; lastSeen?: Timestamp; createdAt?: Timestamp; totalInvestment?: number; };
 type Transaction = { id: string; amount: number; name: string; status: 'pending' | 'approved' | 'rejected'; createdAt: Timestamp; category?: string; };
-type Investment = { planName: string; startDate: Timestamp; investedAmount: number; userId: string; };
+type Investment = { id: string; planName: string; startDate: Timestamp; investedAmount: number; userId: string; };
 type InvestmentPlan = { name: string; adminProfit?: number; };
 type AdminSettings = { profitCalculationStartDate?: Timestamp; adminProfitBalance?: number; };
 
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
   const liveActivity = useMemo(() => {
     const acts = [
         ...(allDeposits?.map(d => ({ ...d, label: `${d.name} recharge ₹${d.amount}`, icon: Upload, color: 'text-blue-400' })) || []),
-        ...(allInvestments?.map(i => ({ id: i.startDate.toMillis().toString(), label: `New plan secure ₹${i.investedAmount}`, icon: Zap, color: 'text-purple-400', createdAt: i.startDate })) || []),
+        ...(allInvestments?.filter(i => i.startDate).map(i => ({ id: i.id || i.startDate.toMillis().toString(), label: `New plan secure ₹${i.investedAmount}`, icon: Zap, color: 'text-purple-400', createdAt: i.startDate })) || []),
         ...(allWithdrawals?.map(w => ({ ...w, label: `${w.name} requested ₹${w.amount}`, icon: Download, color: 'text-orange-400' })) || []),
     ].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).slice(0, 8);
     return acts;
