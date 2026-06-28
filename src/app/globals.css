@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -34,30 +35,21 @@
 
     --radius: 0.75rem;
 
-    --chart-1: 210 100% 50%;
-    --chart-2: 139 72% 46%;
-    --chart-3: 25 95% 53%;
-    --chart-4: 320 83% 58%;
+    --chart-1: 262 82% 57%;
+    --chart-2: 210 100% 50%;
+    --chart-3: 139 72% 46%;
+    --chart-4: 25 95% 53%;
     --chart-5: 0 84% 60%;
-    
-    --sidebar-background: 240 10% 3.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 262 82% 57%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 139 72% 46%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 240 5% 15%;
-    --sidebar-ring: 48 96% 53%;
   }
 
   .dark {
-    --background: 224 71% 4%;
+    --background: 224 71% 2%;
     --foreground: 210 40% 98%;
 
-    --card: 224 71% 8%;
+    --card: 224 71% 4%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 224 71% 4%;
+    --popover: 224 71% 2%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 262 82% 57%;
@@ -66,7 +58,7 @@
     --secondary: 210 100% 50%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 216 34% 17%;
+    --muted: 216 34% 10%;
     --muted-foreground: 216 34% 65%;
 
     --accent: 139 72% 46%;
@@ -75,18 +67,9 @@
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
+    --border: 216 34% 12%;
+    --input: 216 34% 12%;
     --ring: 262 82% 57%;
-    
-    --sidebar-background: 240 10% 3.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 262 82% 57%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 139 72% 46%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 240 5% 15%;
-    --sidebar-ring: 48 96% 53%;
   }
 }
 
@@ -98,4 +81,38 @@
     @apply bg-background text-foreground;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+}
+
+.animate-fall {
+  animation: fall linear infinite;
+}
+
+@keyframes rgb-glow {
+  0% { text-shadow: 0 0 10px rgba(139, 92, 246, 0.5); color: #fff; }
+  50% { text-shadow: 0 0 20px rgba(139, 92, 246, 0.8); color: #8b5cf6; }
+  100% { text-shadow: 0 0 10px rgba(139, 92, 246, 0.5); color: #fff; }
+}
+
+.animate-rgb-glow {
+  animation: rgb-glow 3s ease-in-out infinite;
 }
