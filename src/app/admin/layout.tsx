@@ -49,6 +49,7 @@ import { useEffect, useMemo } from 'react';
 import type { Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 const ADMIN_EMAIL = 'admin@tribed.world';
 
