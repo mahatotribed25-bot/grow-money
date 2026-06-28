@@ -30,6 +30,9 @@ import {
   TrendingDown,
   Timer,
   Sparkles,
+  MoreVertical,
+  Info,
+  ExternalLink,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -83,6 +86,12 @@ import { AchievementBadges } from '@/components/dashboard/AchievementBadges';
 import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScratchCard } from '@/components/dashboard/ScratchCard';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type UserData = {
   id: string;
@@ -177,7 +186,7 @@ const CountdownTimer = ({ endDate }: { endDate: Date }) => {
             }
 
             const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60));
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
@@ -454,6 +463,41 @@ export default function Dashboard() {
      });
   };
 
+  const handleStopInvestment = (investment: Investment) => {
+    if (!user || investment.status !== 'Active') return;
+    
+    const investmentRef = doc(firestore, 'users', user.uid, 'investments', investment.id);
+    
+    const startDate = investment.startDate.toDate();
+    const now = new Date();
+    const daysActive = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const earnedIncome = daysActive * investment.dailyIncome;
+    const finalReturn = investment.investedAmount + earnedIncome;
+    
+    const updateData = {
+        status: 'Stopped',
+        finalReturn: finalReturn,
+        daysActive: daysActive,
+        earnedIncome: earnedIncome
+    };
+
+    updateDoc(investmentRef, updateData)
+      .then(() => {
+        toast({
+            title: 'Plan Terminated',
+            description: `ROI accumulation stopped. You can now claim ₹${finalReturn.toFixed(2)}.`,
+        });
+      })
+      .catch((e: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: investmentRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+  };
+
   const handleScratchComplete = (reward: ScratchCardData) => {
     if (!user) return;
     
@@ -625,7 +669,6 @@ export default function Dashboard() {
           loading={userDataLoading}
         />
 
-        {/* Recent Activity Section */}
         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-white/80 text-sm font-bold uppercase tracking-widest flex items-center gap-2">
@@ -691,6 +734,7 @@ export default function Dashboard() {
                 investment={investment} 
                 onClaimProfit={handleClaimProfit} 
                 onClaimMaturity={handleClaimMaturity} 
+                onStop={handleStopInvestment}
               />
             ))}
           </div>
@@ -1075,11 +1119,13 @@ function WithdrawTypeOption({ value, label }: { value: string, label: string }) 
 function ActivePlanCard({ 
     investment, 
     onClaimProfit, 
-    onClaimMaturity 
+    onClaimMaturity,
+    onStop
 }: { 
     investment: Investment, 
     onClaimProfit: (investment: Investment) => void,
-    onClaimMaturity: (investment: Investment) => void
+    onClaimMaturity: (investment: Investment) => void,
+    onStop: (investment: Investment) => void
 }) {
   if (!investment.startDate || !investment.maturityDate) return null;
   
@@ -1120,10 +1166,39 @@ function ActivePlanCard({
     <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl group overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <CardHeader className="pb-3 relative">
-        <CardTitle className="flex justify-between items-center">
-          <span className="text-sm font-bold text-white/90">{investment.planName}</span>
-          {getBadge()}
-        </CardTitle>
+        <div className="flex justify-between items-start">
+            <div className="space-y-1">
+                <CardTitle className="text-sm font-bold text-white/90">{investment.planName}</CardTitle>
+                {getBadge()}
+            </div>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-white/40 hover:text-white hover:bg-white/10 rounded-full">
+                        <MoreVertical size={16} />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-[#030408]/95 backdrop-blur-xl border-white/10 text-white min-w-[160px] rounded-xl">
+                    <DropdownMenuItem className="text-[10px] font-bold uppercase tracking-widest focus:bg-white/5 py-2.5 cursor-pointer">
+                        <Info size={14} className="mr-2 text-primary" /> View Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-[10px] font-bold uppercase tracking-widest focus:bg-white/5 py-2.5 cursor-pointer">
+                        <History size={14} className="mr-2 text-blue-400" /> ROI Schedule
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-[10px] font-bold uppercase tracking-widest focus:bg-white/5 py-2.5 cursor-pointer">
+                        <ExternalLink size={14} className="mr-2 text-cyan-400" /> Terms & Docs
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-white/5" />
+                    {!isMatured && (
+                        <DropdownMenuItem 
+                            onClick={() => onStop(investment)}
+                            className="text-[10px] font-bold uppercase tracking-widest focus:bg-red-500/10 text-red-400 py-2.5 cursor-pointer"
+                        >
+                            <Power size={14} className="mr-2" /> Stop Early
+                        </DropdownMenuItem>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4 relative">
         <div className="flex justify-between items-center bg-black/20 p-3 rounded-2xl border border-white/5">
@@ -1169,7 +1244,7 @@ function ActiveLoanCard({ loan }: { loan: ActiveLoan }) {
     const progress = Math.min(((new Date().getTime() - startDate.getTime()) / (dueDate.getTime() - startDate.getTime())) * 100, 100);
     
     return (
-        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden relative">
+        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden relative">
             <CardHeader className="pb-3 border-b border-white/[0.05]">
                 <CardTitle className="flex justify-between items-center">
                     <span className="text-sm font-bold text-white/90">{loan.planName}</span>
@@ -1307,4 +1382,8 @@ function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.Ele
             </Link>
         </Button>
     )
+}
+
+function DropdownMenuSeparator({ className }: { className?: string }) {
+    return <div className={cn("-mx-1 my-1 h-px bg-muted", className)} />
 }
