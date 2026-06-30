@@ -1,23 +1,35 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { useCollection, useUser } from '@/firebase';
+import { useCollection, useUser, useDoc } from '@/firebase';
 import { orderBy, limit } from 'firebase/firestore';
 import { Zap, Timer } from 'lucide-react';
 
 const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
+type UserData = {
+    role?: 'user' | 'subadmin';
+};
+
 export function ActivityPulse() {
     const { user, loading: userLoading } = useUser();
+    const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}` : null);
     
-    // Only admins have permission to query across all investments via collectionGroup
-    const isAdmin = useMemo(() => user?.email && ADMIN_EMAILS.includes(user.email), [user]);
+    // Check if user is a manager (admin email or subadmin role)
+    const isManager = useMemo(() => {
+        if (!user) return false;
+        const hasAdminEmail = user.email && ADMIN_EMAILS.includes(user.email);
+        const isSubAdmin = userData?.role === 'subadmin';
+        return !!(hasAdminEmail || isSubAdmin);
+    }, [user, userData]);
 
+    // Use null for pulsePath if the user is not a manager to avoid collectionGroup permission errors
     const pulsePath = useMemo(() => {
-        if (userLoading || !user || !isAdmin) return null;
+        if (userLoading || !user || !isManager) return null;
         return 'investments';
-    }, [user, userLoading, isAdmin]);
+    }, [user, userLoading, isManager]);
 
+    // This collectionGroup query is only triggered if pulsePath is not null
     const { data: recentInvestments, loading } = useCollection<any>(
         pulsePath, 
         { subcollections: true },
@@ -27,7 +39,7 @@ export function ActivityPulse() {
 
     const [displayIndex, setDisplayIndex] = useState(0);
 
-    // Simulated events provide a "Live Node" feel for standard users without compromising privacy
+    // Simulated events for standard users
     const simulatedActivities = useMemo(() => [
         { id: 'f1', text: 'New investor joined the Silver Tier!' },
         { id: 'f2', text: 'P2P Loan worth ₹2,000 successfully funded.' },
@@ -63,7 +75,7 @@ export function ActivityPulse() {
                 <span className="text-[10px] font-black uppercase tracking-[2px] text-white/50">Pulse</span>
             </div>
             <div className="flex-1 px-4 relative flex items-center">
-                {loading && isAdmin ? (
+                {loading && isManager ? (
                      <div className="flex items-center gap-2 text-[10px] font-bold text-white/20 uppercase tracking-widest">
                         <Timer size={10} className="animate-spin" /> Syncing network...
                      </div>
