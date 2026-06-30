@@ -192,7 +192,9 @@ export default function AdminLayout({
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="bg-[#030408] border-r border-white/10 p-0 w-[280px]">
-                    <div className="p-6 border-b border-white/5 font-black text-xl">Grow Money</div>
+                    <SheetHeader className="p-6 border-b border-white/5">
+                        <SheetTitle className="font-black text-xl text-left text-white">Grow Money</SheetTitle>
+                    </SheetHeader>
                     <ScrollArea className="h-full py-4 px-2">
                         <nav className="space-y-1">
                             <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>

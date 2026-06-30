@@ -649,6 +649,9 @@ export default function Dashboard() {
                                 </div>
                             </DialogTrigger>
                             <DialogContent className="bg-transparent border-none shadow-none max-w-sm p-0 overflow-visible">
+                                <DialogHeader className="sr-only">
+                                    <DialogTitle>Mystery Scratch Card Reward</DialogTitle>
+                                </DialogHeader>
                                 <div className="p-4 flex justify-center">
                                     <ScratchCard amount={reward.amount} onComplete={() => handleScratchComplete(reward)} />
                                 </div>
