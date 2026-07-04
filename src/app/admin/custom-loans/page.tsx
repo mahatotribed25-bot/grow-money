@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -132,7 +131,7 @@ export default function CustomLoansPage() {
     setIsApproveDialogOpen(true);
   };
 
-  const handleApprove = async () => {
+  const handleApprove = () => {
     if (!requestToUpdate || !calculatedInterestInfo) return;
     const requestRef = doc(firestore, 'customLoanRequests', requestToUpdate.id);
     const updateData = {
@@ -142,50 +141,87 @@ export default function CustomLoansPage() {
         totalRepayment: calculatedInterestInfo.totalRepayment,
         adminApprovedAt: serverTimestamp(),
     };
-    await updateDoc(requestRef, updateData);
-    toast({ title: 'Offer Sent' });
-    setIsApproveDialogOpen(false);
+    
+    updateDoc(requestRef, updateData)
+        .then(() => {
+            toast({ title: 'Offer Sent' });
+            setIsApproveDialogOpen(false);
+        })
+        .catch(async (e) => {
+            const permissionError = new FirestorePermissionError({
+                path: requestRef.path,
+                operation: 'update',
+                requestResourceData: updateData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
   };
 
   const handleMarkAsSent = async (request: CustomLoanRequest) => {
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
     const settingsRef = doc(firestore, 'settings', 'admin');
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const settingsDoc = await transaction.get(settingsRef);
-            const totalLimit = settingsDoc.data()?.totalCustomLoanLimit || 0;
-            const currentUsage = settingsDoc.data()?.currentCustomLoanUsage || 0;
-            if (totalLimit > 0 && currentUsage + request.requestedAmount > totalLimit) throw new Error("Limit exceeded");
+    
+    runTransaction(firestore, async (transaction) => {
+        const settingsDoc = await transaction.get(settingsRef);
+        const totalLimit = settingsDoc.data()?.totalCustomLoanLimit || 0;
+        const currentUsage = settingsDoc.data()?.currentCustomLoanUsage || 0;
+        if (totalLimit > 0 && currentUsage + request.requestedAmount > totalLimit) throw new Error("Limit exceeded");
 
-            const dueDate = addDays(new Date(), request.requestedDuration);
-            transaction.update(requestRef, { status: 'active', activatedAt: serverTimestamp(), dueDate: Timestamp.fromDate(dueDate) });
-            transaction.update(settingsRef, { currentCustomLoanUsage: currentUsage + request.requestedAmount });
-        });
+        const dueDate = addDays(new Date(), request.requestedDuration);
+        transaction.update(requestRef, { status: 'active', activatedAt: serverTimestamp(), dueDate: Timestamp.fromDate(dueDate) });
+        transaction.update(settingsRef, { currentCustomLoanUsage: currentUsage + request.requestedAmount });
+    })
+    .then(() => {
         toast({ title: 'Loan Activated' });
-    } catch(e: any) { toast({ title: 'Failed', description: e.message, variant: 'destructive' }); }
+    })
+    .catch((e: any) => {
+        toast({ title: 'Failed', description: e.message, variant: 'destructive' });
+    });
   };
   
   const handleMarkAsCompleted = async (request: CustomLoanRequest) => {
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
     const settingsRef = doc(firestore, 'settings', 'admin');
-    await runTransaction(firestore, async (transaction) => {
+    
+    runTransaction(firestore, async (transaction) => {
         const settingsDoc = await transaction.get(settingsRef);
         const currentUsage = settingsDoc.data()?.currentCustomLoanUsage || 0;
         transaction.update(requestRef, { status: 'completed' });
         transaction.update(settingsRef, { currentCustomLoanUsage: Math.max(0, currentUsage - request.requestedAmount) });
+    })
+    .then(() => {
+        toast({ title: 'Loan Completed' });
+    })
+    .catch((e) => {
+        toast({ title: 'Error marking completed', variant: 'destructive'});
     });
-    toast({ title: 'Loan Completed' });
   };
 
-  const handleApproveExtension = async () => {
+  const handleApproveExtension = () => {
     if (!requestToUpdate || !requestToUpdate.dueDate) return;
     const fee = parseFloat(extensionFee) || 0;
     const extraDays = requestToUpdate.extensionRequestedDays || 0;
     const requestRef = doc(firestore, 'customLoanRequests', requestToUpdate.id);
     const newDueDate = addDays(requestToUpdate.dueDate.toDate(), extraDays);
-    await updateDoc(requestRef, { status: 'active', dueDate: Timestamp.fromDate(newDueDate), totalRepayment: (requestToUpdate.totalRepayment || 0) + fee });
-    setIsExtensionDialogOpen(false);
-    toast({ title: "Extended" });
+    const updateData = { 
+        status: 'active', 
+        dueDate: Timestamp.fromDate(newDueDate), 
+        totalRepayment: (requestToUpdate.totalRepayment || 0) + fee 
+    };
+
+    updateDoc(requestRef, updateData)
+        .then(() => {
+            setIsExtensionDialogOpen(false);
+            toast({ title: "Extended" });
+        })
+        .catch(async (e) => {
+            const permissionError = new FirestorePermissionError({
+                path: requestRef.path,
+                operation: 'update',
+                requestResourceData: updateData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
   };
 
   const handleShareOnWhatsApp = async (request: CustomLoanRequest) => {
@@ -203,55 +239,17 @@ export default function CustomLoansPage() {
                 const isOverdue = request.dueDate && isAfter(now, request.dueDate.toDate());
 
                 if (isOverdue) {
-                    // Scenario: Overdue message
-                    message = `⚠️ *URGENT: Custom Loan Overdue Notice* ⚠️\n\n`;
-                    message += `Dear *${request.userName}*,\n\n`;
-                    message += `Your custom loan repayment is now *OVERDUE*. Please settle it immediately to avoid further penalties and account suspension.\n\n`;
-                    message += `*Settlement Summary:*\n`;
-                    message += `-----------------------------------\n`;
-                    message += `💵 *Loan Amount:* ₹${request.requestedAmount.toFixed(2)}\n`;
-                    message += `📈 *Total Payable:* ₹${totalRepaymentWithPenalty.toFixed(2)}\n`;
-                    message += `🗓️ *Was Due On:* *${dueDate}*\n`;
-                    message += `-----------------------------------\n\n`;
-                    message += `Please pay now to protect your *Trust Score*. 🙏\n\n`;
-                    message += `*Grow Money* - Your trusted partner.`;
+                    message = `⚠️ *URGENT: Custom Loan Overdue Notice* ⚠️\n\nDear *${request.userName}*,\n\nYour custom loan repayment is now *OVERDUE*. Please settle it immediately to avoid further penalties.\n\n*Settlement Summary:*\n-----------------------------------\n💵 *Amount:* ₹${request.requestedAmount.toFixed(2)}\n📈 *Total Payable:* ₹${totalRepaymentWithPenalty.toFixed(2)}\n🗓️ *Was Due On:* *${dueDate}*\n-----------------------------------\n\n*Grow Money* - Your trusted partner.`;
                 } else {
-                    // Scenario: Gentle Reminder
-                    message = `🔔 *Repayment Reminder: Grow Money* 🔔\n\n`;
-                    message += `Dear *${request.userName}*,\n\n`;
-                    message += `This is a gentle reminder regarding your active Custom Loan. Paying on time helps you unlock higher limits! 🚀\n\n`;
-                    message += `*Loan Details:*\n`;
-                    message += `-----------------------------------\n`;
-                    message += `💵 *Loan Amount:* ₹${request.requestedAmount.toFixed(2)}\n`;
-                    message += `📈 *Repayment Due:* ₹${totalRepaymentWithPenalty.toFixed(2)}\n`;
-                    message += `🗓️ *Due Date:* *${dueDate}*\n`;
-                    message += `-----------------------------------\n\n`;
-                    message += `Thank you for choosing *Grow Money*!`;
+                    message = `🔔 *Repayment Reminder: Grow Money* 🔔\n\nDear *${request.userName}*,\n\nThis is a gentle reminder regarding your active Custom Loan.\n\n*Loan Details:*\n-----------------------------------\n💵 *Amount:* ₹${request.requestedAmount.toFixed(2)}\n📈 *Repayment Due:* ₹${totalRepaymentWithPenalty.toFixed(2)}\n🗓️ *Due Date:* *${dueDate}*\n-----------------------------------\n\nThank you for choosing *Grow Money*!`;
                 }
             } else if (request.status === 'completed') {
-                // Scenario: Completed / Thank you message
-                message = `✅ *Loan Successfully Settled!* ✅\n\n`;
-                message += `Dear *${request.userName}*,\n\n`;
-                message += `Congratulations! Your custom loan of *₹${request.requestedAmount.toFixed(2)}* has been fully repaid and settled. 🥂\n\n`;
-                message += `Your *Trust Score* has improved, making you eligible for better offers in the future.\n\n`;
-                message += `We look forward to serving you again! 💰\n\n`;
-                message += `*Grow Money* - Smart Investing, Easy Lending.`;
-            } else {
-                // Fallback for Activation (Initial)
-                message = `🎉 *Custom Loan Approved & Active!* 🎉\n\n`;
-                message += `Dear *${request.userName}*,\n\n`;
-                message += `Your custom loan has been approved and successfully transferred! 💰\n\n`;
-                message += `*Loan Summary:*\n`;
-                message += `-----------------------------------\n`;
-                message += `💵 *Loan Amount:* ₹${request.requestedAmount.toFixed(2)}\n`;
-                message += `📈 *Repayment Due:* ₹${totalRepaymentWithPenalty.toFixed(2)}\n`;
-                message += `🗓️ *Repayment Date:* *${dueDate}*\n`;
-                message += `-----------------------------------\n\n`;
-                message += `Please pay it back on time to grow your trust score. 🙏\n\n`;
-                message += `*Grow Money* - Your wealth partner.`;
+                message = `✅ *Loan Successfully Settled!* ✅\n\nDear *${request.userName}*,\n\nCongratulations! Your custom loan of *₹${request.requestedAmount.toFixed(2)}* has been fully repaid. 🥂\n\n*Grow Money* - Smart Investing.`;
             }
 
-            window.open(`https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+            if (message) {
+                window.open(`https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+            }
         } else { toast({ variant: 'destructive', title: 'Phone Not Found' }); }
     } catch (e) { toast({ variant: 'destructive', title: 'Error' }); }
   }
@@ -286,7 +284,7 @@ export default function CustomLoansPage() {
                   <TableCell><div className="flex gap-2">
                         {request.status === 'pending_admin_review' && <><Button size="sm" onClick={() => openApproveDialog(request)}><Check className="h-4 w-4 mr-1" />Approve</Button><Button size="sm" variant="destructive" onClick={() => { setRequestToUpdate(request); setIsRejectDialogOpen(true); }}><X className="h-4 w-4 mr-1"/>Reject</Button></>}
                         {request.status === 'approved_by_user' && <Button size="sm" className="bg-green-600" onClick={() => handleMarkAsSent(request)}><Send className="h-4 w-4 mr-1"/>Mark as Sent</Button>}
-                        {(request.status === 'active' || request.status === 'extension_pending' || request.status === 'payment_pending') && (
+                        {(request.status === 'active' || request.status === 'extension_pending' || request.status === 'payment_pending' || request.status === 'Due') && (
                             <div className="flex gap-2">
                                 <Button size="sm" className="bg-blue-600" onClick={() => handleMarkAsCompleted(request)}><Check className="h-4 w-4 mr-1"/>Repaid</Button>
                                 <Button variant="outline" size="sm" className="text-green-500" onClick={() => handleShareOnWhatsApp(request)}><Send className="h-4 w-4 mr-1" /> Notify</Button>
@@ -321,4 +319,3 @@ const getStatusBadge = (status: string) => {
       default: return <Badge>{status}</Badge>;
     }
 };
-

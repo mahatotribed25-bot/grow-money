@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Info,
   TrendingUp,
+  XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -184,7 +185,7 @@ export default function MyLoansPage() {
     });
   };
 
-  const handlePaymentConfirmation = async () => {
+  const handlePaymentConfirmation = () => {
     if (!user || !paymentDetails || !paymentDetails.loan) return;
 
     const { loan, isEmi, emiIndices } = paymentDetails;
@@ -203,31 +204,28 @@ export default function MyLoansPage() {
       );
       dataToUpdate = { emis: updatedEmis };
     } else {
-      if(isCustom) {
-        dataToUpdate = { status: 'payment_pending' };
-      } else {
-        dataToUpdate = { status: 'Payment Pending' };
-      }
+      dataToUpdate = { status: isCustom ? 'payment_pending' : 'Payment Pending' };
     }
 
-    try {
-      await updateDoc(loanRef, dataToUpdate);
-      toast({
-        title: 'Payment Initiated',
-        description: 'Your payment is being processed. The admin will confirm it shortly.',
-      });
-      setPaymentDetails(null); 
-    } catch (error) {
-      const permissionError = new FirestorePermissionError({
-        path: loanRef.path,
-        operation: 'update',
-        requestResourceData: dataToUpdate,
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    }
+    updateDoc(loanRef, dataToUpdate)
+        .then(() => {
+            toast({
+                title: 'Payment Initiated',
+                description: 'Your payment is being processed. The admin will confirm it shortly.',
+            });
+            setPaymentDetails(null);
+        })
+        .catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: loanRef.path,
+                operation: 'update',
+                requestResourceData: dataToUpdate,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
   };
 
-  const handleRequestExtension = async () => {
+  const handleRequestExtension = () => {
     if (!extensionLoan) return;
     const days = parseInt(extensionDays);
     if (isNaN(days) || days <= 0 || days > 15) {
@@ -242,18 +240,19 @@ export default function MyLoansPage() {
       extensionRequestedAt: serverTimestamp()
     };
 
-    try {
-      await updateDoc(loanRef, updateData);
-      toast({ title: "Extension Requested", description: "Your extension request has been sent to the admin." });
-      setExtensionLoan(null);
-    } catch (e) {
-      const permissionError = new FirestorePermissionError({
-        path: loanRef.path,
-        operation: 'update',
-        requestResourceData: updateData
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    }
+    updateDoc(loanRef, updateData)
+        .then(() => {
+            toast({ title: "Extension Requested", description: "Your extension request has been sent to the admin." });
+            setExtensionLoan(null);
+        })
+        .catch(async (e) => {
+            const permissionError = new FirestorePermissionError({
+                path: loanRef.path,
+                operation: 'update',
+                requestResourceData: updateData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
   };
   
   const handleCopyToClipboard = (text: string, label: string) => {
@@ -430,18 +429,21 @@ export default function MyLoansPage() {
 }
 
 function getBadgeStyle(status: string) {
-    switch (status) {
-        case 'Active':
+    const lowerStatus = status.toLowerCase();
+    switch (lowerStatus) {
         case 'active':
              return "bg-primary/20 text-primary border-primary/30";
-        case 'Due':
+        case 'due':
              return "bg-red-500/20 text-red-400 border-red-500/30";
-        case 'Completed':
         case 'completed':
              return "bg-green-500/20 text-green-400 border-green-500/30";
-        case 'Payment Pending':
+        case 'payment pending':
         case 'payment_pending':
              return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+        case 'pending_user_approval':
+             return "bg-amber-500/20 text-amber-500 border-amber-500/30";
+        case 'approved_by_user':
+             return "bg-cyan-500/20 text-cyan-400 border-cyan-500/30";
         default: return "bg-white/5 text-white/40 border-white/10";
     }
 }
@@ -500,16 +502,14 @@ function LoanCard({ loan, adminSettings, onPayNow }: { loan: Loan, adminSettings
             penalty: newPenalty
           };
 
-          try {
-            await updateDoc(loanRef, dataToUpdate);
-          } catch (e) {
+          updateDoc(loanRef, dataToUpdate).catch(async (e) => {
             const permissionError = new FirestorePermissionError({
                 path: loanRef.path,
                 operation: 'update',
                 requestResourceData: dataToUpdate
             });
             errorEmitter.emit('permission-error', permissionError);
-          }
+          });
         }
       }
     };
@@ -677,16 +677,14 @@ function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { lo
           const loanRef = doc(firestore, 'customLoanRequests', loan.id);
           const dataToUpdate = { penalty: newPenalty };
 
-          try {
-            await updateDoc(loanRef, dataToUpdate);
-          } catch (e) {
+          updateDoc(loanRef, dataToUpdate).catch(async (e) => {
             const permissionError = new FirestorePermissionError({
                 path: loanRef.path,
                 operation: 'update',
                 requestResourceData: dataToUpdate
             });
             errorEmitter.emit('permission-error', permissionError);
-          }
+          });
         }
       }
     };
@@ -694,23 +692,25 @@ function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { lo
     checkOverdue();
   }, [currentTime, loan, user, firestore, adminSettings, toast]);
 
-  const handleUpdateStatus = async (newStatus: 'approved_by_user' | 'rejected_by_user') => {
+  const handleUpdateStatus = (newStatus: 'approved_by_user' | 'rejected_by_user') => {
     const requestRef = doc(firestore, 'customLoanRequests', loan.id);
     const updateData = { 
         status: newStatus,
         ...(newStatus === 'approved_by_user' && { userApprovedAt: serverTimestamp() })
     };
-    try {
-      await updateDoc(requestRef, updateData);
-      toast({ title: `Loan offer ${newStatus === 'approved_by_user' ? 'Accepted' : 'Rejected'}` });
-    } catch (e) {
-      const permissionError = new FirestorePermissionError({
-        path: requestRef.path,
-        operation: 'update',
-        requestResourceData: updateData,
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    }
+    
+    updateDoc(requestRef, updateData)
+        .then(() => {
+            toast({ title: `Loan offer ${newStatus === 'approved_by_user' ? 'Accepted' : 'Rejected'}` });
+        })
+        .catch(async (e) => {
+            const permissionError = new FirestorePermissionError({
+                path: requestRef.path,
+                operation: 'update',
+                requestResourceData: updateData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
   };
   
   const isOverdue = currentTime && loan.dueDate && currentTime > loan.dueDate.toDate();
@@ -718,7 +718,6 @@ function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { lo
 
   const statusLabel = loan.status === 'extension_pending' ? 'Extension Pending' : loan.status;
 
-  // Progress Calculation for Active Loans
   const loanProgress = useMemo(() => {
     if (loan.status !== 'active' && loan.status !== 'payment_pending' && loan.status !== 'extension_pending' && loan.status !== 'Due') return 0;
     if (!loan.activatedAt || !loan.dueDate) return 0;
@@ -749,7 +748,6 @@ function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { lo
       </CardHeader>
       <CardContent className="pt-6 space-y-6">
         
-        {/* Core Loan Details */}
         <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col bg-white/5 p-3 rounded-2xl border border-white/5">
                 <span className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Principal Amount</span>
@@ -789,7 +787,6 @@ function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { lo
         ) : (loan.status === 'active' || loan.status === 'payment_pending' || loan.status === 'extension_pending' || loan.status === 'Due') && (
              <div className="space-y-6">
                 
-                {/* Timeline Progress */}
                 <div className="space-y-2">
                     <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-white/20">
                         <span>Loan Cycle Progress</span>
