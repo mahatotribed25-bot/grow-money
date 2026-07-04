@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -10,6 +9,7 @@ import {
   Users as UsersIcon,
   HandCoins,
   Trophy,
+  AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -20,7 +20,7 @@ import {
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { collection, addDoc, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, runTransaction, serverTimestamp, query, where } from 'firebase/firestore';
 import { addDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -68,10 +68,27 @@ export default function PlansPage() {
   const { data: plans, loading } = useCollection<InvestmentPlan>('investmentPlans');
   const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}`: null);
   const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
+  
+  // Fetch active custom loans for the user to restrict investment
+  const { data: userCustomLoans } = useCollection<any>(
+    user ? query(collection(firestore, 'customLoanRequests'), where('userId', '==', user.uid), where('status', 'in', ['active', 'extension_pending', 'payment_pending', 'pending_user_approval', 'approved_by_user'])) : null
+  );
+
+  const hasActiveCustomLoan = userCustomLoans && userCustomLoans.length > 0;
 
   const handleInvest = (plan: InvestmentPlan) => {
     if (!user || !userData) {
         toast({ variant: 'destructive', title: 'You must be logged in.' });
+        return;
+    }
+    
+    // Restriction: Cannot invest if active custom loan exists
+    if (hasActiveCustomLoan) {
+        toast({ 
+            variant: 'destructive', 
+            title: 'Investment Restricted', 
+            description: 'You cannot buy new plans while you have an active custom loan. Please settle your dues first.' 
+        });
         return;
     }
     
@@ -233,6 +250,13 @@ export default function PlansPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 max-w-5xl mx-auto w-full">
+        {hasActiveCustomLoan && (
+            <Card className="bg-red-500/10 border-red-500/30 text-red-400 p-4 rounded-2xl flex items-center gap-3 animate-pulse">
+                <AlertCircle className="shrink-0 h-5 w-5" />
+                <p className="text-xs font-bold uppercase tracking-tight">Investment Disabled: You have an active custom loan. Please settle it to unlock investments.</p>
+            </Card>
+        )}
+
         {loading ? (
            <div className="flex flex-col items-center justify-center py-20 gap-4">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -243,7 +267,7 @@ export default function PlansPage() {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {availablePlans && availablePlans.length > 0 ? (
                 availablePlans.map((plan, index) => (
-                    <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} index={index} />
+                    <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} index={index} disabled={hasActiveCustomLoan} />
                 ))
             ) : (
                 !comingSoonPlans?.length && (
@@ -263,7 +287,7 @@ export default function PlansPage() {
                     <h2 className="text-xl font-bold text-white/40 uppercase tracking-widest pl-2">Coming Soon</h2>
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {comingSoonPlans.map((plan, index) => (
-                            <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} index={index + 10} />
+                            <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} index={index + 10} disabled={hasActiveCustomLoan} />
                         ))}
                     </div>
                 </div>
@@ -285,7 +309,7 @@ export default function PlansPage() {
   );
 }
 
-function PlanCard({ plan, onInvest, userBalance, index }: { plan: InvestmentPlan, onInvest: (plan: InvestmentPlan) => void, userBalance: number, index: number }) {
+function PlanCard({ plan, onInvest, userBalance, index, disabled }: { plan: InvestmentPlan, onInvest: (plan: InvestmentPlan) => void, userBalance: number, index: number, disabled?: boolean }) {
   const canAfford = userBalance >= (plan.price || 0);
   const isAvailable = plan.status === 'Available';
   const isOutOfStock = plan.stock !== undefined && plan.stock <= 0;
@@ -296,7 +320,7 @@ function PlanCard({ plan, onInvest, userBalance, index }: { plan: InvestmentPlan
   return (
     <Card className={cn(
         "shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden transition-all duration-300 relative group",
-        (!isAvailable || isOutOfStock) ? 'opacity-40 grayscale' : 'hover:scale-[1.02] hover:bg-white/[0.06] hover:border-white/20'
+        (!isAvailable || isOutOfStock || disabled) ? 'opacity-40 grayscale' : 'hover:scale-[1.02] hover:bg-white/[0.06] hover:border-white/20'
     )}>
       <div className="relative h-44 w-full overflow-hidden">
         <Image 
@@ -357,14 +381,14 @@ function PlanCard({ plan, onInvest, userBalance, index }: { plan: InvestmentPlan
         <Button 
             className={cn(
                 "w-full h-12 rounded-xl font-bold transition-all duration-300",
-                canAfford && isAvailable && !isOutOfStock 
+                canAfford && isAvailable && !isOutOfStock && !disabled 
                     ? "bg-white text-black hover:bg-primary hover:text-white shadow-lg shadow-white/5" 
                     : "bg-white/5 text-white/20 border-white/5"
             )}
             onClick={() => onInvest(plan)} 
-            disabled={!canAfford || !isAvailable || isOutOfStock}
+            disabled={!canAfford || !isAvailable || isOutOfStock || disabled}
         >
-          {isOutOfStock ? 'Plan Depleted' : isAvailable ? (canAfford ? 'Secure Plan Now' : 'Insufficient Funds') : 'Pending Release'}
+          {disabled ? 'Settle Loan First' : isOutOfStock ? 'Plan Depleted' : isAvailable ? (canAfford ? 'Secure Plan Now' : 'Insufficient Funds') : 'Pending Release'}
         </Button>
       </CardContent>
     </Card>

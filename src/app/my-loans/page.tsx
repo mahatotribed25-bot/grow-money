@@ -13,6 +13,10 @@ import {
   PlusCircle,
   AlertTriangle,
   CheckCircle2,
+  Calendar,
+  ShieldCheck,
+  Info,
+  TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -49,6 +53,7 @@ import {
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
@@ -94,6 +99,7 @@ type CustomLoanRequest = {
   dueDate?: Timestamp;
   penalty?: number;
   extensionRequestedDays?: number;
+  activatedAt?: Timestamp;
 };
 
 const CountdownTimer = ({ endDate }: { endDate: Date }) => {
@@ -712,100 +718,161 @@ function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { lo
 
   const statusLabel = loan.status === 'extension_pending' ? 'Extension Pending' : loan.status;
 
+  // Progress Calculation for Active Loans
+  const loanProgress = useMemo(() => {
+    if (loan.status !== 'active' && loan.status !== 'payment_pending' && loan.status !== 'extension_pending' && loan.status !== 'Due') return 0;
+    if (!loan.activatedAt || !loan.dueDate) return 0;
+    const start = loan.activatedAt.toDate().getTime();
+    const end = loan.dueDate.toDate().getTime();
+    const now = currentTime?.getTime() || new Date().getTime();
+    return Math.min(Math.max(((now - start) / (end - start)) * 100, 0), 100);
+  }, [loan, currentTime]);
+
   return (
     <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden relative group">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <CardHeader className="pb-3 border-b border-white/[0.05] bg-white/[0.01]">
         <div className="flex justify-between items-center">
-            <span className="text-sm font-bold text-white tracking-tight">Flexi Request</span>
+            <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                    <HandCoins size={14} className="text-primary" />
+                </div>
+                <span className="text-sm font-bold text-white tracking-tight uppercase">Custom Flexi</span>
+            </div>
             <Badge variant="outline" className={cn("text-[10px] uppercase font-black tracking-widest border-white/5", getBadgeStyle(loan.status))}>
                 {statusLabel.replace('_', ' ')}
             </Badge>
         </div>
-        <CardDescription className="text-white/30 text-[10px] uppercase tracking-widest font-bold">Created: {loan.createdAt.toDate().toLocaleDateString()}</CardDescription>
+        <CardDescription className="text-white/30 text-[9px] uppercase tracking-widest font-black flex items-center gap-2 mt-1">
+            <Calendar size={12} /> Established: {loan.createdAt.toDate().toLocaleDateString()}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="pt-6 space-y-5">
+      <CardContent className="pt-6 space-y-6">
+        
+        {/* Core Loan Details */}
         <div className="grid grid-cols-2 gap-3">
-            <InfoItem label="Requested Amount" value={`₹${(loan.requestedAmount || 0).toFixed(2)}`} />
-            <InfoItem label="Term" value={`${loan.requestedDuration} days`} />
+            <div className="flex flex-col bg-white/5 p-3 rounded-2xl border border-white/5">
+                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Principal Amount</span>
+                <span className="text-lg font-black text-white tracking-tighter">₹{(loan.requestedAmount || 0).toLocaleString()}</span>
+            </div>
+            <div className="flex flex-col bg-white/5 p-3 rounded-2xl border border-white/5 text-right">
+                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Duration</span>
+                <span className="text-sm font-black text-white/80">{loan.requestedDuration} Days</span>
+            </div>
         </div>
         
         {loan.status === 'pending_user_approval' ? (
-            <div className="bg-primary/10 rounded-2xl p-5 border border-primary/20 space-y-4">
+            <div className="bg-primary/10 rounded-2xl p-5 border border-primary/20 space-y-4 animate-in zoom-in-95">
                 <div className="flex flex-col items-center text-center gap-1">
                     <p className="text-[10px] font-black uppercase tracking-[3px] text-primary/60">Administrative Offer</p>
-                    <div className="flex items-center gap-4 py-2">
+                    <div className="flex items-center gap-6 py-2">
                         <div>
-                             <p className="text-[10px] text-white/30 uppercase font-bold">Interest Rate</p>
-                             <p className="text-sm font-bold text-white">{loan.interestRate}%</p>
+                             <p className="text-[9px] text-white/30 uppercase font-black tracking-widest">Rate</p>
+                             <p className="text-sm font-black text-white">{loan.interestRate?.toFixed(1)}%</p>
                         </div>
                         <div className="h-6 w-px bg-white/10" />
                         <div>
-                             <p className="text-[10px] text-white/30 uppercase font-bold">Cost</p>
-                             <p className="text-sm font-bold text-red-400">₹{(loan.interestAmount || 0).toFixed(2)}</p>
+                             <p className="text-[9px] text-white/30 uppercase font-black tracking-widest">Fee</p>
+                             <p className="text-sm font-black text-red-400">₹{(loan.interestAmount || 0).toFixed(2)}</p>
                         </div>
                     </div>
                 </div>
                  <div className="flex justify-between items-center border-t border-primary/10 pt-4">
-                    <span className="text-sm font-bold text-white/80">Total Repayment</span>
+                    <span className="text-xs font-bold text-white/60 uppercase">Total Liability</span>
                     <span className="text-2xl font-black text-white tracking-tighter">₹{(loan.totalRepayment || 0).toFixed(2)}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3 pt-2">
-                    <Button className="rounded-xl font-bold bg-white text-black hover:bg-white/90" onClick={() => handleUpdateStatus('approved_by_user')}>Accept</Button>
+                    <Button className="rounded-xl font-bold bg-white text-black hover:bg-white/90" onClick={() => handleUpdateStatus('approved_by_user')}>Accept Offer</Button>
                     <Button variant="ghost" className="rounded-xl font-bold text-red-400 hover:bg-red-400/10" onClick={() => handleUpdateStatus('rejected_by_user')}>Decline</Button>
                 </div>
             </div>
-        ) : (loan.status === 'active' || loan.status === 'payment_pending' || loan.status === 'extension_pending') && (
-             <div className="space-y-4">
-                <div className="bg-black/40 rounded-2xl p-5 border border-white/5 space-y-4">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-[3px] text-white/20">
-                        <span>Repayment Detail</span>
-                        {isOverdue && <span className="text-red-400 font-black">+₹{loan.penalty?.toFixed(2)} Penalty</span>}
+        ) : (loan.status === 'active' || loan.status === 'payment_pending' || loan.status === 'extension_pending' || loan.status === 'Due') && (
+             <div className="space-y-6">
+                
+                {/* Timeline Progress */}
+                <div className="space-y-2">
+                    <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-white/20">
+                        <span>Loan Cycle Progress</span>
+                        <span>{loanProgress.toFixed(0)}% Used</span>
                     </div>
-                     <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-white/60">Payable Now</span>
-                        <span className="text-2xl font-black text-white tracking-tighter">₹{totalRepayment.toFixed(2)}</span>
-                    </div>
+                    <Progress value={loanProgress} className="h-1.5 bg-white/5 [&>div]:bg-primary" />
                 </div>
 
-                {loan.status === 'active' && loan.dueDate && (
-                    <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-white/20 px-2">
-                        <span className="flex items-center gap-1.5"><Timer size={14} className="text-primary animate-pulse" /> Time Remaining</span>
-                        {isOverdue ? <span className="text-red-400">Past Due</span> : <CountdownTimer endDate={loan.dueDate.toDate()} />}
+                <div className="bg-black/40 rounded-2xl p-5 border border-white/5 space-y-4">
+                    <div className="flex justify-between text-[10px] font-black uppercase tracking-[3px] text-white/20">
+                        <span>Settlement Summary</span>
+                        {isOverdue && <span className="text-red-400 font-black animate-pulse">+₹{loan.penalty?.toFixed(2)} PENALTY</span>}
                     </div>
-                )}
+                     <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-white/60">Balance Due</span>
+                        <span className="text-3xl font-black text-white tracking-tighter">₹{totalRepayment.toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="pt-2 flex flex-col gap-2">
+                         <div className="flex items-center justify-between text-[10px] font-bold text-white/30 uppercase tracking-widest bg-white/5 p-2 rounded-lg">
+                            <div className="flex items-center gap-1.5"><Timer size={12} className="text-primary animate-pulse" /> Time Remaining</div>
+                            {isOverdue ? <span className="text-red-400 font-black">PAST DUE</span> : <CountdownTimer endDate={loan.dueDate!.toDate()} />}
+                         </div>
+                         <div className="flex items-center justify-between text-[10px] font-bold text-white/30 uppercase tracking-widest bg-white/5 p-2 rounded-lg">
+                            <div className="flex items-center gap-1.5"><ShieldCheck size={12} className="text-blue-400" /> Repayment Node</div>
+                            <span className="font-mono text-white/60">{adminSettings?.customLoanUpi || 'VERIFIED UPI'}</span>
+                         </div>
+                    </div>
+                </div>
                 
                 {loan.status === 'extension_pending' && (
-                   <div className="text-center p-3 rounded-xl bg-blue-500/10 text-blue-300 text-[10px] font-bold uppercase tracking-widest border border-blue-500/20">
-                      Processing Extension Request (+{loan.extensionRequestedDays} days)
+                   <div className="text-center p-3 rounded-xl bg-blue-500/10 text-blue-300 text-[10px] font-bold uppercase tracking-widest border border-blue-500/20 flex items-center justify-center gap-2">
+                      <Timer className="h-3 w-3" /> Processing Extension (+{loan.extensionRequestedDays} days)
                    </div>
                 )}
 
                 <div className="grid gap-3 pt-2">
-                    {(isOverdue || loan.status === 'payment_pending' || loan.status === 'active') && (
-                        <Button className="h-12 rounded-xl font-bold bg-white text-black hover:bg-white/90 shadow-xl shadow-white/5" onClick={() => onPayNow(loan, totalRepayment)} disabled={loan.status === 'payment_pending'}>
-                            {loan.status === 'payment_pending' ? 'Verification in Progress...' : 'Confirm Repayment'}
-                        </Button>
-                    )}
+                    <Button className="h-14 rounded-2xl font-black text-lg bg-white text-black hover:bg-white/90 shadow-2xl shadow-white/5 transition-all group" onClick={() => onPayNow(loan, totalRepayment)} disabled={loan.status === 'payment_pending'}>
+                        {loan.status === 'payment_pending' ? (
+                            <span className="flex items-center gap-2"><Timer className="animate-spin h-5 w-5"/> VERIFYING PAYMENT...</span>
+                        ) : (
+                            <span className="flex items-center gap-2">SETTLE DEBT NOW <ArrowUpRight className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/></span>
+                        )}
+                    </Button>
+                    
                     {loan.status === 'active' && !isOverdue && (
-                        <Button variant="ghost" className="h-10 rounded-xl font-bold text-white/40 hover:bg-white/5" onClick={onOpenExtension}>
-                            <PlusCircle className="h-4 w-4 mr-2" /> Request More Time
+                        <Button variant="ghost" className="h-10 rounded-xl font-bold text-white/30 hover:text-white hover:bg-white/5" onClick={onOpenExtension}>
+                            <PlusCircle className="h-4 w-4 mr-2" /> Request Tenure Extension
                         </Button>
                     )}
+                </div>
+
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex items-start gap-3">
+                    <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-white/40 leading-relaxed font-medium">
+                        Repayments are processed manually. Please scan the QR code in the next step to pay to the platform's verified UPI. Your trust score will increase upon successful settlement.
+                    </p>
                 </div>
             </div>
         )}
         
         {loan.status === 'rejected_by_admin' && (
-             <div className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20">
-                <p className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-1">Rejection Message</p>
-                <p className="text-xs text-red-200/60 leading-relaxed">{loan.rejectionReason || 'No specific reason provided.'}</p>
+             <div className="bg-red-500/10 p-5 rounded-2xl border border-red-500/20 animate-in slide-in-from-top-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-1.5 flex items-center gap-1.5">
+                    <AlertTriangle size={12} /> Administrative Denial
+                </p>
+                <p className="text-xs text-red-200/60 leading-relaxed italic">"{loan.rejectionReason || 'No specific reason provided.'}"</p>
              </div>
         )}
 
         {loan.status === 'approved_by_user' && (
-            <div className="bg-primary/5 p-6 rounded-3xl border border-primary/10 text-center animate-pulse">
-                <p className="text-sm font-bold text-primary/80">Approved. Transferring Funds...</p>
-                <p className="text-[10px] text-white/20 uppercase tracking-widest mt-1">Check your wallet shortly.</p>
+            <div className="bg-primary/5 p-8 rounded-3xl border border-primary/10 text-center animate-pulse space-y-2">
+                <TrendingUp size={32} className="mx-auto text-primary/40 mb-2" />
+                <p className="text-sm font-bold text-primary/80">Funds Disbursement Pending</p>
+                <p className="text-[9px] text-white/20 uppercase font-black tracking-[4px]">Syncing Node...</p>
+            </div>
+        )}
+        
+        {loan.status === 'completed' && (
+             <div className="bg-green-500/5 p-6 rounded-3xl border border-green-500/10 text-center space-y-1">
+                <CheckCircle2 size={32} className="mx-auto text-green-500/40 mb-2" />
+                <p className="text-sm font-bold text-green-500/80 uppercase tracking-widest">Loan Fully Settled</p>
+                <p className="text-[9px] text-white/20 font-black uppercase">Trust Score Impact: +50 Points</p>
             </div>
         )}
       </CardContent>
