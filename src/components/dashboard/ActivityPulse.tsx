@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -17,8 +18,9 @@ export function ActivityPulse() {
     
     // Check if user is a manager (admin email or subadmin role)
     const isManager = useMemo(() => {
-        if (!user) return false;
-        const hasAdminEmail = user.email && ADMIN_EMAILS.includes(user.email);
+        if (!user || !userData) return false;
+        const email = user.email?.toLowerCase();
+        const hasAdminEmail = email && ADMIN_EMAILS.includes(email);
         const isSubAdmin = userData?.role === 'subadmin';
         return !!(hasAdminEmail || isSubAdmin);
     }, [user, userData]);

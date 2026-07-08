@@ -50,18 +50,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
+const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
+const CHART_COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+
 type User = { id: string; name: string; walletBalance?: number; email?: string; isOnline?: boolean; lastSeen?: Timestamp; createdAt?: Timestamp; totalInvestment?: number; };
 type Transaction = { id: string; amount: number; name: string; status: 'pending' | 'approved' | 'rejected'; createdAt: Timestamp; category?: string; };
 type Investment = { id: string; planName: string; startDate: Timestamp; investedAmount: number; userId: string; };
 type InvestmentPlan = { name: string; adminProfit?: number; };
 type AdminSettings = { profitCalculationStartDate?: Timestamp; adminProfitBalance?: number; };
 
-const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
-const CHART_COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
-
 export default function AdminDashboard() {
   const { user, loading: userIsLoading } = useUser();
-  const isAdmin = useMemo(() => !userIsLoading && user?.email && ADMIN_EMAILS.includes(user.email), [user, userIsLoading]);
+  const isAdmin = useMemo(() => {
+      const email = user?.email?.toLowerCase();
+      return !userIsLoading && email && ADMIN_EMAILS.includes(email);
+  }, [user, userIsLoading]);
   
   const { data: users, loading: usersLoading } = useCollection<User>(isAdmin ? 'users' : null);
   const { data: allDeposits, loading: depositsLoading } = useCollection<Transaction>(isAdmin ? 'deposits' : null);
@@ -109,7 +112,7 @@ export default function AdminDashboard() {
   }, [allDeposits, allWithdrawals]);
 
   const topInvestors = useMemo(() => {
-    return users?.filter(u => !ADMIN_EMAILS.includes(u.email || '')).sort((a, b) => (b.totalInvestment || 0) - (a.totalInvestment || 0)).slice(0, 5) || [];
+    return users?.filter(u => u.email && !ADMIN_EMAILS.includes(u.email.toLowerCase())).sort((a, b) => (b.totalInvestment || 0) - (a.totalInvestment || 0)).slice(0, 5) || [];
   }, [users]);
 
   const liveActivity = useMemo(() => {

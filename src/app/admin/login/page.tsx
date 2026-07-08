@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -33,7 +34,7 @@ const formSchema = z.object({
   }),
 });
 
-const ADMIN_EMAIL = "admin@tribed.world";
+const ADMIN_EMAILS = ["admin@tribed.world", "admin@tribed.com"];
 
 
 export default function AdminLoginPage() {
@@ -52,7 +53,9 @@ export default function AdminLoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoginStatus('loading');
-    if (values.email !== ADMIN_EMAIL) {
+    const normalizedEmail = values.email.toLowerCase();
+    
+    if (!ADMIN_EMAILS.includes(normalizedEmail)) {
         setLoginStatus('error');
         toast({
           variant: "destructive",

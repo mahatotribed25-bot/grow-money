@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -88,7 +89,10 @@ export default function AdminFinancePage() {
     const { user, loading: userLoading } = useUser();
     
     // Only run expensive collection group queries if we are sure the user is an admin
-    const isAdmin = useMemo(() => !userLoading && user?.email && ADMIN_EMAILS.includes(user.email), [user, userLoading]);
+    const isAdmin = useMemo(() => {
+        const email = user?.email?.toLowerCase();
+        return !userLoading && email && ADMIN_EMAILS.includes(email);
+    }, [user, userLoading]);
 
     const { data: settings, loading: settingsLoading } = useDoc<AdminSettings>(isAdmin ? 'settings/admin' : null);
     const { data: plans, loading: plansLoading } = useCollection<InvestmentPlan>(isAdmin ? 'investmentPlans' : null);

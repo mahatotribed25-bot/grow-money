@@ -51,7 +51,7 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
-const ADMIN_EMAIL = 'admin@tribed.world';
+const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
 type BaseRequest = {
   id: string;
@@ -75,7 +75,10 @@ export default function AdminLayout({
   const pathname = usePathname();
   const { user, loading } = useUser();
   
-  const isAdmin = !loading && user && user.email === ADMIN_EMAIL;
+  const isAdmin = useMemo(() => {
+      const email = user?.email?.toLowerCase();
+      return !loading && email && ADMIN_EMAILS.includes(email);
+  }, [user, loading]);
 
   const { data: pendingDeposits } = useCollection<DepositRequest>(isAdmin ? 'deposits' : null, { where: ['status', '==', 'pending'] });
   const { data: pendingWithdrawals } = useCollection<WithdrawalRequest>(isAdmin ? 'withdrawals' : null, { where: ['status', '==', 'pending'] });
@@ -109,10 +112,10 @@ export default function AdminLayout({
   };
 
   useEffect(() => {
-    if (!loading && pathname !== '/admin/login' && (!user || user.email !== ADMIN_EMAIL)) {
+    if (!loading && pathname !== '/admin/login' && !isAdmin) {
       router.push('/admin/login');
     }
-  }, [user, loading, pathname, router]);
+  }, [isAdmin, loading, pathname, router]);
 
   if (loading) {
     return (
@@ -122,7 +125,7 @@ export default function AdminLayout({
     );
   }
 
-  if (pathname === '/admin/login' || !user || user.email !== ADMIN_EMAIL) {
+  if (pathname === '/admin/login' || !isAdmin) {
     return pathname === '/admin/login' ? <>{children}</> : null;
   }
 
