@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -24,13 +25,12 @@ export function ActivityPulse() {
         return !!(hasAdminEmail || isSubAdmin);
     }, [user, userLoading, userData]);
 
-    // Use null for pulsePath if the user is not a manager to avoid collectionGroup permission errors
+    // Only run the restricted query for verified managers
     const pulsePath = useMemo(() => {
         if (!isManager) return null;
         return 'investments';
     }, [isManager]);
 
-    // This collectionGroup query is only triggered if pulsePath is not null
     const { data: recentInvestments, loading } = useCollection<any>(
         pulsePath, 
         { subcollections: true },
@@ -40,24 +40,24 @@ export function ActivityPulse() {
 
     const [displayIndex, setDisplayIndex] = useState(0);
 
-    // Simulated events for standard users
+    // Simulated events for standard users to maintain the "live" atmosphere safely
     const simulatedActivities = useMemo(() => [
         { id: 'f1', text: 'New investor joined the Silver Tier!' },
-        { id: 'f2', text: 'P2P Loan worth ₹2,000 successfully funded.' },
-        { id: 'f3', text: 'Daily profit payouts processed for all users.' },
-        { id: 'f4', text: 'Grow Money trust score system is now active.' },
+        { id: 'f2', text: 'P2P Loan worth ₹2,500 successfully funded.' },
+        { id: 'f3', text: 'Daily ROI payouts processed for all nodes.' },
+        { id: 'f4', text: 'Grow Money system integrity verified.' },
         { id: 'f5', text: 'High-yield "Alpha Plan" almost sold out!' }
     ], []);
 
     const activities = useMemo(() => {
-        if (recentInvestments && recentInvestments.length > 0) {
+        if (isManager && recentInvestments && recentInvestments.length > 0) {
             return recentInvestments.map(inv => ({
                 id: inv.id,
                 text: `${inv.userId?.slice(0,4) || 'User'}... secured the ${inv.planName || 'Investment'} (₹${inv.investedAmount || 0})`
             }));
         }
         return simulatedActivities;
-    }, [recentInvestments, simulatedActivities]);
+    }, [recentInvestments, simulatedActivities, isManager]);
 
     useEffect(() => {
         if (activities.length <= 1) return;
