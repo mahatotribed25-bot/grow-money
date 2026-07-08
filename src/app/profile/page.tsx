@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -1051,47 +1050,31 @@ export default function ProfilePage() {
             </TabsList>
             <div className="mt-6">
                 <TabsContent value="history">
-                    <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
-                        <CardContent className="p-0">
-                            <Table>
-                                <TableHeader className="bg-white/[0.02]">
-                                    <TableRow className="border-white/10">
-                                        <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Detail</TableHead>
-                                        <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest text-right pr-6">Amount</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {historyLoading ? (
-                                         <TableRow><TableCell colSpan={2} className="text-center py-10 opacity-20"><Timer className="animate-spin mx-auto" /></TableCell></TableRow>
-                                    ) : walletHistory && walletHistory.length > 0 ? (
-                                        walletHistory.map(entry => (
-                                            <TableRow key={entry.id} className="border-white/[0.05] hover:bg-white/[0.02]">
-                                                <TableCell className="pl-6">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", entry.type === 'credit' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400')}>
-                                                            {entry.type === 'credit' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs font-bold text-white/80">{entry.category}</p>
-                                                            <p className="text-[10px] text-white/30">{entry.description}</p>
-                                                            <p className="text-[9px] text-white/20 mt-0.5">{new Date(entry.createdAt?.seconds * 1000).toLocaleString()}</p>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right pr-6 font-mono font-bold text-sm">
-                                                    <span className={entry.type === 'credit' ? 'text-green-400' : 'text-red-400'}>
-                                                        {entry.type === 'credit' ? '+' : '-'}₹{entry.amount.toFixed(2)}
-                                                    </span>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow><TableCell colSpan={2} className="text-center py-10 text-white/20 italic">No wallet history found.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
+                    <HistoryTable
+                        headers={['Detail', 'Amount']}
+                        items={walletHistory}
+                        renderRow={(entry: WalletHistoryEntry) => (
+                            <TableRow key={entry.id} className="border-white/[0.05] hover:bg-white/[0.02]">
+                                <TableCell className="pl-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", entry.type === 'credit' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400')}>
+                                            {entry.type === 'credit' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-white/80">{entry.category}</p>
+                                            <p className="text-[10px] text-white/30">{entry.description}</p>
+                                            <p className="text-[9px] text-white/20 mt-0.5">{new Date(entry.createdAt?.seconds * 1000).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right pr-6 font-mono font-bold text-sm">
+                                    <span className={entry.type === 'credit' ? 'text-green-400' : 'text-red-400'}>
+                                        {entry.type === 'credit' ? '+' : '-'}₹{entry.amount.toFixed(2)}
+                                    </span>
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    />
                 </TabsContent>
                 <TabsContent value="deposits">
                     <TransactionTable transactions={deposits} type="deposit" />
@@ -1133,7 +1116,7 @@ export default function ProfilePage() {
             <DialogFooter className="flex-col sm:flex-col gap-3">
                 <Button 
                     onClick={handleUpdateName} 
-                    className="w-full h-14 rounded-xl font-black bg-primary text-white shadow-2xl shadow-primary/20"
+                    className="w-full h-14 rounded-xl font-black bg-primary text-white shadow-2xl shadow-primary/40"
                     disabled={isUpdatingProfile}
                 >
                     {isUpdatingProfile ? "Refreshing Node..." : "Apply Transformations"}
@@ -1232,6 +1215,35 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
   );
 }
 
+function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
+  return (
+    <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
+      <CardContent className="p-0">
+        <ScrollArea className="h-[400px]">
+          <Table>
+            <TableHeader className="bg-white/[0.02] sticky top-0 z-10">
+              <TableRow className="border-white/10">
+                {headers.map(h => (
+                  <TableHead key={h} className={cn("text-white/30 text-[10px] uppercase font-bold tracking-widest", h === 'Detail' && "pl-6", h === 'Amount' && "text-right pr-6")}>
+                    {h}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items && items.length > 0 ? items.map(renderRow) : (
+                <TableRow>
+                  <TableCell colSpan={headers.length} className="text-center py-20 text-white/20 italic">No history found.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  )
+}
+
 function TransactionTable({ transactions, type }: { transactions: Transaction[] | undefined | null, type: 'deposit' | 'withdrawal' }) {
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
@@ -1251,9 +1263,9 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
     return (
         <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
             <CardContent className="p-0">
-                <div className="overflow-x-auto">
+                <ScrollArea className="h-[400px]">
                     <Table>
-                        <TableHeader className="bg-white/[0.02]">
+                        <TableHeader className="bg-white/[0.02] sticky top-0 z-10">
                             <TableRow className="border-white/10">
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Amount</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Status</TableHead>
@@ -1294,7 +1306,7 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                </ScrollArea>
             </CardContent>
             <WithdrawalDetailModal tx={selectedTx} isOpen={!!selectedTx} onClose={() => setSelectedTx(null)} />
         </Card>
@@ -1345,9 +1357,9 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
     return (
         <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
             <CardContent className="p-0">
-                <div className="overflow-x-auto">
+                <ScrollArea className="h-[400px]">
                     <Table>
-                        <TableHeader className="bg-white/[0.02]">
+                        <TableHeader className="bg-white/[0.02] sticky top-0 z-10">
                             <TableRow className="border-white/10">
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Plan</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Invested</TableHead>
@@ -1368,7 +1380,7 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                </ScrollArea>
             </CardContent>
         </Card>
     );
