@@ -1,4 +1,3 @@
-
 {
   "placeholderImages": [
     {
@@ -98,33 +97,33 @@
       "imageHint": "boy cartoon"
     },
     {
-      "id": "avatar-boy2",
-      "description": "Cool Boy Avatar 2",
-      "imageUrl": "https://picsum.photos/seed/avatar-boy2/200/200",
-      "imageHint": "boy cartoon"
+      "id": "avatar-cat",
+      "description": "Cool Cat Avatar",
+      "imageUrl": "https://picsum.photos/seed/cat-avatar/200/200",
+      "imageHint": "cool cat"
     },
     {
-      "id": "avatar-boy3",
-      "description": "Cool Boy Avatar 3",
-      "imageUrl": "https://picsum.photos/seed/avatar-boy3/200/200",
-      "imageHint": "boy cartoon"
+      "id": "avatar-lion",
+      "description": "Noble Lion Avatar",
+      "imageUrl": "https://picsum.photos/seed/lion-avatar/200/200",
+      "imageHint": "noble lion"
+    },
+    {
+      "id": "avatar-tiger",
+      "description": "Ferocious Tiger Avatar",
+      "imageUrl": "https://picsum.photos/seed/tiger-avatar/200/200",
+      "imageHint": "ferocious tiger"
+    },
+    {
+      "id": "avatar-panda",
+      "description": "Zen Panda Avatar",
+      "imageUrl": "https://picsum.photos/seed/panda-avatar/200/200",
+      "imageHint": "zen panda"
     },
     {
       "id": "avatar-girl1",
       "description": "Smart Girl Avatar 1",
       "imageUrl": "https://picsum.photos/seed/avatar-girl1/200/200",
-      "imageHint": "girl cartoon"
-    },
-    {
-      "id": "avatar-girl2",
-      "description": "Smart Girl Avatar 2",
-      "imageUrl": "https://picsum.photos/seed/avatar-girl2/200/200",
-      "imageHint": "girl cartoon"
-    },
-    {
-      "id": "avatar-girl3",
-      "description": "Smart Girl Avatar 3",
-      "imageUrl": "https://picsum.photos/seed/avatar-girl3/200/200",
       "imageHint": "girl cartoon"
     }
   ]

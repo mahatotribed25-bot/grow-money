@@ -15,19 +15,22 @@ export function ActivityPulse() {
     const { user, loading: userLoading } = useUser();
     const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}` : null);
     
-    // To avoid permission errors, regular users will NEVER trigger the collectionGroup query.
-    // Only verified admin emails will attempt it.
+    // Check if user is a manager (admin email or subadmin role)
     const isManager = useMemo(() => {
-        if (!user || userLoading) return false;
+        if (!user || userLoading || !userData) return false;
         const email = user.email?.toLowerCase();
-        return email && ADMIN_EMAILS.includes(email);
-    }, [user, userLoading]);
+        const hasAdminEmail = email && ADMIN_EMAILS.includes(email);
+        const isSubAdmin = userData?.role === 'subadmin';
+        return !!(hasAdminEmail || isSubAdmin);
+    }, [user, userLoading, userData]);
 
+    // Use null for pulsePath if the user is not a manager to avoid collectionGroup permission errors
     const pulsePath = useMemo(() => {
         if (!isManager) return null;
         return 'investments';
     }, [isManager]);
 
+    // This collectionGroup query is only triggered if pulsePath is not null
     const { data: recentInvestments, loading } = useCollection<any>(
         pulsePath, 
         { subcollections: true },
@@ -79,7 +82,7 @@ export function ActivityPulse() {
                      </div>
                 ) : (
                     <p 
-                        key={`${displayIndex}`}
+                        key={`${displayIndex}-${activities[displayIndex]?.id}`}
                         className="text-[11px] font-bold text-white/80 animate-in slide-in-from-bottom-2 fade-in-0 duration-700 truncate tracking-tight"
                     >
                         {activities[displayIndex]?.text}

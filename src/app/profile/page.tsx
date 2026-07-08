@@ -242,7 +242,7 @@ function RedeemCouponCard() {
         const freshCouponDoc = await transaction.get(couponRef);
         const couponData = freshCouponDoc.data() as any;
 
-        if (couponData.status !== 'active' || couponData.stock <= 0) {
+        if (freshCouponDoc.data().status !== 'active' || freshCouponDoc.data().stock <= 0) {
             throw new Error("This coupon is no longer available.");
         }
 

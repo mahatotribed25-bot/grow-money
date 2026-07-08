@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -174,7 +173,7 @@ service cloud.firestore {
     match /customLoanRequests/{id} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() || isManager(); 
+      allow update, delete: if isAuthenticated() || isManager(); 
       allow delete: if isManager();
     }
 
