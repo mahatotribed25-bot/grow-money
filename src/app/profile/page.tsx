@@ -376,10 +376,11 @@ export default function ProfilePage() {
     orderBy('createdAt', 'desc')
   );
 
-  const { data: groupInvestments } = useCollection<GroupInvestment>(
-    'investments', 
-    { subcollections: true, where: ['investorId', '==', user?.uid] }
-  );
+  const groupInvQuery = useMemo(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'investments'), { subcollections: true } as any, where('investorId', '==', user.uid));
+  }, [user, firestore]);
+  const { data: groupInvestments } = useCollection<GroupInvestment>(groupInvQuery);
   
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
   
@@ -992,7 +993,7 @@ export default function ProfilePage() {
                                         <div className="grid gap-4 sm:grid-cols-2">
                                             <div className="space-y-2">
                                                 <Label className="text-white/60">PAN Card No.</Label>
-                                                <Input value={panCard} onChange={(e) => setPanCard(e.target.value.toUpperCase())} placeholder="ABCDE1234F" className="bg-white/5 border-white/10 rounded-xl h-11" disabled={isKycFormDisabled} />
+                                                <Input value={panCard} onChange={(e) => setPanCard(e.target.toUpperCase())} placeholder="ABCDE1234F" className="bg-white/5 border-white/10 rounded-xl h-11" disabled={isKycFormDisabled} />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label className="text-white/60">Aadhaar Card No.</Label>
@@ -1399,4 +1400,18 @@ function BottomNavItem({
       {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>
   );
+}
+
+function TrackStep({ label, active }: { label: string, active: boolean }) {
+    return (
+        <div className="flex flex-col items-center gap-1.5 w-full">
+            <div className={cn(
+                "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-500",
+                active ? "bg-primary border-primary text-white scale-110 shadow-[0_0_10px_rgba(139,92,246,0.5)]" : "bg-[#030408] border-white/10 text-white/20"
+            )}>
+                {active ? <CheckCircle2 size={14} /> : <div className="h-1.5 w-1.5 rounded-full bg-current" />}
+            </div>
+            <span className={cn("text-[9px] font-black uppercase tracking-tighter", active ? "text-white" : "text-white/20")}>{label}</span>
+        </div>
+    )
 }

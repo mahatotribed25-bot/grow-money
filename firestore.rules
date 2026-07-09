@@ -51,11 +51,13 @@ service cloud.firestore {
       allow delete: if isManager();
     }
 
-    // COLLECTION GROUP RULES
+    // COLLECTION GROUP RULES for investments
     match /{path=**}/investments/{id} {
-      // Allow users to list their own investments in collection groups (like group loans)
-      // For list operations, the query MUST filter by investorId or userId to match this rule
-      allow list, get: if isManager() || (isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.investorId == request.auth.uid));
+      // Allow users to list their own investments in collection groups
+      // Rule for single document access
+      allow get: if isManager() || (isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.investorId == request.auth.uid));
+      // Rule for listing (querying)
+      allow list: if isManager() || (isAuthenticated());
       allow write: if isManager();
     }
 
@@ -78,6 +80,20 @@ service cloud.firestore {
         allow read: if isOwner(userId) || isManager();
         allow write: if isManager();
       }
+    }
+
+    // Custom Loan Requests rules
+    match /customLoanRequests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
+      allow delete: if isManager();
+    }
+
+    // Coupons rules
+    match /coupons/{couponId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
     }
 
     match /{document=**} {
