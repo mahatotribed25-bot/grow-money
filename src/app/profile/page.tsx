@@ -376,12 +376,10 @@ export default function ProfilePage() {
     orderBy('createdAt', 'desc')
   );
 
-  // Group investments collection group query for better performance and fixed permission issues
-  const groupInvestmentsQuery = useMemo(() => {
-      if (!user) return null;
-      return query(collection(firestore, 'investments'), where('investorId', '==', user.uid));
-  }, [user, firestore]);
-  const { data: groupInvestments } = useCollection<GroupInvestment>(groupInvestmentsQuery, { subcollections: true });
+  const { data: groupInvestments } = useCollection<GroupInvestment>(
+    'investments', 
+    { subcollections: true, where: ['investorId', '==', user?.uid] }
+  );
   
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
   

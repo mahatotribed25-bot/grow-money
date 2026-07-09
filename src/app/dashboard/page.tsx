@@ -1216,7 +1216,7 @@ function ActivePlanCard({
                     <DropdownMenuItem className="text-[10px] font-bold uppercase tracking-widest focus:bg-white/5 py-2.5 cursor-pointer">
                         <ExternalLink size={14} className="mr-2 text-cyan-400" /> Terms & Docs
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator className="bg-white/5" />
+                    <div className="-mx-1 my-1 h-px bg-white/5" />
                     {!isMatured && (
                         <DropdownMenuItem 
                             onClick={() => onStop(investment)}
@@ -1411,8 +1411,4 @@ function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.Ele
             </Link>
         </Button>
     )
-}
-
-function DropdownMenuSeparator({ className }: { className?: string }) {
-    return <div className={cn("-mx-1 my-1 h-px bg-muted", className)} />
 }

@@ -54,6 +54,7 @@ service cloud.firestore {
     // COLLECTION GROUP RULES
     match /{path=**}/investments/{id} {
       // Allow users to list their own investments in collection groups (like group loans)
+      // For list operations, the query MUST filter by investorId or userId to match this rule
       allow list, get: if isManager() || (isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.investorId == request.auth.uid));
       allow write: if isManager();
     }
