@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -29,6 +30,19 @@ service cloud.firestore {
       return isAdmin() || isSubAdmin();
     }
 
+    // Tasks rules
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+
+    // Task Submissions rules
+    match /taskSubmissions/{subId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
+      allow create: if isAuthenticated();
+      allow update, delete: if isManager();
+    }
+
     // scratchCards rules
     match /scratchCards/{id} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
@@ -37,22 +51,10 @@ service cloud.firestore {
       allow delete: if isManager();
     }
 
-    // COLLECTION GROUP RULES - Strictly for Management
+    // COLLECTION GROUP RULES
     match /{path=**}/investments/{id} {
       allow list, get: if isManager();
       allow write: if isManager();
-    }
-    match /{path=**}/loans/{id} {
-      allow list, get: if isManager();
-      allow write: if isManager();
-    }
-    match /{path=**}/offers/{id} {
-        allow read: if isAuthenticated();
-        allow write: if isAuthenticated();
-    }
-    match /{path=**}/messages/{id} {
-        allow read: if isAuthenticated();
-        allow write: if isAuthenticated();
     }
 
     // Rules for 'users'
@@ -62,7 +64,6 @@ service cloud.firestore {
       allow update: if isAuthenticated(); 
       allow delete: if isAdmin();
 
-      // User's own financial sub-collections (Direct path)
       match /investments/{id} {
         allow read: if isOwner(userId) || isManager();
         allow write: if isOwner(userId) || isManager();
@@ -77,132 +78,6 @@ service cloud.firestore {
       }
     }
 
-    // Settings
-    match /settings/admin {
-      allow read: if isAuthenticated();
-      allow write: if isManager();
-    }
-
-    // P2P Marketplace
-    match /p2pLoanRequests/{id} {
-        allow read: if isAuthenticated();
-        allow create: if isAuthenticated();
-        allow update: if isAuthenticated();
-        allow delete: if isManager();
-        
-        match /offers/{offerId} {
-            allow read: if isAuthenticated();
-            allow create: if isAuthenticated();
-            allow update: if isAuthenticated();
-            allow delete: if isManager();
-        }
-    }
-    
-    match /p2pActiveLoans/{id} {
-        allow read: if isAuthenticated();
-        allow create: if isAuthenticated();
-        allow update: if isAuthenticated();
-        allow delete: if isManager();
-    }
-    
-    match /p2pHistory/{id} {
-        allow read: if isAuthenticated();
-        allow create: if isAuthenticated();
-    }
-
-    // Announcements
-    match /announcements/{id} {
-      allow read: if isAuthenticated();
-      allow write: if isManager();
-    }
-
-    // Coupons
-    match /coupons/{id} {
-      allow read: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-    
-    // Investment Plans
-    match /investmentPlans/{id} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-      allow update: if isAuthenticated();
-    }
-    
-    // Group Loan Plans
-    match /groupLoanPlans/{id} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-      allow update: if isAuthenticated();
-      
-      match /investments/{invId} {
-          allow read, write: if isAuthenticated();
-      }
-      
-      match /repayments/{repId} {
-          allow read, write: if isManager();
-      }
-      
-      match /payouts/{payId} {
-          allow read, write: if isManager();
-      }
-    }
-
-    // Standard transactions
-    match /deposits/{id} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if isManager();
-    }
-    match /withdrawals/{id} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if isManager();
-    }
-    match /loanRequests/{id} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if isManager();
-    }
-    match /upiRequests/{id} {
-        allow read: if isAuthenticated();
-        allow create: if isAuthenticated();
-        allow update, delete: if isManager();
-    }
-    match /customLoanRequests/{id} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() || isManager(); 
-      allow delete: if isManager();
-    }
-
-    // Admin Specific history
-    match /adminWithdrawals/{id} {
-      allow read, write: if isAdmin();
-    }
-
-    // Chat support
-    match /chats/{chatId} {
-        allow read, write: if isOwner(chatId) || isManager();
-        match /messages/{msgId} {
-            allow read, write: if isOwner(chatId) || isManager();
-        }
-    }
-    
-    // Private user chats (Bridged)
-    match /userChatSessions/{sessionId} {
-        allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isManager());
-        allow create: if isManager();
-        allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants);
-        allow delete: if isManager();
-        
-        match /messages/{msgId} {
-            allow read, write: if isAuthenticated();
-        }
-    }
-
-    // Global Admin catch-all
     match /{document=**} {
       allow read, write: if isAdmin();
     }

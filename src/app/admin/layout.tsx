@@ -26,7 +26,9 @@ import {
   Sparkles,
   Search,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  ClipboardList,
+  CheckSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +66,7 @@ type LoanRequest = BaseRequest & { userName: string };
 type KycRequest = { id: string, name: string, kycSubmissionDate: Timestamp };
 type UpiRequest = BaseRequest & { userName: string };
 type CustomLoanRequest = BaseRequest & { userName: string, status: string };
+type TaskSubmission = BaseRequest & { userName: string, status: string };
 
 export default function AdminLayout({
   children,
@@ -86,6 +89,7 @@ export default function AdminLayout({
   const { data: pendingKycRequests } = useCollection<KycRequest>(isAdmin ? 'users' : null, { where: ['kycStatus', '==', 'pending'] });
   const { data: pendingUpiRequests } = useCollection<UpiRequest>(isAdmin ? 'upiRequests' : null, { where: ['status', '==', 'pending'] });
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(isAdmin ? 'customLoanRequests' : null, { where: ['status', 'in', ['pending_admin_review', 'extension_pending']] });
+  const { data: pendingTasks } = useCollection<TaskSubmission>(isAdmin ? 'taskSubmissions' : null, { where: ['status', '==', 'pending'] });
 
   const notifications = useMemo(() => {
     if (!isAdmin) return [];
@@ -100,8 +104,9 @@ export default function AdminLayout({
       ...kycNotifs,
       ...(pendingUpiRequests?.map((u) => ({ ...u, type: 'UPI', link: '/admin/upi-requests', name: u.userName })) || []),
       ...customLoanNotifs,
+      ...(pendingTasks?.map((t) => ({ ...t, type: 'Task Submission', link: '/admin/task-submissions', name: t.userName })) || []),
     ].filter(n => n.createdAt).sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-  }, [isAdmin, pendingDeposits, pendingWithdrawals, pendingLoanRequests, pendingKycRequests, pendingUpiRequests, pendingCustomLoanRequests]);
+  }, [isAdmin, pendingDeposits, pendingWithdrawals, pendingLoanRequests, pendingKycRequests, pendingUpiRequests, pendingCustomLoanRequests, pendingTasks]);
 
   const notificationCount = notifications.length;
 
@@ -152,6 +157,10 @@ export default function AdminLayout({
             <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
             <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance & Earnings</AdminNavItem>
             
+            <div className="text-[10px] font-black text-white/20 uppercase tracking-[3px] mb-4 mt-6 px-2">Work & Tasks</div>
+            <AdminNavItem icon={ClipboardList} href="/admin/tasks">Manage Tasks</AdminNavItem>
+            <AdminNavItem icon={CheckSquare} href="/admin/task-submissions" count={pendingTasks?.length}>Review Submissions</AdminNavItem>
+
             <div className="text-[10px] font-black text-white/20 uppercase tracking-[3px] mb-4 mt-6 px-2">Network Control</div>
             <AdminNavItem icon={Users} href="/admin/users">Investors</AdminNavItem>
             <AdminNavItem icon={Sparkles} href="/admin/rewards">Incentives</AdminNavItem>
@@ -201,9 +210,8 @@ export default function AdminLayout({
                     <ScrollArea className="h-full py-4 px-2">
                         <nav className="space-y-1">
                             <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
-                            <AdminNavItem icon={Users} href="/admin/users">Investors</AdminNavItem>
                             <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance</AdminNavItem>
-                            <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
+                            <AdminNavItem icon={ClipboardList} href="/admin/tasks">Tasks</AdminNavItem>
                         </nav>
                     </ScrollArea>
                 </SheetContent>
@@ -212,7 +220,7 @@ export default function AdminLayout({
              <div className="hidden lg:flex relative max-w-md w-full group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors" />
                 <Input 
-                    placeholder="Global system search... (Ctrl + /)" 
+                    placeholder="Global system search..." 
                     className="bg-white/5 border-white/10 rounded-xl pl-10 h-10 w-full focus:ring-primary focus:border-primary/40 text-sm"
                 />
              </div>
@@ -275,7 +283,6 @@ export default function AdminLayout({
           </div>
         </header>
 
-        {/* Dynamic Viewport */}
         <main className="flex-1 overflow-y-auto bg-transparent custom-scrollbar">
           <div className="p-6 lg:p-10 max-w-[1600px] mx-auto w-full">
             {children}
@@ -310,9 +317,6 @@ function AdminNavItem({ icon: Icon, href, children, count }: { icon: any, href: 
         </Badge>
       ) : isActive && (
         <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_#8b5cf6]" />
-      )}
-      {isActive && (
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] bg-primary rounded-r-full" />
       )}
     </Link>
   );

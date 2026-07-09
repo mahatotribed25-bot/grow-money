@@ -33,6 +33,8 @@ import {
   MoreVertical,
   Info,
   ExternalLink,
+  ClipboardCheck,
+  CheckSquare
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -673,6 +675,24 @@ export default function Dashboard() {
           loading={userDataLoading}
         />
 
+        {/* New Tasks Feature Card */}
+        <Card className="bg-gradient-to-br from-green-500/20 via-transparent to-transparent border-green-500/20 rounded-3xl overflow-hidden shadow-xl group">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-green-500/20 flex items-center justify-center text-green-400">
+                        <ClipboardCheck size={20} />
+                    </div>
+                    <div>
+                        <CardTitle className="text-white text-sm font-bold">Earn With Work</CardTitle>
+                        <p className="text-[10px] text-white/40 uppercase font-black tracking-widest">Social Media Tasks Live</p>
+                    </div>
+                </div>
+                <Button size="sm" asChild className="bg-green-500 hover:bg-green-600 h-8 rounded-lg text-[10px] font-black px-4">
+                    <Link href="/tasks">OPEN BOARD</Link>
+                </Button>
+            </CardHeader>
+        </Card>
+
         <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-white/80 text-sm font-bold uppercase tracking-widest flex items-center gap-2">
@@ -780,6 +800,7 @@ export default function Dashboard() {
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <QuickActionButton icon={TrendingUp} label="All Plans" href="/plans" color="text-green-400" />
               <QuickActionButton icon={Briefcase} label="My Plans" href="/my-plans" color="text-cyan-400" />
+              <QuickActionButton icon={ClipboardCheck} label="Work & Earn" href="/tasks" color="text-green-400" />
               <QuickActionButton icon={Zap} label="Lucky Spin" href="/lucky-spin" color="text-yellow-400" />
               <QuickActionButton icon={HandCoins} label="Apply Loan" href="/loans" color="text-orange-400" />
               <QuickActionButton icon={FileText} label="Flexi Loan" href="/custom-loan" color="text-red-400" />

@@ -6,107 +6,64 @@
       "description": "A user of the application.",
       "type": "object",
       "properties": {
-        "uid": {
-          "type": "string",
-          "description": "The user's unique ID."
-        },
-        "email": {
-          "type": "string",
-          "format": "email",
-          "description": "The user's email address."
-        },
-        "name": {
-          "type": "string",
-          "description": "The user's display name."
-        },
-        "role": {
-          "type": "string",
-          "enum": ["user", "subadmin"],
-          "description": "The role of the user, determining their access level."
-        },
-        "walletBalance": {
-          "type": "number",
-          "description": "The user's current wallet balance."
-        },
-        "totalInvestment": {
-          "type": "number",
-          "description": "The total amount the user has invested."
-        },
-        "totalIncome": {
-          "type": "number",
-          "description": "The total income the user has earned from investments."
-        },
-        "status": {
-            "type": "string",
-            "enum": ["Active", "Blocked"]
-        },
-        "trustScore": {
-            "type": "number"
-        }
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "subadmin"] },
+        "walletBalance": { "type": "number" },
+        "totalInvestment": { "type": "number" },
+        "totalIncome": { "type": "number" },
+        "status": { "type": "string", "enum": ["Active", "Blocked"] },
+        "trustScore": { "type": "number" }
       },
-      "required": [
-        "uid",
-        "email"
-      ]
+      "required": ["uid", "email"]
     },
-    "walletTransaction": {
-        "title": "Wallet Transaction",
-        "description": "A record of a credit or debit to a user's wallet.",
-        "type": "object",
-        "properties": {
-            "amount": { "type": "number" },
-            "type": { "type": "string", "enum": ["credit", "debit"] },
-            "category": { "type": "string" },
-            "description": { "type": "string" },
-            "createdAt": { "type": "string", "format": "date-time" }
-        }
+    "task": {
+      "title": "Task",
+      "description": "A task created by admin for users to earn money.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "reward": { "type": "number" },
+        "platform": { "type": "string", "enum": ["YouTube", "Facebook", "Instagram", "Telegram", "Other"] },
+        "link": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Hidden"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     },
-    "investmentPlan": {
-        "title": "Investment Plan",
-        "type": "object",
-        "properties": {
-            "name": { "type": "string" },
-            "price": { "type": "number" },
-            "dailyIncome": { "type": "number" },
-            "validity": { "type": "number" }
-        }
-    },
-    "scratchCard": {
-      "title": "Scratch Card",
+    "taskSubmission": {
+      "title": "Task Submission",
+      "description": "A submission of a task by a user for approval.",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
         "userName": { "type": "string" },
-        "amount": { "type": "number" },
-        "status": { "type": "string", "enum": ["unscratched", "scratched"] },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "scratchedAt": { "type": "string", "format": "date-time" }
+        "taskId": { "type": "string" },
+        "taskTitle": { "type": "string" },
+        "reward": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "proofDetails": { "type": "string" },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "rejectionReason": { "type": "string" }
       }
     }
   },
   "auth": {
-    "providers": [
-      "password"
-    ]
+    "providers": ["password"]
   },
   "firestore": {
     "/users/{userId}": {
-      "schema": {
-        "$ref": "#/entities/user"
-      },
+      "schema": { "$ref": "#/entities/user" },
       "description": "Stores user profile information."
     },
-    "/users/{userId}/walletHistory/{txId}": {
-        "schema": { "$ref": "#/entities/walletTransaction" },
-        "description": "Logs every balance change for the user."
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/task" },
+      "description": "Stores admin created tasks."
     },
-    "/scratchCards/{cardId}": {
-      "schema": { "$ref": "#/entities/scratchCard" },
-      "description": "Stores issued scratch cards."
-    },
-    "/settings/admin": {
-      "schema": { "type": "object" },
-      "description": "Stores admin-specific settings."
+    "/taskSubmissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/taskSubmission" },
+      "description": "Stores user task proof submissions."
     }
   }
 }
