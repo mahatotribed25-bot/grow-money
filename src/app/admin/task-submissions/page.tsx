@@ -25,6 +25,7 @@ type Submission = {
     id: string;
     userId: string;
     userName: string;
+    taskId: string;
     taskTitle: string;
     reward: number;
     proofDetails: string;
@@ -54,8 +55,11 @@ export default function AdminTaskSubmissionsPage() {
             await runTransaction(firestore, async (transaction) => {
                 const subRef = doc(firestore, 'taskSubmissions', sub.id);
                 const userRef = doc(firestore, 'users', sub.userId);
+                const taskRef = doc(firestore, 'tasks', sub.taskId);
                 
                 const userDoc = await transaction.get(userRef);
+                const taskDoc = await transaction.get(taskRef);
+
                 if (!userDoc.exists()) throw new Error("User not found");
 
                 if (action === 'approved') {
@@ -67,7 +71,7 @@ export default function AdminTaskSubmissionsPage() {
                     transaction.update(userRef, {
                         walletBalance: currentBalance + sub.reward,
                         totalIncome: currentIncome + sub.reward,
-                        trustScore: Math.min(900, currentTrust + 5) // Successful work increases trust
+                        trustScore: Math.min(900, currentTrust + 5)
                     });
 
                     // Add to History
@@ -79,6 +83,12 @@ export default function AdminTaskSubmissionsPage() {
                         description: `Completed task: ${sub.taskTitle}`,
                         createdAt: serverTimestamp()
                     });
+                } else {
+                    // If rejected, increment the remaining stock back
+                    if (taskDoc.exists()) {
+                        const currentStock = taskDoc.data().remainingStock || 0;
+                        transaction.update(taskRef, { remainingStock: currentStock + 1 });
+                    }
                 }
 
                 transaction.update(subRef, {

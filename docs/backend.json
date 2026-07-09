@@ -29,6 +29,8 @@
         "platform": { "type": "string", "enum": ["YouTube", "Facebook", "Instagram", "Telegram", "Other"] },
         "link": { "type": "string" },
         "status": { "type": "string", "enum": ["Active", "Hidden"] },
+        "totalStock": { "type": "number" },
+        "remainingStock": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },

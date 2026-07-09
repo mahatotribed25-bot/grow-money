@@ -2,11 +2,11 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { useUser, useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp, query, where, Timestamp } from 'firebase/firestore';
+import { collection, doc, runTransaction, serverTimestamp, query, where, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, Youtube, Facebook, Instagram, Timer, ExternalLink, ClipboardCheck, Sparkles, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, Youtube, Facebook, Instagram, Timer, ExternalLink, ClipboardCheck, Sparkles, AlertCircle, Package } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
 
 type Task = {
     id: string;
@@ -30,6 +31,8 @@ type Task = {
     platform: 'YouTube' | 'Facebook' | 'Instagram' | 'Telegram' | 'Other';
     link: string;
     status: 'Active' | 'Hidden';
+    totalStock: number;
+    remainingStock: number;
 }
 
 type Submission = {
@@ -74,12 +77,28 @@ export default function UserTasksPage() {
         };
 
         try {
-            await addDoc(collection(firestore, 'taskSubmissions'), subData);
+            await runTransaction(firestore, async (transaction) => {
+                const taskRef = doc(firestore, 'tasks', selectedTask.id);
+                const taskDoc = await transaction.get(taskRef);
+                
+                if (!taskDoc.exists()) throw new Error("Task no longer exists.");
+                const currentStock = taskDoc.data().remainingStock ?? 0;
+                
+                if (currentStock <= 0) throw new Error("This task is now sold out.");
+
+                // Decrement stock
+                transaction.update(taskRef, { remainingStock: currentStock - 1 });
+
+                // Create submission
+                const subRef = doc(collection(firestore, 'taskSubmissions'));
+                transaction.set(subRef, subData);
+            });
+
             toast({ title: "Submission Sent!", description: "Admin will verify your proof shortly." });
             setSelectedTask(null);
             setProof('');
-        } catch (e) {
-            toast({ title: "Submission Failed", variant: "destructive" });
+        } catch (e: any) {
+            toast({ title: "Submission Failed", description: e.message || "An error occurred.", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -127,10 +146,12 @@ export default function UserTasksPage() {
                         </div>
                     ) : tasks?.map(task => {
                         const isDone = completedTaskIds.has(task.id);
+                        const isOutOfStock = task.remainingStock <= 0;
+                        
                         return (
                             <Card key={task.id} className={cn(
                                 "shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden transition-all",
-                                isDone && "opacity-50 grayscale pointer-events-none"
+                                (isDone || isOutOfStock) && "opacity-50 grayscale"
                             )}>
                                 <CardHeader className="pb-3 border-b border-white/[0.05]">
                                     <div className="flex justify-between items-start">
@@ -146,11 +167,24 @@ export default function UserTasksPage() {
                                 </CardHeader>
                                 <CardContent className="pt-4 space-y-4">
                                     <p className="text-xs text-white/40 leading-relaxed line-clamp-2">{task.description}</p>
+                                    
+                                    <div className="space-y-1.5">
+                                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/20">
+                                            <span>Slots Available</span>
+                                            <span>{task.remainingStock} left</span>
+                                        </div>
+                                        <Progress value={(task.remainingStock / task.totalStock) * 100} className="h-1 bg-white/5" />
+                                    </div>
+
                                     <Button 
                                         onClick={() => setSelectedTask(task)} 
-                                        className="w-full h-11 rounded-xl font-bold bg-white text-black hover:bg-primary hover:text-white"
+                                        disabled={isDone || isOutOfStock}
+                                        className={cn(
+                                            "w-full h-11 rounded-xl font-bold transition-all",
+                                            isDone ? "bg-white/5 text-white/20" : isOutOfStock ? "bg-red-500/10 text-red-400" : "bg-white text-black hover:bg-primary hover:text-white"
+                                        )}
                                     >
-                                        {isDone ? 'Completed' : 'Start Task'}
+                                        {isDone ? 'Task Submitted' : isOutOfStock ? 'Sold Out' : 'Start Task'}
                                     </Button>
                                 </CardContent>
                             </Card>
@@ -198,7 +232,7 @@ export default function UserTasksPage() {
                         <Button 
                             onClick={handleSubmitProof} 
                             disabled={!proof.trim() || isSubmitting}
-                            className="w-full h-14 rounded-2xl font-black bg-primary text-white shadow-2xl shadow-primary/20"
+                            className="w-full h-14 rounded-2xl font-black bg-primary text-white shadow-2xl shadow-primary/40"
                         >
                             {isSubmitting ? "Uploading Node..." : "Finalize Submission"}
                         </Button>
@@ -211,7 +245,7 @@ export default function UserTasksPage() {
                 <BottomNavItem icon={Home} label="Home" href="/dashboard" />
                 <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
                 <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-                <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
+                <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
                 <BottomNavItem icon={User} label="Profile" href="/profile" />
                 </div>
             </nav>

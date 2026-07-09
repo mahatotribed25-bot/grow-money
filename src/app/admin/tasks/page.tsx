@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
@@ -8,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Edit, Trash2, ClipboardList, Youtube, Facebook, Instagram, Send, Globe } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Youtube, Facebook, Instagram, Globe, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -36,16 +37,19 @@ type Task = {
     platform: 'YouTube' | 'Facebook' | 'Instagram' | 'Telegram' | 'Other';
     link: string;
     status: 'Active' | 'Hidden';
+    totalStock: number;
+    remainingStock: number;
     createdAt: Timestamp;
 }
 
-const emptyTask: Omit<Task, 'id' | 'createdAt'> = {
+const emptyTask: Omit<Task, 'id' | 'createdAt' | 'remainingStock'> = {
     title: '',
     description: '',
     reward: 5,
     platform: 'YouTube',
     link: '',
-    status: 'Active'
+    status: 'Active',
+    totalStock: 100
 };
 
 export default function AdminTasksPage() {
@@ -75,11 +79,12 @@ export default function AdminTasksPage() {
     };
 
     const handleSave = async () => {
-        if (!editingTask?.title || !editingTask?.reward) return;
+        if (!editingTask?.title || !editingTask?.reward || editingTask?.totalStock === undefined) return;
 
         const taskData = {
             ...editingTask,
             reward: Number(editingTask.reward),
+            totalStock: Number(editingTask.totalStock),
         };
 
         try {
@@ -90,6 +95,7 @@ export default function AdminTasksPage() {
             } else {
                 await addDoc(collection(firestore, 'tasks'), {
                     ...taskData,
+                    remainingStock: Number(editingTask.totalStock),
                     createdAt: serverTimestamp(),
                 });
                 toast({ title: "Task Created Successfully" });
@@ -115,7 +121,7 @@ export default function AdminTasksPage() {
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-bold text-white">Earn Tasks Engine</h2>
-                    <p className="text-sm text-white/40">Create daily work opportunities for users.</p>
+                    <p className="text-sm text-white/40">Create daily work opportunities with stock limits.</p>
                 </div>
                 <Button onClick={handleCreateNew} className="bg-white text-black hover:bg-primary hover:text-white font-bold rounded-xl">
                     <PlusCircle className="mr-2 h-4 w-4" /> Create New Task
@@ -130,7 +136,7 @@ export default function AdminTasksPage() {
                                 <TableHead className="text-white/30 text-[10px] uppercase font-black pl-6">Platform</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-black">Title</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-black">Reward</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-black">Status</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-black">Stock</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-black text-right pr-6">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -150,7 +156,12 @@ export default function AdminTasksPage() {
                                     <TableCell className="font-bold text-white/80">{task.title}</TableCell>
                                     <TableCell className="font-black text-green-400">₹{task.reward}</TableCell>
                                     <TableCell>
-                                        <Badge className={cn("text-[9px]", task.status === 'Active' ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/40')}>{task.status}</Badge>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-xs text-white/60">{task.remainingStock} / {task.totalStock} left</span>
+                                            <div className="h-1 w-20 bg-white/5 rounded-full overflow-hidden">
+                                                <div className="h-full bg-primary" style={{width: `${(task.remainingStock / task.totalStock) * 100}%`}} />
+                                            </div>
+                                        </div>
                                     </TableCell>
                                     <TableCell className="text-right pr-6">
                                         <div className="flex justify-end gap-1">
@@ -190,6 +201,24 @@ export default function AdminTasksPage() {
                             <div className="space-y-2">
                                 <Label className="text-white/60">Reward (INR)</Label>
                                 <Input type="number" value={editingTask?.reward} onChange={e => setEditingTask({...editingTask, reward: Number(e.target.value)})} className="bg-white/5 border-white/10" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-white/60">Total Stock (Slots)</Label>
+                                <Input type="number" value={editingTask?.totalStock} onChange={e => setEditingTask({...editingTask, totalStock: Number(e.target.value)})} className="bg-white/5 border-white/10" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-white/60">Status</Label>
+                                <Select value={editingTask?.status} onValueChange={(v: any) => setEditingTask({...editingTask, status: v})}>
+                                    <SelectTrigger className="bg-white/5 border-white/10">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-[#030408] border-white/10">
+                                        <SelectItem value="Active">Active</SelectItem>
+                                        <SelectItem value="Hidden">Hidden</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                         <div className="space-y-2">
