@@ -1,3 +1,4 @@
+
 {
   "placeholderImages": [
     {
@@ -91,12 +92,6 @@
       "imageHint": "gold bars"
     },
     {
-      "id": "avatar-boy1",
-      "description": "Cool Boy Avatar 1",
-      "imageUrl": "https://picsum.photos/seed/avatar-boy1/200/200",
-      "imageHint": "boy cartoon"
-    },
-    {
       "id": "avatar-cat",
       "description": "Cool Cat Avatar",
       "imageUrl": "https://picsum.photos/seed/cat-avatar/200/200",
@@ -119,6 +114,12 @@
       "description": "Zen Panda Avatar",
       "imageUrl": "https://picsum.photos/seed/panda-avatar/200/200",
       "imageHint": "zen panda"
+    },
+    {
+      "id": "avatar-boy1",
+      "description": "Cool Boy Avatar 1",
+      "imageUrl": "https://picsum.photos/seed/avatar-boy1/200/200",
+      "imageHint": "boy cartoon"
     },
     {
       "id": "avatar-girl1",

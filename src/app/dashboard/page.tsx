@@ -307,7 +307,7 @@ export default function Dashboard() {
     user ? `users/${user.uid}/walletHistory` : null,
     undefined,
     orderBy('createdAt', 'desc'),
-    limit(10)
+    limit(20)
   );
 
   const scratchCardsQuery = useMemo(() => {
