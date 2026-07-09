@@ -1,12 +1,12 @@
 
 'use client';
 import { useCollection, useFirestore } from '@/firebase';
-import { doc, runTransaction, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp, orderBy, Timestamp, collection } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, Timer, ExternalLink, User, MessageCircle } from 'lucide-react';
+import { Check, X, Timer, ExternalLink, User, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -40,6 +40,7 @@ export default function AdminTaskSubmissionsPage() {
     const [isRejectOpen, setIsRejectOpen] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
     const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
+    const [processingId, setProcessingId] = useState<string | null>(null);
 
     const handleAction = async (sub: Submission, action: 'approved' | 'rejected') => {
         if (action === 'rejected' && !rejectionReason) {
@@ -48,6 +49,7 @@ export default function AdminTaskSubmissionsPage() {
             return;
         }
 
+        setProcessingId(sub.id);
         try {
             await runTransaction(firestore, async (transaction) => {
                 const subRef = doc(firestore, 'taskSubmissions', sub.id);
@@ -89,8 +91,11 @@ export default function AdminTaskSubmissionsPage() {
             toast({ title: action === 'approved' ? "Submission Verified" : "Submission Rejected" });
             setIsRejectOpen(false);
             setRejectionReason('');
-        } catch (e) {
-            toast({ title: "Action Failed", variant: "destructive" });
+        } catch (e: any) {
+            console.error(e);
+            toast({ title: "Action Failed", description: e.message || "Could not process request.", variant: "destructive" });
+        } finally {
+            setProcessingId(null);
         }
     };
 
@@ -127,7 +132,7 @@ export default function AdminTaskSubmissionsPage() {
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold text-white/80">{sub.userName}</p>
-                                                <p className="text-[10px] text-white/20 font-black">{new Date(sub.submittedAt.seconds * 1000).toLocaleString()}</p>
+                                                <p className="text-[10px] text-white/40 font-black">{new Date(sub.submittedAt.seconds * 1000).toLocaleString()}</p>
                                             </div>
                                         </div>
                                     </TableCell>
@@ -142,8 +147,23 @@ export default function AdminTaskSubmissionsPage() {
                                     <TableCell className="text-right pr-6">
                                         {sub.status === 'pending' ? (
                                             <div className="flex justify-end gap-2">
-                                                <Button size="sm" onClick={() => handleAction(sub, 'approved')} className="bg-green-600 hover:bg-green-700 h-8 rounded-lg px-4 font-bold text-[10px]">VERIFY</Button>
-                                                <Button size="sm" onClick={() => handleAction(sub, 'rejected')} variant="destructive" className="h-8 rounded-lg px-4 font-bold text-[10px]">DENY</Button>
+                                                <Button 
+                                                    size="sm" 
+                                                    onClick={() => handleAction(sub, 'approved')} 
+                                                    disabled={processingId === sub.id}
+                                                    className="bg-green-600 hover:bg-green-700 h-8 rounded-lg px-4 font-bold text-[10px]"
+                                                >
+                                                    {processingId === sub.id ? <Loader2 className="animate-spin h-3 w-3" /> : "VERIFY"}
+                                                </Button>
+                                                <Button 
+                                                    size="sm" 
+                                                    onClick={() => handleAction(sub, 'rejected')} 
+                                                    disabled={processingId === sub.id}
+                                                    variant="destructive" 
+                                                    className="h-8 rounded-lg px-4 font-bold text-[10px]"
+                                                >
+                                                    DENY
+                                                </Button>
                                             </div>
                                         ) : (
                                             <Badge className={cn("text-[9px] uppercase", sub.status === 'approved' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400')}>{sub.status}</Badge>
@@ -166,8 +186,11 @@ export default function AdminTaskSubmissionsPage() {
                         <Textarea value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="e.g. Proof link invalid or image blurry..." className="bg-white/5 border-white/10" />
                     </div>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsRejectOpen(false)}>Cancel</Button>
-                        <Button variant="destructive" onClick={() => selectedSub && handleAction(selectedSub, 'rejected')} disabled={!rejectionReason}>Confirm Denial</Button>
+                        <Button variant="ghost" onClick={() => { setIsRejectOpen(false); setRejectionReason(''); }}>Cancel</Button>
+                        <Button variant="destructive" onClick={() => selectedSub && handleAction(selectedSub, 'rejected')} disabled={!rejectionReason || processingId !== null}>
+                            {processingId ? <Loader2 className="animate-spin h-3 w-3 mr-2" /> : null}
+                            Confirm Denial
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
