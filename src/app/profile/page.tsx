@@ -174,46 +174,29 @@ type AdminSettings = {
     referralBonus?: number;
 };
 
-function useUserGroupInvestments(userId?: string) {
-    const [investments, setInvestments] = useState<GroupInvestment[]>([]);
-    const [loading, setLoading] = useState(true);
-    const firestore = useFirestore();
+const formatDate = (timestamp: Timestamp) => {
+  if (!timestamp) return 'N/A';
+  return new Date(timestamp.seconds * 1000).toLocaleString();
+};
 
-    useEffect(() => {
-        if (!userId) {
-            setLoading(false);
-            return;
-        }
-
-        const fetchInvestments = async () => {
-            setLoading(true);
-            const allInvestments: GroupInvestment[] = [];
-            
-            try {
-                const plansSnapshot = await getDocs(collection(firestore, 'groupLoanPlans'));
-
-                for (const planDoc of plansSnapshot.docs) {
-                    const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
-                    const qry = query(investmentsRef, where('investorId', '==', userId));
-                    const investmentSnapshot = await getDocs(qry);
-
-                    investmentSnapshot.forEach(invDoc => {
-                        allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
-                    });
-                }
-                setInvestments(allInvestments);
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchInvestments();
-    }, [userId, firestore]);
-
-    return { data: investments, loading };
-}
+const getStatusVariant = (status: string) => {
+  switch (status) {
+    case 'approved':
+    case 'Active':
+    case 'Matured':
+    case 'Completed':
+    case 'Paid':
+    case 'Verified':
+      return 'default';
+    case 'rejected':
+    case 'Blocked':
+    case 'Due':
+    case 'Stopped':
+      return 'destructive';
+    default:
+      return 'secondary';
+  }
+};
 
 function RedeemCouponCard() {
   const { user } = useUser();
@@ -392,7 +375,14 @@ export default function ProfilePage() {
     undefined,
     orderBy('createdAt', 'desc')
   );
-  const { data: groupInvestments } = useUserGroupInvestments(user?.uid);
+
+  // Group investments collection group query for better performance and fixed permission issues
+  const groupInvestmentsQuery = useMemo(() => {
+      if (!user) return null;
+      return query(collection(firestore, 'investments'), where('investorId', '==', user.uid));
+  }, [user, firestore]);
+  const { data: groupInvestments } = useCollection<GroupInvestment>(groupInvestmentsQuery, { subcollections: true });
+  
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
   
   // Profile Edit State
@@ -1406,7 +1396,7 @@ function BottomNavItem({
         active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
       )}
     >
-      <Icon className="h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
+      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
       <span className="text-[10px] tracking-tight">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>
