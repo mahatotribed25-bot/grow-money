@@ -49,11 +49,12 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 const CHART_COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
-type User = { id: string; name: string; walletBalance?: number; email?: string; isOnline?: boolean; lastSeen?: Timestamp; createdAt?: Timestamp; totalInvestment?: number; };
+type User = { id: string; name: string; photoURL?: string; walletBalance?: number; email?: string; isOnline?: boolean; lastSeen?: Timestamp; createdAt?: Timestamp; totalInvestment?: number; };
 type Transaction = { id: string; amount: number; name: string; status: 'pending' | 'approved' | 'rejected'; createdAt: Timestamp; category?: string; };
 type Investment = { id: string; planName: string; startDate: Timestamp; investedAmount: number; userId: string; };
 type InvestmentPlan = { name: string; adminProfit?: number; };
@@ -234,7 +235,10 @@ export default function AdminDashboard() {
                     {topInvestors.map((inv, i) => (
                         <div key={i} className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors">
                             <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-xl bg-white/5 flex items-center justify-center text-[10px] font-black">{i+1}</div>
+                                <Avatar className="h-9 w-9 rounded-xl border border-white/10">
+                                    <AvatarImage src={inv.photoURL} />
+                                    <AvatarFallback className="bg-white/5 text-[10px] font-black">{inv.name?.charAt(0)}</AvatarFallback>
+                                </Avatar>
                                 <div>
                                     <p className="text-xs font-bold">{inv.name}</p>
                                     <p className="text-[9px] text-white/30 font-bold uppercase">₹{inv.totalInvestment?.toLocaleString() || 0} Assets</p>

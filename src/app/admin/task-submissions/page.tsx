@@ -1,6 +1,6 @@
 
 'use client';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useDoc } from '@/firebase';
 import { doc, runTransaction, serverTimestamp, orderBy, Timestamp, collection } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -20,6 +20,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 type Submission = {
     id: string;
@@ -31,6 +32,10 @@ type Submission = {
     proofDetails: string;
     status: 'pending' | 'approved' | 'rejected';
     submittedAt: Timestamp;
+}
+
+type SubmitterData = {
+    photoURL?: string;
 }
 
 export default function AdminTaskSubmissionsPage() {
@@ -134,52 +139,7 @@ export default function AdminTaskSubmissionsPage() {
                             ) : !submissions || submissions.length === 0 ? (
                                 <TableRow><TableCell colSpan={5} className="text-center py-20 text-white/10 italic">No submissions pending review.</TableCell></TableRow>
                             ) : submissions.map(sub => (
-                                <TableRow key={sub.id} className="border-white/[0.03] hover:bg-white/[0.01]">
-                                    <TableCell className="pl-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
-                                                <User size={16} className="text-primary" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-white/80">{sub.userName}</p>
-                                                <p className="text-[10px] text-white/40 font-black">{new Date(sub.submittedAt.seconds * 1000).toLocaleString()}</p>
-                                            </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-sm font-medium text-white/60">{sub.taskTitle}</TableCell>
-                                    <TableCell className="max-w-[200px]">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-xs text-white/40 truncate">{sub.proofDetails}</p>
-                                            <a href={sub.proofDetails} target="_blank" className="text-primary hover:text-white shrink-0"><ExternalLink size={12}/></a>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="font-black text-green-400">₹{sub.reward}</TableCell>
-                                    <TableCell className="text-right pr-6">
-                                        {sub.status === 'pending' ? (
-                                            <div className="flex justify-end gap-2">
-                                                <Button 
-                                                    size="sm" 
-                                                    onClick={() => handleAction(sub, 'approved')} 
-                                                    disabled={processingId === sub.id}
-                                                    className="bg-green-600 hover:bg-green-700 h-8 rounded-lg px-4 font-bold text-[10px]"
-                                                >
-                                                    {processingId === sub.id ? <Loader2 className="animate-spin h-3 w-3" /> : "VERIFY"}
-                                                </Button>
-                                                <Button 
-                                                    size="sm" 
-                                                    onClick={() => handleAction(sub, 'rejected')} 
-                                                    disabled={processingId === sub.id}
-                                                    variant="destructive" 
-                                                    className="h-8 rounded-lg px-4 font-bold text-[10px]"
-                                                >
-                                                    DENY
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <Badge className={cn("text-[9px] uppercase", sub.status === 'approved' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400')}>{sub.status}</Badge>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
+                                <SubmissionRow key={sub.id} sub={sub} processingId={processingId} onAction={handleAction} />
                             ))}
                         </TableBody>
                     </Table>
@@ -206,4 +166,60 @@ export default function AdminTaskSubmissionsPage() {
             </Dialog>
         </div>
     );
+}
+
+function SubmissionRow({ sub, processingId, onAction }: { sub: Submission, processingId: string | null, onAction: (sub: Submission, action: 'approved' | 'rejected') => void }) {
+    const { data: submitter } = useDoc<SubmitterData>(`users/${sub.userId}`);
+
+    return (
+        <TableRow className="border-white/[0.03] hover:bg-white/[0.01]">
+            <TableCell className="pl-6 py-4">
+                <div className="flex items-center gap-3">
+                    <Avatar className="h-9 w-9 border border-white/10">
+                        <AvatarImage src={submitter?.photoURL} />
+                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-black uppercase">
+                            {sub.userName?.charAt(0) || 'U'}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <p className="text-sm font-bold text-white/80">{sub.userName}</p>
+                        <p className="text-[10px] text-white/40 font-black">{new Date(sub.submittedAt.seconds * 1000).toLocaleString()}</p>
+                    </div>
+                </div>
+            </TableCell>
+            <TableCell className="text-sm font-medium text-white/60">{sub.taskTitle}</TableCell>
+            <TableCell className="max-w-[200px]">
+                <div className="flex items-center gap-2">
+                    <p className="text-xs text-white/40 truncate">{sub.proofDetails}</p>
+                    <a href={sub.proofDetails} target="_blank" className="text-primary hover:text-white shrink-0"><ExternalLink size={12}/></a>
+                </div>
+            </TableCell>
+            <TableCell className="font-black text-green-400">₹{sub.reward}</TableCell>
+            <TableCell className="text-right pr-6">
+                {sub.status === 'pending' ? (
+                    <div className="flex justify-end gap-2">
+                        <Button 
+                            size="sm" 
+                            onClick={() => onAction(sub, 'approved')} 
+                            disabled={processingId === sub.id}
+                            className="bg-green-600 hover:bg-green-700 h-8 rounded-lg px-4 font-bold text-[10px]"
+                        >
+                            {processingId === sub.id ? <Loader2 className="animate-spin h-3 w-3" /> : "VERIFY"}
+                        </Button>
+                        <Button 
+                            size="sm" 
+                            onClick={() => onAction(sub, 'rejected')} 
+                            disabled={processingId === sub.id}
+                            variant="destructive" 
+                            className="h-8 rounded-lg px-4 font-bold text-[10px]"
+                        >
+                            DENY
+                        </Button>
+                    </div>
+                ) : (
+                    <Badge className={cn("text-[9px] uppercase", sub.status === 'approved' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400')}>{sub.status}</Badge>
+                )}
+            </TableCell>
+        </TableRow>
+    )
 }

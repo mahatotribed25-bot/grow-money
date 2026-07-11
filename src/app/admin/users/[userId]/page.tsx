@@ -35,6 +35,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 type UserPermissions = {
     canManageDeposits?: boolean;
@@ -48,6 +49,7 @@ type UserData = {
   id: string;
   name: string;
   email: string;
+  photoURL?: string;
   walletBalance?: number;
   totalInvestment?: number;
   totalIncome?: number;
@@ -196,14 +198,6 @@ const getStatusVariant = (status: string) => {
     default:
       return 'secondary';
   }
-};
-
-const permissionLabels: Record<keyof UserPermissions, string> = {
-    canManageDeposits: "Manage Deposits",
-    canManageWithdrawals: "Manage Withdrawals",
-    canManageKyc: "Manage KYC",
-    canManagePlanLoans: "Manage Plan Loans",
-    canManageCustomLoans: "Manage Custom Loans",
 };
 
 const WithdrawalStatus = ({ tx }: { tx: Transaction }) => {
@@ -590,8 +584,18 @@ export default function UserDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><User /> {user.name}</CardTitle>
-          <CardDescription>{user.email}</CardDescription>
+          <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16 border-2 border-primary/20 rounded-2xl">
+                  <AvatarImage src={user.photoURL} />
+                  <AvatarFallback className="bg-primary/10 text-primary text-2xl font-black">
+                      {user.name?.charAt(0) || 'U'}
+                  </AvatarFallback>
+              </Avatar>
+              <div>
+                  <CardTitle className="text-2xl font-bold text-white">{user.name}</CardTitle>
+                  <CardDescription className="text-white/40">{user.email}</CardDescription>
+              </div>
+          </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <InfoBox title="User ID" value={user.id} icon={Fingerprint} />

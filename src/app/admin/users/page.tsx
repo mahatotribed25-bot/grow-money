@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -32,18 +33,20 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 type User = {
   id: string;
   name: string;
   email: string;
+  photoURL?: string;
   walletBalance?: number;
   status?: 'Active' | 'Blocked';
   isOnline?: boolean;
   lastSeen?: Timestamp;
 };
 
-const ADMIN_EMAIL = "admin@tribed.world";
+const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
 export default function UsersPage() {
   const { data: users, loading } = useCollection<User>('users');
@@ -53,7 +56,7 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredUsers = users?.filter(user => 
-    user.email !== ADMIN_EMAIL && 
+    user.email && !ADMIN_EMAILS.includes(user.email.toLowerCase()) && 
     (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
      user.email?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -126,9 +129,12 @@ export default function UsersPage() {
                         <TableRow key={user.id} className="border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                         <TableCell className="pl-6 py-4">
                             <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                                    <UserIcon size={18} className="text-primary" />
-                                </div>
+                                <Avatar className="h-9 w-9 border border-white/10 rounded-xl">
+                                    <AvatarImage src={user.photoURL} />
+                                    <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-black uppercase">
+                                        {user.name?.charAt(0) || 'U'}
+                                    </AvatarFallback>
+                                </Avatar>
                                 <div>
                                     <p className="font-bold text-white tracking-tight leading-none">{user.name}</p>
                                     <p className="text-[10px] text-white/30 font-medium mt-1">{user.email}</p>
