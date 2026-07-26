@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -197,6 +196,46 @@ const getStatusVariant = (status: string) => {
       return 'secondary';
   }
 };
+
+function TrackStep({ label, active }: { label: string, active: boolean }) {
+    return (
+        <div className="flex flex-col items-center gap-1.5 w-full">
+            <div className={cn(
+                "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-500",
+                active ? "bg-primary border-primary text-white scale-110 shadow-[0_0_10px_rgba(139,92,246,0.5)]" : "bg-[#030408] border-white/10 text-white/20"
+            )}>
+                {active ? <CheckCircle2 size(14) /> : <div className="h-1.5 w-1.5 rounded-full bg-current" />}
+            </div>
+            <span className={cn("text-[9px] font-black uppercase tracking-tighter", active ? "text-white" : "text-white/20")}>{label}</span>
+        </div>
+    )
+}
+
+function BottomNavItem({
+  icon: Icon,
+  label,
+  href,
+  active = false,
+}: {
+  icon: React.ElementType;
+  label: string;
+  href?: string;
+  active?: boolean;
+}) {
+  return (
+    <Link
+      href={href || '#'}
+      className={cn(
+        "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
+        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
+      )}
+    >
+      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
+      <span className="text-[10px] tracking-tight">{label}</span>
+      {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
+    </Link>
+  );
+}
 
 function RedeemCouponCard() {
   const { user } = useUser();
@@ -993,7 +1032,7 @@ export default function ProfilePage() {
                                         <div className="grid gap-4 sm:grid-cols-2">
                                             <div className="space-y-2">
                                                 <Label className="text-white/60">PAN Card No.</Label>
-                                                <Input value={panCard} onChange={(e) => setPanCard(e.target.toUpperCase())} placeholder="ABCDE1234F" className="bg-white/5 border-white/10 rounded-xl h-11" disabled={isKycFormDisabled} />
+                                                <Input value={panCard} onChange={(e) => setPanCard(e.target.value.toUpperCase())} placeholder="ABCDE1234F" className="bg-white/5 border-white/10 rounded-xl h-11" disabled={isKycFormDisabled} />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label className="text-white/60">Aadhaar Card No.</Label>
@@ -1129,20 +1168,6 @@ export default function ProfilePage() {
       </nav>
     </div>
   );
-}
-
-function TrackStep({ label, active }: { label: string, active: boolean }) {
-    return (
-        <div className="flex flex-col items-center gap-1.5 w-full">
-            <div className={cn(
-                "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-500",
-                active ? "bg-primary border-primary text-white scale-110 shadow-[0_0_10px_rgba(139,92,246,0.5)]" : "bg-[#030408] border-white/10 text-white/20"
-            )}>
-                {active ? <CheckCircle2 size={14} /> : <div className="h-1.5 w-1.5 rounded-full bg-current" />}
-            </div>
-            <span className={cn("text-[9px] font-black uppercase tracking-tighter", active ? "text-white" : "text-white/20")}>{label}</span>
-        </div>
-    )
 }
 
 function AmountVerificationCard({ request }: { request: UpiRequest }) {
@@ -1374,44 +1399,4 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
             </CardContent>
         </Card>
     );
-}
-
-function BottomNavItem({
-  icon: Icon,
-  label,
-  href,
-  active = false,
-}: {
-  icon: React.ElementType;
-  label: string;
-  href?: string;
-  active?: boolean;
-}) {
-  return (
-    <Link
-      href={href || '#'}
-      className={cn(
-        "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
-        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
-      )}
-    >
-      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
-      <span className="text-[10px] tracking-tight">{label}</span>
-      {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
-    </Link>
-  );
-}
-
-function TrackStep({ label, active }: { label: string, active: boolean }) {
-    return (
-        <div className="flex flex-col items-center gap-1.5 w-full">
-            <div className={cn(
-                "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-500",
-                active ? "bg-primary border-primary text-white scale-110 shadow-[0_0_10px_rgba(139,92,246,0.5)]" : "bg-[#030408] border-white/10 text-white/20"
-            )}>
-                {active ? <CheckCircle2 size={14} /> : <div className="h-1.5 w-1.5 rounded-full bg-current" />}
-            </div>
-            <span className={cn("text-[9px] font-black uppercase tracking-tighter", active ? "text-white" : "text-white/20")}>{label}</span>
-        </div>
-    )
 }
