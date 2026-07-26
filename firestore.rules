@@ -32,7 +32,7 @@ service cloud.firestore {
     // Investment Plans - All can read, users update stock during transaction
     match /investmentPlans/{planId} {
       allow read: if isAuthenticated();
-      allow write: if isManager() || isAuthenticated();
+      allow write: if isAuthenticated(); // Allow users to decrement stock during investment
     }
     
     // Announcements

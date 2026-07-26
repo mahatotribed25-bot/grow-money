@@ -173,30 +173,6 @@ type AdminSettings = {
     referralBonus?: number;
 };
 
-const formatDate = (timestamp: Timestamp) => {
-  if (!timestamp) return 'N/A';
-  return new Date(timestamp.seconds * 1000).toLocaleString();
-};
-
-const getStatusVariant = (status: string) => {
-  switch (status) {
-    case 'approved':
-    case 'Active':
-    case 'Matured':
-    case 'Completed':
-    case 'Paid':
-    case 'Verified':
-      return 'default';
-    case 'rejected':
-    case 'Blocked':
-    case 'Due':
-    case 'Stopped':
-      return 'destructive';
-    default:
-      return 'secondary';
-  }
-};
-
 function TrackStep({ label, active }: { label: string, active: boolean }) {
     return (
         <div className="flex flex-col items-center gap-1.5 w-full">
@@ -204,7 +180,7 @@ function TrackStep({ label, active }: { label: string, active: boolean }) {
                 "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-500",
                 active ? "bg-primary border-primary text-white scale-110 shadow-[0_0_10px_rgba(139,92,246,0.5)]" : "bg-[#030408] border-white/10 text-white/20"
             )}>
-                {active ? <CheckCircle2 size(14) /> : <div className="h-1.5 w-1.5 rounded-full bg-current" />}
+                {active ? <CheckCircle2 size={14} /> : <div className="h-1.5 w-1.5 rounded-full bg-current" />}
             </div>
             <span className={cn("text-[9px] font-black uppercase tracking-tighter", active ? "text-white" : "text-white/20")}>{label}</span>
         </div>
@@ -395,6 +371,176 @@ function WithdrawalDetailModal({ tx, isOpen, onClose }: { tx: Transaction | null
     )
 }
 
+function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
+  return (
+    <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
+      <CardContent className="p-0">
+        <ScrollArea className="h-[400px]">
+          <Table>
+            <TableHeader className="bg-white/[0.02] sticky top-0 z-10">
+              <TableRow className="border-white/10">
+                {headers.map(h => (
+                  <TableHead key={h} className={cn("text-white/30 text-[10px] uppercase font-bold tracking-widest", h === 'Detail' && "pl-6", h === 'Amount' && "text-right pr-6")}>
+                    {h}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items && items.length > 0 ? items.map(renderRow) : (
+                <TableRow>
+                  <TableCell colSpan={headers.length} className="text-center py-20 text-white/20 italic">No history found.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  )
+}
+
+function TransactionTable({ transactions, type }: { transactions: Transaction[] | undefined | null, type: 'deposit' | 'withdrawal' }) {
+    const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+
+    const formatDate = (timestamp: Timestamp) => {
+        if (!timestamp) return 'N/A';
+        return new Date(timestamp.seconds * 1000).toLocaleDateString();
+    };
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'approved': return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Success</Badge>;
+            case 'rejected': return <Badge className="bg-destructive/20 text-destructive border-destructive/30">Failed</Badge>;
+            default: return <Badge variant="secondary" className="bg-white/5 text-white/40 border-white/10">Pending</Badge>;
+        }
+    };
+    
+    return (
+        <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
+            <CardContent className="p-0">
+                <ScrollArea className="h-[400px]">
+                    <Table>
+                        <TableHeader className="bg-white/[0.02] sticky top-0 z-10">
+                            <TableRow className="border-white/10">
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Amount</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Status</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Action</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {transactions && transactions.length > 0 ? (
+                                transactions.map(tx => (
+                                    <TableRow key={tx.id} className="border-white/[0.05] hover:bg-white/[0.02] transition-colors">
+                                        <TableCell className="pl-6">
+                                            <div className="font-bold text-white tracking-tight">
+                                                ₹{(tx.finalAmount ?? tx.amount).toFixed(2)}
+                                            </div>
+                                            <div className="text-[10px] text-white/20 mt-0.5">{formatDate(tx.createdAt)}</div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {getStatusBadge(tx.status)}
+                                        </TableCell>
+                                        <TableCell className="pr-6">
+                                            {type === 'withdrawal' && tx.status === 'approved' && (
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="h-7 text-[10px] uppercase font-bold text-primary hover:bg-primary/10"
+                                                    onClick={() => setSelectedTx(tx)}
+                                                >
+                                                    View Receipt
+                                                </Button>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-center py-10 text-white/20 italic">No history found.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </CardContent>
+            <WithdrawalDetailModal tx={selectedTx} isOpen={!!selectedTx} onClose={() => setSelectedTx(null)} />
+        </Card>
+    );
+}
+
+function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }) {
+    const { data: planData } = useDoc<GroupLoanPlan>(investment ? `groupLoanPlans/${investment.planId}`: null);
+    
+    const formatDate = (timestamp: Timestamp) => {
+        if (!timestamp) return 'N/A';
+        return new Date(timestamp.seconds * 1000).toLocaleDateString();
+    };
+    
+    const repaymentProgress = planData && planData.totalRepayment > 0 
+        ? ((planData.amountRepaid || 0) / planData.totalRepayment) * 100 
+        : 0;
+
+    const investorShare = (planData && planData.loanAmount > 0) ? ((investment.investedAmount || 0) / planData.loanAmount) : 0;
+    const totalProfitShare = (planData?.interest || 0) * investorShare;
+    const expectedReturn = (investment.investedAmount || 0) + totalProfitShare;
+
+    return (
+        <TableRow className="border-white/[0.05] hover:bg-white/[0.02]">
+            <TableCell className="pl-6">
+                <div className='font-bold text-white'>{investment.planName}</div>
+                <div className='text-[10px] text-white/20 font-bold uppercase tracking-widest mt-1'>{formatDate(investment.createdAt)}</div>
+            </TableCell>
+            <TableCell className="text-white/80 font-medium">₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-cyan-400 font-bold">₹{(totalProfitShare || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-green-400 font-bold">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
+            <TableCell className="pr-6">
+                {planData ? (
+                    <div className="w-24 space-y-1">
+                        <Progress value={repaymentProgress} className="h-1.5 bg-white/5" />
+                        <span className="text-[10px] text-white/30 font-bold">{repaymentProgress.toFixed(0)}% PAID</span>
+                    </div>
+                ) : (
+                    <span className="text-[10px] text-white/20 animate-pulse">SYNCING...</span>
+                )}
+            </TableCell>
+        </TableRow>
+    );
+}
+
+function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
+    return (
+        <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
+            <CardContent className="p-0">
+                <ScrollArea className="h-[400px]">
+                    <Table>
+                        <TableHeader className="bg-white/[0.02] sticky top-0 z-10">
+                            <TableRow className="border-white/10">
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Plan</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Invested</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Profit</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Received</TableHead>
+                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Progress</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {investments && investments.length > 0 ? (
+                                investments.map(inv => (
+                                    <GroupInvestmentTableRow key={inv.id} investment={inv} />
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-10 text-white/20 italic">No group investments found.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function ProfilePage() {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -423,12 +569,10 @@ export default function ProfilePage() {
   
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
   
-  // Profile Edit State
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
-  // KYC State
   const [panCard, setPanCard] = useState('');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -437,7 +581,6 @@ export default function ProfilePage() {
   const kycStatus = userData?.kycStatus || 'Not Submitted';
   const isKycFormDisabled = kycStatus === 'Pending' || kycStatus === 'Verified';
 
-  // UPI State
   const [upiId, setUpiId] = useState('');
   const [upiProvider, setUpiProvider] = useState<'PhonePe' | 'Google Pay' | 'Paytm' | ''>('');
   
@@ -448,14 +591,12 @@ export default function ProfilePage() {
     return upiRequests?.find(req => req.status === 'awaiting_confirmation');
   }, [upiRequests]);
 
-
   useEffect(() => {
     if (userData) {
       setEditName(userData.name || '');
       setPanCard(userData.panCard || '');
       setAadhaarNumber(userData.aadhaarNumber || '');
       setPhoneNumber(userData.phoneNumber || '');
-
       setUpiId(userData.upiId || '');
       setUpiProvider(userData.upiProvider || '');
     }
@@ -465,16 +606,11 @@ export default function ProfilePage() {
     if (user && userData && investments && loans && referrals) {
         const currentScore = userData.trustScore || 0;
         const newScore = calculateTrustScore(investments, loans, referrals);
-        
         if (newScore !== currentScore) {
-            const userRef = doc(firestore, 'users', user.uid);
-            updateDoc(userRef, { trustScore: newScore }).catch(error => {
-                console.error("Failed to update trust score:", error);
-            });
+            updateDoc(doc(firestore, 'users', user.uid), { trustScore: newScore }).catch(console.error);
         }
     }
   }, [user, userData, investments, loans, referrals, firestore]);
-
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -485,28 +621,17 @@ export default function ProfilePage() {
   const handleCopyCode = () => {
     if (userData?.referralCode) {
       navigator.clipboard.writeText(userData.referralCode);
-      toast({
-        title: "Copied!",
-        description: "Your referral code has been copied to the clipboard.",
-      });
+      toast({ title: "Copied!", description: "Referral code copied to clipboard." });
     }
   };
 
   const handleUpdateName = async () => {
     if (!user || !auth.currentUser) return;
     setIsUpdatingProfile(true);
-
     try {
-        await updateProfile(auth.currentUser, {
-            displayName: editName,
-        });
-
-        const userRef = doc(firestore, 'users', user.uid);
-        await updateDoc(userRef, {
-            name: editName,
-        });
-
-        toast({ title: "Name Updated", description: "Your display name has been updated." });
+        await updateProfile(auth.currentUser, { displayName: editName });
+        await updateDoc(doc(firestore, 'users', user.uid), { name: editName });
+        toast({ title: "Name Updated" });
         setIsEditProfileOpen(false);
         if (refetchUser) refetchUser();
     } catch (e: any) {
@@ -519,18 +644,10 @@ export default function ProfilePage() {
   const handleUpdateAvatar = async (imageUrl: string) => {
     if (!user || !auth.currentUser) return;
     setIsUpdatingProfile(true);
-
     try {
-        await updateProfile(auth.currentUser, {
-            photoURL: imageUrl
-        });
-
-        const userRef = doc(firestore, 'users', user.uid);
-        await updateDoc(userRef, {
-            photoURL: imageUrl
-        });
-
-        toast({ title: "Avatar Updated", description: "Your profile photo has been refreshed." });
+        await updateProfile(auth.currentUser, { photoURL: imageUrl });
+        await updateDoc(doc(firestore, 'users', user.uid), { photoURL: imageUrl });
+        toast({ title: "Avatar Updated" });
         if (refetchUser) refetchUser();
     } catch (e: any) {
         toast({ title: "Update Failed", description: e.message, variant: "destructive" });
@@ -541,140 +658,44 @@ export default function ProfilePage() {
 
   const handleSavePhone = () => {
     if (!user) return;
-    const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(phoneNumber)) {
-        toast({ title: "Invalid Phone Number", description: "Please enter a valid 10-digit phone number.", variant: "destructive" });
+    if (!/^[0-9]{10}$/.test(phoneNumber)) {
+        toast({ title: "Invalid Phone", variant: "destructive" });
         return;
     }
-    const userRef = doc(firestore, 'users', user.uid);
-    updateDoc(userRef, { phoneNumber: phoneNumber })
-      .then(() => {
-        toast({ title: "Phone Number Updated" });
-      })
-      .catch((error) => {
-        const permissionError = new FirestorePermissionError({
-          path: userRef.path,
-          operation: 'update',
-          requestResourceData: { phoneNumber },
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
+    updateDoc(doc(firestore, 'users', user.uid), { phoneNumber: phoneNumber })
+      .then(() => toast({ title: "Phone Updated" }))
+      .catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `users/${user.uid}`, operation: 'update', requestResourceData: { phoneNumber } })));
   };
 
   const handleSubmitUpi = () => {
-      if (!user || !userData) {
-          toast({ title: 'User not found.', variant: 'destructive'});
-          return;
-      }
-      if (!upiId || !upiProvider) {
-          toast({ title: 'All fields required', description: 'Please select a provider and enter your UPI ID.', variant: 'destructive' });
-          return;
-      }
-
-      const upiRequestData = {
-          userId: user.uid,
-          userName: userData.name || user.displayName || 'Investor',
-          upiId: upiId,
-          upiProvider: upiProvider,
-          status: 'pending' as const,
-          createdAt: serverTimestamp(),
-      };
-
+      if (!user || !upiId || !upiProvider) return;
+      const upiRequestData = { userId: user.uid, userName: userData?.name || 'Investor', upiId, upiProvider, status: 'pending' as const, createdAt: serverTimestamp() };
       runTransaction(firestore, async (transaction) => {
-          const userRef = doc(firestore, 'users', user.uid);
-          const requestRef = doc(collection(firestore, 'upiRequests'));
-
-          transaction.set(requestRef, upiRequestData);
-          transaction.update(userRef, { upiStatus: 'Pending' });
+          transaction.set(doc(collection(firestore, 'upiRequests')), upiRequestData);
+          transaction.update(doc(firestore, 'users', user.uid), { upiStatus: 'Pending' });
       })
-      .then(() => {
-          toast({ title: 'UPI Submitted', description: 'Your UPI ID has been submitted for verification.' });
-      })
-      .catch((error) => {
-          const permissionError = new FirestorePermissionError({
-              path: `upiRequests or users/${user.uid}`,
-              operation: 'write',
-              requestResourceData: upiRequestData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-      });
+      .then(() => toast({ title: 'UPI Submitted' }))
+      .catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'upiRequests', operation: 'write', requestResourceData: upiRequestData })));
   }
 
   const handleChangeUpiRequest = () => {
     if (!user) return;
-    const userRef = doc(firestore, 'users', user.uid);
-    const updateData = {
-      upiStatus: 'Unverified',
-      upiId: '',
-      upiProvider: '',
-    };
-
-    updateDoc(userRef, updateData)
-      .then(() => {
-        toast({
-          title: 'UPI Reset',
-          description: 'You can now submit a new UPI ID for verification.',
-        });
-        setUpiId('');
-        setUpiProvider('');
-      })
-      .catch((error) => {
-        const permissionError = new FirestorePermissionError({
-          path: userRef.path,
-          operation: 'update',
-          requestResourceData: updateData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
+    updateDoc(doc(firestore, 'users', user.uid), { upiStatus: 'Unverified', upiId: '', upiProvider: '' })
+      .then(() => { toast({ title: 'UPI Reset' }); setUpiId(''); setUpiProvider(''); })
+      .catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `users/${user.uid}`, operation: 'update' })));
   };
 
-
   const handleSubmitKyc = () => {
-    if (!user) return;
-    const panRegex = /[A-Z]{5}[0-9]{4}[A-Z]{1}/;
-    const aadhaarRegex = /^[0-9]{12}$/;
-    const phoneRegex = /^[0-9]{10}$/;
+    if (!user || !userData) return;
+    if (!/[A-Z]{5}[0-9]{4}[A-Z]{1}/.test(panCard)) { toast({ title: "Invalid PAN", variant: "destructive" }); return; }
+    if (!/^[0-9]{12}$/.test(aadhaarNumber)) { toast({ title: "Invalid Aadhaar", variant: "destructive" }); return; }
+    if (!/^[0-9]{10}$/.test(phoneNumber)) { toast({ title: "Invalid Phone", variant: "destructive" }); return; }
+    if (!kycTermsAccepted) { toast({ title: "Accept Terms", variant: "destructive" }); return; }
 
-    if (!panRegex.test(panCard)) {
-        toast({ title: "Invalid PAN", description: "Please enter a valid 10-digit PAN.", variant: "destructive" });
-        return;
-    }
-    if (!aadhaarRegex.test(aadhaarNumber)) {
-        toast({ title: "Invalid Aadhaar", description: "Please enter a valid 12-digit Aadhaar number.", variant: "destructive" });
-        return;
-    }
-    if (!phoneRegex.test(phoneNumber)) {
-        toast({ title: "Invalid Phone Number", description: "Please enter a valid 10-digit phone number.", variant: "destructive" });
-        return;
-    }
-    if (!kycTermsAccepted) {
-        toast({ title: "Terms Not Accepted", description: "You must accept the terms and conditions to proceed.", variant: "destructive" });
-        return;
-    }
-
-    const userRef = doc(firestore, 'users', user.uid);
-    const dataToUpdate = { 
-      panCard: panCard,
-      aadhaarNumber: aadhaarNumber,
-      phoneNumber: phoneNumber,
-      kycTermsAccepted: kycTermsAccepted,
-      kycStatus: 'Pending',
-      kycRejectionReason: '',
-      kycSubmissionDate: serverTimestamp(),
-    };
-
-    updateDoc(userRef, dataToUpdate)
-      .then(() => {
-        toast({ title: "KYC Submitted", description: "Your information has been submitted for admin approval." });
-      })
-      .catch((serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: userRef.path,
-          operation: 'update',
-          requestResourceData: dataToUpdate,
-        });
-        errorEmitter.emit('permission-error', serverError);
-      });
+    const dataToUpdate = { panCard, aadhaarNumber, phoneNumber, kycTermsAccepted, kycStatus: 'Pending', kycSubmissionDate: serverTimestamp() };
+    updateDoc(doc(firestore, 'users', user.uid), dataToUpdate)
+      .then(() => toast({ title: "KYC Submitted" }))
+      .catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `users/${user.uid}`, operation: 'update', requestResourceData: dataToUpdate })));
   }
   
   const vipLevel = userData?.vipLevel || 'Bronze';
@@ -878,7 +899,6 @@ export default function ProfilePage() {
                                                             <Badge variant="outline" className="text-[8px] h-4 text-white/40 border-white/10 uppercase tracking-tighter">ID: {ref.id.slice(0, 5)}</Badge>
                                                         </div>
                                                         
-                                                        {/* Progress Line */}
                                                         <div className="relative pt-2 pb-1">
                                                             <div className="absolute top-[13px] left-3 right-3 h-0.5 bg-white/10" />
                                                             <div 
@@ -888,7 +908,7 @@ export default function ProfilePage() {
                                                             <div className="flex justify-between relative z-10">
                                                                 <TrackStep label="Joined" active={true} />
                                                                 <TrackStep label="Invested" active={hasInvested} />
-                                                                <TrackStep label="Bonus" active={bonusPaid} />
+                                                                <TrackStep label="Bonus" active={bonusPaid || false} />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1228,175 +1248,4 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
       </CardContent>
     </Card>
   );
-}
-
-function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
-  return (
-    <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
-      <CardContent className="p-0">
-        <ScrollArea className="h-[400px]">
-          <Table>
-            <TableHeader className="bg-white/[0.02] sticky top-0 z-10">
-              <TableRow className="border-white/10">
-                {headers.map(h => (
-                  <TableHead key={h} className={cn("text-white/30 text-[10px] uppercase font-bold tracking-widest", h === 'Detail' && "pl-6", h === 'Amount' && "text-right pr-6")}>
-                    {h}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items && items.length > 0 ? items.map(renderRow) : (
-                <TableRow>
-                  <TableCell colSpan={headers.length} className="text-center py-20 text-white/20 italic">No history found.</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </CardContent>
-    </Card>
-  )
-}
-
-function TransactionTable({ transactions, type }: { transactions: Transaction[] | undefined | null, type: 'deposit' | 'withdrawal' }) {
-    const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-
-    const formatDate = (timestamp: Timestamp) => {
-        if (!timestamp) return 'N/A';
-        return new Date(timestamp.seconds * 1000).toLocaleDateString();
-    };
-
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'approved': return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Success</Badge>;
-            case 'rejected': return <Badge className="bg-destructive/20 text-destructive border-destructive/30">Failed</Badge>;
-            default: return <Badge variant="secondary" className="bg-white/5 text-white/40 border-white/10">Pending</Badge>;
-        }
-    };
-    
-    return (
-        <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
-            <CardContent className="p-0">
-                <ScrollArea className="h-[400px]">
-                    <Table>
-                        <TableHeader className="bg-white/[0.02] sticky top-0 z-10">
-                            <TableRow className="border-white/10">
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Amount</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Status</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Action</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {transactions && transactions.length > 0 ? (
-                                transactions.map(tx => (
-                                    <TableRow key={tx.id} className="border-white/[0.05] hover:bg-white/[0.02] transition-colors">
-                                        <TableCell className="pl-6">
-                                            <div className="font-bold text-white tracking-tight">
-                                                ₹{(tx.finalAmount ?? tx.amount).toFixed(2)}
-                                            </div>
-                                            <div className="text-[10px] text-white/20 mt-0.5">{formatDate(tx.createdAt)}</div>
-                                        </TableCell>
-                                        <TableCell>
-                                            {getStatusBadge(tx.status)}
-                                        </TableCell>
-                                        <TableCell className="pr-6">
-                                            {type === 'withdrawal' && tx.status === 'approved' && (
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="sm" 
-                                                    className="h-7 text-[10px] uppercase font-bold text-primary hover:bg-primary/10"
-                                                    onClick={() => setSelectedTx(tx)}
-                                                >
-                                                    View Receipt
-                                                </Button>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={3} className="text-center py-10 text-white/20 italic">No history found.</TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </ScrollArea>
-            </CardContent>
-            <WithdrawalDetailModal tx={selectedTx} isOpen={!!selectedTx} onClose={() => setSelectedTx(null)} />
-        </Card>
-    );
-}
-
-function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }) {
-    const { data: planData } = useDoc<GroupLoanPlan>(investment ? `groupLoanPlans/${investment.planId}`: null);
-    
-    const formatDate = (timestamp: Timestamp) => {
-        if (!timestamp) return 'N/A';
-        return new Date(timestamp.seconds * 1000).toLocaleDateString();
-    };
-    
-    const repaymentProgress = planData && planData.totalRepayment > 0 
-        ? ((planData.amountRepaid || 0) / planData.totalRepayment) * 100 
-        : 0;
-
-    const investorShare = (planData && planData.loanAmount > 0) ? ((investment.investedAmount || 0) / planData.loanAmount) : 0;
-    const totalProfitShare = (planData?.interest || 0) * investorShare;
-    const expectedReturn = (investment.investedAmount || 0) + totalProfitShare;
-    const remainingAmount = expectedReturn - (investment.amountReceived || 0);
-
-    return (
-        <TableRow className="border-white/[0.05] hover:bg-white/[0.02]">
-            <TableCell className="pl-6">
-                <div className='font-bold text-white'>{investment.planName}</div>
-                <div className='text-[10px] text-white/20 font-bold uppercase tracking-widest mt-1'>{formatDate(investment.createdAt)}</div>
-            </TableCell>
-            <TableCell className="text-white/80 font-medium">₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-cyan-400 font-bold">₹{(totalProfitShare || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-green-400 font-bold">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
-            <TableCell className="pr-6">
-                {planData ? (
-                    <div className="w-24 space-y-1">
-                        <Progress value={repaymentProgress} className="h-1.5 bg-white/5" />
-                        <span className="text-[10px] text-white/30 font-bold">{repaymentProgress.toFixed(0)}% PAID</span>
-                    </div>
-                ) : (
-                    <span className="text-[10px] text-white/20 animate-pulse">SYNCING...</span>
-                )}
-            </TableCell>
-        </TableRow>
-    );
-}
-
-function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
-    return (
-        <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden">
-            <CardContent className="p-0">
-                <ScrollArea className="h-[400px]">
-                    <Table>
-                        <TableHeader className="bg-white/[0.02] sticky top-0 z-10">
-                            <TableRow className="border-white/10">
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Plan</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Invested</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Profit</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Received</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Progress</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {investments && investments.length > 0 ? (
-                                investments.map(inv => (
-                                    <GroupInvestmentTableRow key={inv.id} investment={inv} />
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-10 text-white/20 italic">No group investments found.</TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </ScrollArea>
-            </CardContent>
-        </Card>
-    );
 }
