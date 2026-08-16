@@ -33,7 +33,8 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isOwner(userId);
       allow read: if isAuthenticated();
-      allow update: if isAuthenticated(); // Allow self-updates and cross-updates for referrals
+      // Allow self-updates and cross-updates for referral bonus processing
+      allow update: if isAuthenticated(); 
       allow delete: if isAdmin();
 
       match /investments/{id} {
@@ -46,14 +47,15 @@ service cloud.firestore {
       }
       match /walletHistory/{id} {
         allow read: if isOwner(userId) || isManager();
-        allow write: if isAuthenticated(); // Needed for referral bonus credits
+        // Allowed for transactions where system/authenticated users need to add a log entry (e.g. referral bonus)
+        allow write: if isAuthenticated();
       }
     }
 
     // Investment Plans
     match /investmentPlans/{planId} {
       allow read: if isAuthenticated();
-      allow update: if isAuthenticated(); // For decrementing stock during purchase
+      allow update: if isAuthenticated(); // To decrement stock during purchase
       allow write: if isManager();
     }
     
@@ -110,6 +112,7 @@ service cloud.firestore {
     match /customLoanRequests/{requestId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
       allow create: if isAuthenticated();
+      // Allow owners to accept offers or mark payment as pending
       allow update: if isManager() || (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow delete: if isManager();
     }

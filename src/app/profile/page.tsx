@@ -539,6 +539,66 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
     );
 }
 
+function AmountVerificationCard({ request }: { request: UpiRequest }) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [amount, setAmount] = useState('');
+
+  const handleVerifyAmount = async () => {
+    if (!user) return;
+    const userInputAmount = parseFloat(amount);
+    
+    if (isNaN(userInputAmount)) {
+      toast({ title: 'Invalid Amount', description: 'Please enter a valid number.', variant: 'destructive' });
+      return;
+    }
+
+    if (userInputAmount === request.confirmationAmount) {
+      try {
+        await runTransaction(firestore, async (transaction) => {
+          const userRef = doc(firestore, 'users', user.uid);
+          const requestRef = doc(firestore, 'upiRequests', request.id);
+
+          transaction.update(userRef, {
+            upiStatus: 'Verified',
+            upiId: request.upiId,
+            upiProvider: request.upiProvider,
+          });
+          transaction.update(requestRef, { status: 'approved' });
+        });
+        toast({ title: 'UPI Verified!', description: 'Your UPI ID has been successfully verified.' });
+      } catch (error) {
+        toast({ title: 'Verification Failed', description: 'An error occurred. Please try again.', variant: 'destructive' });
+      }
+    } else {
+      toast({ title: 'Incorrect Amount', description: 'The amount you entered does not match. Please check and try again.', variant: 'destructive' });
+    }
+  };
+
+
+  return (
+    <Card className="shadow-2xl border-yellow-500/30 bg-yellow-500/[0.03] backdrop-blur-xl group">
+      <CardHeader>
+        <CardTitle className="text-yellow-400 flex items-center gap-2">
+            <Timer className="animate-pulse" /> Final Verification
+        </CardTitle>
+        <CardDescription className="text-yellow-200/40">We've sent a small amount to your UPI. Enter the exact figure below.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+            <Label htmlFor="verificationAmount" className="text-yellow-200/60">Amount Received (₹)</Label>
+            <Input id="verificationAmount" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g., 1.07" className="bg-white/5 border-yellow-500/20 text-yellow-100 h-12 text-xl font-mono text-center rounded-xl" />
+        </div>
+        <Button className="w-full h-12 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-black font-bold" onClick={handleVerifyAmount}>
+            <ShieldCheck className="mr-2 h-5 w-5" />
+            Complete Verification
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ProfilePage() {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -963,12 +1023,12 @@ export default function ProfilePage() {
                                 {(upiStatus === 'Unverified' || upiStatus === 'Rejected') && (
                                     <div className="space-y-5">
                                         {upiStatus === 'Rejected' && (
-                                            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive flex items-start gap-3">
-                                                <AlertTriangle size={18} />
-                                                <div className="text-sm">
+                                            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive flex flex-col gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <AlertTriangle size={18} />
                                                     <p className="font-bold">Verification Failed</p>
-                                                    <p className="opacity-80">The provided UPI ID was not valid. Please check and try again.</p>
                                                 </div>
+                                                <p className="opacity-80 text-xs">The provided UPI ID was not valid. Please check and try again.</p>
                                             </div>
                                         )}
                                         <div className="grid gap-4 sm:grid-cols-2">
@@ -1181,65 +1241,5 @@ export default function ProfilePage() {
         </div>
       </nav>
     </div>
-  );
-}
-
-function AmountVerificationCard({ request }: { request: UpiRequest }) {
-  const { user } = useUser();
-  const firestore = useFirestore();
-  const { toast } = useToast();
-  const [amount, setAmount] = useState('');
-
-  const handleVerifyAmount = async () => {
-    if (!user) return;
-    const userInputAmount = parseFloat(amount);
-    
-    if (isNaN(userInputAmount)) {
-      toast({ title: 'Invalid Amount', description: 'Please enter a valid number.', variant: 'destructive' });
-      return;
-    }
-
-    if (userInputAmount === request.confirmationAmount) {
-      try {
-        await runTransaction(firestore, async (transaction) => {
-          const userRef = doc(firestore, 'users', user.uid);
-          const requestRef = doc(firestore, 'upiRequests', request.id);
-
-          transaction.update(userRef, {
-            upiStatus: 'Verified',
-            upiId: request.upiId,
-            upiProvider: request.upiProvider,
-          });
-          transaction.update(requestRef, { status: 'approved' });
-        });
-        toast({ title: 'UPI Verified!', description: 'Your UPI ID has been successfully verified.' });
-      } catch (error) {
-        toast({ title: 'Verification Failed', description: 'An error occurred. Please try again.', variant: 'destructive' });
-      }
-    } else {
-      toast({ title: 'Incorrect Amount', description: 'The amount you entered does not match. Please check and try again.', variant: 'destructive' });
-    }
-  };
-
-
-  return (
-    <Card className="shadow-2xl border-yellow-500/30 bg-yellow-500/[0.03] backdrop-blur-xl group">
-      <CardHeader>
-        <CardTitle className="text-yellow-400 flex items-center gap-2">
-            <Timer className="animate-pulse" /> Final Verification
-        </CardTitle>
-        <CardDescription className="text-yellow-200/40">We've sent a small amount to your UPI. Enter the exact figure below.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-            <Label htmlFor="verificationAmount" className="text-yellow-200/60">Amount Received (₹)</Label>
-            <Input id="verificationAmount" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g., 1.07" className="bg-white/5 border-yellow-500/20 text-yellow-100 h-12 text-xl font-mono text-center rounded-xl" />
-        </div>
-        <Button className="w-full h-12 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-black font-bold" onClick={handleVerifyAmount}>
-            <ShieldCheck className="mr-2 h-5 w-5" />
-            Complete Verification
-        </Button>
-      </CardContent>
-    </Card>
   );
 }
