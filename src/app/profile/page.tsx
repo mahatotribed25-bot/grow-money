@@ -61,7 +61,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import TrustScoreMeter from '@/components/TrustScoreMeter';
 import { calculateTrustScore } from '@/lib/trust-score';
-import { AchievementBadges } from '@/components/dashboard/AchievementBadges';
 import {
   Dialog,
   DialogContent,
@@ -483,7 +482,6 @@ function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }
 
     const investorShare = (planData && planData.loanAmount > 0) ? ((investment.investedAmount || 0) / planData.loanAmount) : 0;
     const totalProfitShare = (planData?.interest || 0) * investorShare;
-    const expectedReturn = (investment.investedAmount || 0) + totalProfitShare;
 
     return (
         <TableRow className="border-white/[0.05] hover:bg-white/[0.02]">
@@ -561,11 +559,7 @@ export default function ProfilePage() {
     orderBy('createdAt', 'desc')
   );
 
-  const groupInvQuery = useMemo(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'investments'), { subcollections: true } as any, where('investorId', '==', user.uid));
-  }, [user, firestore]);
-  const { data: groupInvestments } = useCollection<GroupInvestment>(groupInvQuery);
+  const { data: groupInvestments } = useCollection<GroupInvestment>('investments', { subcollections: true, where: ['investorId', '==', user?.uid] });
   
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
   
