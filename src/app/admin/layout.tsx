@@ -26,9 +26,7 @@ import {
   Sparkles,
   Search,
   ExternalLink,
-  ChevronRight,
-  ClipboardList,
-  CheckSquare
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,7 +64,6 @@ type LoanRequest = BaseRequest & { userName: string };
 type KycRequest = { id: string, name: string, kycSubmissionDate: Timestamp };
 type UpiRequest = BaseRequest & { userName: string };
 type CustomLoanRequest = BaseRequest & { userName: string, status: string };
-type TaskSubmission = BaseRequest & { userName: string, status: string };
 
 export default function AdminLayout({
   children,
@@ -89,7 +86,6 @@ export default function AdminLayout({
   const { data: pendingKycRequests } = useCollection<KycRequest>(isAdmin ? 'users' : null, { where: ['kycStatus', '==', 'pending'] });
   const { data: pendingUpiRequests } = useCollection<UpiRequest>(isAdmin ? 'upiRequests' : null, { where: ['status', '==', 'pending'] });
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(isAdmin ? 'customLoanRequests' : null, { where: ['status', 'in', ['pending_admin_review', 'extension_pending']] });
-  const { data: pendingTasks } = useCollection<TaskSubmission>(isAdmin ? 'taskSubmissions' : null, { where: ['status', '==', 'pending'] });
 
   const notifications = useMemo(() => {
     if (!isAdmin) return [];
@@ -104,9 +100,8 @@ export default function AdminLayout({
       ...kycNotifs,
       ...(pendingUpiRequests?.map((u) => ({ ...u, type: 'UPI', link: '/admin/upi-requests', name: u.userName })) || []),
       ...customLoanNotifs,
-      ...(pendingTasks?.map((t) => ({ ...t, type: 'Task Submission', link: '/admin/task-submissions', name: t.userName })) || []),
     ].filter(n => n.createdAt).sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-  }, [isAdmin, pendingDeposits, pendingWithdrawals, pendingLoanRequests, pendingKycRequests, pendingUpiRequests, pendingCustomLoanRequests, pendingTasks]);
+  }, [isAdmin, pendingDeposits, pendingWithdrawals, pendingLoanRequests, pendingKycRequests, pendingUpiRequests, pendingCustomLoanRequests]);
 
   const notificationCount = notifications.length;
 
@@ -136,13 +131,11 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen w-full bg-[#030408] text-white flex overflow-hidden">
-      {/* Background Decor */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-[-10%] -left-[5%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[100px]" />
         <div className="absolute bottom-[-10%] -right-[5%] w-[40%] h-[40%] rounded-full bg-secondary/10 blur-[100px]" />
       </div>
 
-      {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-[260px] lg:w-[280px] bg-[#030408] border-r border-white/5 relative z-20 overflow-hidden">
         <div className="h-16 flex items-center px-6 gap-3 border-b border-white/5 bg-black/20">
           <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/20 shadow-lg shadow-primary/20">
@@ -156,10 +149,6 @@ export default function AdminLayout({
             <div className="text-[10px] font-black text-white/20 uppercase tracking-[3px] mb-4 mt-2 px-2">Core Hub</div>
             <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
             <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance & Earnings</AdminNavItem>
-            
-            <div className="text-[10px] font-black text-white/20 uppercase tracking-[3px] mb-4 mt-6 px-2">Work & Tasks</div>
-            <AdminNavItem icon={ClipboardList} href="/admin/tasks">Manage Tasks</AdminNavItem>
-            <AdminNavItem icon={CheckSquare} href="/admin/task-submissions" count={pendingTasks?.length}>Review Submissions</AdminNavItem>
 
             <div className="text-[10px] font-black text-white/20 uppercase tracking-[3px] mb-4 mt-6 px-2">Network Control</div>
             <AdminNavItem icon={Users} href="/admin/users">Investors</AdminNavItem>
@@ -192,9 +181,7 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0 relative z-10 bg-[#05060f]">
-        {/* Modern Header */}
         <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-[#030408]/50 backdrop-blur-2xl sticky top-0 z-30">
           <div className="flex items-center gap-4 flex-1">
              <Sheet>
@@ -211,7 +198,6 @@ export default function AdminLayout({
                         <nav className="space-y-1">
                             <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
                             <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance</AdminNavItem>
-                            <AdminNavItem icon={ClipboardList} href="/admin/tasks">Tasks</AdminNavItem>
                         </nav>
                     </ScrollArea>
                 </SheetContent>

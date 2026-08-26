@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -16,9 +17,6 @@ import {
   Users as UsersIcon,
   Fingerprint,
   Phone,
-  FileUp,
-  AlertTriangle,
-  Send,
   Handshake,
   ShieldCheck,
   Pencil,
@@ -26,14 +24,13 @@ import {
   Timer,
   Gem,
   Trophy,
-  X,
   CreditCard as CreditCardIcon,
   CheckCircle2,
   History as HistoryIcon,
   TrendingUp,
   TrendingDown,
-  UserCheck,
   Camera,
+  AlertTriangle
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';

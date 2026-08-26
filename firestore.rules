@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -33,7 +34,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isOwner(userId);
       allow read: if isAuthenticated();
-      // Allow self-updates and cross-updates for referral bonus processing
+      // Allow self-updates and cross-updates for referral bonus processing during transactions
       allow update: if isAuthenticated(); 
       allow delete: if isAdmin();
 
@@ -55,7 +56,7 @@ service cloud.firestore {
     // Investment Plans
     match /investmentPlans/{planId} {
       allow read: if isAuthenticated();
-      allow update: if isAuthenticated(); // To decrement stock during purchase
+      allow update: if isAuthenticated(); // To decrement stock during purchase transaction
       allow write: if isManager();
     }
     
@@ -63,20 +64,6 @@ service cloud.firestore {
     match /announcements/{id} {
       allow read: if isAuthenticated();
       allow write: if isManager();
-    }
-
-    // Tasks rules
-    match /tasks/{taskId} {
-      allow read: if isAuthenticated();
-      allow update: if isAuthenticated(); // To decrement remaining stock
-      allow write: if isManager();
-    }
-
-    // Task Submissions rules
-    match /taskSubmissions/{subId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
-      allow create: if isAuthenticated();
-      allow update, delete: if isManager();
     }
 
     // Deposits
@@ -104,7 +91,7 @@ service cloud.firestore {
     // Global Settings
     match /settings/{id} {
       allow read: if isAuthenticated();
-      allow update: if isAuthenticated(); // For syncing adminProfitBalance during purchase
+      allow update: if isAuthenticated(); // For syncing adminProfitBalance during purchase transaction
       allow write: if isManager();
     }
 
@@ -145,21 +132,6 @@ service cloud.firestore {
         match /messages/{mid} {
             allow read, write: if isAuthenticated();
         }
-    }
-
-    // P2P Marketplace rules
-    match /p2pLoanRequests/{id} {
-        allow read, create: if isAuthenticated();
-        allow update: if isAuthenticated(); // For making bids
-        allow delete: if isManager() || (isAuthenticated() && resource.data.borrowerId == request.auth.uid);
-        match /offers/{oid} {
-            allow read, write: if isAuthenticated();
-        }
-    }
-    
-    match /p2pActiveLoans/{id} {
-        allow read: if isAuthenticated() && (resource.data.borrowerId == request.auth.uid || resource.data.lenderId == request.auth.uid || isManager());
-        allow write: if isAuthenticated(); // Matching transaction needs this
     }
 
     // COLLECTION GROUP RULES for investments

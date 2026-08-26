@@ -17,38 +17,6 @@
         "trustScore": { "type": "number" }
       },
       "required": ["uid", "email"]
-    },
-    "task": {
-      "title": "Task",
-      "description": "A task created by admin for users to earn money.",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "reward": { "type": "number" },
-        "platform": { "type": "string", "enum": ["YouTube", "Facebook", "Instagram", "Telegram", "Other"] },
-        "link": { "type": "string" },
-        "status": { "type": "string", "enum": ["Active", "Hidden"] },
-        "totalStock": { "type": "number" },
-        "remainingStock": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "taskSubmission": {
-      "title": "Task Submission",
-      "description": "A submission of a task by a user for approval.",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "userName": { "type": "string" },
-        "taskId": { "type": "string" },
-        "taskTitle": { "type": "string" },
-        "reward": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "proofDetails": { "type": "string" },
-        "submittedAt": { "type": "string", "format": "date-time" },
-        "rejectionReason": { "type": "string" }
-      }
     }
   },
   "auth": {
@@ -58,14 +26,6 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/user" },
       "description": "Stores user profile information."
-    },
-    "/tasks/{taskId}": {
-      "schema": { "$ref": "#/entities/task" },
-      "description": "Stores admin created tasks."
-    },
-    "/taskSubmissions/{submissionId}": {
-      "schema": { "$ref": "#/entities/taskSubmission" },
-      "description": "Stores user task proof submissions."
     }
   }
 }
