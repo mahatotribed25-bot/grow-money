@@ -110,7 +110,6 @@ type GroupInvestment = {
     investedAmount: number;
     amountReceived: number;
     createdAt: Timestamp;
-    investorId: string;
     userId: string;
 }
 

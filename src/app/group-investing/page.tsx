@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -143,6 +142,7 @@ function PlanCard({ plan, userBalance }: { plan: GroupLoanPlan, userBalance: num
         }
 
         const investmentData = {
+            userId: user.uid,
             investorId: user.uid,
             investorName: user.displayName,
             planId: plan.id,

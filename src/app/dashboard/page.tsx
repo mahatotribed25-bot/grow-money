@@ -961,7 +961,7 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="transactionId" className="text-white/60 text-xs font-bold">2. Transaction ID</Label>
+            <Label htmlFor="transactionId" className="text-white/60 text-xs font-bold">2. Transaction ID</Label flash
             <Input
               id="transactionId"
               value={transactionId}
