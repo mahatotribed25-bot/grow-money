@@ -1,4 +1,3 @@
-
 'use client';
 import {
   ChevronLeft,
@@ -764,7 +763,7 @@ function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { lo
         {loan.status === 'pending_user_approval' ? (
             <div className="bg-primary/10 rounded-2xl p-5 border border-primary/20 space-y-4 animate-in zoom-in-95">
                 <div className="flex flex-col items-center text-center gap-1">
-                    <p className="text-[10px] font-black uppercase tracking-[3px] text-primary/60">Administrative Offer</p>
+                    <p className="text-[10px] font-black uppercase tracking-[2px] text-primary/60">Administrative Offer</p>
                     <div className="flex items-center gap-6 py-2">
                         <div>
                              <p className="text-[9px] text-white/30 uppercase font-black tracking-widest">Rate</p>
@@ -842,7 +841,7 @@ function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { lo
                 </div>
 
                 <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex items-start gap-3">
-                    <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
+                    <span className="text-blue-400 shrink-0 mt-0.5"><Info size={16} /></span>
                     <p className="text-[10px] text-white/40 leading-relaxed font-medium">
                         Repayments are processed manually. Please scan the QR code in the next step to pay to the platform's verified UPI. Your trust score will increase upon successful settlement.
                     </p>

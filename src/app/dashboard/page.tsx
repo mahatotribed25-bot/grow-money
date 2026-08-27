@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Wallet,
@@ -26,7 +25,9 @@ import {
   MoreVertical,
   Info,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  FileText,
+  Users
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -329,7 +330,7 @@ export default function Dashboard() {
   const overdueLoan = useMemo(() => {
     if (!loans) return null;
     const now = new Date();
-    return loans.find(l => l.dueDate.toDate() < now && l.status !== 'Completed');
+    return loans.find(l => l.status === 'Due' || (l.dueDate.toDate() < now && l.status !== 'Completed'));
   }, [loans]);
 
   useEffect(() => {

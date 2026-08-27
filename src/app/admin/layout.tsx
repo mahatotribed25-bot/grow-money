@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -21,12 +20,9 @@ import {
   Gift,
   FileText,
   MessageSquare,
-  Network,
   IndianRupee,
-  Sparkles,
   Search,
   ExternalLink,
-  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -152,8 +148,6 @@ export default function AdminLayout({
 
             <div className="text-[10px] font-black text-white/20 uppercase tracking-[3px] mb-4 mt-6 px-2">Network Control</div>
             <AdminNavItem icon={Users} href="/admin/users">Investors</AdminNavItem>
-            <AdminNavItem icon={Sparkles} href="/admin/rewards">Incentives</AdminNavItem>
-            <AdminNavItem icon={Network} href="/admin/user-chats">Chat Bridge</AdminNavItem>
             <AdminNavItem icon={Users2} href="/admin/group-loans">Groups</AdminNavItem>
 
             <div className="text-[10px] font-black text-white/20 uppercase tracking-[3px] mb-4 mt-6 px-2">Verification</div>
