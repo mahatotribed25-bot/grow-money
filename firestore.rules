@@ -35,7 +35,6 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       // Allow self-updates and cross-updates for referral bonus processing during transactions
       allow update: if isAuthenticated(); 
-      allow delete: if isAdmin();
 
       match /investments/{id} {
         allow read: if isOwner(userId) || isManager();
@@ -97,7 +96,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
       allow create: if isAuthenticated();
       // Allow owners to accept offers or mark payment as pending
-      allow update: if isManager() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update: if isManager() || (isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.uid == resource.data.userId));
       allow delete: if isManager();
     }
 
@@ -115,14 +114,6 @@ service cloud.firestore {
       allow write: if isManager();
     }
 
-    // User Private Chat Sessions
-    match /userChatSessions/{id} {
-        allow read, write: if isAuthenticated() && (request.auth.uid in resource.data.participants || isManager());
-        match /messages/{mid} {
-            allow read, write: if isAuthenticated();
-        }
-    }
-
     // Support Chat Sessions
     match /chats/{id} {
         allow read, write: if isAuthenticated() && (id == request.auth.uid || isManager());
@@ -131,9 +122,28 @@ service cloud.firestore {
         }
     }
 
-    // COLLECTION GROUP RULES for investments
+    // Group Loan Plans
+    match /groupLoanPlans/{planId} {
+      allow read: if isAuthenticated();
+      allow update, write: if isAuthenticated();
+      
+      match /investments/{invId} {
+        allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
+        allow write: if isAuthenticated();
+      }
+      match /repayments/{repId} {
+        allow read: if isAuthenticated();
+        allow write: if isManager();
+      }
+      match /payouts/{payId} {
+        allow read: if isAuthenticated() && (resource.data.investorId == request.auth.uid || isManager());
+        allow write: if isManager();
+      }
+    }
+
+    // Collection Group Rule for investments (allows cross-plan listing)
     match /{path=**}/investments/{id} {
-      allow read, list: if isManager() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow read, list: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
     }
 
     // Generic match for other collections

@@ -15,11 +15,9 @@ import {
   AlertTriangle,
   Gift,
   Gem,
-  CheckCircle,
   Trophy,
   Activity,
   Zap,
-  TrendingDown,
   Timer,
   Sparkles,
   MoreVertical,
@@ -240,7 +238,7 @@ const SlideToClaim = ({
         style={{ width: `${sliderValue}%` }}
       />
       
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div className="absolute inset-0 flex items-center justify-center pointer-none">
         <span className={cn(
           "text-[10px] font-black uppercase tracking-widest transition-all",
           disabled ? (lockedLabel || "Action Locked") : (isCompleted ? "Success!" : label)
@@ -260,13 +258,13 @@ const SlideToClaim = ({
         disabled={disabled || isCompleted}
         className={cn(
           "absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed",
-          isCompleted && "pointer-events-none"
+          isCompleted && "pointer-none"
         )}
       />
 
       <div 
         className={cn(
-          "absolute top-1 left-1 bottom-1 aspect-square rounded-lg flex items-center justify-center transition-all duration-75 pointer-events-none",
+          "absolute top-1 left-1 bottom-1 aspect-square rounded-lg flex items-center justify-center transition-all duration-75 pointer-none",
           disabled ? "bg-white/10 text-white/20" : "bg-white text-black shadow-lg"
         )}
         style={{ left: `calc(${sliderValue}% - ${sliderValue > 0 ? '40px' : '0px'})`, marginLeft: sliderValue > 0 ? '0' : '4px' }}
@@ -803,7 +801,7 @@ function Announcements({ announcements, loading }: { announcements: Announcement
 
     return (
         <Card className="bg-primary/10 border-primary/20 backdrop-blur-3xl rounded-3xl overflow-hidden relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent pointer-none" />
             <CardHeader className="py-3">
                 <CardTitle className="flex items-center gap-2 text-blue-300 text-xs font-bold uppercase tracking-widest">
                     <Megaphone className="h-4 w-4 animate-bounce"/> News & Updates
@@ -831,7 +829,7 @@ function WalletSummary({
 }) {
   return (
     <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden relative group">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 opacity-50 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 opacity-50 pointer-none" />
       <CardHeader className="relative">
         <CardTitle className="text-white/60 text-[10px] font-black uppercase tracking-[3px] flex items-center gap-2">
             <Wallet size={14} /> Global Portfolio
@@ -961,7 +959,7 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="transactionId" className="text-white/60 text-xs font-bold">2. Transaction ID</Label flash
+            <Label htmlFor="transactionId" className="text-white/60 text-xs font-bold">2. Transaction ID</Label>
             <Input
               id="transactionId"
               value={transactionId}
@@ -1225,7 +1223,7 @@ function ActivePlanCard({
             )}
             
             <div className="pt-1">
-                <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-white/20 mb-1 px-1">
+                <div className="flex justify-between text-[9px] font-black uppercase tracking-[3px] text-white/20 mb-1 px-1">
                     <span>Maturity Pipeline</span>
                     <CountdownTimer endDate={maturityDate} />
                 </div>
@@ -1329,8 +1327,8 @@ function DailyCheckInCard() {
   if (bonusAmount <= 0) return null;
 
   return (
-    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-3xl rounded-3xl overflow-hidden relative group shrink-0">
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-50 pointer-events-none" />
+    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden relative group shrink-0">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-50 pointer-none" />
       <CardContent className="pt-4 pb-4 px-4 relative flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                 <Gift className="h-5 w-5" />

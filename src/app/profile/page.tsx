@@ -608,14 +608,13 @@ export default function ProfilePage() {
   const { data: referrals } = useCollection<Referral>(user ? 'users' : null, { where: ['referredBy', '==', user?.uid] });
   const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null, { where: ['userId', '==', user?.uid]});
   const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null, { where: ['userId', '==', user?.uid]});
-  const { data: walletHistory, loading: historyLoading } = useCollection<WalletHistoryEntry>(
+  const { data: walletHistory } = useCollection<WalletHistoryEntry>(
     user ? `users/${user.uid}/walletHistory` : null,
     undefined,
     orderBy('createdAt', 'desc')
   );
 
   const { data: groupInvestments } = useCollection<GroupInvestment>('investments', { subcollections: true, where: ['userId', '==', user?.uid] });
-  
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
   
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -1232,7 +1231,7 @@ export default function ProfilePage() {
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
           <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
-          <BottomNavItem icon={User} label="Profile" href="/profile" active />
+          <BottomNavItem icon={User} label="Profile" active />
         </div>
       </nav>
     </div>
