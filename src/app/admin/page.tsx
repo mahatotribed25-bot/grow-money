@@ -1,15 +1,11 @@
-
 'use client';
 
 import {
   Users,
   Wallet,
   Briefcase,
-  HandCoins,
   Download,
   Upload,
-  Users2,
-  UserCheck,
   TrendingUp,
   Activity,
   Zap,
@@ -19,9 +15,7 @@ import {
   PlusCircle,
   Megaphone,
   Gift,
-  ShieldCheck,
   CheckCircle2,
-  AlertCircle,
   Database,
   RefreshCcw,
   Timer
@@ -39,12 +33,10 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
 } from 'recharts';
 import { Timestamp } from 'firebase/firestore';
-import { subDays, format, startOfDay, isSameDay, startOfMonth, isWithinInterval } from 'date-fns';
-import { useMemo, useState, useEffect } from 'react';
+import { subDays, format, startOfDay, isSameDay } from 'date-fns';
+import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -154,7 +146,7 @@ export default function AdminDashboard() {
       {/* Quick Actions */}
       <div className="space-y-4">
         <h2 className="text-sm font-black text-white/20 uppercase tracking-[3px] pl-1">Quick Executive Controls</h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <QuickActionButton label="Add Plan" icon={PlusCircle} color="bg-purple-600" href="/admin/investment-plans" />
             <QuickActionButton label="Approve Deposit" icon={CheckCircle2} color="bg-green-600" href="/admin/deposits" />
             <QuickActionButton label="Approve Payout" icon={Upload} color="bg-orange-600" href="/admin/withdrawals" />

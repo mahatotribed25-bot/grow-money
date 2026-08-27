@@ -10,7 +10,6 @@ import {
   Briefcase,
   Copy,
   Gift,
-  CreditCard,
   Users2,
   HandCoins,
   Users as UsersIcon,
@@ -112,6 +111,7 @@ type GroupInvestment = {
     amountReceived: number;
     createdAt: Timestamp;
     investorId: string;
+    userId: string;
 }
 
 type GroupLoanPlan = {
@@ -615,7 +615,7 @@ export default function ProfilePage() {
     orderBy('createdAt', 'desc')
   );
 
-  const { data: groupInvestments } = useCollection<GroupInvestment>('investments', { subcollections: true, where: ['investorId', '==', user?.uid] });
+  const { data: groupInvestments } = useCollection<GroupInvestment>('investments', { subcollections: true, where: ['userId', '==', user?.uid] });
   
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
   

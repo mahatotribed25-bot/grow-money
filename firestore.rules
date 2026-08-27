@@ -55,8 +55,7 @@ service cloud.firestore {
     // Investment Plans
     match /investmentPlans/{planId} {
       allow read: if isAuthenticated();
-      allow update: if isAuthenticated(); // To decrement stock during purchase transaction
-      allow write: if isManager();
+      allow update, write: if isAuthenticated(); // To decrement stock during purchase transaction
     }
     
     // Announcements
@@ -90,8 +89,7 @@ service cloud.firestore {
     // Global Settings
     match /settings/{id} {
       allow read: if isAuthenticated();
-      allow update: if isAuthenticated(); // For syncing adminProfitBalance during purchase transaction
-      allow write: if isManager();
+      allow update, write: if isAuthenticated(); // For syncing adminProfitBalance during purchase transaction
     }
 
     // Custom Loan Requests rules
@@ -99,7 +97,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
       allow create: if isAuthenticated();
       // Allow owners to accept offers or mark payment as pending
-      allow update: if isManager() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update: if isManager() || (isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid));
       allow delete: if isManager();
     }
 

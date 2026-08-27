@@ -178,25 +178,6 @@ export default function AdminLayout({
       <div className="flex-1 flex flex-col min-w-0 relative z-10 bg-[#05060f]">
         <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-[#030408]/50 backdrop-blur-2xl sticky top-0 z-30">
           <div className="flex items-center gap-4 flex-1">
-             <Sheet>
-                <SheetTrigger asChild>
-                    <Button variant="outline" size="icon" className="md:hidden border-white/10">
-                        <Menu className="h-5 w-5" />
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="bg-[#030408] border-r border-white/10 p-0 w-[280px]">
-                    <SheetHeader className="p-6 border-b border-white/5">
-                        <SheetTitle className="font-black text-xl text-left text-white">Grow Money</SheetTitle>
-                    </SheetHeader>
-                    <ScrollArea className="h-full py-4 px-2">
-                        <nav className="space-y-1">
-                            <AdminNavItem icon={Home} href="/admin">Dashboard</AdminNavItem>
-                            <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance</AdminNavItem>
-                        </nav>
-                    </ScrollArea>
-                </SheetContent>
-             </Sheet>
-
              <div className="hidden lg:flex relative max-w-md w-full group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors" />
                 <Input 
