@@ -50,7 +50,7 @@ service cloud.firestore {
       }
     }
 
-    // Investment Plans
+    // Investment Plans - Allow authenticated users to update stock during purchase
     match /investmentPlans/{planId} {
       allow read: if isAuthenticated();
       allow update, write: if isAuthenticated(); 
@@ -84,18 +84,18 @@ service cloud.firestore {
       allow delete: if isManager();
     }
 
-    // Global Settings
+    // Global Settings - Allow authenticated users to update profit balance during purchase
     match /settings/{id} {
       allow read: if isAuthenticated();
       allow update, write: if isAuthenticated(); 
     }
 
-    // Custom Loan Requests rules
+    // Custom Loan Requests rules - Allow users to accept offers and mark payments
     match /customLoanRequests/{requestId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
       allow create: if isAuthenticated();
-      // Allow users to accept offers and mark payments
-      allow update: if isManager() || (isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.uid == resource.data.userId));
+      // Crucial: Allow users to update status for Accept and Settle actions
+      allow update: if isManager() || (isAuthenticated() && request.auth.uid == resource.data.userId);
       allow delete: if isManager();
     }
 

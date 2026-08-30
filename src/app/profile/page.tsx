@@ -614,7 +614,6 @@ export default function ProfilePage() {
     orderBy('createdAt', 'desc')
   );
 
-  const { data: groupInvestments } = useCollection<GroupInvestment>('investments', { subcollections: true, where: ['userId', '==', user?.uid] });
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
   
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -809,11 +808,6 @@ export default function ProfilePage() {
                                 </div>
                             ))}
                         </div>
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button className="w-full h-12 rounded-xl font-bold bg-white/5 hover:bg-white/10 text-white">Done</Button>
-                            </DialogClose>
-                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
 
@@ -1191,7 +1185,26 @@ export default function ProfilePage() {
             Sign Out Securely
             </Button>
         </div>
-      </Dialog>
+
+        <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
+            <DialogContent className="bg-[#030408]/95 backdrop-blur-3xl border-white/10 text-white">
+                <DialogHeader>
+                    <DialogTitle>Update Name</DialogTitle>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label>Full Name</Label>
+                        <Input value={editName} onChange={e => setEditName(e.target.value)} className="bg-white/5 border-white/10 rounded-xl" />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleUpdateName} disabled={isUpdatingProfile} className="w-full rounded-xl font-bold bg-primary text-white">
+                        {isUpdatingProfile ? "Saving..." : "Confirm Update"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      </main>
 
       <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
         <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
