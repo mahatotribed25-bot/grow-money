@@ -13,9 +13,34 @@
         "totalInvestment": { "type": "number" },
         "totalIncome": { "type": "number" },
         "status": { "type": "string", "enum": ["Active", "Blocked"] },
-        "trustScore": { "type": "number" }
+        "trustScore": { "type": "number" },
+        "vipLevel": { "type": "string", "enum": ["Bronze", "Silver", "Gold", "Platinum"] }
       },
       "required": ["uid", "email"]
+    },
+    "investmentPlan": {
+      "title": "Investment Plan",
+      "description": "A wealth building plan offered by the platform.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "dailyIncome": { "type": "number" },
+        "validity": { "type": "number" },
+        "status": { "type": "string", "enum": ["Available", "Coming Soon"] },
+        "stock": { "type": "number" }
+      }
+    },
+    "customLoan": {
+        "title": "Custom Loan",
+        "description": "A flexible loan request from a user.",
+        "type": "object",
+        "properties": {
+            "userId": { "type": "string" },
+            "requestedAmount": { "type": "number" },
+            "status": { "type": "string" },
+            "totalRepayment": { "type": "number" }
+        }
     }
   },
   "auth": {
@@ -25,6 +50,14 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/user" },
       "description": "Stores user profile information."
+    },
+    "/investmentPlans/{planId}": {
+      "schema": { "$ref": "#/entities/investmentPlan" },
+      "description": "Stores available investment products."
+    },
+    "/customLoanRequests/{requestId}": {
+        "schema": { "$ref": "#/entities/customLoan" },
+        "description": "Stores user flexi-loan applications."
     }
   }
 }

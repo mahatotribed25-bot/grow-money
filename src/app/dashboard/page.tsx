@@ -69,24 +69,13 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { BannerCarousel } from '@/components/dashboard/BannerCarousel';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { isToday, format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { AchievementBadges } from '@/components/dashboard/AchievementBadges';
 import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScratchCard } from '@/components/dashboard/ScratchCard';
 import { CashDispenseAnimation } from '@/components/dashboard/CashDispenseAnimation';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 type UserData = {
   id: string;
@@ -108,12 +97,6 @@ type AdminSettings = {
   minWithdrawal?: number;
   withdrawalGstPercentage?: number;
   dailyCheckInBonus?: number;
-  vipWithdrawalGst?: {
-    bronze: number;
-    silver: number;
-    gold: number;
-    platinum: number;
-  }
 };
 
 type Investment = {
@@ -126,11 +109,8 @@ type Investment = {
   maturityDate: Timestamp;
   status: 'Active' | 'Matured' | 'Stopped';
   dailyIncome: number;
-  lastIncomeDate?: Timestamp;
-  finalReturn?: number;
-  payoutFrequency?: 'daily' | 'monthly' | 'on_maturity';
   lastClaimDate?: Timestamp;
-  earnedIncome?: number;
+  finalReturn?: number;
 };
 
 type ActiveLoan = {
@@ -141,29 +121,6 @@ type ActiveLoan = {
     startDate: Timestamp;
     dueDate: Timestamp;
     status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
-    penalty?: number;
-}
-
-type Announcement = {
-    id: string;
-    message: string;
-    link?: string;
-    createdAt: Timestamp;
-}
-
-type WalletHistoryEntry = {
-    id: string;
-    amount: number;
-    type: 'credit' | 'debit';
-    category: string;
-    description: string;
-    createdAt: Timestamp;
-}
-
-type ScratchCardData = {
-  id: string;
-  amount: number;
-  status: 'unscratched' | 'scratched';
 }
 
 const CountdownTimer = ({ endDate }: { endDate: Date }) => {
@@ -231,17 +188,12 @@ export default function Dashboard() {
   const { user, loading: userLoading } = useUser();
   const { toast } = useToast();
 
-  const { data: userData, loading: userDataLoading, refetch: refetchUser } = useDoc<UserData>(user ? `users/${user.uid}` : null);
+  const { data: userData, loading: userDataLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(user ? `users/${user.uid}/investments` : null);
-  const { data: loans, loading: loansLoading } = useCollection<ActiveLoan>(user ? `users/${user.uid}/loans` : null);
-  const { data: announcements, loading: announcementsLoading } = useCollection<Announcement>('announcements');
-  const { data: referrals } = useCollection<any>('users', { where: ['referredBy', '==', user?.uid] });
-  const { data: walletHistory, loading: historyLoading } = useCollection<WalletHistoryEntry>(user ? `users/${user.uid}/walletHistory` : null, undefined, orderBy('createdAt', 'desc'), limit(10));
-  const { data: pendingRewards } = useCollection<ScratchCardData>(user ? query(collection(firestore, 'scratchCards'), where('userId', '==', user.uid), where('status', '==', 'unscratched')) : null);
+  const { data: loans } = useCollection<ActiveLoan>(user ? `users/${user.uid}/loans` : null);
 
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
-  const [showDueLoanPopup, setShowDueLoanPopup] = useState(false);
 
   useEffect(() => {
     if (!userLoading && user && userData) {
@@ -249,17 +201,6 @@ export default function Dashboard() {
         if (!hasSeenPopup) { setShowWelcomePopup(true); sessionStorage.setItem('welcomePopupShown', 'true'); }
     }
   }, [userLoading, user, userData]);
-  
-  const overdueLoan = useMemo(() => {
-    if (!loans) return null;
-    const now = new Date();
-    return loans.find(l => l.status === 'Due' || (l.dueDate.toDate() < now && l.status !== 'Completed'));
-  }, [loans]);
-
-  useEffect(() => {
-    const popupShown = sessionStorage.getItem('dueLoanPopupShown');
-    if (overdueLoan && !popupShown) { setShowDueLoanPopup(true); sessionStorage.setItem('dueLoanPopupShown', 'true'); }
-  }, [overdueLoan]);
 
   const handleClaimProfit = (investment: Investment) => {
     if (!user) return;
@@ -278,7 +219,6 @@ export default function Dashboard() {
         transaction.update(userRef, { walletBalance: (userDoc.data().walletBalance || 0) + amountToClaim, totalIncome: (userDoc.data().totalIncome || 0) + amountToClaim });
         transaction.update(invRef, { lastClaimDate: serverTimestamp() });
         transaction.set(doc(collection(firestore, `users/${user.uid}/walletHistory`)), { amount: amountToClaim, type: 'credit', category: 'ROI Claim', createdAt: serverTimestamp() });
-        return { amount: amountToClaim };
     }).then(() => toast({ title: 'Profit Claimed!' })).catch(e => toast({ title: 'Claim Failed', description: e.message, variant: 'destructive' }));
   };
 
@@ -298,7 +238,7 @@ export default function Dashboard() {
 
   const activeInvestments = investments?.filter((inv) => inv.status === 'Active' || inv.status === 'Stopped');
 
-  if (userLoading || userDataLoading || investmentsLoading || announcementsLoading) return <div className="flex h-screen items-center justify-center bg-[#030408]"><Timer className="animate-spin text-primary" /></div>;
+  if (userLoading || userDataLoading || investmentsLoading) return <div className="flex h-screen items-center justify-center bg-[#030408]"><Timer className="animate-spin text-primary" /></div>;
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground">
@@ -333,7 +273,7 @@ export default function Dashboard() {
 
         <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl p-6">
             <CardTitle className="text-lg font-bold mb-4">Premium Access</CardTitle>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <QuickActionButton icon={TrendingUp} label="Market" href="/plans" color="text-green-400" />
                 <QuickActionButton icon={Zap} label="Spin" href="/lucky-spin" color="text-yellow-400" />
                 <QuickActionButton icon={HandCoins} label="Loans" href="/loans" color="text-orange-400" />

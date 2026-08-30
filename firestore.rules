@@ -50,7 +50,7 @@ service cloud.firestore {
       }
     }
 
-    // Investment Plans
+    // Investment Plans - Allow auth users to update stock during buy
     match /investmentPlans/{planId} {
       allow read: if isAuthenticated();
       allow update, write: if isAuthenticated(); 
@@ -84,7 +84,7 @@ service cloud.firestore {
       allow delete: if isManager();
     }
 
-    // Global Settings
+    // Global Settings - Allow profit syncing during buy
     match /settings/{id} {
       allow read: if isAuthenticated();
       allow update, write: if isAuthenticated(); 
@@ -106,12 +106,6 @@ service cloud.firestore {
        allow delete: if isManager();
     }
 
-    // Coupons rules
-    match /coupons/{couponId} {
-      allow read, update: if isAuthenticated();
-      allow write: if isManager();
-    }
-
     // Support Chat Sessions
     match /chats/{id} {
         allow read, write: if isAuthenticated() && (id == request.auth.uid || isManager());
@@ -128,14 +122,6 @@ service cloud.firestore {
       match /investments/{invId} {
         allow read: if isAuthenticated();
         allow write: if isAuthenticated();
-      }
-      match /repayments/{repId} {
-        allow read: if isAuthenticated();
-        allow write: if isManager();
-      }
-      match /payouts/{payId} {
-        allow read: if isAuthenticated() && (resource.data.investorId == request.auth.uid || isManager());
-        allow write: if isManager();
       }
     }
 
