@@ -91,33 +91,6 @@ type UserData = {
   trustScore?: number;
 };
 
-function useUserGroupInvestments(userId?: string) {
-    const [investments, setInvestments] = useState<GroupInvestment[]>([]);
-    const [loading, setLoading] = useState(true);
-    const firestore = useFirestore();
-
-    useEffect(() => {
-        if (!userId) { setLoading(false); return; }
-        const fetchInvestments = async () => {
-            setLoading(true);
-            const allInvestments: GroupInvestment[] = [];
-            const plansSnapshot = await getDocs(collection(firestore, 'groupLoanPlans'));
-            for (const planDoc of plansSnapshot.docs) {
-                const iq = query(collection(firestore, `groupLoanPlans/${planDoc.id}/investments`), where('investorId', '==', userId));
-                const investmentSnapshot = await getDocs(iq);
-                investmentSnapshot.forEach(invDoc => {
-                    allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
-                });
-            }
-            setInvestments(allInvestments);
-            setLoading(false);
-        };
-        fetchInvestments();
-    }, [userId, firestore]);
-
-    return { data: investments, loading };
-}
-
 export default function ProfilePage() {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -131,12 +104,29 @@ export default function ProfilePage() {
   const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null, { where: ['userId', '==', user?.uid]});
   const { data: walletHistory } = useCollection<WalletHistoryEntry>(user ? `users/${user.uid}/walletHistory` : null, undefined, orderBy('createdAt', 'desc'));
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
-  const { data: groupInvestments } = useUserGroupInvestments(user?.uid);
 
+  const [groupInvestments, setGroupInvestments] = useState<GroupInvestment[]>([]);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [upiId, setUpiId] = useState('');
   const [upiProvider, setUpiProvider] = useState<'PhonePe' | 'Google Pay' | 'Paytm' | ''>('');
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchGroupInvestments = async () => {
+        const allInvestments: GroupInvestment[] = [];
+        const plansSnapshot = await getDocs(collection(firestore, 'groupLoanPlans'));
+        for (const planDoc of plansSnapshot.docs) {
+            const iq = query(collection(firestore, `groupLoanPlans/${planDoc.id}/investments`), where('investorId', '==', user.uid));
+            const investmentSnapshot = await getDocs(iq);
+            investmentSnapshot.forEach(invDoc => {
+                allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
+            });
+        }
+        setGroupInvestments(allInvestments);
+    };
+    fetchGroupInvestments();
+  }, [user, firestore]);
 
   useEffect(() => {
     if (userData) {

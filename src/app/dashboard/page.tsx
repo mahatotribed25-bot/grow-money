@@ -191,7 +191,6 @@ export default function Dashboard() {
   const { data: userData, loading: userDataLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(user ? `users/${user.uid}/investments` : null);
-  const { data: loans } = useCollection<ActiveLoan>(user ? `users/${user.uid}/loans` : null);
 
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
 
@@ -276,10 +275,10 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <QuickActionButton icon={TrendingUp} label="Market" href="/plans" color="text-green-400" />
                 <QuickActionButton icon={Zap} label="Spin" href="/lucky-spin" color="text-yellow-400" />
-                <QuickActionButton icon={HandCoins} label="Loans" href="/loans" color="text-orange-400" />
-                <QuickActionButton icon={FileText} label="Flexi" href="/custom-loan" color="text-red-400" />
-                <QuickActionButton icon={Users} label="Groups" href="/group-investing" color="text-purple-400" />
-                <QuickActionButton icon={Gem} label="VIP" href="/vip-tiers" color="text-yellow-400" />
+                <QuickActionButton icon={HandCoins} label="Apply Loan" href="/loans" color="text-orange-400" />
+                <QuickActionButton icon={FileText} label="Flexi Loan" href="/custom-loan" color="text-red-400" />
+                <QuickActionButton icon={Users} label="Group Investing" href="/group-investing" color="text-purple-400" />
+                <QuickActionButton icon={Gem} label="VIP Tiers" href="/vip-tiers" color="text-yellow-400" />
             </div>
         </Card>
       </main>
@@ -347,8 +346,13 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
   const [amt, setAmt] = useState('');
   const [isDispensing, setIsDispensing] = useState(false);
 
+  const amounts = [500, 1000, 2000, 5000];
+
   const handleWithdraw = () => {
-    if (!user || !amt || !userData?.upiId) return;
+    if (!user || !amt || !userData?.upiId) {
+        toast({ title: "Profile incomplete", description: "Please add your UPI ID in profile first.", variant: "destructive"});
+        return;
+    }
     const val = parseFloat(amt);
     if (val < (adminSettings?.minWithdrawal || 100)) { toast({ title: "Min ₹" + (adminSettings?.minWithdrawal || 100), variant: "destructive" }); return; }
 
@@ -358,23 +362,80 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
         if ((userDoc.data()?.walletBalance || 0) < val) throw new Error("Insufficient Funds");
         transaction.update(userRef, { walletBalance: (userDoc.data()?.walletBalance || 0) - val });
         transaction.set(doc(collection(firestore, 'withdrawals')), { userId: user.uid, name: user.displayName, amount: val, upiId: userData.upiId, status: 'pending', createdAt: serverTimestamp() });
-    }).then(() => { setIsDispensing(true); setAmt(''); }).catch(e => toast({ title: "Failed", description: e.message, variant: "destructive" }));
+    }).then(() => { setIsDispensing(true); }).catch(e => toast({ title: "Failed", description: e.message, variant: "destructive" }));
   };
 
   return (
     <>
         <Dialog>
             <DialogTrigger asChild><Button variant="outline" className="w-full h-12 rounded-xl border-white/10 bg-white/5 text-white/70 font-bold"><Download size={16} className="mr-2" /> Withdraw</Button></DialogTrigger>
-            <DialogContent className="bg-[#030408] border-white/10 text-white">
-                <DialogHeader><DialogTitle>Request Payout</DialogTitle></DialogHeader>
-                <div className="space-y-4">
-                    <p className="text-xs text-white/40 text-center font-mono">{userData?.upiId || 'Add UPI in Profile'}</p>
-                    <Input type="number" placeholder="Amount (INR)" value={amt} onChange={e => setAmt(e.target.value)} className="bg-white/5 border-white/10" />
-                    <Button onClick={handleWithdraw} className="w-full h-12 bg-primary">Authorize Payout</Button>
+            <DialogContent className="bg-[#030408]/95 border-white/10 text-white sm:max-w-md p-0 overflow-hidden rounded-[2.5rem]">
+                <header className="p-6 border-b border-white/5 flex items-center justify-between">
+                    <h2 className="text-lg font-bold">Withdraw</h2>
+                    <HelpCircle className="text-white/20 h-5 w-5" />
+                </header>
+                <div className="p-6 space-y-8">
+                     <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary"><Wallet size={20}/></div>
+                            <div>
+                                <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Your Wallet Balance</p>
+                                <p className="text-lg font-black tracking-tight">₹{(userData?.walletBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                            </div>
+                        </div>
+                        <Eye size={18} className="text-white/20" />
+                    </div>
+
+                    <div className="space-y-4">
+                        <Label className="text-[11px] font-black text-white/20 uppercase tracking-[2px] ml-1">Enter Amount</Label>
+                        <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-white/20">₹</span>
+                            <Input 
+                                type="number" 
+                                placeholder="0.00" 
+                                value={amt} 
+                                onChange={e => setAmt(e.target.value)} 
+                                className="h-16 pl-10 text-3xl font-black bg-white/5 border-white/10 rounded-2xl focus:ring-primary focus:border-primary/50"
+                            />
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                            {amounts.map(a => (
+                                <Button 
+                                    key={a} 
+                                    variant="outline" 
+                                    onClick={() => setAmt(a.toString())}
+                                    className={cn(
+                                        "h-10 rounded-xl font-bold border-white/10 hover:bg-primary/20",
+                                        amt === a.toString() ? "bg-primary text-white border-primary" : "bg-white/5 text-white/40"
+                                    )}
+                                >
+                                    ₹{a}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <Label className="text-[11px] font-black text-white/20 uppercase tracking-[2px] ml-1">Withdraw Method</Label>
+                        <div className="bg-white/5 border border-primary/40 rounded-2xl p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary"><Smartphone size={20}/></div>
+                                <div>
+                                    <p className="text-sm font-bold">ATM Cash</p>
+                                    <p className="text-[10px] text-white/30">Withdraw via ATM</p>
+                                </div>
+                            </div>
+                            <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center"><CheckCircle2 size={12} className="text-white"/></div>
+                        </div>
+                    </div>
+                    
+                    <Button onClick={handleWithdraw} className="w-full h-14 rounded-2xl bg-primary text-white font-black text-lg shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+                        Confirm Withdrawal
+                    </Button>
                 </div>
             </DialogContent>
         </Dialog>
-        <CashDispenseAnimation isOpen={isDispensing} amount={parseFloat(amt) || 500} onClose={() => setIsDispensing(false)} />
+        <CashDispenseAnimation isOpen={isDispensing} amount={parseFloat(amt) || 500} walletBalance={userData?.walletBalance || 0} onClose={() => { setIsDispensing(false); setAmt(''); }} />
     </>
   );
 }
@@ -406,4 +467,65 @@ function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.Ele
             <Icon className={cn("h-5 w-5", color)} /><span className="text-[9px] font-black uppercase text-white/30 tracking-widest">{label}</span>
         </Link>
     )
+}
+
+function HelpCircle(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <path d="M12 17h.01" />
+    </svg>
+  )
+}
+
+function Smartphone(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+      <path d="M12 18h.01" />
+    </svg>
+  )
+}
+
+function CheckCircle2(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  )
 }
