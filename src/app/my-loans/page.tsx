@@ -21,7 +21,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
   Dialog,

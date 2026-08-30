@@ -18,7 +18,6 @@ import {
   Pencil
 } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth, useDoc, useFirestore } from '@/firebase';
@@ -33,7 +32,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import TrustScoreMeter from '@/components/TrustScoreMeter';
 import {
@@ -108,8 +107,6 @@ export default function ProfilePage() {
   const [groupInvestments, setGroupInvestments] = useState<GroupInvestment[]>([]);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [editName, setEditName] = useState('');
-  const [upiId, setUpiId] = useState('');
-  const [upiProvider, setUpiProvider] = useState<'PhonePe' | 'Google Pay' | 'Paytm' | ''>('');
 
   useEffect(() => {
     if (!user) return;
@@ -131,8 +128,6 @@ export default function ProfilePage() {
   useEffect(() => {
     if (userData) {
       setEditName(userData.name || '');
-      setUpiId(userData.upiId || '');
-      setUpiProvider(userData.upiProvider || '');
     }
   }, [userData]);
 
@@ -147,14 +142,6 @@ export default function ProfilePage() {
     if (refetchUser) refetchUser();
   };
 
-  const handleSubmitUpi = () => {
-      if (!user || !upiId || !upiProvider) return;
-      runTransaction(firestore, async (transaction) => {
-          transaction.set(doc(collection(firestore, 'upiRequests')), { userId: user.uid, userName: userData?.name || 'Investor', upiId, upiProvider, status: 'pending', createdAt: serverTimestamp() });
-          transaction.update(doc(firestore, 'users', user.uid), { upiStatus: 'Pending' });
-      }).then(() => toast({ title: 'UPI Submitted' }));
-  }
-  
   const awaitingConfirmationRequest = upiRequests?.find(req => req.status === 'awaiting_confirmation');
 
   return (
@@ -171,7 +158,12 @@ export default function ProfilePage() {
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <Avatar className="h-20 w-20 border-2 border-primary/20"><AvatarImage src={userData?.photoURL} /><AvatarFallback>{userData?.name?.charAt(0)}</AvatarFallback></Avatar>
               <div className="text-center sm:text-left">
-                <CardTitle className="text-xl font-bold flex items-center gap-2">{userData?.name || 'Investor'} <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsEditProfileOpen(true)}><Pencil size={12} /></Button></CardTitle>
+                <CardTitle className="text-xl font-bold flex items-center justify-center sm:justify-start gap-2">
+                  {userData?.name || 'Investor'} 
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsEditProfileOpen(true)}>
+                    <Pencil size={12} />
+                  </Button>
+                </CardTitle>
                 <CardDescription>{user?.email}</CardDescription>
                 <Badge className="mt-2 bg-primary/10 border-primary/20 text-primary uppercase text-[10px]">{userData?.vipLevel || 'Bronze'}</Badge>
               </div>

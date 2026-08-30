@@ -25,7 +25,11 @@ import {
   ExternalLink,
   ChevronRight,
   FileText,
-  Users
+  Users,
+  Eye,
+  CheckCircle2,
+  Smartphone,
+  HelpCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -113,44 +117,6 @@ type Investment = {
   finalReturn?: number;
 };
 
-type ActiveLoan = {
-    id: string;
-    planName: string;
-    loanAmount: number;
-    totalPayable: number;
-    startDate: Timestamp;
-    dueDate: Timestamp;
-    status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
-}
-
-const CountdownTimer = ({ endDate }: { endDate: Date }) => {
-    const [timeLeft, setTimeLeft] = useState('...');
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const now = new Date();
-            const distance = endDate.getTime() - now.getTime();
-
-            if (distance < 0) {
-                clearInterval(interval);
-                setTimeLeft("00d 00h 00m 00s");
-                return;
-            }
-
-            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-            setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, [endDate]);
-
-    return <span className="font-mono">{timeLeft}</span>;
-};
-
 const SlideToClaim = ({ onComplete, disabled, label, lockedLabel }: { onComplete: () => void, disabled?: boolean, label: string, lockedLabel?: string }) => {
   const [sliderValue, setSliderValue] = useState(0);
   const [isCompleted, setIsComplete] = useState(false);
@@ -172,11 +138,11 @@ const SlideToClaim = ({ onComplete, disabled, label, lockedLabel }: { onComplete
   return (
     <div className={cn("relative h-12 w-full rounded-xl overflow-hidden border transition-all duration-300", disabled ? "bg-white/5 border-white/5 opacity-50" : "bg-white/10 border-white/10")}>
       <div className="absolute inset-y-0 left-0 bg-primary/20 transition-all duration-75" style={{ width: `${sliderValue}%` }} />
-      <div className="absolute inset-0 flex items-center justify-center pointer-none">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <span className="text-[10px] font-black uppercase tracking-widest">{disabled ? (lockedLabel || "Action Locked") : (isCompleted ? "Success!" : label)}</span>
       </div>
       <input type="range" min="0" max="100" value={sliderValue} onChange={handleSliderChange} onMouseUp={handleMouseUp} onTouchEnd={handleMouseUp} disabled={disabled || isCompleted} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed" />
-      <div className={cn("absolute top-1 left-1 bottom-1 aspect-square rounded-lg flex items-center justify-center transition-all duration-75 pointer-none", disabled ? "bg-white/10 text-white/20" : "bg-white text-black shadow-lg")} style={{ left: `calc(${sliderValue}% - ${sliderValue > 0 ? '40px' : '0px'})`, marginLeft: sliderValue > 0 ? '0' : '4px' }}>
+      <div className={cn("absolute top-1 left-1 bottom-1 aspect-square rounded-lg flex items-center justify-center transition-all duration-75 pointer-events-none", disabled ? "bg-white/10 text-white/20" : "bg-white text-black shadow-lg")} style={{ left: `calc(${sliderValue}% - ${sliderValue > 0 ? '40px' : '0px'})`, marginLeft: sliderValue > 0 ? '0' : '4px' }}>
         <ChevronRight className={cn("h-5 w-5", !disabled && "animate-pulse")} />
       </div>
     </div>
@@ -253,7 +219,15 @@ export default function Dashboard() {
 
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
         <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /><h1 className="text-xl font-bold">Grow Money</h1></div>
-        <Link href="/profile"><Badge variant="outline" className="border-white/10 bg-white/5 h-10 px-3 gap-2 rounded-full"><Avatar className="h-7 w-7"><AvatarImage src={userData?.photoURL} /><AvatarFallback>{userData?.name?.charAt(0)}</AvatarFallback></Avatar><span className="animate-rgb-glow font-black text-xs">{userData?.name || 'User'}</span></Badge></Link>
+        <Link href="/profile">
+          <Badge variant="outline" className="border-white/10 bg-white/5 h-10 px-3 gap-2 rounded-full">
+            <Avatar className="h-7 w-7">
+              <AvatarImage src={userData?.photoURL} />
+              <AvatarFallback>{userData?.name?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <span className="animate-rgb-glow font-black text-xs">{userData?.name || 'User'}</span>
+          </Badge>
+        </Link>
       </header>
 
       <ActivityPulse />
@@ -372,7 +346,7 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
             <DialogContent className="bg-[#030408]/95 border-white/10 text-white sm:max-w-md p-0 overflow-hidden rounded-[2.5rem]">
                 <header className="p-6 border-b border-white/5 flex items-center justify-between">
                     <h2 className="text-lg font-bold">Withdraw</h2>
-                    <HelpCircle className="text-white/20 h-5 w-5" />
+                    <HelpCircle className="text-white/40 h-5 w-5" />
                 </header>
                 <div className="p-6 space-y-8">
                      <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
@@ -395,7 +369,7 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
                                 placeholder="0.00" 
                                 value={amt} 
                                 onChange={e => setAmt(e.target.value)} 
-                                className="h-16 pl-10 text-3xl font-black bg-white/5 border-white/10 rounded-2xl focus:ring-primary focus:border-primary/50"
+                                className="h-16 pl-10 text-3xl font-black bg-white/5 border-white/10 rounded-2xl focus:ring-primary focus:border-primary/50 text-white"
                             />
                         </div>
                         <div className="grid grid-cols-4 gap-2">
@@ -467,65 +441,4 @@ function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.Ele
             <Icon className={cn("h-5 w-5", color)} /><span className="text-[9px] font-black uppercase text-white/30 tracking-widest">{label}</span>
         </Link>
     )
-}
-
-function HelpCircle(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-      <path d="M12 17h.01" />
-    </svg>
-  )
-}
-
-function Smartphone(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
-      <path d="M12 18h.01" />
-    </svg>
-  )
-}
-
-function CheckCircle2(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
-  )
 }

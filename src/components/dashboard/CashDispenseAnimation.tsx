@@ -140,8 +140,6 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
                                                 <div className="w-8 h-8 rounded-full border border-black/5 bg-white/20" />
                                                 <span className="text-[10px] font-black text-black/40">BANK OF GROW</span>
                                             </div>
-                                            {/* Pattern overlay */}
-                                            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle,black_1px,transparent_1px)] bg-[length:4px_4px]" />
                                             {/* Gandhi-ish circle */}
                                             <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-16 h-20 rounded-full border border-black/10 bg-white/5 flex items-center justify-center font-black text-black/5 text-[8px]">NPCI</div>
                                         </div>
