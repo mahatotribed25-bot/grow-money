@@ -172,7 +172,7 @@ export default function MyLoansPage() {
         : adminSettings?.adminUpi || '';
 
     if (!upiIdForPayment) {
-        toast({ title: "Admin UPI not set", description: "The administrator has not configured a UPI ID for payments.", variant: "destructive"});
+        toast({ title: "Admin UPI not set", variant: "destructive"});
         return;
     }
 
@@ -212,7 +212,7 @@ export default function MyLoansPage() {
         .then(() => {
             toast({
                 title: 'Payment Initiated',
-                description: 'Your payment is being processed. The admin will confirm it shortly.',
+                description: 'Your payment is being processed.',
             });
             setPaymentDetails(null);
         })
@@ -230,7 +230,7 @@ export default function MyLoansPage() {
     if (!extensionLoan) return;
     const days = parseInt(extensionDays);
     if (isNaN(days) || days <= 0 || days > 15) {
-      toast({ title: "Invalid Extension", description: "You can request between 1 and 15 extra days.", variant: "destructive" });
+      toast({ title: "Invalid Extension", variant: "destructive" });
       return;
     }
 
@@ -243,7 +243,7 @@ export default function MyLoansPage() {
 
     updateDoc(loanRef, updateData)
         .then(() => {
-            toast({ title: "Extension Requested", description: "Your extension request has been sent to the admin." });
+            toast({ title: "Extension Requested" });
             setExtensionLoan(null);
         })
         .catch(async (e) => {
@@ -254,12 +254,6 @@ export default function MyLoansPage() {
             });
             errorEmitter.emit('permission-error', permissionError);
         });
-  };
-  
-  const handleCopyToClipboard = (text: string, label: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    toast({ title: `${label} Copied!`, description: text });
   };
   
   const upiDeeplink = paymentDetails?.isOpen && paymentDetails.upiId
@@ -292,7 +286,7 @@ export default function MyLoansPage() {
             ) : (
                 <Card className="bg-white/5 border-white/10 backdrop-blur-xl rounded-3xl p-10 text-center border-dashed">
                     <CardContent className="space-y-4">
-                       <p className="text-white/40 text-sm">You have no active plan-based loans.</p>
+                       <p className="text-white/40 text-sm">No active plan-based loans.</p>
                        <Button asChild variant="outline" className="border-white/10 h-10 rounded-xl">
                         <Link href="/loans">Apply Now</Link>
                        </Button>
@@ -337,9 +331,7 @@ export default function MyLoansPage() {
         <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white sm:max-w-md">
             <DialogHeader>
                 <DialogTitle>Repay Your Loan</DialogTitle>
-                <DialogDescription className="text-white/40">
-                    Process your repayment securely via UPI. Admin verification required.
-                </DialogDescription>
+                <DialogDescription className="text-white/40">Process your repayment securely via UPI.</DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
                {paymentDetails?.upiId && upiDeeplink && (
@@ -355,41 +347,20 @@ export default function MyLoansPage() {
                     </div>
                 </div>
                )}
-                
                 <div className="bg-white/5 rounded-2xl p-4 border border-white/5 space-y-4">
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] uppercase font-bold tracking-widest text-white/30">Admin ID</span>
-                        <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm text-white/80">{paymentDetails?.upiId || '---'}</span>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10" onClick={() => handleCopyToClipboard(paymentDetails?.upiId || '', 'UPI ID')}>
-                                <Copy className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-                    <Separator className="bg-white/5" />
-                    <div className="flex items-center justify-between">
                         <span className="text-[10px] uppercase font-bold tracking-widest text-white/30">Total Payable</span>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xl font-black text-green-400">₹{paymentDetails?.amount.toFixed(2)}</span>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10" onClick={() => handleCopyToClipboard(paymentDetails?.amount.toFixed(2) || '', 'Amount')}>
-                                <Copy className="h-4 w-4" />
-                            </Button>
-                        </div>
+                        <span className="text-xl font-black text-green-400">₹{paymentDetails?.amount.toFixed(2)}</span>
                     </div>
                 </div>
-
                 {upiDeeplink && (
-                    <Button asChild className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-white/90 shadow-xl shadow-white/5 transition-all">
-                        <a href={upiDeeplink}>
-                            <QrCode className="mr-2" /> Pay with UPI App
-                        </a>
+                    <Button asChild className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-white/90">
+                        <a href={upiDeeplink}><QrCode className="mr-2" /> Pay with UPI App</a>
                     </Button>
                 )}
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
-                <DialogClose asChild>
-                    <Button variant="ghost" className="text-white/40 hover:bg-white/5">Cancel</Button>
-                </DialogClose>
+                <DialogClose asChild><Button variant="ghost" className="text-white/40">Cancel</Button></DialogClose>
                 <Button onClick={handlePaymentConfirmation} className="rounded-xl font-bold bg-primary text-white">I Have Paid</Button>
             </DialogFooter>
         </DialogContent>
@@ -398,29 +369,20 @@ export default function MyLoansPage() {
       {/* Extension Dialog */}
       <Dialog open={!!extensionLoan} onOpenChange={() => setExtensionLoan(null)}>
         <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white">
-          <DialogHeader>
-            <DialogTitle>Request Loan Extension</DialogTitle>
-            <DialogDescription className="text-white/40">
-              Increase your repayment window. Extensions may involve extra fees.
-            </DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Request Loan Extension</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label className="text-white/60">Additional Time</Label>
               <Select value={extensionDays} onValueChange={setExtensionDays}>
-                <SelectTrigger className="bg-white/5 border-white/10 rounded-xl h-11">
-                  <SelectValue placeholder="Select extra days" />
-                </SelectTrigger>
+                <SelectTrigger className="bg-white/5 border-white/10 rounded-xl h-11"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-[#030408] border-white/10">
-                  {[1, 3, 5, 7, 10, 15].map(d => (
-                    <SelectItem key={d} value={d.toString()}>{d} Extra Days</SelectItem>
-                  ))}
+                  {[1, 3, 5, 7, 10, 15].map(d => <SelectItem key={d} value={d.toString()}>{d} Extra Days</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <DialogClose asChild><Button variant="ghost" className="text-white/40 hover:bg-white/5">Discard</Button></DialogClose>
+            <DialogClose asChild><Button variant="ghost" className="text-white/40">Discard</Button></DialogClose>
             <Button onClick={handleRequestExtension} className="rounded-xl font-bold bg-primary text-white">Apply Extension</Button>
           </DialogFooter>
         </DialogContent>
@@ -431,446 +393,88 @@ export default function MyLoansPage() {
 
 function getBadgeStyle(status: string) {
     const lowerStatus = status.toLowerCase();
-    switch (lowerStatus) {
-        case 'active':
-             return "bg-primary/20 text-primary border-primary/30";
-        case 'due':
-             return "bg-red-500/20 text-red-400 border-red-500/30";
-        case 'completed':
-             return "bg-green-500/20 text-green-400 border-green-500/30";
-        case 'payment pending':
-        case 'payment_pending':
-             return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-        case 'pending_user_approval':
-             return "bg-amber-500/20 text-amber-500 border-amber-500/30";
-        case 'approved_by_user':
-             return "bg-cyan-500/20 text-cyan-400 border-cyan-500/30";
-        default: return "bg-white/5 text-white/40 border-white/10";
-    }
+    if (lowerStatus === 'active') return "bg-primary/20 text-primary border-primary/30";
+    if (lowerStatus === 'due') return "bg-red-500/20 text-red-400 border-red-500/30";
+    if (lowerStatus === 'completed') return "bg-green-500/20 text-green-400 border-green-500/30";
+    if (lowerStatus === 'payment pending' || lowerStatus === 'payment_pending') return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+    return "bg-white/5 text-white/40 border-white/10";
 }
-
-function InfoItem({ label, value, isBadge = false, status }: { label: string, value: string | number, isBadge?: boolean, status?: string }) {
-  return (
-    <div className="flex flex-col bg-white/5 p-3 rounded-2xl border border-white/5">
-      <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest mb-1">{label}</span>
-      {isBadge ? (
-        <Badge variant="outline" className={cn("text-[9px] uppercase font-black tracking-widest border-white/5", getBadgeStyle(status || String(value)))}>{String(value)}</Badge>
-      ) : (
-        <span className="text-sm font-bold text-white/90 tracking-tight">{value}</span>
-      )}
-    </div>
-  );
-}
-
 
 function LoanCard({ loan, adminSettings, onPayNow }: { loan: Loan, adminSettings: AdminSettings | null, onPayNow: (loan: Loan, amount: number, isEmi: boolean, emiIndices?: number[]) => void }) {
   const { user } = useUser();
   const firestore = useFirestore();
-  const { toast } = useToast();
-  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [selectedEmis, setSelectedEmis] = useState<number[]>([]);
 
-
-  useEffect(() => {
-    const updateCurrentTime = () => setCurrentTime(new Date());
-    updateCurrentTime();
-    const timer = setInterval(updateCurrentTime, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const checkOverdue = async () => {
-      if (!user || !adminSettings || !['Active', 'Due'].includes(loan.status) || !currentTime) {
-        return;
-      }
-      
-      const dueDate = loan.dueDate.toDate();
-      const gracePeriodEndDate = addDays(dueDate, 1);
-      
-      if (currentTime > gracePeriodEndDate) {
-        const dailyPenalty = adminSettings.loanPenalty || 0;
-        if (dailyPenalty <= 0) return;
-
-        const overdueMilliseconds = currentTime.getTime() - gracePeriodEndDate.getTime();
-        const overdueDays = Math.floor(overdueMilliseconds / (1000 * 60 * 60 * 24)) + 1;
-        
-        const newPenalty = overdueDays * dailyPenalty;
-        
-        if (loan.status !== 'Due' || newPenalty > (loan.penalty || 0)) {
-          const loanRef = doc(firestore, 'users', user.uid, 'loans', loan.id);
-          const dataToUpdate = {
-            status: 'Due',
-            penalty: newPenalty
-          };
-
-          updateDoc(loanRef, dataToUpdate).catch(async (e) => {
-            const permissionError = new FirestorePermissionError({
-                path: loanRef.path,
-                operation: 'update',
-                requestResourceData: dataToUpdate
-            });
-            errorEmitter.emit('permission-error', permissionError);
-          });
-        }
-      }
-    };
-    
-    checkOverdue();
-  }, [currentTime, loan, user, firestore, adminSettings, toast]);
-
-  if (!loan.startDate || !loan.dueDate) {
-    return null;
-  }
-  
-  const startDate = loan.startDate.toDate();
-  const dueDate = loan.dueDate.toDate();
-  
   const totalRepayment = loan.totalPayable + (loan.penalty || 0);
 
-  const toggleEmiSelection = (index: number) => {
-    setSelectedEmis(prev => 
-        prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
-    );
-  }
-
-  const selectedTotal = useMemo(() => {
-    if (!loan.emis) return 0;
-    return selectedEmis.reduce((sum, index) => sum + (loan.emis![index]?.emiAmount || 0), 0);
-  }, [selectedEmis, loan.emis]);
-
   return (
-    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden relative group">
+    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden">
       <CardHeader className="pb-3 border-b border-white/[0.05] bg-white/[0.01]">
         <div className="flex justify-between items-center">
-            <div>
-                <CardTitle className="text-white font-bold tracking-tight">{loan.planName}</CardTitle>
-                <CardDescription className="text-white/30 text-xs">Contract Start: {startDate.toLocaleDateString()}</CardDescription>
-            </div>
-            <Badge variant="outline" className={cn("text-[10px] uppercase font-black tracking-widest border-white/5", getBadgeStyle(loan.status))}>
-                {loan.status}
-            </Badge>
+            <CardTitle className="text-white font-bold">{loan.planName}</CardTitle>
+            <Badge variant="outline" className={cn("text-[10px] uppercase border-white/5", getBadgeStyle(loan.status))}>{loan.status}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
-        <div className="grid grid-cols-2 gap-3">
-            <InfoItem label="Principal" value={`₹${(loan.loanAmount || 0).toFixed(2)}`} />
-            <InfoItem label="Interest" value={`₹${(loan.interest || 0).toFixed(2)}`} />
-            <InfoItem label="Repayment" value={loan.repaymentMethod} />
-            <InfoItem label="End Date" value={dueDate.toLocaleDateString()} />
+        <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="bg-white/5 p-3 rounded-xl border border-white/5"><p className="text-white/30 uppercase">Principal</p><p className="font-bold">₹{loan.loanAmount.toFixed(2)}</p></div>
+            <div className="bg-white/5 p-3 rounded-xl border border-white/5 text-right"><p className="text-white/30 uppercase">Due</p><p className="font-bold">{loan.dueDate.toDate().toLocaleDateString()}</p></div>
         </div>
-
-        <div className="bg-black/40 rounded-2xl p-5 border border-white/5 space-y-4">
-             <div className="flex justify-between text-[10px] font-black uppercase tracking-[3px] text-white/20">
-                <span>Current Obligations</span>
-                {loan.penalty! > 0 && <span className="text-red-400 font-black">+₹{loan.penalty?.toFixed(2)} Penalty</span>}
-             </div>
-             <div className="flex justify-between items-center">
-                <span className="text-sm font-bold text-white/60">Total Amount Due</span>
-                <span className="text-2xl font-black text-white tracking-tighter">₹{totalRepayment.toFixed(2)}</span>
-             </div>
+        <div className="bg-black/40 rounded-2xl p-5 border border-white/5 flex justify-between items-center">
+            <span className="text-sm font-bold text-white/60">Total Due</span>
+            <span className="text-2xl font-black text-white">₹{totalRepayment.toFixed(2)}</span>
         </div>
-        
-        {loan.status === 'Active' && currentTime && (
-            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-white/20 px-2">
-                <span className="flex items-center gap-1.5"><Timer size={14} className="text-primary animate-pulse" /> Time Remaining</span>
-                <CountdownTimer endDate={dueDate} />
-            </div>
-        )}
-        
-        {loan.repaymentMethod === 'EMI' && loan.emis ? (
-            <div className="space-y-4">
-                <div className="flex items-center justify-between pl-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Repayment Schedule</p>
-                    {selectedEmis.length > 0 && (
-                        <Button 
-                            size="sm" 
-                            className="h-8 rounded-lg text-[10px] font-black uppercase tracking-widest bg-green-500 hover:bg-green-600 text-white animate-in zoom-in-95"
-                            onClick={() => onPayNow(loan, selectedTotal, true, selectedEmis)}
-                        >
-                            Pay Selected (₹{selectedTotal.toFixed(2)})
-                        </Button>
-                    )}
-                </div>
-                <div className="rounded-2xl border border-white/5 overflow-hidden">
-                    <Table>
-                        <TableHeader className="bg-white/[0.02]">
-                            <TableRow className="border-white/5">
-                                <TableHead className="w-10 pl-4"></TableHead>
-                                <TableHead className="text-[9px] uppercase font-black tracking-widest text-white/20">Due Date</TableHead>
-                                <TableHead className="text-[9px] uppercase font-black tracking-widest text-white/20">Installment</TableHead>
-                                <TableHead className="text-right pr-4 text-[9px] uppercase font-black tracking-widest text-white/20">Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loan.emis.map((emi, index) => (
-                                <TableRow key={index} className="border-white/[0.02] hover:bg-white/[0.01] transition-colors">
-                                    <TableCell className="pl-4">
-                                        {emi.status === 'Pending' && (
-                                            <Checkbox 
-                                                checked={selectedEmis.includes(index)} 
-                                                onCheckedChange={() => toggleEmiSelection(index)}
-                                                className="border-white/20 data-[state=checked]:bg-primary"
-                                            />
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-xs text-white/60">{new Date(emi.dueDate.seconds * 1000).toLocaleDateString()}</TableCell>
-                                    <TableCell>
-                                        <span className="text-sm font-bold text-white">₹{emi.emiAmount.toFixed(2)}</span>
-                                    </TableCell>
-                                    <TableCell className="text-right pr-4">
-                                        <Badge variant="outline" className={cn("text-[8px] h-4 border-white/5 uppercase", getBadgeStyle(emi.status))}>{emi.status}</Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-            </div>
-        ) : (
-             loan.status !== 'Completed' && (
-                <Button 
-                    className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-white/90 shadow-xl shadow-white/5 transition-all" 
-                    onClick={() => onPayNow(loan, totalRepayment, false)}
-                    disabled={loan.status === 'Payment Pending' || loan.status === 'Completed'}
-                >
-                    {loan.status === 'Payment Pending' ? 'Settlement Processing...' : 'Settle Full Debt Now'}
-                </Button>
-             )
-        )}
+        <Button className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-white/90" onClick={() => onPayNow(loan, totalRepayment, false)} disabled={loan.status === 'Payment Pending'}>
+            {loan.status === 'Payment Pending' ? 'Verifying...' : 'Repay Full Loan'}
+        </Button>
       </CardContent>
     </Card>
   );
 }
 
-
 function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { loan: CustomLoanRequest, adminSettings: AdminSettings | null, onPayNow: (loan: CustomLoanRequest, amount: number) => void, onOpenExtension: () => void }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [currentTime, setCurrentTime] = useState<Date | null>(null);
-
-  useEffect(() => {
-    const updateCurrentTime = () => setCurrentTime(new Date());
-    updateCurrentTime();
-    const timer = setInterval(updateCurrentTime, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const checkOverdue = async () => {
-      if (!user || !adminSettings || loan.status !== 'active' || !loan.dueDate || !currentTime) {
-        return;
-      }
-      
-      const dueDate = loan.dueDate.toDate();
-      const gracePeriodEndDate = addDays(dueDate, 1);
-      
-      if (currentTime > gracePeriodEndDate) {
-        const dailyPenalty = adminSettings.customLoanPenalty || 0;
-        if (dailyPenalty <= 0) return;
-
-        const overdueMilliseconds = currentTime.getTime() - gracePeriodEndDate.getTime();
-        const overdueDays = Math.floor(overdueMilliseconds / (1000 * 60 * 60 * 24)) + 1;
-        
-        const newPenalty = overdueDays * dailyPenalty;
-        
-        if (loan.status !== 'Due' || newPenalty > (loan.penalty || 0)) {
-          const loanRef = doc(firestore, 'customLoanRequests', loan.id);
-          const dataToUpdate = { penalty: newPenalty };
-
-          updateDoc(loanRef, dataToUpdate).catch(async (e) => {
-            const permissionError = new FirestorePermissionError({
-                path: loanRef.path,
-                operation: 'update',
-                requestResourceData: dataToUpdate
-            });
-            errorEmitter.emit('permission-error', permissionError);
-          });
-        }
-      }
-    };
-    
-    checkOverdue();
-  }, [currentTime, loan, user, firestore, adminSettings, toast]);
 
   const handleUpdateStatus = (newStatus: 'approved_by_user' | 'rejected_by_user') => {
     const requestRef = doc(firestore, 'customLoanRequests', loan.id);
-    const updateData = { 
-        status: newStatus,
-        ...(newStatus === 'approved_by_user' && { userApprovedAt: serverTimestamp() })
-    };
-    
-    updateDoc(requestRef, updateData)
-        .then(() => {
-            toast({ title: `Loan offer ${newStatus === 'approved_by_user' ? 'Accepted' : 'Rejected'}` });
-        })
-        .catch(async (e) => {
-            const permissionError = new FirestorePermissionError({
-                path: requestRef.path,
-                operation: 'update',
-                requestResourceData: updateData,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        });
+    updateDoc(requestRef, { status: newStatus, userApprovedAt: serverTimestamp() })
+        .then(() => toast({ title: "Offer Accepted" }));
   };
   
-  const isOverdue = currentTime && loan.dueDate && currentTime > loan.dueDate.toDate();
   const totalRepayment = (loan.totalRepayment || 0) + (loan.penalty || 0);
 
-  const statusLabel = loan.status === 'extension_pending' ? 'Extension Pending' : loan.status;
-
-  const loanProgress = useMemo(() => {
-    if (loan.status !== 'active' && loan.status !== 'payment_pending' && loan.status !== 'extension_pending' && loan.status !== 'Due') return 0;
-    if (!loan.activatedAt || !loan.dueDate) return 0;
-    const start = loan.activatedAt.toDate().getTime();
-    const end = loan.dueDate.toDate().getTime();
-    const now = currentTime?.getTime() || new Date().getTime();
-    return Math.min(Math.max(((now - start) / (end - start)) * 100, 0), 100);
-  }, [loan, currentTime]);
-
   return (
-    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden relative group">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden">
       <CardHeader className="pb-3 border-b border-white/[0.05] bg-white/[0.01]">
         <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                    <HandCoins size={14} className="text-primary" />
-                </div>
-                <span className="text-sm font-bold text-white tracking-tight uppercase">Custom Flexi</span>
-            </div>
-            <Badge variant="outline" className={cn("text-[10px] uppercase font-black tracking-widest border-white/5", getBadgeStyle(loan.status))}>
-                {statusLabel.replace('_', ' ')}
-            </Badge>
+            <span className="text-sm font-bold uppercase">Custom Flexi</span>
+            <Badge variant="outline" className={cn("text-[10px] uppercase", getBadgeStyle(loan.status))}>{loan.status.replace('_', ' ')}</Badge>
         </div>
-        <CardDescription className="text-white/30 text-[9px] uppercase tracking-widest font-black flex items-center gap-2 mt-1">
-            <Calendar size={12} /> Established: {loan.createdAt.toDate().toLocaleDateString()}
-        </CardDescription>
       </CardHeader>
       <CardContent className="pt-6 space-y-6">
-        
-        <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col bg-white/5 p-3 rounded-2xl border border-white/5">
-                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Principal Amount</span>
-                <span className="text-lg font-black text-white tracking-tighter">₹{(loan.requestedAmount || 0).toLocaleString()}</span>
-            </div>
-            <div className="flex flex-col bg-white/5 p-3 rounded-2xl border border-white/5 text-right">
-                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Duration</span>
-                <span className="text-sm font-black text-white/80">{loan.requestedDuration} Days</span>
-            </div>
-        </div>
-        
         {loan.status === 'pending_user_approval' ? (
-            <div className="bg-primary/10 rounded-2xl p-5 border border-primary/20 space-y-4 animate-in zoom-in-95">
-                <div className="flex flex-col items-center text-center gap-1">
-                    <p className="text-[10px] font-black uppercase tracking-[2px] text-primary/60">Administrative Offer</p>
-                    <div className="flex items-center gap-6 py-2">
-                        <div>
-                             <p className="text-[9px] text-white/30 uppercase font-black tracking-widest">Rate</p>
-                             <p className="text-sm font-black text-white">{loan.interestRate?.toFixed(1)}%</p>
-                        </div>
-                        <div className="h-6 w-px bg-white/10" />
-                        <div>
-                             <p className="text-[9px] text-white/30 uppercase font-black tracking-widest">Fee</p>
-                             <p className="text-sm font-black text-red-400">₹{(loan.interestAmount || 0).toFixed(2)}</p>
-                        </div>
-                    </div>
+            <div className="bg-primary/10 rounded-2xl p-5 border border-primary/20 space-y-4">
+                <div className="flex justify-between items-center">
+                    <span className="text-xs text-white/60">Liability</span>
+                    <span className="text-2xl font-black">₹{loan.totalRepayment?.toFixed(2)}</span>
                 </div>
-                 <div className="flex justify-between items-center border-t border-primary/10 pt-4">
-                    <span className="text-xs font-bold text-white/60 uppercase">Total Liability</span>
-                    <span className="text-2xl font-black text-white tracking-tighter">₹{(loan.totalRepayment || 0).toFixed(2)}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                    <Button className="rounded-xl font-bold bg-white text-black hover:bg-white/90" onClick={() => handleUpdateStatus('approved_by_user')}>Accept Offer</Button>
-                    <Button variant="ghost" className="rounded-xl font-bold text-red-400 hover:bg-red-400/10" onClick={() => handleUpdateStatus('rejected_by_user')}>Decline</Button>
+                <div className="grid grid-cols-2 gap-3">
+                    <Button className="rounded-xl font-bold bg-white text-black" onClick={() => handleUpdateStatus('approved_by_user')}>Accept</Button>
+                    <Button variant="ghost" className="rounded-xl font-bold text-red-400" onClick={() => handleUpdateStatus('rejected_by_user')}>Decline</Button>
                 </div>
             </div>
         ) : (loan.status === 'active' || loan.status === 'payment_pending' || loan.status === 'extension_pending' || loan.status === 'Due') && (
-             <div className="space-y-6">
-                
-                <div className="space-y-2">
-                    <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-white/20">
-                        <span>Loan Cycle Progress</span>
-                        <span>{loanProgress.toFixed(0)}% Used</span>
-                    </div>
-                    <Progress value={loanProgress} className="h-1.5 bg-white/5 [&>div]:bg-primary" />
+             <div className="space-y-4">
+                <div className="bg-black/40 rounded-2xl p-5 border border-white/5 flex justify-between items-center">
+                    <span className="text-xs font-bold text-white/60">Balance Due</span>
+                    <span className="text-2xl font-black">₹{totalRepayment.toFixed(2)}</span>
                 </div>
-
-                <div className="bg-black/40 rounded-2xl p-5 border border-white/5 space-y-4">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-[3px] text-white/20">
-                        <span>Settlement Summary</span>
-                        {isOverdue && <span className="text-red-400 font-black animate-pulse">+₹{loan.penalty?.toFixed(2)} PENALTY</span>}
-                    </div>
-                     <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-white/60">Balance Due</span>
-                        <span className="text-3xl font-black text-white tracking-tighter">₹{totalRepayment.toFixed(2)}</span>
-                    </div>
-                    
-                    <div className="pt-2 flex flex-col gap-2">
-                         <div className="flex items-center justify-between text-[10px] font-bold text-white/30 uppercase tracking-widest bg-white/5 p-2 rounded-lg">
-                            <div className="flex items-center gap-1.5"><Timer size={12} className="text-primary animate-pulse" /> Time Remaining</div>
-                            {isOverdue ? <span className="text-red-400 font-black">PAST DUE</span> : <CountdownTimer endDate={loan.dueDate!.toDate()} />}
-                         </div>
-                         <div className="flex items-center justify-between text-[10px] font-bold text-white/30 uppercase tracking-widest bg-white/5 p-2 rounded-lg">
-                            <div className="flex items-center gap-1.5"><ShieldCheck size={12} className="text-blue-400" /> Repayment Node</div>
-                            <span className="font-mono text-white/60">{adminSettings?.customLoanUpi || 'VERIFIED UPI'}</span>
-                         </div>
-                    </div>
-                </div>
-                
-                {loan.status === 'extension_pending' && (
-                   <div className="text-center p-3 rounded-xl bg-blue-500/10 text-blue-300 text-[10px] font-bold uppercase tracking-widest border border-blue-500/20 flex items-center justify-center gap-2">
-                      <Timer className="h-3 w-3" /> Processing Extension (+{loan.extensionRequestedDays} days)
-                   </div>
-                )}
-
-                <div className="grid gap-3 pt-2">
-                    <Button className="h-14 rounded-2xl font-black text-lg bg-white text-black hover:bg-white/90 shadow-2xl shadow-white/5 transition-all group" onClick={() => onPayNow(loan, totalRepayment)} disabled={loan.status === 'payment_pending'}>
-                        {loan.status === 'payment_pending' ? (
-                            <span className="flex items-center gap-2"><Timer className="animate-spin h-5 w-5"/> VERIFYING PAYMENT...</span>
-                        ) : (
-                            <span className="flex items-center gap-2">SETTLE DEBT NOW <ArrowUpRight className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/></span>
-                        )}
-                    </Button>
-                    
-                    {loan.status === 'active' && !isOverdue && (
-                        <Button variant="ghost" className="h-10 rounded-xl font-bold text-white/30 hover:text-white hover:bg-white/5" onClick={onOpenExtension}>
-                            <PlusCircle className="h-4 w-4 mr-2" /> Request Tenure Extension
-                        </Button>
-                    )}
-                </div>
-
-                <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex items-start gap-3">
-                    <span className="text-blue-400 shrink-0 mt-0.5"><Info size={16} /></span>
-                    <p className="text-[10px] text-white/40 leading-relaxed font-medium">
-                        Repayments are processed manually. Please scan the QR code in the next step to pay to the platform's verified UPI. Your trust score will increase upon successful settlement.
-                    </p>
-                </div>
-            </div>
-        )}
-        
-        {loan.status === 'rejected_by_admin' && (
-             <div className="bg-red-500/10 p-5 rounded-2xl border border-red-500/20 animate-in slide-in-from-top-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-1.5 flex items-center gap-1.5">
-                    <AlertTriangle size={12} /> Administrative Denial
-                </p>
-                <p className="text-xs text-red-200/60 leading-relaxed italic">"{loan.rejectionReason || 'No specific reason provided.'}"</p>
-             </div>
-        )}
-
-        {loan.status === 'approved_by_user' && (
-            <div className="bg-primary/5 p-8 rounded-3xl border border-primary/10 text-center animate-pulse space-y-2">
-                <TrendingUp size={32} className="mx-auto text-primary/40 mb-2" />
-                <p className="text-sm font-bold text-primary/80">Funds Disbursement Pending</p>
-                <p className="text-[9px] text-white/20 uppercase font-black tracking-[4px]">Syncing Node...</p>
-            </div>
-        )}
-        
-        {loan.status === 'completed' && (
-             <div className="bg-green-500/5 p-6 rounded-3xl border border-green-500/10 text-center space-y-1">
-                <CheckCircle2 size={32} className="mx-auto text-green-500/40 mb-2" />
-                <p className="text-sm font-bold text-green-500/80 uppercase tracking-widest">Loan Fully Settled</p>
-                <p className="text-[9px] text-white/20 font-black uppercase">Trust Score Impact: +50 Points</p>
+                <Button className="w-full h-14 rounded-2xl font-black text-lg bg-white text-black hover:bg-white/90 group" onClick={() => onPayNow(loan, totalRepayment)} disabled={loan.status === 'payment_pending'}>
+                    {loan.status === 'payment_pending' ? <span className="flex items-center gap-2"><Timer className="animate-spin" /> VERIFYING...</span> : <span className="flex items-center gap-2">SETTLE DEBT NOW <ArrowUpRight className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/></span>}
+                </Button>
+                {loan.status === 'active' && <Button variant="ghost" className="w-full text-white/30" onClick={onOpenExtension}>Request Tenure Extension</Button>}
             </div>
         )}
       </CardContent>
@@ -878,26 +482,9 @@ function CustomLoanCard({ loan, adminSettings, onPayNow, onOpenExtension }: { lo
   )
 }
 
-
-function BottomNavItem({
-  icon: Icon,
-  label,
-  href,
-  active = false,
-}: {
-  icon: React.ElementType;
-  label: string;
-  href: string;
-  active?: boolean;
-}) {
+function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href: string, active?: boolean }) {
   return (
-    <Link
-      href={href}
-      className={cn(
-        "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
-        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
-      )}
-    >
+    <Link href={href} className={cn("flex flex-col items-center justify-center gap-1 transition-all h-full relative", active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60')}>
       <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
       <span className="text-[10px] tracking-tight">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}

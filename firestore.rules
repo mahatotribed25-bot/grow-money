@@ -33,7 +33,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isOwner(userId);
       allow read: if isAuthenticated();
-      // Allow self-updates and cross-updates for referral bonus processing during transactions
+      // Allow self-updates and updates during transactions (like referral bonus)
       allow update: if isAuthenticated(); 
 
       match /investments/{id} {
@@ -50,7 +50,7 @@ service cloud.firestore {
       }
     }
 
-    // Investment Plans - Allow authenticated users to update stock during purchase
+    // Investment Plans
     match /investmentPlans/{planId} {
       allow read: if isAuthenticated();
       allow update, write: if isAuthenticated(); 
@@ -84,17 +84,16 @@ service cloud.firestore {
       allow delete: if isManager();
     }
 
-    // Global Settings - Allow authenticated users to update profit balance during purchase
+    // Global Settings
     match /settings/{id} {
       allow read: if isAuthenticated();
       allow update, write: if isAuthenticated(); 
     }
 
-    // Custom Loan Requests rules - Allow users to accept offers and mark payments
+    // Custom Loan Requests - Allow users to accept offers and notify payment
     match /customLoanRequests/{requestId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
       allow create: if isAuthenticated();
-      // Crucial: Allow users to update status for Accept and Settle actions
       allow update: if isManager() || (isAuthenticated() && request.auth.uid == resource.data.userId);
       allow delete: if isManager();
     }
@@ -127,7 +126,7 @@ service cloud.firestore {
       allow update, write: if isAuthenticated();
       
       match /investments/{invId} {
-        allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
+        allow read: if isAuthenticated();
         allow write: if isAuthenticated();
       }
       match /repayments/{repId} {
@@ -143,11 +142,6 @@ service cloud.firestore {
     // Collection Group Rule for investments
     match /{path=**}/investments/{id} {
       allow read, list: if isAuthenticated();
-    }
-
-    // Generic match for other collections
-    match /{document=**} {
-      allow read, write: if isAdmin();
     }
   }
 }

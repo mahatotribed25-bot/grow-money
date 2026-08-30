@@ -167,6 +167,47 @@ type AdminSettings = {
     referralBonus?: number;
 };
 
+function useUserGroupInvestments(userId?: string) {
+    const [investments, setInvestments] = useState<GroupInvestment[]>([]);
+    const [loading, setLoading] = useState(true);
+    const firestore = useFirestore();
+
+    useEffect(() => {
+        if (!userId) {
+            setLoading(false);
+            return;
+        }
+
+        const fetchInvestments = async () => {
+            setLoading(true);
+            try {
+                const allInvestments: GroupInvestment[] = [];
+                const q = query(collection(firestore, 'groupLoanPlans'));
+                const plansSnapshot = await getDocs(q);
+
+                for (const planDoc of plansSnapshot.docs) {
+                    const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
+                    const iq = query(investmentsRef, where('investorId', '==', userId));
+                    const investmentSnapshot = await getDocs(iq);
+
+                    investmentSnapshot.forEach(invDoc => {
+                        allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
+                    });
+                }
+                setInvestments(allInvestments);
+            } catch (e) {
+                console.error("Error fetching group investments:", e);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchInvestments();
+    }, [userId, firestore]);
+
+    return { data: investments, loading };
+}
+
 function TrackStep({ label, active }: { label: string, active: boolean }) {
     return (
         <div className="flex flex-col items-center gap-1.5 w-full">
@@ -181,188 +222,17 @@ function TrackStep({ label, active }: { label: string, active: boolean }) {
     )
 }
 
-function BottomNavItem({
-  icon: Icon,
-  label,
-  href,
-  active = false,
-}: {
-  icon: React.ElementType;
-  label: string;
-  href?: string;
-  active?: boolean;
-}) {
+function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href?: string, active?: boolean }) {
   return (
-    <Link
-      href={href || '#'}
-      className={cn(
+    <Link href={href || '#'} className={cn(
         "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
         active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
-      )}
-    >
+    )}>
       <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
       <span className="text-[10px] tracking-tight">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>
   );
-}
-
-function RedeemCouponCard() {
-  const { user } = useUser();
-  const firestore = useFirestore();
-  const { toast } = useToast();
-  const [code, setCode] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleRedeem = async () => {
-    if (!user || !code.trim()) return;
-    setLoading(true);
-
-    try {
-      const couponsRef = collection(firestore, 'coupons');
-      const q = query(couponsRef, where('code', '==', code.trim().toUpperCase()), where('status', '==', 'active'));
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        toast({ title: "Invalid Coupon", description: "This code does not exist or has expired.", variant: "destructive" });
-        return;
-      }
-
-      const couponDocSnap = querySnapshot.docs[0];
-      const couponRef = couponDocSnap.ref;
-
-      await runTransaction(firestore, async (transaction) => {
-        const freshCouponDoc = await transaction.get(couponRef);
-        const couponData = freshCouponDoc.data() as any;
-
-        if (freshCouponDoc.data().status !== 'active' || freshCouponDoc.data().stock <= 0) {
-            throw new Error("This coupon is no longer available.");
-        }
-
-        if (couponData.redemptions?.some((r: any) => r.userId === user.uid)) {
-          throw new Error("You have already redeemed this coupon.");
-        }
-
-        const userRef = doc(firestore, 'users', user.uid);
-        const userDoc = await transaction.get(userRef);
-        if (!userDoc.exists()) throw new Error("User account not found.");
-
-        const newBalance = (userDoc.data().walletBalance || 0) + couponData.amount;
-        const newStock = couponData.stock - 1;
-
-        transaction.update(userRef, { walletBalance: newBalance });
-        transaction.update(couponRef, {
-          stock: newStock,
-          status: newStock <= 0 ? 'depleted' : 'active',
-          redemptions: arrayUnion({
-            userId: user.uid,
-            userName: userDoc.data().name || 'User',
-            redeemedAt: new Date()
-          })
-        });
-
-        const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
-        transaction.set(historyRef, {
-            amount: couponData.amount,
-            type: 'credit',
-            category: 'Coupon',
-            description: `Redeemed coupon code: ${code.trim().toUpperCase()}`,
-            createdAt: serverTimestamp()
-        });
-      });
-
-      toast({ title: "Coupon Redeemed!", description: "Rewards have been credited to your wallet." });
-      setCode('');
-    } catch (e: any) {
-      toast({ title: "Redemption Failed", description: e.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white/90">
-                <TicketPercent className="text-orange-400" /> Redeem Coupon
-            </CardTitle>
-            <CardDescription className="text-white/40">Enter a special code to claim instant wallet rewards.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div className="flex gap-2">
-                <Input 
-                    placeholder="ENTER CODE" 
-                    value={code} 
-                    onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    className="bg-white/5 border-white/10 rounded-xl h-11 font-mono tracking-widest focus:ring-primary"
-                />
-                <Button onClick={handleRedeem} disabled={loading || !code.trim()} className="rounded-xl font-bold px-6 bg-primary text-white">
-                    {loading ? <Timer className="animate-spin h-4 w-4" /> : 'Redeem'}
-                </Button>
-            </div>
-        </CardContent>
-    </Card>
-  );
-}
-
-function WithdrawalDetailModal({ tx, isOpen, onClose }: { tx: Transaction | null, isOpen: boolean, onClose: () => void }) {
-    if (!tx) return null;
-
-    const netPayout = tx.finalAmount ?? tx.amount;
-    const initialRequest = tx.amount;
-    const gst = tx.gstAmount || 0;
-    const bonus = tx.totalDelayBonus || 0;
-
-    return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                        <HistoryIcon className="text-primary" /> Settlement View
-                    </DialogTitle>
-                    <DialogDescription className="text-white/40">Transaction breakdown and receipt.</DialogDescription>
-                </DialogHeader>
-                
-                <div className="py-6 space-y-6">
-                    <div className="text-center space-y-1">
-                        <p className="text-[10px] text-white/30 uppercase tracking-[3px] font-bold">Net Payout Received</p>
-                        <p className="text-4xl font-black text-green-400 tracking-tighter">₹{netPayout.toFixed(2)}</p>
-                    </div>
-
-                    <div className="space-y-3 bg-white/5 rounded-2xl p-5 border border-white/5">
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm text-white/60">Requested Amount</span>
-                            <span className="font-bold text-white">₹{initialRequest.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm text-white/60">Delay Bonus Earned</span>
-                            <span className="font-bold text-blue-400">+₹{bonus.toFixed(2)}</span>
-                        </div>
-                        <Separator className="bg-white/5" />
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm text-white/60">Service Fee (GST)</span>
-                            <span className="font-bold text-red-400">-₹{gst.toFixed(2)}</span>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                         <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                            <p className="text-[9px] text-white/20 uppercase font-bold mb-1">Status</p>
-                            <Badge className={cn("text-[9px] h-5", tx.status === 'approved' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-white/10 text-white/40 border-white/10')}>{tx.status.toUpperCase()}</Badge>
-                        </div>
-                        <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                            <p className="text-[9px] text-white/20 uppercase font-bold mb-1">Account Path</p>
-                            <p className="text-[10px] font-mono text-white/80 truncate">{tx.upiId || 'SAVED UPI'}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <DialogFooter>
-                    <Button onClick={onClose} className="w-full h-12 rounded-xl font-bold bg-white/5 hover:bg-white/10 text-white border border-white/10">Close Receipt</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
 }
 
 function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
@@ -395,8 +265,6 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
 }
 
 function TransactionTable({ transactions, type }: { transactions: Transaction[] | undefined | null, type: 'deposit' | 'withdrawal' }) {
-    const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-
     const formatDate = (timestamp: Timestamp) => {
         if (!timestamp) return 'N/A';
         return new Date(timestamp.seconds * 1000).toLocaleDateString();
@@ -419,7 +287,6 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
                             <TableRow className="border-white/10">
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Amount</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Status</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -435,69 +302,18 @@ function TransactionTable({ transactions, type }: { transactions: Transaction[] 
                                         <TableCell>
                                             {getStatusBadge(tx.status)}
                                         </TableCell>
-                                        <TableCell className="pr-6">
-                                            {type === 'withdrawal' && tx.status === 'approved' && (
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="sm" 
-                                                    className="h-7 text-[10px] uppercase font-bold text-primary hover:bg-primary/10"
-                                                    onClick={() => setSelectedTx(tx)}
-                                                >
-                                                    View Receipt
-                                                </Button>
-                                            )}
-                                        </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={3} className="text-center py-10 text-white/20 italic">No history found.</TableCell>
+                                    <TableCell colSpan={2} className="text-center py-10 text-white/20 italic">No transactions found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </ScrollArea>
             </CardContent>
-            <WithdrawalDetailModal tx={selectedTx} isOpen={!!selectedTx} onClose={() => setSelectedTx(null)} />
         </Card>
-    );
-}
-
-function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }) {
-    const { data: planData } = useDoc<GroupLoanPlan>(investment ? `groupLoanPlans/${investment.planId}`: null);
-    
-    const formatDate = (timestamp: Timestamp) => {
-        if (!timestamp) return 'N/A';
-        return new Date(timestamp.seconds * 1000).toLocaleDateString();
-    };
-    
-    const repaymentProgress = planData && planData.totalRepayment > 0 
-        ? ((planData.amountRepaid || 0) / planData.totalRepayment) * 100 
-        : 0;
-
-    const investorShare = (planData && planData.loanAmount > 0) ? ((investment.investedAmount || 0) / planData.loanAmount) : 0;
-    const totalProfitShare = (planData?.interest || 0) * investorShare;
-
-    return (
-        <TableRow className="border-white/[0.05] hover:bg-white/[0.02]">
-            <TableCell className="pl-6">
-                <div className='font-bold text-white'>{investment.planName}</div>
-                <div className='text-[10px] text-white/20 font-bold uppercase tracking-widest mt-1'>{formatDate(investment.createdAt)}</div>
-            </TableCell>
-            <TableCell className="text-white/80 font-medium">₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-cyan-400 font-bold">₹{(totalProfitShare || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-green-400 font-bold">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
-            <TableCell className="pr-6">
-                {planData ? (
-                    <div className="w-24 space-y-1">
-                        <Progress value={repaymentProgress} className="h-1.5 bg-white/5" />
-                        <span className="text-[10px] text-white/30 font-bold">{repaymentProgress.toFixed(0)}% PAID</span>
-                    </div>
-                ) : (
-                    <span className="text-[10px] text-white/20 animate-pulse">SYNCING...</span>
-                )}
-            </TableCell>
-        </TableRow>
     );
 }
 
@@ -511,19 +327,24 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                             <TableRow className="border-white/10">
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pl-6">Plan</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Invested</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Profit</TableHead>
                                 <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest">Received</TableHead>
-                                <TableHead className="text-white/30 text-[10px] uppercase font-bold tracking-widest pr-6">Progress</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {investments && investments.length > 0 ? (
                                 investments.map(inv => (
-                                    <GroupInvestmentTableRow key={inv.id} investment={inv} />
+                                    <TableRow key={inv.id} className="border-white/[0.05] hover:bg-white/[0.02]">
+                                        <TableCell className="pl-6">
+                                            <div className='font-bold text-white'>{inv.planName}</div>
+                                            <div className='text-[10px] text-white/20 mt-1 uppercase'>{new Date(inv.createdAt.seconds * 1000).toLocaleDateString()}</div>
+                                        </TableCell>
+                                        <TableCell className="text-white/80">₹{(inv.investedAmount || 0).toFixed(2)}</TableCell>
+                                        <TableCell className="text-green-400 font-bold">₹{(inv.amountReceived || 0).toFixed(2)}</TableCell>
+                                    </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-10 text-white/20 italic">No group investments found.</TableCell>
+                                    <TableCell colSpan={3} className="text-center py-10 text-white/20 italic">No group investments found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -545,7 +366,7 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
     const userInputAmount = parseFloat(amount);
     
     if (isNaN(userInputAmount)) {
-      toast({ title: 'Invalid Amount', description: 'Please enter a valid number.', variant: 'destructive' });
+      toast({ title: 'Invalid Amount', variant: 'destructive' });
       return;
     }
 
@@ -554,41 +375,29 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
         await runTransaction(firestore, async (transaction) => {
           const userRef = doc(firestore, 'users', user.uid);
           const requestRef = doc(firestore, 'upiRequests', request.id);
-
-          transaction.update(userRef, {
-            upiStatus: 'Verified',
-            upiId: request.upiId,
-            upiProvider: request.upiProvider,
-          });
+          transaction.update(userRef, { upiStatus: 'Verified', upiId: request.upiId, upiProvider: request.upiProvider });
           transaction.update(requestRef, { status: 'approved' });
         });
-        toast({ title: 'UPI Verified!', description: 'Your UPI ID has been successfully verified.' });
+        toast({ title: 'UPI Verified!' });
       } catch (error) {
-        toast({ title: 'Verification Failed', description: 'An error occurred. Please try again.', variant: 'destructive' });
+        toast({ title: 'Verification Failed', variant: 'destructive' });
       }
     } else {
-      toast({ title: 'Incorrect Amount', description: 'The amount you entered does not match. Please check and try again.', variant: 'destructive' });
+      toast({ title: 'Incorrect Amount', variant: 'destructive' });
     }
   };
 
-
   return (
-    <Card className="shadow-2xl border-yellow-500/30 bg-yellow-500/[0.03] backdrop-blur-xl group">
+    <Card className="border-yellow-500/30 bg-yellow-500/[0.03] backdrop-blur-xl">
       <CardHeader>
         <CardTitle className="text-yellow-400 flex items-center gap-2">
             <Timer className="animate-pulse" /> Final Verification
         </CardTitle>
-        <CardDescription className="text-yellow-200/40">We've sent a small amount to your UPI. Enter the exact figure below.</CardDescription>
+        <CardDescription className="text-yellow-200/40">Enter the small amount sent to your UPI.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-            <Label htmlFor="verificationAmount" className="text-yellow-200/60">Amount Received (₹)</Label>
-            <Input id="verificationAmount" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g., 1.07" className="bg-white/5 border-yellow-500/20 text-yellow-100 h-12 text-xl font-mono text-center rounded-xl" />
-        </div>
-        <Button className="w-full h-12 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-black font-bold" onClick={handleVerifyAmount}>
-            <ShieldCheck className="mr-2 h-5 w-5" />
-            Complete Verification
-        </Button>
+        <Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g., 1.07" className="bg-white/5 border-yellow-500/20 text-yellow-100" />
+        <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold" onClick={handleVerifyAmount}>Verify & Complete</Button>
       </CardContent>
     </Card>
   );
@@ -608,35 +417,19 @@ export default function ProfilePage() {
   const { data: referrals } = useCollection<Referral>(user ? 'users' : null, { where: ['referredBy', '==', user?.uid] });
   const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null, { where: ['userId', '==', user?.uid]});
   const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null, { where: ['userId', '==', user?.uid]});
-  const { data: walletHistory } = useCollection<WalletHistoryEntry>(
-    user ? `users/${user.uid}/walletHistory` : null,
-    undefined,
-    orderBy('createdAt', 'desc')
-  );
-
+  const { data: walletHistory } = useCollection<WalletHistoryEntry>(user ? `users/${user.uid}/walletHistory` : null, undefined, orderBy('createdAt', 'desc'));
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
-  
+  const { data: groupInvestments, loading: groupInvestmentsLoading } = useUserGroupInvestments(user?.uid);
+
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
-
   const [panCard, setPanCard] = useState('');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [kycTermsAccepted, setKycTermsAccepted] = useState(false);
-  
-  const kycStatus = userData?.kycStatus || 'Not Submitted';
-  const isKycFormDisabled = kycStatus === 'Pending' || kycStatus === 'Verified';
-
   const [upiId, setUpiId] = useState('');
   const [upiProvider, setUpiProvider] = useState<'PhonePe' | 'Google Pay' | 'Paytm' | ''>('');
-  
-  const upiStatus = userData?.upiStatus || 'Unverified';
-  const isUpiFormDisabled = upiStatus === 'Pending' || upiStatus === 'Verified';
-  
-  const awaitingConfirmationRequest = useMemo(() => {
-    return upiRequests?.find(req => req.status === 'awaiting_confirmation');
-  }, [upiRequests]);
 
   useEffect(() => {
     if (userData) {
@@ -649,26 +442,16 @@ export default function ProfilePage() {
     }
   }, [userData]);
 
-  useEffect(() => {
-    if (user && userData && investments && loans && referrals) {
-        const currentScore = userData.trustScore || 0;
-        const newScore = calculateTrustScore(investments, loans, referrals);
-        if (newScore !== currentScore) {
-            updateDoc(doc(firestore, 'users', user.uid), { trustScore: newScore }).catch(console.error);
-        }
-    }
-  }, [user, userData, investments, loans, referrals, firestore]);
-
   const handleLogout = async () => {
     if (!auth) return;
     await signOut(auth);
     router.push('/login');
   };
-  
+
   const handleCopyCode = () => {
     if (userData?.referralCode) {
       navigator.clipboard.writeText(userData.referralCode);
-      toast({ title: "Copied!", description: "Referral code copied to clipboard." });
+      toast({ title: "Copied!" });
     }
   };
 
@@ -682,36 +465,10 @@ export default function ProfilePage() {
         setIsEditProfileOpen(false);
         if (refetchUser) refetchUser();
     } catch (e: any) {
-        toast({ title: "Update Failed", description: e.message, variant: "destructive" });
+        toast({ title: "Update Failed", variant: "destructive" });
     } finally {
         setIsUpdatingProfile(false);
     }
-  };
-
-  const handleUpdateAvatar = async (imageUrl: string) => {
-    if (!user || !auth.currentUser) return;
-    setIsUpdatingProfile(true);
-    try {
-        await updateProfile(auth.currentUser, { photoURL: imageUrl });
-        await updateDoc(doc(firestore, 'users', user.uid), { photoURL: imageUrl });
-        toast({ title: "Avatar Updated" });
-        if (refetchUser) refetchUser();
-    } catch (e: any) {
-        toast({ title: "Update Failed", description: e.message, variant: "destructive" });
-    } finally {
-        setIsUpdatingProfile(false);
-    }
-  };
-
-  const handleSavePhone = () => {
-    if (!user) return;
-    if (!/^[0-9]{10}$/.test(phoneNumber)) {
-        toast({ title: "Invalid Phone", variant: "destructive" });
-        return;
-    }
-    updateDoc(doc(firestore, 'users', user.uid), { phoneNumber: phoneNumber })
-      .then(() => toast({ title: "Phone Updated" }))
-      .catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `users/${user.uid}`, operation: 'update', requestResourceData: { phoneNumber } })));
   };
 
   const handleSubmitUpi = () => {
@@ -720,445 +477,84 @@ export default function ProfilePage() {
       runTransaction(firestore, async (transaction) => {
           transaction.set(doc(collection(firestore, 'upiRequests')), upiRequestData);
           transaction.update(doc(firestore, 'users', user.uid), { upiStatus: 'Pending' });
-      })
-      .then(() => toast({ title: 'UPI Submitted' }))
-      .catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'upiRequests', operation: 'write', requestResourceData: upiRequestData })));
+      }).then(() => toast({ title: 'UPI Submitted' }));
   }
-
-  const handleChangeUpiRequest = () => {
-    if (!user) return;
-    updateDoc(doc(firestore, 'users', user.uid), { upiStatus: 'Unverified', upiId: '', upiProvider: '' })
-      .then(() => { toast({ title: 'UPI Reset' }); setUpiId(''); setUpiProvider(''); })
-      .catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `users/${user.uid}`, operation: 'update' })));
-  };
 
   const handleSubmitKyc = () => {
-    if (!user || !userData) return;
-    if (!/[A-Z]{5}[0-9]{4}[A-Z]{1}/.test(panCard)) { toast({ title: "Invalid PAN", variant: "destructive" }); return; }
-    if (!/^[0-9]{12}$/.test(aadhaarNumber)) { toast({ title: "Invalid Aadhaar", variant: "destructive" }); return; }
-    if (!/^[0-9]{10}$/.test(phoneNumber)) { toast({ title: "Invalid Phone", variant: "destructive" }); return; }
-    if (!kycTermsAccepted) { toast({ title: "Accept Terms", variant: "destructive" }); return; }
-
+    if (!user) return;
     const dataToUpdate = { panCard, aadhaarNumber, phoneNumber, kycTermsAccepted, kycStatus: 'Pending', kycSubmissionDate: serverTimestamp() };
-    updateDoc(doc(firestore, 'users', user.uid), dataToUpdate)
-      .then(() => toast({ title: "KYC Submitted" }))
-      .catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `users/${user.uid}`, operation: 'update', requestResourceData: dataToUpdate })));
+    updateDoc(doc(firestore, 'users', user.uid), dataToUpdate).then(() => toast({ title: "KYC Submitted" }));
   }
   
-  const vipLevel = userData?.vipLevel || 'Bronze';
-  const avatarOptions = PlaceHolderImages.filter(img => img.id.startsWith('avatar-'));
-  
+  const awaitingConfirmationRequest = useMemo(() => upiRequests?.find(req => req.status === 'awaiting_confirmation'), [upiRequests]);
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#030408] text-foreground relative overflow-hidden">
       <div className="absolute top-[-10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/20 blur-[120px] pointer-events-none animate-pulse" />
-      <div className="absolute bottom-[-10%] -right-[10%] w-[50%] h-[50%] rounded-full bg-secondary/10 blur-[120px] pointer-events-none" />
-
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
-        <Link href="/dashboard">
-          <Button variant="ghost" size="icon" className="hover:bg-white/10 text-white/70">
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Profile</h1>
+        <Link href="/dashboard"><Button variant="ghost" size="icon"><ChevronLeft /></Button></Link>
+        <h1 className="text-lg font-bold">Profile</h1>
         <div className="w-9"></div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 relative z-10 max-w-4xl mx-auto w-full space-y-6">
-        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl transition-all hover:bg-white/[0.05]">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 max-w-4xl mx-auto w-full">
+        <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <div className="relative group cursor-pointer">
-                            <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-primary via-purple-500 to-secondary p-[3px] shadow-2xl overflow-hidden">
-                                <Avatar className="h-full w-full rounded-[20px] border-4 border-[#030408]">
-                                    <AvatarImage src={userData?.photoURL} />
-                                    <AvatarFallback className="bg-[#030408] text-white/20 text-3xl font-black">
-                                        {userData?.name?.charAt(0) || 'U'}
-                                    </AvatarFallback>
-                                </Avatar>
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-xl bg-primary border-2 border-[#030408] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                <Camera size={14} className="text-white" />
-                            </div>
-                        </div>
-                    </DialogTrigger>
-                    <DialogContent className="bg-[#030408]/95 backdrop-blur-3xl border-white/10 text-white sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle className="text-2xl font-black tracking-tight text-center">Choose Avatar</DialogTitle>
-                            <DialogDescription className="text-white/40 text-center">Select an identity that represents you best.</DialogDescription>
-                        </DialogHeader>
-                        <div className="grid grid-cols-3 gap-4 py-6">
-                            {avatarOptions.map(avatar => (
-                                <div 
-                                    key={avatar.id} 
-                                    onClick={() => handleUpdateAvatar(avatar.imageUrl)}
-                                    className={cn(
-                                        "relative aspect-square rounded-2xl overflow-hidden cursor-pointer border-2 transition-all hover:scale-110",
-                                        userData?.photoURL === avatar.imageUrl ? "border-primary shadow-[0_0_20px_rgba(139,92,246,0.5)]" : "border-white/10 opacity-60 hover:opacity-100"
-                                    )}
-                                >
-                                    <Image src={avatar.imageUrl} alt={avatar.description} fill className="object-cover" />
-                                    {userData?.photoURL === avatar.imageUrl && (
-                                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                                            <CheckCircle2 className="text-white" size={24} />
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </DialogContent>
-                </Dialog>
-
-                <div className="text-center sm:text-left space-y-1">
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-2xl font-black text-white tracking-tight">
-                        {userData?.name || user?.displayName || 'Investor'}
-                    </CardTitle>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-white/20 hover:text-white" onClick={() => setIsEditProfileOpen(true)}>
-                        <Pencil size={12} />
-                    </Button>
-                  </div>
-                  <CardDescription className="text-white/40 flex items-center justify-center sm:justify-start gap-1 font-medium">
-                    <Mail size={12}/> {user?.email}
-                  </CardDescription>
-                  <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
-                      <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20 text-[10px] h-5 font-black uppercase tracking-widest">
-                          <ShieldCheck size={10} className="mr-1" /> Active Node
-                      </Badge>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col items-center sm:items-end gap-3">
-                 <Link href="/vip-tiers">
-                    <div className={cn(
-                        'group relative px-6 py-2.5 rounded-xl border transition-all hover:scale-105 active:scale-95 flex items-center gap-2 overflow-hidden',
-                        vipLevel === 'Bronze' && 'border-amber-800/50 bg-amber-900/10 text-amber-500',
-                        vipLevel === 'Silver' && 'border-slate-400/50 bg-slate-400/10 text-slate-300',
-                        vipLevel === 'Gold' && 'border-yellow-400/50 bg-yellow-400/10 text-yellow-400',
-                        vipLevel === 'Platinum' && 'border-purple-500/50 bg-purple-500/10 text-purple-400',
-                    )}>
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                        <Gem size={18} className="animate-bounce" />
-                        <span className="font-bold tracking-wider uppercase text-sm">{vipLevel} TIER</span>
-                    </div>
-                </Link>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <Avatar className="h-20 w-20 border-2 border-primary/20">
+                <AvatarImage src={userData?.photoURL} />
+                <AvatarFallback className="bg-primary/10 text-primary text-xl font-black">{userData?.name?.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="text-center sm:text-left">
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  {userData?.name || 'Investor'} <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsEditProfileOpen(true)}><Pencil size={12} /></Button>
+                </CardTitle>
+                <CardDescription>{user?.email}</CardDescription>
+                <Badge className="mt-2 bg-primary/10 border-primary/20 text-primary uppercase text-[10px]">{userData?.vipLevel || 'Bronze'}</Badge>
               </div>
             </div>
           </CardHeader>
         </Card>
 
-        <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white/90">
-                    <Trophy className="text-yellow-400" /> Your Trust Score
-                </CardTitle>
-                <CardDescription className="text-white/40">This score is calculated based on your platform reliability and history.</CardDescription>
-            </CardHeader>
-            <CardContent className="relative">
-                {userDataloading ? (
-                    <div className="flex justify-center p-8"><Timer className="animate-spin text-primary" /></div>
-                ) : (
-                    <div className="py-2">
-                        <TrustScoreMeter score={userData?.trustScore || 500} />
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+        <TrustScoreMeter score={userData?.trustScore || 500} />
 
-        <RedeemCouponCard />
-
-        <div className="grid gap-6 sm:grid-cols-2">
-            <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-50 group-hover:opacity-100 transition-opacity" />
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white/90">
-                    <Gift className="text-pink-400" /> Share & Earn
-                </CardTitle>
-                <CardDescription className="text-white/40">Earn ₹{adminSettings?.referralBonus || 0} for every friend's first investment.</CardDescription>
-              </CardHeader>
-              <CardContent className="relative space-y-4">
-                <div className="flex items-center justify-between rounded-2xl bg-black/40 border border-white/5 p-4">
-                  <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-xl bg-white/5">
-                        <UsersIcon size={24} className="text-white/80" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Referral ID</p>
-                        <span className="text-xl font-mono font-bold text-white tracking-tighter">{userData?.referralCode || '••••••'}</span>
-                      </div>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={handleCopyCode} className="h-12 w-12 rounded-xl hover:bg-white/10 text-white/60">
-                    <Copy className="h-6 w-6" />
-                  </Button>
-                </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+            <Card className="bg-white/[0.03] border-white/[0.08]">
+              <CardHeader><CardTitle className="text-sm font-bold flex items-center gap-2"><Gift size={16} /> Referral ID</CardTitle></CardHeader>
+              <CardContent className="flex justify-between items-center bg-black/20 p-4 rounded-xl mx-6 mb-6">
+                  <span className="font-mono font-bold">{userData?.referralCode || '------'}</span>
+                  <Button variant="ghost" size="icon" onClick={handleCopyCode}><Copy size={16} /></Button>
               </CardContent>
             </Card>
-
-            <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl relative overflow-hidden group">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white/90">
-                    <Users2 className="text-blue-400" /> Referral Network
-                </CardTitle>
-                <CardDescription className="text-white/40">Track your rewards line-wise.</CardDescription>
-              </CardHeader>
-              <CardContent className="relative">
-                <div className="bg-black/20 rounded-2xl p-4 border border-white/5 h-[100px] flex flex-col justify-center">
-                    {userDataloading ? <Timer className="animate-spin h-5 w-5 mx-auto opacity-20" /> : (
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">Total Members</p>
-                                <p className="text-3xl font-black text-white tracking-tighter">{referrals?.length || 0}</p>
-                            </div>
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase font-black tracking-widest text-primary hover:bg-primary/10">
-                                        View Track
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-md">
-                                    <DialogHeader>
-                                        <DialogTitle>Referral Progress Track</DialogTitle>
-                                        <DialogDescription className="text-white/40">Line-wise status of your invites and rewards.</DialogDescription>
-                                    </DialogHeader>
-                                    <ScrollArea className="h-[400px] pr-4">
-                                        <div className="space-y-6 py-4">
-                                            {referrals && referrals.length > 0 ? referrals.map(ref => {
-                                                const hasInvested = (ref.totalInvestment || 0) > 0;
-                                                const bonusPaid = ref.referralBonusPaid;
-                                                
-                                                return (
-                                                    <div key={ref.id} className="space-y-3 p-4 bg-white/5 border border-white/5 rounded-2xl transition-all hover:border-primary/30">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                                                                    <User size={14} className="text-primary" />
-                                                                </div>
-                                                                <p className="text-sm font-bold text-white/90">{ref.name}</p>
-                                                            </div>
-                                                            <Badge variant="outline" className="text-[8px] h-4 text-white/40 border-white/10 uppercase tracking-tighter">ID: {ref.id.slice(0, 5)}</Badge>
-                                                        </div>
-                                                        
-                                                        <div className="relative pt-2 pb-1">
-                                                            <div className="absolute top-[13px] left-3 right-3 h-0.5 bg-white/10" />
-                                                            <div 
-                                                                className="absolute top-[13px] left-3 h-0.5 bg-primary transition-all duration-500" 
-                                                                style={{ width: bonusPaid ? '100%' : hasInvested ? '50%' : '0%' }}
-                                                            />
-                                                            <div className="flex justify-between relative z-10">
-                                                                <TrackStep label="Joined" active={true} />
-                                                                <TrackStep label="Invested" active={hasInvested} />
-                                                                <TrackStep label="Bonus" active={bonusPaid || false} />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            }) : (
-                                                <p className="text-center py-20 text-[10px] text-white/20 uppercase font-black">Your referral list is empty.</p>
-                                            )}
-                                        </div>
-                                    </ScrollArea>
-                                </DialogContent>
-                            </Dialog>
-                        </div>
-                    )}
-                </div>
+            <Card className="bg-white/[0.03] border-white/[0.08]">
+              <CardHeader><CardTitle className="text-sm font-bold flex items-center gap-2"><Users2 size={16} /> Network</CardTitle></CardHeader>
+              <CardContent className="flex justify-between items-center p-6">
+                  <div><p className="text-2xl font-black">{referrals?.length || 0}</p><p className="text-[10px] text-white/20 uppercase font-bold">Total Members</p></div>
               </CardContent>
             </Card>
         </div>
 
-        <div className="grid gap-6">
-            {awaitingConfirmationRequest ? (
-                <AmountVerificationCard request={awaitingConfirmationRequest}/>
-            ) : (
-                 <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-white/90">
-                            <CreditCardIcon className="text-blue-400" /> UPI Verification
-                        </CardTitle>
-                        <CardDescription className="text-white/40">Required for smooth and automated withdrawals.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {userDataloading ? <p>Loading...</p> : (
-                            <>
-                                {upiStatus === 'Verified' && (
-                                    <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-5 text-green-300 space-y-4">
-                                        <div className="flex justify-between items-start">
-                                            <div className="space-y-1">
-                                                <p className="font-bold flex items-center gap-2"><CheckCircle2 className="text-green-500" size={18}/> UPI Verified</p>
-                                                <div className="text-sm bg-white/5 p-2 rounded-lg font-mono tracking-tight text-white/80">
-                                                    {userData?.upiId}
-                                                </div>
-                                                <p className="text-[10px] text-white/40 uppercase tracking-widest">{userData?.upiProvider}</p>
-                                            </div>
-                                            <Button variant="outline" size="sm" onClick={handleChangeUpiRequest} className="border-white/10 hover:bg-white/10 text-white/70 h-8">
-                                                <Pencil className="h-3 w-3 mr-1" /> Change
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                                {upiStatus === 'Pending' && (
-                                    <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-6 text-center space-y-2">
-                                        <div className="mx-auto w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center animate-pulse">
-                                            <Timer className="text-blue-400" />
-                                        </div>
-                                        <p className="font-bold text-blue-300 text-lg">Verification Pending</p>
-                                        <p className="text-sm text-blue-200/60">Our team is reviewing your UPI ID. This usually takes less than 1 hour.</p>
-                                    </div>
-                                )}
-                                {(upiStatus === 'Unverified' || upiStatus === 'Rejected') && (
-                                    <div className="space-y-5">
-                                        {upiStatus === 'Rejected' && (
-                                            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive flex flex-col gap-2">
-                                                <div className="flex items-center gap-2">
-                                                    <AlertTriangle size={18} />
-                                                    <p className="font-bold">Verification Failed</p>
-                                                </div>
-                                                <p className="opacity-80 text-xs">The provided UPI ID was not valid. Please check and try again.</p>
-                                            </div>
-                                        )}
-                                        <div className="grid gap-4 sm:grid-cols-2">
-                                            <div className="space-y-2">
-                                                <Label className="text-white/60">UPI Provider</Label>
-                                                <Select onValueChange={(value: 'PhonePe' | 'Google Pay' | 'Paytm') => setUpiProvider(value)} value={upiProvider} disabled={isUpiFormDisabled}>
-                                                    <SelectTrigger className="bg-white/5 border-white/10 rounded-xl focus:ring-primary h-11">
-                                                        <SelectValue placeholder="App Name" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="bg-[#030408] border-white/10">
-                                                        <SelectItem value="PhonePe">PhonePe</SelectItem>
-                                                        <SelectItem value="Google Pay">Google Pay</SelectItem>
-                                                        <SelectItem value="Paytm">Paytm</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="upiId" className="text-white/60">UPI ID</Label>
-                                                <Input id="upiId" value={upiId} onChange={(e) => setUpiId(e.target.value)} placeholder="name@oksbi" disabled={isUpiFormDisabled} className="bg-white/5 border-white/10 rounded-xl h-11 focus:ring-primary" />
-                                            </div>
-                                        </div>
-                                        <Button onClick={handleSubmitUpi} className="w-full h-12 rounded-xl text-lg font-bold shadow-xl shadow-primary/20" disabled={isUpiFormDisabled}>
-                                            <Handshake className="mr-2 h-5 w-5" />
-                                            Verify Identity
-                                        </Button>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
-       
-            <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-white/90">
-                        <Fingerprint className="text-purple-400" /> KYC Authentication
-                    </CardTitle>
-                    <CardDescription className="text-white/40">Secure your account with official document verification.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                    {userDataloading ? <p>Loading...</p> : (
-                        <>
-                            {kycStatus === 'Pending' && (
-                                <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-6 text-center space-y-2">
-                                    <div className="mx-auto w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center animate-pulse">
-                                        <Timer className="text-blue-400" />
-                                    </div>
-                                    <p className="font-bold text-blue-300 text-lg">Awaiting Review</p>
-                                    <p className="text-sm text-blue-200/60">Your KYC submission is in the queue. You'll be notified once approved.</p>
-                                </div>
-                            )}
-                            {kycStatus === 'Verified' && (
-                                <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-6 text-center space-y-2">
-                                    <div className="mx-auto w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
-                                        <ShieldCheck className="text-green-400" size={28} />
-                                    </div>
-                                    <p className="font-bold text-green-300 text-lg">Account Fully Verified</p>
-                                    <p className="text-sm text-green-200/60">All platform features and high-limit loans are now unlocked.</p>
-                                </div>
-                            )}
-                            {kycStatus === 'Rejected' && (
-                                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive flex flex-col gap-2">
-                                    <div className="flex items-center gap-2">
-                                        <AlertTriangle size={18} />
-                                        <p className="font-bold">KYC Declined</p>
-                                    </div>
-                                    <p className="text-xs bg-destructive/10 p-3 rounded-lg border border-destructive/20">Reason: {userData?.kycRejectionReason}</p>
-                                </div>
-                            )}
+        {awaitingConfirmationRequest && <AmountVerificationCard request={awaitingConfirmationRequest} />}
 
-                            {kycStatus !== 'Verified' && kycStatus !== 'Pending' && (
-                                <div className="space-y-5">
-                                    <div className="space-y-4">
-                                        <div className="grid gap-4 sm:grid-cols-2">
-                                            <div className="space-y-2">
-                                                <Label className="text-white/60">PAN Card No.</Label>
-                                                <Input value={panCard} onChange={(e) => setPanCard(e.target.value.toUpperCase())} placeholder="ABCDE1234F" className="bg-white/5 border-white/10 rounded-xl h-11" disabled={isKycFormDisabled} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-white/60">Aadhaar Card No.</Label>
-                                                <Input type="number" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value)} placeholder="12-Digit Number" className="bg-white/5 border-white/10 rounded-xl h-11" disabled={isKycFormDisabled}/>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-white/60">Registered Phone</Label>
-                                            <div className="flex gap-2">
-                                                <Input type="number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="9876543210" className="bg-white/5 border-white/10 rounded-xl h-11" />
-                                                <Button variant="outline" className="border-white/10 rounded-xl h-11" onClick={handleSavePhone}>Save</Button>
-                                            </div>
-                                        </div>
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-4">
-                                            <p className="text-[10px] text-white/30 uppercase tracking-[2px] font-bold">Terms & Security</p>
-                                            <p className="text-xs text-white/50 leading-relaxed">
-                                                By submitting, you agree to our data policy. False information or loan defaults will result in immediate legal action and platform suspension.
-                                            </p>
-                                            <div className="flex items-center space-x-3 pt-2">
-                                                <Checkbox id="terms" onCheckedChange={(checked) => setKycTermsAccepted(!!checked)} disabled={isKycFormDisabled} className="border-white/20 rounded-md data-[state=checked]:bg-primary" />
-                                                <label htmlFor="terms" className="text-sm font-medium text-white/70 cursor-pointer">
-                                                    I certify the above details are authentic.
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <Button onClick={handleSubmitKyc} className="w-full h-12 rounded-xl font-bold" disabled={isKycFormDisabled}>
-                                           Finalize KYC Submission
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
-
-        <Tabs defaultValue="history" className="mt-8">
-            <TabsList className="grid w-full grid-cols-4 bg-white/5 border-white/10 p-1.5 h-14 rounded-2xl">
-                <TabsTrigger value="history" className="rounded-xl data-[state=active]:bg-white/10 h-full text-[10px] sm:text-sm">History</TabsTrigger>
-                <TabsTrigger value="deposits" className="rounded-xl data-[state=active]:bg-white/10 h-full text-[10px] sm:text-sm">Deposits</TabsTrigger>
-                <TabsTrigger value="withdrawals" className="rounded-xl data-[state=active]:bg-white/10 h-full text-[10px] sm:text-sm">Payouts</TabsTrigger>
-                <TabsTrigger value="group-investments" className="rounded-xl data-[state=active]:bg-white/10 h-full text-[10px] sm:text-sm">Groups</TabsTrigger>
+        <Tabs defaultValue="history">
+            <TabsList className="grid w-full grid-cols-4 bg-white/5 h-14 rounded-2xl">
+                <TabsTrigger value="history">History</TabsTrigger>
+                <TabsTrigger value="deposits">Deposits</TabsTrigger>
+                <TabsTrigger value="withdrawals">Payouts</TabsTrigger>
+                <TabsTrigger value="groups">Groups</TabsTrigger>
             </TabsList>
-            <div className="mt-6">
+            <div className="mt-4">
                 <TabsContent value="history">
                     <HistoryTable
                         headers={['Detail', 'Amount']}
                         items={walletHistory}
                         renderRow={(entry: WalletHistoryEntry) => (
-                            <TableRow key={entry.id} className="border-white/[0.05] hover:bg-white/[0.02]">
-                                <TableCell className="pl-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", entry.type === 'credit' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400')}>
-                                            {entry.type === 'credit' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-bold text-white/80">{entry.category}</p>
-                                            <p className="text-[10px] text-white/30">{entry.description}</p>
-                                            <p className="text-[9px] text-white/20 mt-0.5">{new Date(entry.createdAt?.seconds * 1000).toLocaleString()}</p>
-                                        </div>
-                                    </div>
+                            <TableRow key={entry.id} className="border-white/[0.05]">
+                                <TableCell className="pl-6 py-4">
+                                    <p className="text-xs font-bold text-white/80">{entry.category}</p>
+                                    <p className="text-[9px] text-white/20">{entry.description}</p>
                                 </TableCell>
-                                <TableCell className="text-right pr-6 font-mono font-bold text-sm">
+                                <TableCell className="text-right pr-6 font-bold">
                                     <span className={entry.type === 'credit' ? 'text-green-400' : 'text-red-400'}>
                                         {entry.type === 'credit' ? '+' : '-'}₹{entry.amount.toFixed(2)}
                                     </span>
@@ -1167,47 +563,32 @@ export default function ProfilePage() {
                         )}
                     />
                 </TabsContent>
-                <TabsContent value="deposits">
-                    <TransactionTable transactions={deposits} type="deposit" />
-                </TabsContent>
-                <TabsContent value="withdrawals">
-                    <TransactionTable transactions={withdrawals} type="withdrawal" />
-                </TabsContent>
-                 <TabsContent value="group-investments">
-                    <GroupInvestmentTable investments={groupInvestments} />
-                </TabsContent>
+                <TabsContent value="deposits"><TransactionTable transactions={deposits} type="deposit" /></TabsContent>
+                <TabsContent value="withdrawals"><TransactionTable transactions={withdrawals} type="withdrawal" /></TabsContent>
+                <TabsContent value="groups"><GroupInvestmentTable investments={groupInvestments} /></TabsContent>
             </div>
         </Tabs>
 
-        <div className="pt-6">
-            <Button onClick={handleLogout} className="w-full h-14 rounded-2xl font-bold bg-white/5 hover:bg-destructive text-white border border-white/10 transition-colors shadow-2xl" variant="ghost">
-            <LogOut className="mr-2 h-5 w-5" />
-            Sign Out Securely
-            </Button>
-        </div>
+        <Button onClick={handleLogout} className="w-full h-12 bg-white/5 border border-white/10 hover:bg-destructive text-white rounded-xl">Sign Out</Button>
 
         <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
-            <DialogContent className="bg-[#030408]/95 backdrop-blur-3xl border-white/10 text-white">
-                <DialogHeader>
-                    <DialogTitle>Update Name</DialogTitle>
-                </DialogHeader>
+            <DialogContent className="bg-[#030408] border-white/10 text-white">
+                <DialogHeader><DialogTitle>Update Name</DialogTitle></DialogHeader>
                 <div className="py-4 space-y-4">
                     <div className="space-y-2">
                         <Label>Full Name</Label>
-                        <Input value={editName} onChange={e => setEditName(e.target.value)} className="bg-white/5 border-white/10 rounded-xl" />
+                        <Input value={editName} onChange={e => setEditName(e.target.value)} className="bg-white/5 border-white/10" />
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button onClick={handleUpdateName} disabled={isUpdatingProfile} className="w-full rounded-xl font-bold bg-primary text-white">
-                        {isUpdatingProfile ? "Saving..." : "Confirm Update"}
-                    </Button>
+                    <Button onClick={handleUpdateName} disabled={isUpdatingProfile} className="w-full">Confirm Update</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
       </main>
 
       <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
