@@ -46,7 +46,6 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
       
       const t1 = setTimeout(() => {
           setStage('dispensing');
-          // Add 5 notes one by one
           for (let i = 0; i < 5; i++) {
               setTimeout(() => {
                   setActiveNotes(prev => [...prev, { id: i, delay: i * 200 }]);
@@ -63,7 +62,6 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#020306] flex flex-col animate-in fade-in duration-300 overflow-hidden">
-        {/* Header */}
         <header className="flex h-16 items-center justify-between px-6 border-b border-white/5 relative z-50">
             <Button variant="ghost" size="icon" onClick={onClose} className="text-white/70">
                 <ArrowLeft size={20} />
@@ -75,7 +73,6 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
         </header>
 
         <main className="flex-1 overflow-y-auto p-6 space-y-8 max-w-md mx-auto w-full relative">
-            {/* Wallet Balance Display */}
             <div className="bg-[#0a0c18] border border-white/5 rounded-3xl p-5 flex items-center justify-between shadow-2xl relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-50" />
                 <div className="flex items-center gap-4 relative z-10">
@@ -92,7 +89,6 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
                 <Eye size={18} className="text-white/20 relative z-10" />
             </div>
 
-            {/* Stage Dependent Content */}
             {stage !== 'success' ? (
                 <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
                     <div className="space-y-4">
@@ -124,13 +120,10 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
                             <p className="text-xs text-white/30">{stage === 'processing' ? "Authenticating transaction protocol" : "Dispensing currency nodes"}</p>
                         </div>
 
-                        {/* ATM Slot Body */}
                         <div className="relative w-full h-48 bg-[#030408] rounded-[2rem] border-4 border-[#12141d] shadow-[inset_0_0_30px_#000] flex items-center justify-center overflow-visible">
-                            {/* The Slot Glow */}
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-1 bg-primary/40 blur-[4px] rounded-full z-20 shadow-[0_0_15px_#8b5cf6]" />
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-14 bg-black rounded-xl border border-white/5 shadow-inner" />
                             
-                            {/* Cash Dispensing Animation - Note by Note */}
                             {activeNotes.map((note) => (
                                 <div 
                                     key={note.id}

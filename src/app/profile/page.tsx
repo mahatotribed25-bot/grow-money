@@ -3,7 +3,6 @@
 import {
   ChevronLeft,
   User,
-  Wallet,
   LogOut,
   Home,
   Briefcase,
@@ -11,10 +10,8 @@ import {
   Gift,
   Users2,
   HandCoins,
-  Gem,
   Trophy,
   Timer,
-  CheckCircle2,
   Pencil
 } from 'lucide-react';
 import Link from 'next/link';
@@ -27,7 +24,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection } from '@/firebase';
-import { Timestamp, doc, updateDoc, collection, query, where, getDocs, runTransaction, serverTimestamp, orderBy } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -156,7 +153,10 @@ export default function ProfilePage() {
         <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl">
           <CardHeader>
             <div className="flex flex-col sm:flex-row items-center gap-4">
-              <Avatar className="h-20 w-20 border-2 border-primary/20"><AvatarImage src={userData?.photoURL} /><AvatarFallback>{userData?.name?.charAt(0)}</AvatarFallback></Avatar>
+              <Avatar className="h-20 w-20 border-2 border-primary/20">
+                <AvatarImage src={userData?.photoURL} />
+                <AvatarFallback>{userData?.name?.charAt(0)}</AvatarFallback>
+              </Avatar>
               <div className="text-center sm:text-left">
                 <CardTitle className="text-xl font-bold flex items-center justify-center sm:justify-start gap-2">
                   {userData?.name || 'Investor'} 
@@ -174,19 +174,66 @@ export default function ProfilePage() {
         <TrustScoreMeter score={userData?.trustScore || 500} />
 
         <div className="grid gap-4 sm:grid-cols-2">
-            <Card className="bg-white/[0.03] border-white/[0.08]"><CardHeader><CardTitle className="text-xs font-bold flex items-center gap-2 uppercase tracking-widest text-white/30"><Gift size={14} /> Referral ID</CardTitle></CardHeader><CardContent className="flex justify-between items-center bg-black/20 p-4 rounded-xl mx-4 mb-4"><span className="font-mono font-bold">{userData?.referralCode || '------'}</span><Button variant="ghost" size="icon" onClick={handleCopyCode}><Copy size={16} /></Button></CardContent></Card>
-            <Card className="bg-white/[0.03] border-white/[0.08]"><CardHeader><CardTitle className="text-xs font-bold flex items-center gap-2 uppercase tracking-widest text-white/30"><Users2 size={14} /> My Network</CardTitle></CardHeader><CardContent className="p-4"><p className="text-2xl font-black">{referrals?.length || 0}</p><p className="text-[10px] text-white/20 uppercase font-bold tracking-widest">Active Members</p></CardContent></Card>
+            <Card className="bg-white/[0.03] border-white/[0.08]">
+                <CardHeader>
+                    <CardTitle className="text-xs font-bold flex items-center gap-2 uppercase tracking-widest text-white/30">
+                        <Gift size={14} /> Referral ID
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="flex justify-between items-center bg-black/20 p-4 rounded-xl mx-4 mb-4">
+                    <span className="font-mono font-bold">{userData?.referralCode || '------'}</span>
+                    <Button variant="ghost" size="icon" onClick={handleCopyCode}><Copy size={16} /></Button>
+                </CardContent>
+            </Card>
+            <Card className="bg-white/[0.03] border-white/[0.08]">
+                <CardHeader>
+                    <CardTitle className="text-xs font-bold flex items-center gap-2 uppercase tracking-widest text-white/30">
+                        <Users2 size={14} /> My Network
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                    <p className="text-2xl font-black">{referrals?.length || 0}</p>
+                    <p className="text-[10px] text-white/20 uppercase font-bold tracking-widest">Active Members</p>
+                </CardContent>
+            </Card>
         </div>
 
         {awaitingConfirmationRequest && <AmountVerificationCard request={awaitingConfirmationRequest} />}
 
         <Tabs defaultValue="history">
-            <TabsList className="grid w-full grid-cols-4 bg-white/5 h-12 rounded-2xl p-1"><TabsTrigger value="history">History</TabsTrigger><TabsTrigger value="deposits">Deposit</TabsTrigger><TabsTrigger value="withdrawals">Payout</TabsTrigger><TabsTrigger value="groups">Groups</TabsTrigger></TabsList>
+            <TabsList className="grid w-full grid-cols-4 bg-white/5 h-12 rounded-2xl p-1">
+                <TabsTrigger value="history">History</TabsTrigger>
+                <TabsTrigger value="deposits">Deposit</TabsTrigger>
+                <TabsTrigger value="withdrawals">Payout</TabsTrigger>
+                <TabsTrigger value="groups">Groups</TabsTrigger>
+            </TabsList>
             <div className="mt-4">
-                <TabsContent value="history"><HistoryTable headers={['Detail', 'Amount']} items={walletHistory} renderRow={(e) => <TableRow key={e.id} className="border-white/[0.05]"><TableCell className="pl-6 py-4"><p className="text-xs font-bold text-white/80">{e.category}</p><p className="text-[9px] text-white/20">{e.description}</p></TableCell><TableCell className={cn("text-right pr-6 font-bold", e.type === 'credit' ? 'text-green-400' : 'text-red-400')}>{e.type === 'credit' ? '+' : '-'}₹{e.amount.toFixed(2)}</TableCell></TableRow>} /></TabsContent>
-                <TabsContent value="deposits"><TransactionTable transactions={deposits} type="deposit" /></TabsContent>
-                <TabsContent value="withdrawals"><TransactionTable transactions={withdrawals} type="withdrawal" /></TabsContent>
-                <TabsContent value="groups"><GroupInvestmentTable investments={groupInvestments} /></TabsContent>
+                <TabsContent value="history">
+                    <HistoryTable 
+                        headers={['Detail', 'Amount']} 
+                        items={walletHistory} 
+                        renderRow={(e) => (
+                            <TableRow key={e.id} className="border-white/[0.05]">
+                                <TableCell className="pl-6 py-4">
+                                    <p className="text-xs font-bold text-white/80">{e.category}</p>
+                                    <p className="text-[9px] text-white/20">{e.description}</p>
+                                </TableCell>
+                                <TableCell className={cn("text-right pr-6 font-bold", e.type === 'credit' ? 'text-green-400' : 'text-red-400')}>
+                                    {e.type === 'credit' ? '+' : '-'}₹{e.amount.toFixed(2)}
+                                </TableCell>
+                            </TableRow>
+                        )} 
+                    />
+                </TabsContent>
+                <TabsContent value="deposits">
+                    <TransactionTable transactions={deposits} />
+                </TabsContent>
+                <TabsContent value="withdrawals">
+                    <TransactionTable transactions={withdrawals} />
+                </TabsContent>
+                <TabsContent value="groups">
+                    <GroupInvestmentTable investments={groupInvestments} />
+                </TabsContent>
             </div>
         </Tabs>
 
@@ -195,7 +242,12 @@ export default function ProfilePage() {
         <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
             <DialogContent className="bg-[#030408] border-white/10 text-white">
                 <DialogHeader><DialogTitle>Update Name</DialogTitle></DialogHeader>
-                <div className="py-4 space-y-4"><div className="space-y-2"><Label>Full Name</Label><Input value={editName} onChange={e => setEditName(e.target.value)} className="bg-white/5 border-white/10" /></div></div>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label>Full Name</Label>
+                        <Input value={editName} onChange={e => setEditName(e.target.value)} className="bg-white/5 border-white/10" />
+                    </div>
+                </div>
                 <DialogFooter><Button onClick={handleUpdateName} className="w-full">Confirm Update</Button></DialogFooter>
             </DialogContent>
         </Dialog>
@@ -214,16 +266,63 @@ export default function ProfilePage() {
 
 function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
   return (
-    <Card className="bg-white/[0.03] border-white/[0.08] rounded-2xl overflow-hidden"><ScrollArea className="h-64"><Table><TableHeader className="bg-white/[0.02]"><TableRow className="border-white/10">{headers.map(h => <TableHead key={h}>{h}</TableHead>)}</TableRow></TableHeader><TableBody>{items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-10 opacity-20 italic">No history</TableCell></TableRow>}</TableBody></Table></ScrollArea></Card>
+    <Card className="bg-white/[0.03] border-white/[0.08] rounded-2xl overflow-hidden">
+        <ScrollArea className="h-64">
+            <Table>
+                <TableHeader className="bg-white/[0.02]">
+                    <TableRow className="border-white/10">{headers.map(h => <TableHead key={h}>{h}</TableHead>)}</TableRow>
+                </TableHeader>
+                <TableBody>
+                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-10 opacity-20 italic">No history</TableCell></TableRow>}
+                </TableBody>
+            </Table>
+        </ScrollArea>
+    </Card>
   )
 }
 
-function TransactionTable({ transactions, type }: { transactions: any[] | undefined | null, type: string }) {
-    return <Card className="bg-white/[0.03] border-white/[0.08] rounded-2xl overflow-hidden"><ScrollArea className="h-64"><Table><TableHeader className="bg-white/[0.02]"><TableRow className="border-white/10"><TableHead>Amount</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{transactions && transactions.length > 0 ? transactions.map(tx => <TableRow key={tx.id} className="border-white/[0.05]"><TableCell className="font-bold">₹{(tx.finalAmount ?? tx.amount).toFixed(2)}</TableCell><TableCell><Badge variant="outline">{tx.status}</Badge></TableCell></TableRow>) : <TableRow><TableCell colSpan={2} className="text-center py-10 opacity-20 italic">No transactions</TableCell></TableRow>}</TableBody></Table></ScrollArea></Card>;
+function TransactionTable({ transactions }: { transactions: any[] | undefined | null }) {
+    return (
+        <Card className="bg-white/[0.03] border-white/[0.08] rounded-2xl overflow-hidden">
+            <ScrollArea className="h-64">
+                <Table>
+                    <TableHeader className="bg-white/[0.02]">
+                        <TableRow className="border-white/10"><TableHead>Amount</TableHead><TableHead>Status</TableHead></TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {transactions && transactions.length > 0 ? transactions.map(tx => (
+                            <TableRow key={tx.id} className="border-white/[0.05]">
+                                <TableCell className="font-bold">₹{(tx.finalAmount ?? tx.amount).toFixed(2)}</TableCell>
+                                <TableCell><Badge variant="outline">{tx.status}</Badge></TableCell>
+                            </TableRow>
+                        )) : <TableRow><TableCell colSpan={2} className="text-center py-10 opacity-20 italic">No transactions</TableCell></TableRow>}
+                    </TableBody>
+                </Table>
+            </ScrollArea>
+        </Card>
+    );
 }
 
 function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
-    return <Card className="bg-white/[0.03] border-white/[0.08] rounded-2xl overflow-hidden"><ScrollArea className="h-64"><Table><TableHeader className="bg-white/[0.02]"><TableRow className="border-white/10"><TableHead>Plan</TableHead><TableHead>Received</TableHead></TableRow></TableHeader><TableBody>{investments && investments.length > 0 ? investments.map(inv => <TableRow key={inv.id} className="border-white/[0.05]"><TableCell className="font-bold">{inv.planName}</TableCell><TableCell className="text-green-400 font-bold">₹{inv.amountReceived.toFixed(2)}</TableCell></TableRow>) : <TableRow><TableCell colSpan={2} className="text-center py-10 opacity-20 italic">No group plans</TableCell></TableRow>}</TableBody></Table></ScrollArea></Card>;
+    return (
+        <Card className="bg-white/[0.03] border-white/[0.08] rounded-2xl overflow-hidden">
+            <ScrollArea className="h-64">
+                <Table>
+                    <TableHeader className="bg-white/[0.02]">
+                        <TableRow className="border-white/10"><TableHead>Plan</TableHead><TableHead>Received</TableHead></TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {investments && investments.length > 0 ? investments.map(inv => (
+                            <TableRow key={inv.id} className="border-white/[0.05]">
+                                <TableCell className="font-bold">{inv.planName}</TableCell>
+                                <TableCell className="text-green-400 font-bold">₹{inv.amountReceived.toFixed(2)}</TableCell>
+                            </TableRow>
+                        )) : <TableRow><TableCell colSpan={2} className="text-center py-10 opacity-20 italic">No group plans</TableCell></TableRow>}
+                    </TableBody>
+                </Table>
+            </ScrollArea>
+        </Card>
+    );
 }
 
 function AmountVerificationCard({ request }: { request: UpiRequest }) {
@@ -231,16 +330,33 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [amount, setAmount] = useState('');
+  
   const handleVerify = async () => {
     if (parseFloat(amount) === request.confirmationAmount) {
       await updateDoc(doc(firestore, 'users', user!.uid), { upiStatus: 'Verified', upiId: request.upiId });
       await updateDoc(doc(firestore, 'upiRequests', request.id), { status: 'approved' });
       toast({ title: 'Verified!' });
-    } else toast({ title: 'Wrong Amount', variant: 'destructive' });
+    } else {
+        toast({ title: 'Wrong Amount', variant: 'destructive' });
+    }
   };
-  return <Card className="border-yellow-500/30 bg-yellow-500/[0.03] p-4"><CardTitle className="text-yellow-400 text-sm mb-2 flex items-center gap-2"><Timer size={14} /> Enter Verified Amount</CardTitle><Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="bg-white/5 border-white/10 mb-2" /><Button className="w-full bg-yellow-500 text-black font-bold" onClick={handleVerify}>Verify</Button></Card>;
+
+  return (
+    <Card className="border-yellow-500/30 bg-yellow-500/[0.03] p-4">
+        <CardTitle className="text-yellow-400 text-sm mb-2 flex items-center gap-2">
+            <Timer size={14} /> Enter Verified Amount
+        </CardTitle>
+        <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="bg-white/5 border-white/10 mb-2" />
+        <Button className="w-full bg-yellow-500 text-black font-bold" onClick={handleVerify}>Verify</Button>
+    </Card>
+  );
 }
 
 function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href?: string, active?: boolean }) {
-  return <Link href={href || '#'} className={cn("flex flex-col items-center gap-1", active ? 'text-primary' : 'text-white/40')}><Icon className="h-5 w-5" /><span className="text-[9px] font-bold">{label}</span></Link>;
+  return (
+    <Link href={href || '#'} className={cn("flex flex-col items-center gap-1", active ? 'text-primary' : 'text-white/40')}>
+        <Icon className="h-5 w-5" />
+        <span className="text-[9px] font-bold">{label}</span>
+    </Link>
+  );
 }

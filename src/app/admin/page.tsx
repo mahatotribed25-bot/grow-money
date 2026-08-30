@@ -18,28 +18,23 @@ import {
   CheckCircle2,
   Database,
   RefreshCcw,
-  Timer
+  Timer,
+  HandCoins,
+  Settings
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useCollection, useUser, useDoc } from '@/firebase';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Timestamp } from 'firebase/firestore';
-import { subDays, format, startOfDay, isSameDay } from 'date-fns';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { format, startOfDay, isSameDay, subDays } from 'date-fns';
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Timestamp } from 'firebase/firestore';
 
 const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
-const CHART_COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
 type User = { id: string; name: string; photoURL?: string; walletBalance?: number; email?: string; isOnline?: boolean; lastSeen?: Timestamp; createdAt?: Timestamp; totalInvestment?: number; };
 type Transaction = { id: string; amount: number; name: string; status: 'pending' | 'approved' | 'rejected'; createdAt: Timestamp; category?: string; };
-type Investment = { id: string; planName: string; startDate: Timestamp; investedAmount: number; userId: string; };
-type InvestmentPlan = { name: string; adminProfit?: number; };
-type AdminSettings = { profitCalculationStartDate?: Timestamp; adminProfitBalance?: number; };
 
 export default function AdminDashboard() {
   const { user, loading: userIsLoading } = useUser();
@@ -51,17 +46,14 @@ export default function AdminDashboard() {
   const { data: users, loading: usersLoading } = useCollection<User>(isAdmin ? 'users' : null);
   const { data: allDeposits, loading: depositsLoading } = useCollection<Transaction>(isAdmin ? 'deposits' : null);
   const { data: allWithdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(isAdmin ? 'withdrawals' : null);
-  const { data: investmentPlans, loading: plansLoading } = useCollection<InvestmentPlan>(isAdmin ? 'investmentPlans' : null);
-  const { data: allInvestments, loading: investmentsLoading } = useCollection<Investment>(isAdmin ? 'investments' : null, { subcollections: true });
-  const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>(isAdmin ? 'settings/admin' : null);
 
   const stats = useMemo(() => {
-    if (!users || !allDeposits || !allWithdrawals || !allInvestments) return null;
+    if (!allDeposits || !allWithdrawals) return null;
     const pendingRequests = (allDeposits.filter(d => d.status === 'pending').length) + (allWithdrawals.filter(w => w.status === 'pending').length);
     const totalDeposits = allDeposits.filter(d => d.status === 'approved').reduce((s, d) => s + d.amount, 0);
     const totalWithdrawals = allWithdrawals.filter(w => w.status === 'approved').reduce((s, w) => s + w.amount, 0);
     return { pendingRequests, totalDeposits, totalWithdrawals };
-  }, [users, allDeposits, allWithdrawals, allInvestments]);
+  }, [allDeposits, allWithdrawals]);
 
   const overviewData = useMemo(() => {
     const days = Array.from({ length: 7 }, (_, i) => startOfDay(subDays(new Date(), i))).reverse();
@@ -72,7 +64,7 @@ export default function AdminDashboard() {
     });
   }, [allDeposits, allWithdrawals]);
 
-  if (userIsLoading || usersLoading || depositsLoading || withdrawalsLoading || plansLoading || investmentsLoading || settingsLoading) return <div className="flex h-[80vh] items-center justify-center"><Timer className="animate-spin text-primary" /></div>;
+  if (userIsLoading || usersLoading || depositsLoading || withdrawalsLoading) return <div className="flex h-[80vh] items-center justify-center"><Timer className="animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">

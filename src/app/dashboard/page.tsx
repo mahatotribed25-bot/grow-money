@@ -44,8 +44,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
-  DialogClose,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -57,25 +55,17 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   collection,
   addDoc,
   serverTimestamp,
   doc,
   runTransaction,
-  updateDoc,
-  orderBy,
-  limit,
-  where,
-  query,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { BannerCarousel } from '@/components/dashboard/BannerCarousel';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
 import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -90,17 +80,11 @@ type UserData = {
   photoURL?: string;
   email?: string;
   upiId?: string;
-  role?: 'user' | 'subadmin';
-  vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
-  lastCheckIn?: Timestamp;
-  trustScore?: number;
 };
 
 type AdminSettings = {
   adminUpi?: string;
   minWithdrawal?: number;
-  withdrawalGstPercentage?: number;
-  dailyCheckInBonus?: number;
 };
 
 type Investment = {
@@ -338,8 +322,8 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
         transaction.update(userRef, { walletBalance: (userDoc.data()?.walletBalance || 0) - val });
         transaction.set(doc(collection(firestore, 'withdrawals')), { userId: user.uid, name: user.displayName, amount: val, upiId: userData.upiId, status: 'pending', createdAt: serverTimestamp() });
     }).then(() => { 
-        setIsDialogOpen(false); // Close amount selection immediately
-        setIsDispensing(true); // Start full-screen ATM animation
+        setIsDialogOpen(false); 
+        setIsDispensing(true); 
     }).catch(e => toast({ title: "Failed", description: e.message, variant: "destructive" }));
   };
 
