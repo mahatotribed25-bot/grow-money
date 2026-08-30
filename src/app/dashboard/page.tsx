@@ -79,6 +79,7 @@ import { AchievementBadges } from '@/components/dashboard/AchievementBadges';
 import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScratchCard } from '@/components/dashboard/ScratchCard';
+import { CashDispenseAnimation } from '@/components/dashboard/CashDispenseAnimation';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -985,6 +986,7 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
   const firestore = useFirestore();
   const [amount, setAmount] = useState('');
   const [withdrawalType, setWithdrawalType] = useState('');
+  const [isDispensing, setIsDispensing] = useState(false);
   const { toast } = useToast();
 
   const minWithdrawal = adminSettings?.minWithdrawal || 0;
@@ -1042,7 +1044,8 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
         });
     })
     .then(() => {
-      toast({ title: 'Submitted' });
+      setIsDispensing(true);
+      setAmount('');
     })
     .catch((serverError) => {
       errorEmitter.emit('permission-error', serverError);
@@ -1050,56 +1053,63 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
   };
 
   return (
-      <Dialog>
-        <DialogTrigger asChild>
-            <Button variant="outline" className="w-full h-12 rounded-2xl font-bold border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white">
-              <Download className="mr-2 h-4 w-4" /> Withdraw
-            </Button>
-        </DialogTrigger>
-        <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white">
-            <DialogHeader>
-                <DialogTitle>Request Payout</DialogTitle>
-            </DialogHeader>
-             <div className="space-y-4">
-                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
-                    <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mb-1">Destination Account</p>
-                    <span className="font-mono text-white/80 text-sm">{userData?.upiId || 'Configure in Profile'}</span>
-                </div>
-                
-                <div className="space-y-2">
-                    <Label htmlFor="amount" className="text-white/60 text-xs font-bold">Amount (INR)</Label>
-                    <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Min ₹${minWithdrawal}`} className="bg-white/5 border-white/10 rounded-xl h-12" />
-                </div>
-
-                 <div className="space-y-2">
-                    <Label className="text-white/60 text-xs font-bold">Source</Label>
-                    <RadioGroup onValueChange={setWithdrawalType} value={withdrawalType} className="grid grid-cols-2 gap-3">
-                        <WithdrawTypeOption value="Investment Plan" label="Plans" />
-                        <WithdrawTypeOption value="General" label="General" />
-                    </RadioGroup>
-                </div>
-
-                {amount && (
-                  <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex justify-between items-center">
-                    <div>
-                      <p className="text-[10px] text-white/20 uppercase font-black">Fee ({gstPercentage}%)</p>
-                      <p className="text-sm font-bold text-red-400">-₹{gstAmount.toFixed(2)}</p>
+      <>
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" className="w-full h-12 rounded-2xl font-bold border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white">
+                <Download className="mr-2 h-4 w-4" /> Withdraw
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white">
+                <DialogHeader>
+                    <DialogTitle>Request Payout</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
+                        <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mb-1">Destination Account</p>
+                        <span className="font-mono text-white/80 text-sm">{userData?.upiId || 'Configure in Profile'}</span>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-white/20 uppercase font-black">Expected Credit</p>
-                      <p className="text-xl font-black text-green-400">₹{finalAmount.toFixed(2)}</p>
+                    
+                    <div className="space-y-2">
+                        <Label htmlFor="amount" className="text-white/60 text-xs font-bold">Amount (INR)</Label>
+                        <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Min ₹${minWithdrawal}`} className="bg-white/5 border-white/10 rounded-xl h-12" />
                     </div>
-                  </div>
-                )}
-             </div>
-             <DialogFooter className="gap-2 sm:gap-0">
-                <DialogClose asChild>
-                    <Button variant="ghost" className="text-white/40">Cancel</Button>
-                </DialogClose>
-                <Button onClick={handleWithdraw} disabled={!userData?.upiId || !amount} className="rounded-xl font-bold bg-primary text-white px-8">Confirm Withdrawal</Button>
-             </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+                    <div className="space-y-2">
+                        <Label className="text-white/60 text-xs font-bold">Source</Label>
+                        <RadioGroup onValueChange={setWithdrawalType} value={withdrawalType} className="grid grid-cols-2 gap-3">
+                            <WithdrawTypeOption value="Investment Plan" label="Plans" />
+                            <WithdrawTypeOption value="General" label="General" />
+                        </RadioGroup>
+                    </div>
+
+                    {amount && (
+                    <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex justify-between items-center">
+                        <div>
+                        <p className="text-[10px] text-white/20 uppercase font-black">Fee ({gstPercentage}%)</p>
+                        <p className="text-sm font-bold text-red-400">-₹{gstAmount.toFixed(2)}</p>
+                        </div>
+                        <div className="text-right">
+                        <p className="text-[10px] text-white/20 uppercase font-black">Expected Credit</p>
+                        <p className="text-xl font-black text-green-400">₹{finalAmount.toFixed(2)}</p>
+                        </div>
+                    </div>
+                    )}
+                </div>
+                <DialogFooter className="gap-2 sm:gap-0">
+                    <DialogClose asChild>
+                        <Button variant="ghost" className="text-white/40">Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleWithdraw} disabled={!userData?.upiId || !amount} className="rounded-xl font-bold bg-primary text-white px-8">Confirm Withdrawal</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        <CashDispenseAnimation 
+            isOpen={isDispensing} 
+            amount={parseFloat(amount) || 500} 
+            onClose={() => setIsDispensing(false)} 
+        />
+      </>
   );
 }
 

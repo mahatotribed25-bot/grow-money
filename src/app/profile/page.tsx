@@ -1191,38 +1191,6 @@ export default function ProfilePage() {
             Sign Out Securely
             </Button>
         </div>
-      </main>
-
-      <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
-        <DialogContent className="bg-[#030408]/95 backdrop-blur-3xl border-white/10 text-white sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle className="text-2xl font-black tracking-tight">Modify Name</DialogTitle>
-                <DialogDescription className="text-white/40">Keep your display name current for administrative trust.</DialogDescription>
-            </DialogHeader>
-            <div className="py-6 space-y-6">
-                <div className="space-y-2">
-                    <Label className="text-white/50 text-[10px] font-black uppercase tracking-widest pl-1">Display Name</Label>
-                    <Input 
-                        value={editName} 
-                        onChange={(e) => setEditName(e.target.value)}
-                        placeholder="Enter full name"
-                        className="bg-white/5 border-white/10 rounded-xl h-12 font-bold"
-                    />
-                </div>
-            </div>
-            <DialogFooter className="flex-col sm:flex-col gap-3">
-                <Button 
-                    onClick={handleUpdateName} 
-                    className="w-full h-14 rounded-xl font-black bg-primary text-white shadow-2xl shadow-primary/40"
-                    disabled={isUpdatingProfile}
-                >
-                    {isUpdatingProfile ? "Refreshing Node..." : "Apply Transformations"}
-                </Button>
-                <DialogClose asChild>
-                    <Button variant="ghost" className="w-full text-white/40 hover:text-white">Discard Changes</Button>
-                </DialogClose>
-            </DialogFooter>
-        </DialogContent>
       </Dialog>
 
       <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">

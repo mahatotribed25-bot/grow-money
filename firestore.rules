@@ -46,7 +46,6 @@ service cloud.firestore {
       }
       match /walletHistory/{id} {
         allow read: if isOwner(userId) || isManager();
-        // Allowed for transactions where system/authenticated users need to add a log entry (e.g. referral bonus)
         allow write: if isAuthenticated();
       }
     }
@@ -54,7 +53,7 @@ service cloud.firestore {
     // Investment Plans
     match /investmentPlans/{planId} {
       allow read: if isAuthenticated();
-      allow update, write: if isAuthenticated(); // To decrement stock during purchase transaction
+      allow update, write: if isAuthenticated(); 
     }
     
     // Announcements
@@ -88,14 +87,14 @@ service cloud.firestore {
     // Global Settings
     match /settings/{id} {
       allow read: if isAuthenticated();
-      allow update, write: if isAuthenticated(); // For syncing adminProfitBalance during purchase transaction
+      allow update, write: if isAuthenticated(); 
     }
 
     // Custom Loan Requests rules
     match /customLoanRequests/{requestId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
       allow create: if isAuthenticated();
-      // Allow owners to accept offers or mark payment as pending
+      // Allow users to accept offers and mark payments
       allow update: if isManager() || (isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.uid == resource.data.userId));
       allow delete: if isManager();
     }
@@ -141,9 +140,9 @@ service cloud.firestore {
       }
     }
 
-    // Collection Group Rule for investments (allows cross-plan listing)
+    // Collection Group Rule for investments
     match /{path=**}/investments/{id} {
-      allow read, list: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
+      allow read, list: if isAuthenticated();
     }
 
     // Generic match for other collections
