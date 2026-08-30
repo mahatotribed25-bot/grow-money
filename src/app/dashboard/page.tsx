@@ -319,6 +319,7 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
   const { toast } = useToast();
   const [amt, setAmt] = useState('');
   const [isDispensing, setIsDispensing] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const amounts = [500, 1000, 2000, 5000];
 
@@ -336,12 +337,15 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
         if ((userDoc.data()?.walletBalance || 0) < val) throw new Error("Insufficient Funds");
         transaction.update(userRef, { walletBalance: (userDoc.data()?.walletBalance || 0) - val });
         transaction.set(doc(collection(firestore, 'withdrawals')), { userId: user.uid, name: user.displayName, amount: val, upiId: userData.upiId, status: 'pending', createdAt: serverTimestamp() });
-    }).then(() => { setIsDispensing(true); }).catch(e => toast({ title: "Failed", description: e.message, variant: "destructive" }));
+    }).then(() => { 
+        setIsDialogOpen(false); // Close amount selection immediately
+        setIsDispensing(true); // Start full-screen ATM animation
+    }).catch(e => toast({ title: "Failed", description: e.message, variant: "destructive" }));
   };
 
   return (
     <>
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild><Button variant="outline" className="w-full h-12 rounded-xl border-white/10 bg-white/5 text-white/70 font-bold"><Download size={16} className="mr-2" /> Withdraw</Button></DialogTrigger>
             <DialogContent className="bg-[#030408]/95 border-white/10 text-white sm:max-w-md p-0 overflow-hidden rounded-[2.5rem]">
                 <header className="p-6 border-b border-white/5 flex items-center justify-between">
