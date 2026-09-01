@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -51,7 +50,7 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
           for (let i = 0; i < 5; i++) {
               setTimeout(() => {
                   setActiveNotes(prev => [...prev, { id: i, delay: i * 200 }]);
-              }, i * 800); // 800ms between each note for sequential feel
+              }, i * 800);
           }
       }, 2000);
       
