@@ -9,7 +9,6 @@ import {
   Briefcase,
   Copy,
   Gift,
-  Users2,
   HandCoins,
   Trophy,
   Timer,
@@ -17,10 +16,7 @@ import {
   Eye,
   ReceiptText,
   ShieldCheck,
-  TrendingDown,
-  ArrowRight,
   Smartphone,
-  CreditCard,
   CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
@@ -46,6 +42,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
@@ -115,7 +112,6 @@ export default function ProfilePage() {
   const { toast } = useToast();
 
   const { data: userData, refetch: refetchUser } = useDoc<UserData>(user ? `users/${user.uid}` : null);
-  const { data: referrals } = useCollection<any>(user ? 'users' : null, { where: ['referredBy', '==', user?.uid] });
   const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null, { where: ['userId', '==', user?.uid]});
   const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null, { where: ['userId', '==', user?.uid]});
   const { data: walletHistory } = useCollection<WalletHistoryEntry>(user ? `users/${user.uid}/walletHistory` : null, undefined, orderBy('createdAt', 'desc'));
@@ -413,12 +409,14 @@ export default function ProfilePage() {
         )}
       </main>
 
-      <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl h-16 flex items-center justify-around px-4">
+      <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
           <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" active />
+        </div>
       </nav>
     </div>
   );

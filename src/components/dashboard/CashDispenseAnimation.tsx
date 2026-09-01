@@ -84,7 +84,7 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
                     <div>
                         <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-0.5">Projected Balance</p>
                         <div className="flex items-baseline gap-2">
-                             <h2 className="text-2xl font-black text-white">₹{(walletBalance - (stage === 'success' ? 0 : 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h2>
+                             <h2 className="text-2xl font-black text-white">₹{(walletBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h2>
                         </div>
                     </div>
                 </div>

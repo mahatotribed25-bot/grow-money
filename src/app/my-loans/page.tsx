@@ -7,9 +7,8 @@ import {
   Briefcase,
   HandCoins,
   Trophy,
-  QrCode,
-  Timer,
   ArrowUpRight,
+  Timer,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -19,7 +18,7 @@ import { useCollection, useFirestore, useDoc } from '@/firebase';
 import { collection, Timestamp, where, query, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
@@ -32,23 +31,8 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import Image from 'next/image';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
-
-type EMI = {
-    emiAmount: number;
-    dueDate: Timestamp;
-    status: 'Pending' | 'Paid' | 'Due' | 'Payment Pending';
-}
 
 type Loan = {
   id: string;
@@ -57,18 +41,10 @@ type Loan = {
   totalPayable: number;
   penalty?: number;
   startDate: Timestamp;
-  dueDate: Timestamp;
   status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
-  duration: number;
-  durationType: DurationType;
-  repaymentMethod: 'EMI' | 'Direct';
-  interest?: number;
-  emis?: EMI[];
 };
 
 type AdminSettings = {
-    loanPenalty?: number;
-    customLoanPenalty?: number;
     adminUpi?: string;
     customLoanUpi?: string;
 }
@@ -78,13 +54,9 @@ type CustomLoanRequest = {
   requestedAmount: number;
   requestedDuration: number;
   status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin' | 'payment_pending' | 'extension_pending';
-  interestRate?: number;
-  interestAmount?: number;
   totalRepayment?: number;
-  rejectionReason?: string;
-  createdAt: Timestamp;
-  dueDate?: Timestamp;
   penalty?: number;
+  createdAt: Timestamp;
 };
 
 export default function MyLoansPage() {
@@ -102,9 +74,6 @@ export default function MyLoansPage() {
     amount: number;
     upiId: string;
   } | null>(null);
-
-  const [extensionLoan, setExtensionLoan] = useState<CustomLoanRequest | null>(null);
-  const [extensionDays, setExtensionDays] = useState('5');
 
   const loading = loansLoading || settingsLoading || customLoansLoading;
   
@@ -155,22 +124,6 @@ export default function MyLoansPage() {
         });
   };
 
-  const handleRequestExtension = () => {
-    if (!extensionLoan) return;
-    const days = parseInt(extensionDays);
-    const loanRef = doc(firestore, 'customLoanRequests', extensionLoan.id);
-    const updateData = { status: 'extension_pending', extensionRequestedDays: days };
-
-    updateDoc(loanRef, updateData).then(() => {
-        toast({ title: "Extension Requested" });
-        setExtensionLoan(null);
-    });
-  };
-  
-  const upiDeeplink = paymentDetails?.isOpen && paymentDetails.upiId
-    ? `upi://pay?pa=${paymentDetails.upiId}&pn=Grow%20Money&am=${paymentDetails.amount.toFixed(2)}&cu=INR`
-    : '';
-
   return (
     <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground relative z-10">
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
@@ -185,8 +138,31 @@ export default function MyLoansPage() {
             {loading ? <Timer className="animate-spin" /> : sortedLoans?.map(loan => <LoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} />)}
             
             <h2 className="text-sm font-bold uppercase tracking-[4px] text-white/30 flex items-center gap-2 pt-6"><HandCoins size={16} /> Custom Flexi Loans</h2>
-            {loading ? <Timer className="animate-spin" /> : sortedCustomLoans?.map(loan => <CustomLoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} onOpenExtension={() => setExtensionLoan(loan)} />)}
+            {loading ? <Timer className="animate-spin" /> : sortedCustomLoans?.map(loan => <CustomLoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} />)}
         </div>
+
+        {paymentDetails && (
+          <Dialog open={paymentDetails.isOpen} onOpenChange={() => setPaymentDetails(null)}>
+            <DialogContent className="bg-[#030408]/95 border-white/10 text-white rounded-[2rem]">
+               <DialogHeader>
+                  <DialogTitle>Confirm Repayment Protocol</DialogTitle>
+                  <DialogDescription className="text-white/40">Initiating settle node for the selected liability.</DialogDescription>
+               </DialogHeader>
+               <div className="py-6 space-y-4">
+                  <div className="bg-white/5 p-5 rounded-2xl border border-white/5 flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Settle Amount</span>
+                      <span className="text-xl font-black text-primary">₹{paymentDetails.amount.toFixed(2)}</span>
+                  </div>
+                  <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 text-[10px] font-bold text-primary text-center">
+                      PAY TO: {paymentDetails.upiId}
+                  </div>
+               </div>
+               <DialogFooter>
+                  <Button onClick={handlePaymentConfirmation} className="w-full h-12 rounded-xl font-black bg-white text-black hover:bg-primary hover:text-white transition-all">Confirm Payment Sent</Button>
+               </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </main>
 
       <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl h-16 flex items-center justify-around px-4">
@@ -219,7 +195,7 @@ function LoanCard({ loan, onPayNow }: { loan: Loan, onPayNow: (loan: Loan, amoun
   );
 }
 
-function CustomLoanCard({ loan, onPayNow, onOpenExtension }: { loan: CustomLoanRequest, onPayNow: (loan: CustomLoanRequest, amount: number) => void, onOpenExtension: () => void }) {
+function CustomLoanCard({ loan, onPayNow }: { loan: CustomLoanRequest, onPayNow: (loan: CustomLoanRequest, amount: number) => void }) {
   const firestore = useFirestore();
   const handleAccept = () => updateDoc(doc(firestore, 'customLoanRequests', loan.id), { status: 'approved_by_user', userApprovedAt: serverTimestamp() });
   const totalRepayment = (loan.totalRepayment || 0) + (loan.penalty || 0);
@@ -244,7 +220,6 @@ function CustomLoanCard({ loan, onPayNow, onOpenExtension }: { loan: CustomLoanR
               <Button className="w-full h-12 rounded-xl bg-white text-black group" onClick={() => onPayNow(loan, totalRepayment)} disabled={loan.status === 'payment_pending'}>
                   {loan.status === 'payment_pending' ? 'Verifying...' : <span className="flex items-center gap-2">SETTLE DEBT NOW <ArrowUpRight className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/></span>}
               </Button>
-              {loan.status === 'active' && <Button variant="ghost" className="w-full text-white/30" onClick={onOpenExtension}>Request Extension</Button>}
           </div>
       )}
     </Card>
@@ -253,8 +228,10 @@ function CustomLoanCard({ loan, onPayNow, onOpenExtension }: { loan: CustomLoanR
 
 function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href: string, active?: boolean }) {
   return (
-    <Link href={href} className={cn("flex flex-col items-center gap-1", active ? 'text-primary' : 'text-white/40')}>
-      <Icon className="h-5 w-5" /><span className="text-[9px] font-bold">{label}</span>
+    <Link href={href} className={cn("flex flex-col items-center gap-1 transition-all h-full relative", active ? 'text-primary scale-110' : 'text-white/40')}>
+      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(139,92,246,0.5)]")} />
+      <span className="text-[9px] font-bold">{label}</span>
+      {active && <div className="absolute -bottom-1 h-1 w-6 bg-primary rounded-full blur-[2px]" />}
     </Link>
   );
 }

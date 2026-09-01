@@ -78,14 +78,6 @@ service cloud.firestore {
       allow update, delete: if isManager();
     }
 
-    // scratchCards rules
-    match /scratchCards/{id} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
-      allow create: if isManager();
-      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
-      allow delete: if isManager();
-    }
-
     // Global Settings - Allow profit syncing during buy
     match /settings/{id} {
       allow read: if isAuthenticated();

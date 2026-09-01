@@ -3,28 +3,16 @@
 
 import {
   Users,
-  Wallet,
-  Briefcase,
-  Download,
   Upload,
-  TrendingUp,
-  Activity,
-  Zap,
+  Download,
   Clock,
-  ArrowUpRight,
-  ArrowDownRight,
-  PlusCircle,
-  Megaphone,
-  Gift,
   CheckCircle2,
-  Database,
-  RefreshCcw,
-  Timer,
   HandCoins,
-  Settings
+  Settings,
+  Timer
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useCollection, useUser, useDoc } from '@/firebase';
+import { useCollection, useUser } from '@/firebase';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, startOfDay, isSameDay, subDays } from 'date-fns';
 import { useMemo } from 'react';
@@ -98,9 +86,9 @@ export default function AdminDashboard() {
       </Card>
       
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <QuickLink label="New Plan" icon={PlusCircle} href="/admin/investment-plans" color="bg-purple-600" />
+            <QuickLink label="Plans" icon={Upload} href="/admin/investment-plans" color="bg-purple-600" />
             <QuickLink label="Deposits" icon={CheckCircle2} href="/admin/deposits" color="bg-green-600" />
-            <QuickLink label="Payouts" icon={Upload} href="/admin/withdrawals" color="bg-orange-600" />
+            <QuickLink label="Payouts" icon={Download} href="/admin/withdrawals" color="bg-orange-600" />
             <QuickLink label="Custom" icon={HandCoins} href="/admin/custom-loans" color="bg-red-600" />
             <QuickLink label="Settings" icon={Settings} href="/admin/settings" color="bg-blue-600" />
       </div>

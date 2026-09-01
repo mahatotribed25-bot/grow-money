@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -7,7 +8,6 @@ import {
   Home,
   Users,
   LogOut,
-  Menu,
   Settings,
   Briefcase,
   Download,
@@ -21,11 +21,9 @@ import {
   MessageSquare,
   IndianRupee,
   Search,
-  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth, useUser, useCollection } from '@/firebase';
