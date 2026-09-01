@@ -45,7 +45,6 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
       
       const t1 = setTimeout(() => {
           setStage('dispensing');
-          // Sequential dispensing: Add notes one by one
           const dispenseInterval = setInterval(() => {
               setActiveNotes(prev => {
                   if (prev.length >= 5) {

@@ -19,7 +19,8 @@ import {
   Smartphone,
   HelpCircle,
   TrendingUp,
-  IndianRupee
+  IndianRupee,
+  Users
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -339,7 +340,7 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
                 <div className="p-6 space-y-8">
                      <div className="bg-white/5 border border-white/5 rounded-[1.5rem] p-5 flex items-center justify-between shadow-inner">
                         <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary shadow-lg border border-primary/10"><Wallet size={24}/></div>
+                            <div className="h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary shadow-lg border border-primary/20"><Wallet size={24}/></div>
                             <div>
                                 <p className="text-[9px] font-black text-white/20 uppercase tracking-[2px]">Asset Balance</p>
                                 <p className="text-xl font-black tracking-tighter text-white">₹{(userData?.walletBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
