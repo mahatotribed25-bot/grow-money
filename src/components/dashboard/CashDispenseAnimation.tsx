@@ -23,7 +23,6 @@ type CashDispenseAnimationProps = {
 
 type Note = {
     id: number;
-    delay: number;
 }
 
 export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }: CashDispenseAnimationProps) {
@@ -46,15 +45,21 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
       
       const t1 = setTimeout(() => {
           setStage('dispensing');
-          // Dispense notes one by one
-          for (let i = 0; i < 5; i++) {
-              setTimeout(() => {
-                  setActiveNotes(prev => [...prev, { id: i, delay: i * 200 }]);
-              }, i * 800);
-          }
+          // Sequential dispensing: Add notes one by one
+          const dispenseInterval = setInterval(() => {
+              setActiveNotes(prev => {
+                  if (prev.length >= 5) {
+                      clearInterval(dispenseInterval);
+                      return prev;
+                  }
+                  return [...prev, { id: prev.length }];
+              });
+          }, 800);
+          
+          return () => clearInterval(dispenseInterval);
       }, 2000);
       
-      const t2 = setTimeout(() => setStage('success'), 7000);
+      const t2 = setTimeout(() => setStage('success'), 8000);
       return () => { clearTimeout(t1); clearTimeout(t2); };
     }
   }, [isOpen]);
@@ -125,7 +130,7 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-1 bg-primary/40 blur-[6px] rounded-full z-20 shadow-[0_0_20px_#8b5cf6]" />
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-16 bg-black rounded-2xl border border-white/5 shadow-inner" />
                             
-                            {activeNotes.map((note) => (
+                            {activeNotes.map((note, index) => (
                                 <div 
                                     key={note.id}
                                     className="absolute left-1/2 top-1/2 -translate-x-1/2 z-10 animate-cash-fly"

@@ -16,7 +16,7 @@ import {
   ReceiptText,
   ShieldCheck,
   Smartphone,
-  CheckCircle2
+  TrendingUp
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -316,7 +316,9 @@ export default function ProfilePage() {
         {/* Edit Profile Dialog */}
         <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
             <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2.5rem]">
-                <DialogHeader><DialogTitle>Update Identity Node</DialogTitle></DialogHeader>
+                <DialogHeader>
+                    <DialogTitle>Update Identity Node</DialogTitle>
+                </DialogHeader>
                 <div className="py-6 space-y-4">
                     <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">Display Name</Label>
@@ -365,8 +367,8 @@ export default function ProfilePage() {
                  <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-2 backdrop-blur-md">
                     <ReceiptText size={32} className="text-white" />
                  </div>
-                 <h2 className="text-xl font-black tracking-tight uppercase">Node Receipt</h2>
-                 <p className="text-[10px] font-black text-white/50 uppercase tracking-[4px]">Verified Transaction</p>
+                 <DialogTitle className="text-xl font-black tracking-tight uppercase">Node Receipt</DialogTitle>
+                 <DialogDescription className="text-[10px] font-black text-white/50 uppercase tracking-[4px]">Verified Transaction</DialogDescription>
               </header>
               <div className="p-8 space-y-6">
                  <div className="space-y-4">
@@ -430,8 +432,7 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
                     <TableRow className="border-white/10">{headers.map(h => <TableHead key={h} className="text-[10px] font-black text-white/20 uppercase tracking-[3px] py-4">{h}</TableHead>)}</TableRow>
                 </TableHeader>
                 <TableBody>
-                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic font-bold">No ledger records found.</TableCell></TableRow>}
-                </TableBody>
+                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic font-bold">No ledger records found.</TableCell></TableRow>}</TableBody>
             </Table>
         </ScrollArea>
     </Card>

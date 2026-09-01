@@ -8,19 +8,18 @@ import {
   Home,
   User,
   HandCoins,
-  Gem,
   Trophy,
   Activity,
   Zap,
   Timer,
   ChevronRight,
   FileText,
-  Users,
   Eye,
   CheckCircle2,
   Smartphone,
   HelpCircle,
-  TrendingUp
+  TrendingUp,
+  IndianRupee
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -227,7 +226,6 @@ export default function Dashboard() {
                 <QuickActionButton icon={HandCoins} label="Standard Loan" href="/loans" color="text-orange-400" />
                 <QuickActionButton icon={FileText} label="Flexi Loan" href="/custom-loan" color="text-red-400" />
                 <QuickActionButton icon={Users} label="Syndicate" href="/group-investing" color="text-purple-400" />
-                <QuickActionButton icon={Gem} label="VIP Benefits" href="/vip-tiers" color="text-yellow-400" />
             </div>
         </Card>
       </main>
@@ -279,7 +277,9 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
     <Dialog>
       <DialogTrigger asChild><Button className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl shadow-white/5"><Upload size={16} className="mr-2" /> Recharge</Button></DialogTrigger>
       <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2rem]">
-        <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Node Funding</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle className="text-xl font-black uppercase tracking-tight">Node Funding</DialogTitle>
+        </DialogHeader>
         <div className="space-y-6 py-4">
             <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">Amount (INR)</Label>
@@ -333,7 +333,7 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
             <DialogTrigger asChild><Button variant="outline" className="w-full h-14 rounded-2xl border-white/10 bg-white/5 text-white/50 font-black uppercase tracking-widest text-xs hover:bg-white/10 hover:text-white transition-all"><Download size={16} className="mr-2" /> Withdraw</Button></DialogTrigger>
             <DialogContent className="bg-[#030408]/95 border-white/10 text-white sm:max-w-md p-0 overflow-hidden rounded-[2.5rem] shadow-2xl">
                 <header className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                    <h2 className="text-lg font-black tracking-tight uppercase">Capital Dispatch</h2>
+                    <DialogTitle className="text-lg font-black tracking-tight uppercase">Capital Dispatch</DialogTitle>
                     <HelpCircle className="text-white/20 h-5 w-5" />
                 </header>
                 <div className="p-6 space-y-8">
