@@ -193,24 +193,24 @@ export default function Dashboard() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground">
        <AlertDialog open={showWelcomePopup} onOpenChange={setShowWelcomePopup}>
-        <AlertDialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10">
+        <AlertDialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 rounded-[2rem]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-center text-white">Welcome, {userData?.name} 💰</AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-white/60">Your journey starts now!</AlertDialogDescription>
+            <AlertDialogTitle className="text-center text-white text-2xl font-black tracking-tight">Welcome, {userData?.name} 💰</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-white/40 font-bold uppercase tracking-widest text-[10px]">Your journey starts now!</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogAction onClick={() => setShowWelcomePopup(false)} className="w-full bg-primary font-bold h-12 rounded-xl">Let's Go!</AlertDialogAction>
+          <AlertDialogAction onClick={() => setShowWelcomePopup(false)} className="w-full bg-primary font-black h-14 rounded-2xl shadow-xl shadow-primary/20">Authorize & Enter</AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
 
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
-        <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /><h1 className="text-xl font-bold">Grow Money</h1></div>
+        <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /><h1 className="text-xl font-bold tracking-tighter">Grow Money</h1></div>
         <Link href="/profile">
-          <Badge variant="outline" className="border-white/10 bg-white/5 h-10 px-3 gap-2 rounded-full">
+          <Badge variant="outline" className="border-white/10 bg-white/5 h-10 px-3 gap-2 rounded-full hover:bg-white/10 transition-all">
             <Avatar className="h-7 w-7">
               <AvatarImage src={userData?.photoURL} />
-              <AvatarFallback>{userData?.name?.charAt(0)}</AvatarFallback>
+              <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-black">{userData?.name?.charAt(0)}</AvatarFallback>
             </Avatar>
-            <span className="animate-rgb-glow font-black text-xs">{userData?.name || 'User'}</span>
+            <span className="animate-rgb-glow font-black text-xs tracking-tight">{userData?.name || 'User'}</span>
           </Badge>
         </Link>
       </header>
@@ -218,26 +218,26 @@ export default function Dashboard() {
       <ActivityPulse />
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-        <div className="rounded-3xl overflow-hidden"><BannerCarousel /></div>
+        <div className="rounded-3xl overflow-hidden shadow-2xl"><BannerCarousel /></div>
         
         <WalletSummary userData={userData} adminSettings={adminSettings} loading={userDataLoading} />
 
-        <div className="flex items-center justify-between"><h2 className="text-xl font-bold flex items-center gap-2"><Activity className="text-primary" /> Active Plans</h2><Button variant="ghost" size="sm" asChild className="text-primary"><Link href="/plans">More Plans <ArrowRight className="ml-1 h-4 w-4" /></Link></Button></div>
+        <div className="flex items-center justify-between"><h2 className="text-sm font-black uppercase tracking-[3px] text-white/40 flex items-center gap-2"><Activity size={14} className="text-primary" /> Active Portfolios</h2><Button variant="ghost" size="sm" asChild className="text-primary text-[10px] font-black uppercase tracking-widest"><Link href="/plans">Browser Market <ArrowRight className="ml-1 h-3 w-3" /></Link></Button></div>
 
         <div className="grid gap-4 sm:grid-cols-2">
             {activeInvestments?.map(inv => <ActivePlanCard key={inv.id} investment={inv} onClaimProfit={handleClaimProfit} onClaimMaturity={handleClaimMaturity} />)}
-            {activeInvestments?.length === 0 && <Card className="bg-white/5 border-dashed rounded-3xl py-10 text-center"><p className="text-white/40">No active plans.</p></Card>}
+            {activeInvestments?.length === 0 && <Card className="bg-white/[0.02] border-dashed border-white/5 rounded-3xl py-12 text-center"><p className="text-white/20 text-xs font-bold uppercase tracking-widest">No active nodes.</p></Card>}
         </div>
 
-        <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl p-6">
-            <CardTitle className="text-lg font-bold mb-4">Premium Access</CardTitle>
+        <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl p-6 shadow-2xl">
+            <CardTitle className="text-[10px] font-black uppercase tracking-[4px] text-white/20 mb-6">Service Integration</CardTitle>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <QuickActionButton icon={TrendingUp} label="Market" href="/plans" color="text-green-400" />
-                <QuickActionButton icon={Zap} label="Spin" href="/lucky-spin" color="text-yellow-400" />
-                <QuickActionButton icon={HandCoins} label="Apply Loan" href="/loans" color="text-orange-400" />
+                <QuickActionButton icon={Zap} label="Wheel" href="/lucky-spin" color="text-yellow-400" />
+                <QuickActionButton icon={HandCoins} label="Standard Loan" href="/loans" color="text-orange-400" />
                 <QuickActionButton icon={FileText} label="Flexi Loan" href="/custom-loan" color="text-red-400" />
-                <QuickActionButton icon={Users} label="Group Investing" href="/group-investing" color="text-purple-400" />
-                <QuickActionButton icon={Gem} label="VIP Tiers" href="/vip-tiers" color="text-yellow-400" />
+                <QuickActionButton icon={Users} label="Syndicate" href="/group-investing" color="text-purple-400" />
+                <QuickActionButton icon={Gem} label="VIP Benefits" href="/vip-tiers" color="text-yellow-400" />
             </div>
         </Card>
       </main>
@@ -255,12 +255,15 @@ export default function Dashboard() {
 
 function WalletSummary({ userData, adminSettings, loading }: { userData?: UserData | null, adminSettings?: AdminSettings | null, loading: boolean }) {
   return (
-    <Card className="border-white/[0.08] bg-white/[0.03] rounded-3xl p-6 space-y-6">
-        <div className="text-center space-y-1">
-          <p className="text-4xl font-black">{loading ? '...' : `₹${(userData?.walletBalance || 0).toFixed(2)}`}</p>
-          <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">Available Funds</p>
+    <Card className="border-white/[0.08] bg-white/[0.03] rounded-[2rem] p-8 space-y-8 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
+            <Wallet size={120} className="text-white" />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="text-center space-y-1 relative z-10">
+          <p className="text-4xl font-black tracking-tighter">{loading ? '...' : `₹${(userData?.walletBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}`}</p>
+          <p className="text-[10px] text-white/20 uppercase font-black tracking-[4px]">Verified Capital</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4 relative z-10">
           <DepositButton adminUpi={adminSettings?.adminUpi} />
           <WithdrawButton adminSettings={adminSettings} userData={userData} />
         </div>
@@ -279,19 +282,25 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
   const handleSubmit = () => {
     if (!user || !amount || !tid) return;
     addDoc(collection(firestore, 'deposits'), { userId: user.uid, name: user.displayName, amount: parseFloat(amount), transactionId: tid, status: 'pending', createdAt: serverTimestamp() })
-      .then(() => { toast({ title: 'Request Sent' }); setAmount(''); setTid(''); });
+      .then(() => { toast({ title: 'Protocol Initiated', description: 'Request sent to ledger.' }); setAmount(''); setTid(''); });
   };
 
   return (
     <Dialog>
-      <DialogTrigger asChild><Button className="w-full h-12 rounded-xl bg-white text-black font-bold"><Upload size={16} className="mr-2" /> Recharge</Button></DialogTrigger>
-      <DialogContent className="bg-[#030408] border-white/10 text-white">
-        <DialogHeader><DialogTitle>Recharge Wallet</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-            <Input type="number" placeholder="Amount (INR)" value={amount} onChange={e => setAmount(e.target.value)} className="bg-white/5 border-white/10" />
-            {qrUrl && <div className="bg-white p-4 rounded-xl flex justify-center"><Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="QR" width={160} height={160} /></div>}
-            <Input placeholder="Transaction ID" value={tid} onChange={e => setTid(e.target.value)} className="bg-white/5 border-white/10" />
-            <Button onClick={handleSubmit} className="w-full h-12 bg-primary">Confirm Protocol</Button>
+      <DialogTrigger asChild><Button className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl shadow-white/5"><Upload size={16} className="mr-2" /> Recharge</Button></DialogTrigger>
+      <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2rem]">
+        <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Node Funding</DialogTitle></DialogHeader>
+        <div className="space-y-6 py-4">
+            <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">Amount (INR)</Label>
+                <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} className="bg-white/5 border-white/10 h-14 rounded-xl text-xl font-black" />
+            </div>
+            {qrUrl && <div className="bg-white p-4 rounded-3xl flex justify-center shadow-2xl animate-in zoom-in-95"><Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="QR" width={180} height={160} /></div>}
+            <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">Ref Transaction ID</Label>
+                <Input placeholder="Enter 12-digit ID" value={tid} onChange={e => setTid(e.target.value)} className="bg-white/5 border-white/10 h-12 rounded-xl" />
+            </div>
+            <Button onClick={handleSubmit} className="w-full h-14 bg-primary rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/20">Confirm Protocol</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -310,47 +319,47 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
 
   const handleWithdraw = () => {
     if (!user || !amt || !userData?.upiId) {
-        toast({ title: "Profile incomplete", description: "Please add your UPI ID in profile first.", variant: "destructive"});
+        toast({ title: "Node Incomplete", description: "Link UPI ID in profile to enable withdrawals.", variant: "destructive"});
         return;
     }
     const val = parseFloat(amt);
-    if (val < (adminSettings?.minWithdrawal || 100)) { toast({ title: "Min ₹" + (adminSettings?.minWithdrawal || 100), variant: "destructive" }); return; }
+    if (val < (adminSettings?.minWithdrawal || 100)) { toast({ title: "Protocol Violation", description: "Min ₹" + (adminSettings?.minWithdrawal || 100), variant: "destructive" }); return; }
 
     runTransaction(firestore, async (transaction) => {
         const userRef = doc(firestore, 'users', user.uid);
         const userDoc = await transaction.get(userRef);
-        if ((userDoc.data()?.walletBalance || 0) < val) throw new Error("Insufficient Funds");
+        if ((userDoc.data()?.walletBalance || 0) < val) throw new Error("Insufficient Ledger Balance");
         transaction.update(userRef, { walletBalance: (userDoc.data()?.walletBalance || 0) - val });
         transaction.set(doc(collection(firestore, 'withdrawals')), { userId: user.uid, name: user.displayName, amount: val, upiId: userData.upiId, status: 'pending', createdAt: serverTimestamp() });
     }).then(() => { 
         setIsDialogOpen(false); 
         setIsDispensing(true); 
-    }).catch(e => toast({ title: "Failed", description: e.message, variant: "destructive" }));
+    }).catch(e => toast({ title: "Auth Failure", description: e.message, variant: "destructive" }));
   };
 
   return (
     <>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild><Button variant="outline" className="w-full h-12 rounded-xl border-white/10 bg-white/5 text-white/70 font-bold"><Download size={16} className="mr-2" /> Withdraw</Button></DialogTrigger>
-            <DialogContent className="bg-[#030408]/95 border-white/10 text-white sm:max-w-md p-0 overflow-hidden rounded-[2.5rem]">
-                <header className="p-6 border-b border-white/5 flex items-center justify-between">
-                    <h2 className="text-lg font-bold">Withdraw</h2>
-                    <HelpCircle className="text-white/40 h-5 w-5" />
+            <DialogTrigger asChild><Button variant="outline" className="w-full h-14 rounded-2xl border-white/10 bg-white/5 text-white/50 font-black uppercase tracking-widest text-xs hover:bg-white/10 hover:text-white transition-all"><Download size={16} className="mr-2" /> Withdraw</Button></DialogTrigger>
+            <DialogContent className="bg-[#030408]/95 border-white/10 text-white sm:max-w-md p-0 overflow-hidden rounded-[2.5rem] shadow-2xl">
+                <header className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                    <h2 className="text-lg font-black tracking-tight uppercase">Capital Dispatch</h2>
+                    <HelpCircle className="text-white/20 h-5 w-5" />
                 </header>
                 <div className="p-6 space-y-8">
-                     <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary"><Wallet size={20}/></div>
+                     <div className="bg-white/5 border border-white/5 rounded-[1.5rem] p-5 flex items-center justify-between shadow-inner">
+                        <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary shadow-lg border border-primary/10"><Wallet size={24}/></div>
                             <div>
-                                <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Your Wallet Balance</p>
-                                <p className="text-lg font-black tracking-tight">₹{(userData?.walletBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                                <p className="text-[9px] font-black text-white/20 uppercase tracking-[2px]">Asset Balance</p>
+                                <p className="text-xl font-black tracking-tighter text-white">₹{(userData?.walletBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                             </div>
                         </div>
                         <Eye size={18} className="text-white/20" />
                     </div>
 
                     <div className="space-y-4">
-                        <Label className="text-[11px] font-black text-white/20 uppercase tracking-[2px] ml-1">Enter Amount</Label>
+                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-[3px] ml-1">Dispatch Amount</Label>
                         <div className="relative">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-white/20">₹</span>
                             <Input 
@@ -358,7 +367,7 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
                                 placeholder="0.00" 
                                 value={amt} 
                                 onChange={e => setAmt(e.target.value)} 
-                                className="h-16 pl-10 text-3xl font-black bg-white/5 border-white/10 rounded-2xl focus:ring-primary focus:border-primary/50 text-white"
+                                className="h-16 pl-10 text-3xl font-black bg-white/5 border-white/10 rounded-2xl focus:ring-primary focus:border-primary/50 text-white tracking-tighter shadow-inner"
                             />
                         </div>
                         <div className="grid grid-cols-4 gap-2">
@@ -368,8 +377,8 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
                                     variant="outline" 
                                     onClick={() => setAmt(a.toString())}
                                     className={cn(
-                                        "h-10 rounded-xl font-bold border-white/10 hover:bg-primary/20",
-                                        amt === a.toString() ? "bg-primary text-white border-primary" : "bg-white/5 text-white/40"
+                                        "h-11 rounded-xl font-black border-white/5 hover:bg-primary/20 transition-all",
+                                        amt === a.toString() ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" : "bg-white/5 text-white/20"
                                     )}
                                 >
                                     ₹{a}
@@ -379,21 +388,21 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
                     </div>
 
                     <div className="space-y-4">
-                        <Label className="text-[11px] font-black text-white/20 uppercase tracking-[2px] ml-1">Withdraw Method</Label>
-                        <div className="bg-white/5 border border-primary/40 rounded-2xl p-4 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary"><Smartphone size={20}/></div>
+                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-[3px] ml-1">Verified Channel</Label>
+                        <div className="bg-white/5 border border-primary/30 rounded-2xl p-5 flex items-center justify-between shadow-inner">
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary border border-primary/20"><Smartphone size={24}/></div>
                                 <div>
-                                    <p className="text-sm font-bold">ATM Cash</p>
-                                    <p className="text-[10px] text-white/30">Withdraw via ATM</p>
+                                    <p className="text-sm font-black text-white/80">Digital ATM Node</p>
+                                    <p className="text-[9px] text-white/20 uppercase font-black">Direct Ledger Credit</p>
                                 </div>
                             </div>
-                            <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center"><CheckCircle2 size={12} className="text-white"/></div>
+                            <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/40"><CheckCircle2 size={14} className="text-white"/></div>
                         </div>
                     </div>
                     
-                    <Button onClick={handleWithdraw} className="w-full h-14 rounded-2xl bg-primary text-white font-black text-lg shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
-                        Confirm Withdrawal
+                    <Button onClick={handleWithdraw} className="w-full h-16 rounded-[1.5rem] bg-primary text-white font-black text-lg shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all">
+                        Authorize Dispatch
                     </Button>
                 </div>
             </DialogContent>
@@ -406,28 +415,36 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
 function ActivePlanCard({ investment, onClaimProfit, onClaimMaturity }: { investment: Investment, onClaimProfit: (i: Investment) => void, onClaimMaturity: (i: Investment) => void }) {
   const isMatured = new Date() >= investment.maturityDate.toDate();
   return (
-    <Card className="border-white/[0.08] bg-white/[0.03] rounded-3xl p-5 space-y-4">
-        <div className="flex justify-between items-start">
-            <div><p className="text-sm font-bold">{investment.planName}</p><Badge className="bg-primary/20 text-primary text-[8px] uppercase mt-1">Live Asset</Badge></div>
-            <p className="text-xs font-black text-green-400">+₹{investment.dailyIncome}/day</p>
+    <Card className="border-white/[0.08] bg-white/[0.03] rounded-3xl p-6 space-y-5 shadow-2xl relative overflow-hidden group">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="flex justify-between items-start relative z-10">
+            <div>
+                <p className="text-base font-bold text-white tracking-tight">{investment.planName}</p>
+                <Badge className="bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest mt-1.5 h-4 border-primary/10">Active Node</Badge>
+            </div>
+            <p className="text-sm font-black text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]">+₹{investment.dailyIncome}/day</p>
         </div>
-        <SlideToClaim label={isMatured ? "Slide to Settle" : "Claim Daily ROI"} onComplete={() => isMatured ? onClaimMaturity(investment) : onClaimProfit(investment)} />
+        <div className="relative z-10">
+            <SlideToClaim label={isMatured ? "Slide to Liquidate" : "Claim Daily Profit"} onComplete={() => isMatured ? onClaimMaturity(investment) : onClaimProfit(investment)} />
+        </div>
     </Card>
   );
 }
 
 function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href: string, active?: boolean }) {
   return (
-    <Link href={href} className={cn("flex flex-col items-center gap-1", active ? 'text-primary' : 'text-white/40')}>
-      <Icon className="h-5 w-5" /><span className="text-[9px] font-bold">{label}</span>
+    <Link href={href} className={cn("flex flex-col items-center gap-1 transition-all h-full justify-center relative", active ? 'text-primary scale-110' : 'text-white/20 hover:text-white/40')}>
+      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(139,92,246,0.5)]")} />
+      <span className="text-[9px] font-black uppercase tracking-tight">{label}</span>
+      {active && <div className="absolute -bottom-1 h-1 w-6 bg-primary rounded-full blur-[2px]" />}
     </Link>
   );
 }
 
 function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.ElementType, label: string, href: string, color: string }) {
     return (
-        <Link href={href} className="flex flex-col items-center gap-2 p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all">
-            <Icon className={cn("h-5 w-5", color)} /><span className="text-[9px] font-black uppercase text-white/30 tracking-widest">{label}</span>
+        <Link href={href} className="flex flex-col items-center gap-2 p-5 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-white/10 transition-all group shadow-xl">
+            <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", color)} /><span className="text-[9px] font-black uppercase text-white/20 tracking-[2px] group-hover:text-white/40 transition-colors">{label}</span>
         </Link>
     )
 }

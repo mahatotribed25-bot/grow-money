@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -33,7 +34,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isOwner(userId);
       allow read: if isAuthenticated();
-      // Allow self-updates and updates during transactions (like referral bonus or balance update)
+      // Allow self-updates (for Profile/UPI update) and updates during transactions (like referral bonus or balance update)
       allow update: if isAuthenticated(); 
 
       match /investments/{id} {
@@ -95,7 +96,7 @@ service cloud.firestore {
     match /customLoanRequests/{requestId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
       allow create: if isAuthenticated();
-      // Crucial: Allow owners to update status for 'Accept Offer' and 'Settle'
+      // Allow owners to update status for 'Accept Offer' and 'Settle'
       allow update: if isManager() || (isAuthenticated() && request.auth.uid == resource.data.userId);
       allow delete: if isManager();
     }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -46,14 +47,15 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
       
       const t1 = setTimeout(() => {
           setStage('dispensing');
+          // Dispense notes one by one
           for (let i = 0; i < 5; i++) {
               setTimeout(() => {
                   setActiveNotes(prev => [...prev, { id: i, delay: i * 200 }]);
-              }, i * 600);
+              }, i * 800); // 800ms between each note for sequential feel
           }
       }, 2000);
       
-      const t2 = setTimeout(() => setStage('success'), 6500);
+      const t2 = setTimeout(() => setStage('success'), 7000);
       return () => { clearTimeout(t1); clearTimeout(t2); };
     }
   }, [isOpen]);
@@ -66,7 +68,7 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
             <Button variant="ghost" size="icon" onClick={onClose} className="text-white/70">
                 <ArrowLeft size={20} />
             </Button>
-            <h1 className="text-lg font-bold text-white">ATM Withdrawal</h1>
+            <h1 className="text-lg font-bold text-white tracking-tight uppercase">ATM Terminal</h1>
             <Button variant="ghost" size="icon" className="text-white/40">
                 <HelpCircle size={20} />
             </Button>
@@ -80,9 +82,9 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
                         <Wallet size={24} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-0.5">Updated Balance</p>
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-0.5">Projected Balance</p>
                         <div className="flex items-baseline gap-2">
-                             <h2 className="text-2xl font-black text-white">₹{(walletBalance - (stage === 'success' ? amount : 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h2>
+                             <h2 className="text-2xl font-black text-white">₹{(walletBalance - (stage === 'success' ? 0 : 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h2>
                         </div>
                     </div>
                 </div>
@@ -92,37 +94,37 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
             {stage !== 'success' ? (
                 <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
                     <div className="space-y-4">
-                        <p className="text-[11px] font-black text-white/20 uppercase tracking-[2px]">Status Terminal</p>
-                        <div className="bg-[#0a0c18] border border-primary/40 rounded-3xl p-5 flex items-center justify-between shadow-[0_0_20px_rgba(139,92,246,0.1)]">
+                        <p className="text-[11px] font-black text-white/20 uppercase tracking-[3px]">System Pipeline</p>
+                        <div className="bg-[#0a0c18] border border-primary/40 rounded-3xl p-5 flex items-center justify-between shadow-[0_0_30px_rgba(139,92,246,0.1)]">
                              <div className="flex items-center gap-4">
                                 <div className="h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary border border-primary/20">
                                     <Smartphone size={24} />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-white">ATM DISPENSER</p>
-                                    <p className="text-[10px] text-white/30 font-medium">Stage: {stage.toUpperCase()}</p>
+                                    <p className="text-sm font-black text-white tracking-tight uppercase">Dispenser active</p>
+                                    <p className="text-[9px] text-white/20 font-black uppercase tracking-widest">{stage === 'processing' ? 'Authenticating Node' : 'Extracting Assets'}</p>
                                 </div>
                              </div>
-                             <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/40">
-                                <Timer size={14} className="text-white animate-spin" />
+                             <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/20">
+                                <Timer size={16} className="text-primary animate-spin" />
                              </div>
                         </div>
                     </div>
 
-                    <div className="bg-[#0a0c18] border border-white/5 rounded-[2.5rem] p-8 flex flex-col items-center gap-10 shadow-2xl relative">
+                    <div className="bg-[#0a0c18] border border-white/5 rounded-[2.5rem] p-10 flex flex-col items-center gap-12 shadow-2xl relative">
                         <div className="text-center space-y-1">
                             <h3 className={cn(
-                                "text-lg font-black tracking-tight uppercase transition-colors duration-500",
+                                "text-lg font-black tracking-[2px] uppercase transition-colors duration-500",
                                 stage === 'processing' ? "text-primary" : "text-green-400"
                             )}>
                                 {stage === 'processing' ? "Securing Node..." : "Collecting Assets"}
                             </h3>
-                            <p className="text-xs text-white/30">{stage === 'processing' ? "Authenticating transaction protocol" : "Dispensing currency nodes"}</p>
+                            <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{stage === 'processing' ? "Encryption check in progress" : "Counting physical currency stack"}</p>
                         </div>
 
-                        <div className="relative w-full h-48 bg-[#030408] rounded-[2rem] border-4 border-[#12141d] shadow-[inset_0_0_30px_#000] flex items-center justify-center overflow-visible">
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-1 bg-primary/40 blur-[4px] rounded-full z-20 shadow-[0_0_15px_#8b5cf6]" />
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-14 bg-black rounded-xl border border-white/5 shadow-inner" />
+                        <div className="relative w-full h-52 bg-[#030408] rounded-[2.5rem] border-4 border-[#12141d] shadow-[inset_0_0_40px_#000] flex items-center justify-center overflow-visible">
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-1 bg-primary/40 blur-[6px] rounded-full z-20 shadow-[0_0_20px_#8b5cf6]" />
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-16 bg-black rounded-2xl border border-white/5 shadow-inner" />
                             
                             {activeNotes.map((note) => (
                                 <div 
@@ -130,61 +132,67 @@ export function CashDispenseAnimation({ isOpen, onClose, amount, walletBalance }
                                     className="absolute left-1/2 top-1/2 -translate-x-1/2 z-10 animate-cash-fly"
                                 >
                                     <div className={cn(
-                                        "relative w-48 h-24 rounded-lg border-2 border-black/20 shadow-2xl flex flex-col p-2 overflow-hidden",
-                                        amount >= 2000 ? "bg-gradient-to-br from-pink-200 to-pink-400" : "bg-gradient-to-br from-green-200 to-green-400"
+                                        "relative w-52 h-28 rounded-xl border-2 border-black/20 shadow-2xl flex flex-col p-3 overflow-hidden",
+                                        amount >= 2000 ? "bg-gradient-to-br from-pink-200 to-pink-500" : "bg-gradient-to-br from-green-200 to-green-500"
                                     )}>
                                         <div className="flex justify-between items-start">
-                                            <span className="text-[9px] font-black text-black/40">₹{amount >= 2000 ? '2000' : '500'}</span>
-                                            <div className="w-10 h-14 rounded-full border border-black/5 bg-white/20" />
+                                            <span className="text-[10px] font-black text-black/50">₹{amount >= 2000 ? '2000' : '500'}</span>
+                                            <div className="w-12 h-16 rounded-full border border-black/10 bg-white/20 blur-[1px]" />
                                         </div>
                                         <div className="mt-auto flex justify-between items-end">
-                                            <div className="w-6 h-6 rounded-full border border-black/5 bg-white/20" />
-                                            <span className="text-[8px] font-black text-black/40">GROW MONEY</span>
+                                            <div className="w-8 h-8 rounded-full border border-black/10 bg-white/20" />
+                                            <span className="text-[9px] font-black text-black/50 uppercase tracking-tighter">Grow Money Bank</span>
                                         </div>
+                                        <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/texture/200/100')] opacity-5 mix-blend-overlay" />
                                     </div>
                                 </div>
                             ))}
                         </div>
 
-                        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center gap-4 w-full">
-                            <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center text-white/30">
+                        <div className="bg-white/5 border border-white/5 rounded-2xl p-5 flex items-center gap-4 w-full">
+                            <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center text-white/20">
                                 <ShieldCheck size={20} />
                             </div>
-                            <p className="text-[10px] text-white/40 leading-relaxed font-bold uppercase tracking-tight">Transaction encrypted with bank-grade security nodes</p>
+                            <p className="text-[10px] text-white/30 leading-relaxed font-black uppercase tracking-widest">Transaction secured via bank-grade encryption nodes</p>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="space-y-6 animate-in slide-in-from-bottom-6 duration-700">
+                <div className="space-y-6 animate-in slide-in-from-bottom-10 duration-1000">
                     <div className="flex flex-col items-center text-center space-y-6">
-                        <div className="h-20 w-20 rounded-[2rem] bg-green-500/20 flex items-center justify-center border border-green-500/20 shadow-[0_0_40px_rgba(34,197,94,0.3)]">
-                            <CheckCircle2 size={40} className="text-green-500 animate-in zoom-in-0 duration-500" />
+                        <div className="h-24 w-24 rounded-[2.5rem] bg-green-500/20 flex items-center justify-center border border-green-500/20 shadow-[0_0_50px_rgba(34,197,94,0.3)]">
+                            <CheckCircle2 size={48} className="text-green-500 animate-in zoom-in-0 duration-500" />
                         </div>
                         <div className="space-y-1">
-                            <h3 className="text-2xl font-black text-white tracking-tighter">Withdrawal Complete</h3>
-                            <p className="text-sm text-white/40 font-medium">₹{amount.toFixed(2)} has been successfully dispatched</p>
+                            <h3 className="text-3xl font-black text-white tracking-tighter uppercase">Protocol Success</h3>
+                            <p className="text-[11px] font-black text-white/30 uppercase tracking-[4px]">Assets dispatched successfully</p>
                         </div>
                     </div>
 
-                    <div className="bg-[#0a0c18] border border-white/5 rounded-3xl p-6 space-y-5 shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-green-500/40" />
-                        <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest">
-                            <span className="text-white/20">Protocol ID</span>
-                            <span className="text-white/60 font-mono">#{transactionId}</span>
+                    <div className="bg-[#0a0c18] border border-white/5 rounded-[2rem] p-8 space-y-6 shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-green-500/40" />
+                        <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Protocol Node ID</span>
+                            <span className="text-sm font-black text-white/80 font-mono tracking-tighter">#{transactionId}</span>
                         </div>
                         <div className="h-px bg-white/5" />
-                        <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest">
-                            <span className="text-white/20">Final Settlement</span>
-                            <span className="text-white/60">{currentTime}</span>
+                        <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Final Amount</span>
+                            <span className="text-lg font-black text-green-400 tracking-tighter">₹{amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        </div>
+                         <div className="h-px bg-white/5" />
+                        <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Settled On</span>
+                            <span className="text-[11px] font-bold text-white/60">{currentTime}</span>
                         </div>
                     </div>
 
                     <div className="pt-8">
                         <Button 
                             onClick={onClose}
-                            className="w-full h-15 rounded-2xl font-black bg-primary text-white shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-lg"
+                            className="w-full h-16 rounded-[1.5rem] font-black bg-white text-black shadow-2xl shadow-white/5 hover:bg-primary hover:text-white transition-all text-lg uppercase tracking-widest"
                         >
-                            Done
+                            Collect Assets
                         </Button>
                     </div>
                 </div>
