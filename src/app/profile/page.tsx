@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -12,7 +13,12 @@ import {
   HandCoins,
   Trophy,
   Timer,
-  Pencil
+  Pencil,
+  Eye,
+  ReceiptText,
+  ShieldCheck,
+  TrendingDown,
+  ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -42,13 +48,17 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 
 type Transaction = {
   id: string;
   amount: number;
   status: 'approved' | 'rejected' | 'pending';
   createdAt: Timestamp;
+  transactionId?: string;
+  gstAmount?: number;
   finalAmount?: number;
+  totalDelayBonus?: number;
 };
 
 type WalletHistoryEntry = {
@@ -104,6 +114,7 @@ export default function ProfilePage() {
   const [groupInvestments, setGroupInvestments] = useState<GroupInvestment[]>([]);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [editName, setEditName] = useState('');
+  const [selectedReceipt, setSelectedReceipt] = useState<{ tx: Transaction, type: 'deposit' | 'withdrawal' } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -180,9 +191,9 @@ export default function ProfilePage() {
                         <Gift size={14} /> Referral ID
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="flex justify-between items-center bg-black/20 p-4 rounded-xl mx-4 mb-4">
-                    <span className="font-mono font-bold">{userData?.referralCode || '------'}</span>
-                    <Button variant="ghost" size="icon" onClick={handleCopyCode}><Copy size={16} /></Button>
+                <CardContent className="flex justify-between items-center bg-black/20 p-4 rounded-xl mx-4 mb-4 border border-white/5">
+                    <span className="font-mono font-bold text-primary">{userData?.referralCode || '------'}</span>
+                    <Button variant="ghost" size="icon" onClick={handleCopyCode} className="hover:bg-white/10"><Copy size={16} /></Button>
                 </CardContent>
             </Card>
             <Card className="bg-white/[0.03] border-white/[0.08]">
@@ -202,10 +213,10 @@ export default function ProfilePage() {
 
         <Tabs defaultValue="history">
             <TabsList className="grid w-full grid-cols-4 bg-white/5 h-12 rounded-2xl p-1">
-                <TabsTrigger value="history">History</TabsTrigger>
-                <TabsTrigger value="deposits">Deposit</TabsTrigger>
-                <TabsTrigger value="withdrawals">Payout</TabsTrigger>
-                <TabsTrigger value="groups">Groups</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-xl font-bold uppercase text-[10px]">History</TabsTrigger>
+                <TabsTrigger value="deposits" className="rounded-xl font-bold uppercase text-[10px]">Deposit</TabsTrigger>
+                <TabsTrigger value="withdrawals" className="rounded-xl font-bold uppercase text-[10px]">Payout</TabsTrigger>
+                <TabsTrigger value="groups" className="rounded-xl font-bold uppercase text-[10px]">Groups</TabsTrigger>
             </TabsList>
             <div className="mt-4">
                 <TabsContent value="history">
@@ -213,10 +224,10 @@ export default function ProfilePage() {
                         headers={['Detail', 'Amount']} 
                         items={walletHistory} 
                         renderRow={(e) => (
-                            <TableRow key={e.id} className="border-white/[0.05]">
+                            <TableRow key={e.id} className="border-white/[0.05] hover:bg-white/[0.01]">
                                 <TableCell className="pl-6 py-4">
                                     <p className="text-xs font-bold text-white/80">{e.category}</p>
-                                    <p className="text-[9px] text-white/20">{e.description}</p>
+                                    <p className="text-[9px] text-white/20 uppercase font-black">{e.description}</p>
                                 </TableCell>
                                 <TableCell className={cn("text-right pr-6 font-bold", e.type === 'credit' ? 'text-green-400' : 'text-red-400')}>
                                     {e.type === 'credit' ? '+' : '-'}₹{e.amount.toFixed(2)}
@@ -226,10 +237,10 @@ export default function ProfilePage() {
                     />
                 </TabsContent>
                 <TabsContent value="deposits">
-                    <TransactionTable transactions={deposits} />
+                    <TransactionTable transactions={deposits} type="deposit" onViewReceipt={(tx) => setSelectedReceipt({ tx, type: 'deposit' })} />
                 </TabsContent>
                 <TabsContent value="withdrawals">
-                    <TransactionTable transactions={withdrawals} />
+                    <TransactionTable transactions={withdrawals} type="withdrawal" onViewReceipt={(tx) => setSelectedReceipt({ tx, type: 'withdrawal' })} />
                 </TabsContent>
                 <TabsContent value="groups">
                     <GroupInvestmentTable investments={groupInvestments} />
@@ -237,20 +248,71 @@ export default function ProfilePage() {
             </div>
         </Tabs>
 
-        <Button onClick={handleLogout} className="w-full h-12 bg-white/5 border border-white/10 hover:bg-destructive text-white rounded-xl">Sign Out</Button>
+        <Button onClick={handleLogout} className="w-full h-12 bg-white/5 border border-white/10 hover:bg-destructive/20 hover:text-red-400 hover:border-red-500/20 text-white rounded-xl font-bold transition-all">
+          <LogOut size={16} className="mr-2" /> Sign Out
+        </Button>
 
         <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
-            <DialogContent className="bg-[#030408] border-white/10 text-white">
-                <DialogHeader><DialogTitle>Update Name</DialogTitle></DialogHeader>
-                <div className="py-4 space-y-4">
+            <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2.5rem]">
+                <DialogHeader><DialogTitle>Update Identity</DialogTitle></DialogHeader>
+                <div className="py-6 space-y-4">
                     <div className="space-y-2">
-                        <Label>Full Name</Label>
-                        <Input value={editName} onChange={e => setEditName(e.target.value)} className="bg-white/5 border-white/10" />
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">Display Name</Label>
+                        <Input value={editName} onChange={e => setEditName(e.target.value)} className="bg-white/5 border-white/10 h-12 rounded-xl focus:ring-primary" />
                     </div>
                 </div>
-                <DialogFooter><Button onClick={handleUpdateName} className="w-full">Confirm Update</Button></DialogFooter>
+                <DialogFooter><Button onClick={handleUpdateName} className="w-full h-12 rounded-xl font-bold bg-primary">Confirm Protocol</Button></DialogFooter>
             </DialogContent>
         </Dialog>
+
+        {selectedReceipt && (
+          <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
+            <DialogContent className="bg-[#030408]/95 border-white/10 text-white p-0 overflow-hidden rounded-[2rem] max-w-sm">
+              <header className="bg-primary p-6 text-center space-y-2">
+                 <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-2 backdrop-blur-md">
+                    <ReceiptText size={32} className="text-white" />
+                 </div>
+                 <h2 className="text-xl font-black tracking-tight">TRANSACTION RECEIPT</h2>
+                 <p className="text-[10px] font-black text-white/50 uppercase tracking-[4px]">Grow Money Terminal</p>
+              </header>
+              <div className="p-8 space-y-6">
+                 <div className="space-y-4">
+                    <ReceiptRow label="Status" value={selectedReceipt.tx.status.toUpperCase()} highlight={selectedReceipt.tx.status === 'approved'} />
+                    <ReceiptRow label="Request ID" value={selectedReceipt.tx.transactionId || selectedReceipt.tx.id.slice(-8).toUpperCase()} />
+                    <ReceiptRow label="Execution Node" value={new Date(selectedReceipt.tx.createdAt.seconds * 1000).toLocaleString()} />
+                    
+                    <Separator className="bg-white/5" />
+                    
+                    <ReceiptRow label="Gross Amount" value={`₹${selectedReceipt.tx.amount.toFixed(2)}`} />
+                    
+                    {selectedReceipt.type === 'withdrawal' && (
+                      <>
+                        <ReceiptRow label="Tax (GST)" value={`- ₹${(selectedReceipt.tx.gstAmount || 0).toFixed(2)}`} isNegative />
+                        {selectedReceipt.tx.totalDelayBonus ? (
+                          <ReceiptRow label="Delay Reward" value={`+ ₹${selectedReceipt.tx.totalDelayBonus.toFixed(2)}`} isPositive />
+                        ) : null}
+                      </>
+                    )}
+                 </div>
+
+                 <div className="bg-white/5 rounded-3xl p-5 border border-white/5 flex flex-col items-center gap-1">
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Final Settlement</p>
+                    <p className="text-3xl font-black text-white tracking-tighter">
+                      ₹{(selectedReceipt.tx.finalAmount ?? selectedReceipt.tx.amount).toFixed(2)}
+                    </p>
+                 </div>
+
+                 <div className="flex items-center justify-center gap-2 text-white/20">
+                    <ShieldCheck size={14} className="text-green-500/50" />
+                    <span className="text-[9px] font-black uppercase tracking-widest">Blockchain Verified Asset</span>
+                 </div>
+              </div>
+              <DialogFooter className="p-6 pt-0">
+                 <DialogClose asChild><Button className="w-full h-12 rounded-xl font-black bg-white text-black">Close Archive</Button></DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </main>
 
       <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl h-16 flex items-center justify-around px-4">
@@ -267,13 +329,13 @@ export default function ProfilePage() {
 function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
   return (
     <Card className="bg-white/[0.03] border-white/[0.08] rounded-2xl overflow-hidden">
-        <ScrollArea className="h-64">
+        <ScrollArea className="h-80">
             <Table>
                 <TableHeader className="bg-white/[0.02]">
-                    <TableRow className="border-white/10">{headers.map(h => <TableHead key={h}>{h}</TableHead>)}</TableRow>
+                    <TableRow className="border-white/10">{headers.map(h => <TableHead key={h} className="text-[10px] font-black text-white/20 uppercase tracking-widest">{h}</TableHead>)}</TableRow>
                 </TableHeader>
                 <TableBody>
-                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-10 opacity-20 italic">No history</TableCell></TableRow>}
+                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic font-bold">No history records found.</TableCell></TableRow>}
                 </TableBody>
             </Table>
         </ScrollArea>
@@ -281,21 +343,42 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
   )
 }
 
-function TransactionTable({ transactions }: { transactions: any[] | undefined | null }) {
+function TransactionTable({ transactions, type, onViewReceipt }: { transactions: Transaction[] | undefined | null, type: 'deposit' | 'withdrawal', onViewReceipt: (tx: Transaction) => void }) {
     return (
         <Card className="bg-white/[0.03] border-white/[0.08] rounded-2xl overflow-hidden">
-            <ScrollArea className="h-64">
+            <ScrollArea className="h-80">
                 <Table>
                     <TableHeader className="bg-white/[0.02]">
-                        <TableRow className="border-white/10"><TableHead>Amount</TableHead><TableHead>Status</TableHead></TableRow>
+                        <TableRow className="border-white/10">
+                            <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-6">Amount</TableHead>
+                            <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-widest text-center">Status</TableHead>
+                            <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-widest text-right pr-6">Receipt</TableHead>
+                        </TableRow>
                     </TableHeader>
                     <TableBody>
                         {transactions && transactions.length > 0 ? transactions.map(tx => (
-                            <TableRow key={tx.id} className="border-white/[0.05]">
-                                <TableCell className="font-bold">₹{(tx.finalAmount ?? tx.amount).toFixed(2)}</TableCell>
-                                <TableCell><Badge variant="outline">{tx.status}</Badge></TableCell>
+                            <TableRow key={tx.id} className="border-white/[0.05] hover:bg-white/[0.01]">
+                                <TableCell className="pl-6 py-4">
+                                    <p className="font-bold text-white">₹{(tx.finalAmount ?? tx.amount).toFixed(2)}</p>
+                                    <p className="text-[9px] text-white/20 font-black uppercase tracking-tight">{new Date(tx.createdAt.seconds * 1000).toLocaleDateString()}</p>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <Badge variant="outline" className={cn(
+                                      "text-[9px] uppercase font-black",
+                                      tx.status === 'approved' ? "border-green-500/20 text-green-400 bg-green-500/10" :
+                                      tx.status === 'rejected' ? "border-red-500/20 text-red-400 bg-red-500/10" :
+                                      "border-white/10 text-white/30"
+                                    )}>
+                                      {tx.status}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="text-right pr-6">
+                                    <Button variant="ghost" size="icon" onClick={() => onViewReceipt(tx)} className="h-8 w-8 hover:bg-white/10 text-primary">
+                                        <Eye size={16} />
+                                    </Button>
+                                </TableCell>
                             </TableRow>
-                        )) : <TableRow><TableCell colSpan={2} className="text-center py-10 opacity-20 italic">No transactions</TableCell></TableRow>}
+                        )) : <TableRow><TableCell colSpan={3} className="text-center py-20 opacity-20 italic font-bold">No {type} transactions logged.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </ScrollArea>
@@ -306,18 +389,21 @@ function TransactionTable({ transactions }: { transactions: any[] | undefined | 
 function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
     return (
         <Card className="bg-white/[0.03] border-white/[0.08] rounded-2xl overflow-hidden">
-            <ScrollArea className="h-64">
+            <ScrollArea className="h-80">
                 <Table>
                     <TableHeader className="bg-white/[0.02]">
-                        <TableRow className="border-white/10"><TableHead>Plan</TableHead><TableHead>Received</TableHead></TableRow>
+                        <TableRow className="border-white/10">
+                          <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-6">Plan</TableHead>
+                          <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-widest text-right pr-6">Received</TableHead>
+                        </TableRow>
                     </TableHeader>
                     <TableBody>
                         {investments && investments.length > 0 ? investments.map(inv => (
-                            <TableRow key={inv.id} className="border-white/[0.05]">
-                                <TableCell className="font-bold">{inv.planName}</TableCell>
-                                <TableCell className="text-green-400 font-bold">₹{inv.amountReceived.toFixed(2)}</TableCell>
+                            <TableRow key={inv.id} className="border-white/[0.05] hover:bg-white/[0.01]">
+                                <TableCell className="pl-6 py-4 font-bold text-white/80">{inv.planName}</TableCell>
+                                <TableCell className="text-right pr-6 text-green-400 font-bold">₹{inv.amountReceived.toFixed(2)}</TableCell>
                             </TableRow>
-                        )) : <TableRow><TableCell colSpan={2} className="text-center py-10 opacity-20 italic">No group plans</TableCell></TableRow>}
+                        )) : <TableRow><TableCell colSpan={2} className="text-center py-20 opacity-20 italic font-bold">No group investments active.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </ScrollArea>
@@ -335,27 +421,49 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
     if (parseFloat(amount) === request.confirmationAmount) {
       await updateDoc(doc(firestore, 'users', user!.uid), { upiStatus: 'Verified', upiId: request.upiId });
       await updateDoc(doc(firestore, 'upiRequests', request.id), { status: 'approved' });
-      toast({ title: 'Verified!' });
+      toast({ title: 'Protocol Verified!' });
     } else {
-        toast({ title: 'Wrong Amount', variant: 'destructive' });
+        toast({ title: 'Verification Failed', description: "The amount entered does not match our records.", variant: 'destructive' });
     }
   };
 
   return (
-    <Card className="border-yellow-500/30 bg-yellow-500/[0.03] p-4">
-        <CardTitle className="text-yellow-400 text-sm mb-2 flex items-center gap-2">
-            <Timer size={14} /> Enter Verified Amount
+    <Card className="border-primary/30 bg-primary/[0.03] p-6 rounded-3xl animate-pulse">
+        <CardTitle className="text-primary text-sm font-black uppercase tracking-[3px] mb-4 flex items-center gap-2">
+            <Timer size={14} /> Security Challenge
         </CardTitle>
-        <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="bg-white/5 border-white/10 mb-2" />
-        <Button className="w-full bg-yellow-500 text-black font-bold" onClick={handleVerify}>Verify</Button>
+        <p className="text-xs text-white/40 mb-4 leading-relaxed font-medium">Enter the verified micro-transaction amount sent to your UPI ID to authorize your account.</p>
+        <div className="flex gap-2">
+            <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="bg-white/5 border-white/10 h-12 rounded-xl text-lg font-bold" />
+            <Button className="h-12 bg-primary px-8 rounded-xl font-bold" onClick={handleVerify}>Verify</Button>
+        </div>
     </Card>
   );
 }
 
+function ReceiptRow({ label, value, highlight = false, isNegative = false, isPositive = false }: { label: string, value: string, highlight?: boolean, isNegative?: boolean, isPositive?: boolean }) {
+    return (
+        <div className="flex justify-between items-center text-xs">
+            <span className="text-white/30 font-bold uppercase tracking-widest">{label}</span>
+            <span className={cn(
+                "font-black tracking-tight",
+                highlight ? "text-primary" : "text-white/70",
+                isNegative && "text-red-400",
+                isPositive && "text-green-400"
+            )}>
+                {value}
+            </span>
+        </div>
+    );
+}
+
 function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href?: string, active?: boolean }) {
   return (
-    <Link href={href || '#'} className={cn("flex flex-col items-center gap-1", active ? 'text-primary' : 'text-white/40')}>
-        <Icon className="h-5 w-5" />
+    <Link href={href || '#'} className={cn(
+        "flex flex-col items-center gap-1 transition-all",
+        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
+    )}>
+        <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
         <span className="text-[9px] font-bold">{label}</span>
     </Link>
   );

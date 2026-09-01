@@ -1,3 +1,4 @@
+
 'use client';
 import {
   ChevronLeft,
@@ -187,35 +188,6 @@ export default function MyLoansPage() {
             {loading ? <Timer className="animate-spin" /> : sortedCustomLoans?.map(loan => <CustomLoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} onOpenExtension={() => setExtensionLoan(loan)} />)}
         </div>
       </main>
-
-      <Dialog open={!!paymentDetails?.isOpen} onOpenChange={() => setPaymentDetails(null)}>
-        <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white">
-            <DialogHeader><DialogTitle>Repay Your Loan</DialogTitle></DialogHeader>
-            <div className="space-y-6 py-4 flex flex-col items-center">
-               {paymentDetails?.upiId && upiDeeplink && (
-                 <div className="bg-white p-3 rounded-2xl">
-                    <Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiDeeplink)}`} alt="QR" width={160} height={160} />
-                </div>
-               )}
-                <p className="text-xl font-black text-green-400">Total: ₹{paymentDetails?.amount.toFixed(2)}</p>
-                <Button asChild className="w-full h-12 rounded-xl font-bold bg-white text-black"><a href={upiDeeplink}><QrCode className="mr-2" /> Pay with UPI App</a></Button>
-            </div>
-            <DialogFooter><Button onClick={handlePaymentConfirmation} className="w-full h-12">I Have Paid</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!extensionLoan} onOpenChange={() => setExtensionLoan(null)}>
-        <DialogContent className="bg-[#030408] border-white/10 text-white">
-          <DialogHeader><DialogTitle>Request Extension</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
-              <Select value={extensionDays} onValueChange={setExtensionDays}>
-                <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-                <SelectContent>{[1, 3, 5, 7, 10, 15].map(d => <SelectItem key={d} value={d.toString()}>{d} Extra Days</SelectItem>)}</SelectContent>
-              </Select>
-          </div>
-          <DialogFooter><Button onClick={handleRequestExtension} className="w-full h-12">Apply Extension</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl h-16 flex items-center justify-around px-4">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
