@@ -16,6 +16,9 @@ import {
   ReceiptText,
   ShieldCheck,
   Smartphone,
+  Handshake,
+  FileCheck,
+  ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -100,6 +103,10 @@ type UserData = {
   upiStatus?: 'Unverified' | 'Pending' | 'Verified' | 'Rejected';
   vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
   trustScore?: number;
+  kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
+  panCard?: string;
+  aadhaarNumber?: string;
+  phoneNumber?: string;
 };
 
 export default function ProfilePage() {
@@ -118,9 +125,16 @@ export default function ProfilePage() {
   const [groupInvestments, setGroupInvestments] = useState<GroupInvestment[]>([]);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isEditUpiOpen, setIsEditUpiOpen] = useState(false);
+  const [isKycOpen, setIsKycOpen] = useState(false);
+  
   const [editName, setEditName] = useState('');
   const [editUpiId, setEditUpiId] = useState('');
   const [editUpiProvider, setEditUpiProvider] = useState<'PhonePe' | 'Google Pay' | 'Paytm' | ''>('');
+  
+  const [kycPan, setKycPan] = useState('');
+  const [kycAadhaar, setKycAadhaar] = useState('');
+  const [kycPhone, setKycPhone] = useState('');
+
   const [selectedReceipt, setSelectedReceipt] = useState<{ tx: Transaction, type: 'deposit' | 'withdrawal' } | null>(null);
 
   useEffect(() => {
@@ -145,6 +159,9 @@ export default function ProfilePage() {
       setEditName(userData.name || '');
       setEditUpiId(userData.upiId || '');
       setEditUpiProvider(userData.upiProvider || '');
+      setKycPan(userData.panCard || '');
+      setKycAadhaar(userData.aadhaarNumber || '');
+      setKycPhone(userData.phoneNumber || '');
     }
   }, [userData]);
 
@@ -188,13 +205,37 @@ export default function ProfilePage() {
     }
   };
 
+  const handleSubmitKyc = async () => {
+    if (!user || !kycPan || !kycAadhaar || !kycPhone) {
+        toast({ title: "Missing Data", description: "Please fill in all KYC details.", variant: "destructive" });
+        return;
+    }
+
+    try {
+        const userRef = doc(firestore, 'users', user.uid);
+        await updateDoc(userRef, {
+            panCard: kycPan.toUpperCase(),
+            aadhaarNumber: kycAadhaar,
+            phoneNumber: kycPhone,
+            kycStatus: 'Pending',
+            kycSubmissionDate: serverTimestamp()
+        });
+
+        toast({ title: "KYC Submitted", description: "Your identity documents are under review." });
+        setIsKycOpen(false);
+        if (refetchUser) refetchUser();
+    } catch (e) {
+        toast({ title: "Error", variant: "destructive" });
+    }
+  };
+
   const awaitingConfirmationRequest = upiRequests?.find(req => req.status === 'awaiting_confirmation');
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#030408] text-foreground relative overflow-hidden">
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
         <Link href="/dashboard"><Button variant="ghost" size="icon"><ChevronLeft /></Button></Link>
-        <h1 className="text-lg font-bold">Account Hub</h1>
+        <h1 className="text-lg font-bold tracking-tight">Investor Account</h1>
         <div className="w-9" />
       </header>
 
@@ -219,7 +260,7 @@ export default function ProfilePage() {
                     <Badge className="bg-primary/20 border-primary/30 text-primary uppercase text-[9px] font-black tracking-widest px-3 py-1 rounded-lg">
                         {userData?.vipLevel || 'Bronze'} Tier
                     </Badge>
-                    <Badge variant="outline" className="border-white/10 text-white/40 text-[9px] font-black tracking-widest uppercase">ID: {user?.uid.slice(-8)}</Badge>
+                    <Badge variant="outline" className="border-white/10 text-white/40 text-[9px] font-black tracking-widest uppercase">NODE: {user?.uid.slice(-8).toUpperCase()}</Badge>
                 </div>
               </div>
             </div>
@@ -232,7 +273,7 @@ export default function ProfilePage() {
             <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl group">
                 <CardHeader>
                     <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-white/20 group-hover:text-primary transition-colors">
-                        <Gift size={14} className="text-primary" /> Referral Protocol
+                        <Gift size={14} className="text-primary" /> Referral Link
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="flex justify-between items-center bg-black/40 p-4 rounded-2xl mx-4 mb-4 border border-white/5">
@@ -267,21 +308,55 @@ export default function ProfilePage() {
                     )}
                 </CardContent>
             </Card>
+
+            <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl sm:col-span-2 overflow-hidden relative">
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-white/20">
+                        <FileCheck size={14} className="text-blue-400" /> KYC Identification
+                    </CardTitle>
+                    {userData?.kycStatus !== 'Verified' && (
+                        <Button onClick={() => setIsKycOpen(true)} size="sm" className="h-8 px-4 rounded-xl font-black uppercase text-[9px]">
+                           {userData?.kycStatus === 'Rejected' ? 'Re-Submit KYC' : 'Verify Identity'}
+                        </Button>
+                    )}
+                </CardHeader>
+                <CardContent className="px-6 pb-6">
+                     <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                             <p className="text-sm font-bold text-white/80">Identity Status</p>
+                             <Badge className={cn(
+                                 "text-[8px] font-black uppercase h-5",
+                                 userData?.kycStatus === 'Verified' ? "bg-green-500/20 text-green-400 border-green-500/30" :
+                                 userData?.kycStatus === 'Pending' ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
+                                 userData?.kycStatus === 'Rejected' ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                                 "bg-white/10 text-white/40 border-white/10"
+                             )}>
+                                 {userData?.kycStatus || 'Not Submitted'}
+                             </Badge>
+                        </div>
+                        {userData?.kycStatus === 'Verified' && (
+                             <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.2)]">
+                                <ShieldCheck size={20} />
+                             </div>
+                        )}
+                     </div>
+                </CardContent>
+            </Card>
         </div>
 
         {awaitingConfirmationRequest && <AmountVerificationCard request={awaitingConfirmationRequest} />}
 
         <Tabs defaultValue="history">
             <TabsList className="grid w-full grid-cols-4 bg-white/5 h-14 rounded-2xl p-1.5 border border-white/5">
-                <TabsTrigger value="history" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">History</TabsTrigger>
-                <TabsTrigger value="deposits" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">Deposit</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">Ledger</TabsTrigger>
+                <TabsTrigger value="deposits" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">Recharge</TabsTrigger>
                 <TabsTrigger value="withdrawals" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">Payout</TabsTrigger>
-                <TabsTrigger value="groups" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">Groups</TabsTrigger>
+                <TabsTrigger value="groups" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">Pools</TabsTrigger>
             </TabsList>
             <div className="mt-6">
                 <TabsContent value="history">
                     <HistoryTable 
-                        headers={['Protocol Detail', 'Assets']} 
+                        headers={['Operation Protocol', 'Asset Flow']} 
                         items={walletHistory} 
                         renderRow={(e) => (
                             <TableRow key={e.id} className="border-white/[0.05] hover:bg-white/[0.01]">
@@ -309,7 +384,7 @@ export default function ProfilePage() {
         </Tabs>
 
         <Button onClick={handleLogout} className="w-full h-14 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 text-white/40 rounded-2xl font-black uppercase tracking-[3px] text-xs transition-all">
-          <LogOut size={16} className="mr-3" /> De-Authorize Account
+          <LogOut size={16} className="mr-3" /> De-Authorize Identity
         </Button>
 
         {/* Edit Profile Dialog */}
@@ -317,6 +392,7 @@ export default function ProfilePage() {
             <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2.5rem]">
                 <DialogHeader>
                     <DialogTitle>Update Identity Node</DialogTitle>
+                    <DialogDescription className="text-white/40">Enter your new profile display name.</DialogDescription>
                 </DialogHeader>
                 <div className="py-6 space-y-4">
                     <div className="space-y-2">
@@ -333,7 +409,7 @@ export default function ProfilePage() {
             <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2.5rem]">
                 <DialogHeader>
                     <DialogTitle>Update Payment Node</DialogTitle>
-                    <DialogDescription className="text-white/40">New details will require administrative verification.</DialogDescription>
+                    <DialogDescription className="text-white/40">New details will require administrative verification protocol.</DialogDescription>
                 </DialogHeader>
                 <div className="py-6 space-y-6">
                     <div className="space-y-2">
@@ -358,6 +434,31 @@ export default function ProfilePage() {
             </DialogContent>
         </Dialog>
 
+        {/* KYC Dialog */}
+        <Dialog open={isKycOpen} onOpenChange={setIsKycOpen}>
+            <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2.5rem]">
+                <DialogHeader>
+                    <DialogTitle>Identity Verification Node</DialogTitle>
+                    <DialogDescription className="text-white/40">Verified accounts unlock higher loan limits and instant payouts.</DialogDescription>
+                </DialogHeader>
+                <div className="py-6 space-y-4">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">PAN Card Number</Label>
+                        <Input value={kycPan} onChange={e => setKycPan(e.target.value)} placeholder="ABCDE1234F" className="bg-white/5 border-white/10 h-12 rounded-xl font-mono uppercase" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">Aadhaar Number</Label>
+                        <Input value={kycAadhaar} onChange={e => setKycAadhaar(e.target.value)} placeholder="1234 5678 9012" className="bg-white/5 border-white/10 h-12 rounded-xl" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">Phone Number</Label>
+                        <Input value={kycPhone} onChange={e => setKycPhone(e.target.value)} placeholder="9876543210" className="bg-white/5 border-white/10 h-12 rounded-xl" />
+                    </div>
+                </div>
+                <DialogFooter><Button onClick={handleSubmitKyc} className="w-full h-12 rounded-xl font-bold bg-primary shadow-xl shadow-primary/20">Submit Identification</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
+
         {/* Receipt Dialog */}
         {selectedReceipt && (
           <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
@@ -367,30 +468,30 @@ export default function ProfilePage() {
                     <ReceiptText size={32} className="text-white" />
                  </div>
                  <DialogTitle className="text-xl font-black tracking-tight uppercase">Node Receipt</DialogTitle>
-                 <DialogDescription className="text-[10px] font-black text-white/50 uppercase tracking-[4px]">Verified Transaction</DialogDescription>
+                 <DialogDescription className="text-[10px] font-black text-white/50 uppercase tracking-[4px]">Verified Record</DialogDescription>
               </header>
               <div className="p-8 space-y-6">
                  <div className="space-y-4">
-                    <ReceiptRow label="Protocol Status" value={selectedReceipt.tx.status.toUpperCase()} highlight={selectedReceipt.tx.status === 'approved'} />
-                    <ReceiptRow label="Transaction ID" value={selectedReceipt.tx.transactionId || selectedReceipt.tx.id.slice(-8).toUpperCase()} />
-                    <ReceiptRow label="Timestamp" value={new Date(selectedReceipt.tx.createdAt.seconds * 1000).toLocaleString()} />
+                    <ReceiptRow label="Status" value={selectedReceipt.tx.status.toUpperCase()} highlight={selectedReceipt.tx.status === 'approved'} />
+                    <ReceiptRow label="Protocol ID" value={selectedReceipt.tx.transactionId || selectedReceipt.tx.id.slice(-8).toUpperCase()} />
+                    <ReceiptRow label="Verified On" value={new Date(selectedReceipt.tx.createdAt.seconds * 1000).toLocaleString()} />
                     
                     <Separator className="bg-white/5" />
                     
-                    <ReceiptRow label="Gross Credits" value={`₹${selectedReceipt.tx.amount.toFixed(2)}`} />
+                    <ReceiptRow label="Base Value" value={`₹${selectedReceipt.tx.amount.toFixed(2)}`} />
                     
                     {selectedReceipt.type === 'withdrawal' && (
                       <>
-                        <ReceiptRow label="Network Tax" value={`- ₹${(selectedReceipt.tx.gstAmount || 0).toFixed(2)}`} isNegative />
+                        <ReceiptRow label="Platform GST" value={`- ₹${(selectedReceipt.tx.gstAmount || 0).toFixed(2)}`} isNegative />
                         {selectedReceipt.tx.totalDelayBonus ? (
-                          <ReceiptRow label="Delay Compensation" value={`+ ₹${selectedReceipt.tx.totalDelayBonus.toFixed(2)}`} isPositive />
+                          <ReceiptRow label="Node Bonus" value={`+ ₹${selectedReceipt.tx.totalDelayBonus.toFixed(2)}`} isPositive />
                         ) : null}
                       </>
                     )}
                  </div>
 
                  <div className="bg-white/5 rounded-3xl p-5 border border-white/5 flex flex-col items-center gap-1 shadow-inner">
-                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Final Asset Settlement</p>
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Net Asset Settlement</p>
                     <p className="text-3xl font-black text-white tracking-tighter">
                       ₹{(selectedReceipt.tx.finalAmount ?? selectedReceipt.tx.amount).toFixed(2)}
                     </p>
@@ -398,7 +499,7 @@ export default function ProfilePage() {
 
                  <div className="flex items-center justify-center gap-2 text-white/10">
                     <ShieldCheck size={14} className="text-green-500/40" />
-                    <span className="text-[8px] font-black uppercase tracking-[2px]">Encrypted Ledger Entry</span>
+                    <span className="text-[8px] font-black uppercase tracking-[2px]">Secured Ledger Entry</span>
                  </div>
               </div>
               <DialogFooter className="p-6 pt-0">
@@ -409,14 +510,12 @@ export default function ProfilePage() {
         )}
       </main>
 
-      <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
+      <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl h-16 flex items-center justify-around px-4">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
           <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" active />
-        </div>
       </nav>
     </div>
   );
@@ -431,7 +530,7 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
                     <TableRow className="border-white/10">{headers.map(h => <TableHead key={h} className="text-[10px] font-black text-white/20 uppercase tracking-[3px] py-4">{h}</TableHead>)}</TableRow>
                 </TableHeader>
                 <TableBody>
-                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic font-bold">No ledger records found.</TableCell></TableRow>}</TableBody>
+                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic font-bold">No records found.</TableCell></TableRow>}</TableBody>
             </Table>
         </ScrollArea>
     </Card>
@@ -445,9 +544,9 @@ function TransactionTable({ transactions, type, onViewReceipt }: { transactions:
                 <Table>
                     <TableHeader className="bg-white/[0.02]">
                         <TableRow className="border-white/10">
-                            <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-[3px] pl-6 py-4">Credits</TableHead>
-                            <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-[3px] text-center">Status</TableHead>
-                            <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-[3px] text-right pr-6">Data</TableHead>
+                            <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-[3px] pl-6 py-4">Value</TableHead>
+                            <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-[3px] text-center">Protocol</TableHead>
+                            <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-[3px] text-right pr-6">Archive</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -473,7 +572,7 @@ function TransactionTable({ transactions, type, onViewReceipt }: { transactions:
                                     </Button>
                                 </TableCell>
                             </TableRow>
-                        )) : <TableRow><TableCell colSpan={3} className="text-center py-20 opacity-20 italic font-bold">No {type} transactions found.</TableCell></TableRow>}
+                        )) : <TableRow><TableCell colSpan={3} className="text-center py-20 opacity-20 italic font-bold">No {type} node data found.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </ScrollArea>
@@ -489,7 +588,7 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                     <TableHeader className="bg-white/[0.02]">
                         <TableRow className="border-white/10">
                           <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-[3px] pl-6 py-4">Consortium Plan</TableHead>
-                          <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-[3px] text-right pr-6">Accrued</TableHead>
+                          <TableHead className="text-[10px] font-black text-white/20 uppercase tracking-[3px] text-right pr-6">Credits</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -528,9 +627,9 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
             <ShieldCheck size={64} className="text-primary" />
         </div>
         <CardTitle className="text-primary text-[10px] font-black uppercase tracking-[4px] mb-4 flex items-center gap-2">
-            <Timer size={14} className="animate-pulse" /> Security Challenge
+            <Timer size={14} className="animate-pulse" /> Protocol Challenge
         </CardTitle>
-        <p className="text-xs text-white/50 mb-6 leading-relaxed max-w-sm">Enter the exact micro-transaction amount sent to your UPI account to authorize withdrawals.</p>
+        <p className="text-xs text-white/50 mb-6 leading-relaxed max-w-sm">Enter the micro-transaction sum received to finalize node verification.</p>
         <div className="flex gap-2 relative z-10">
             <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="bg-black/40 border-white/10 h-14 rounded-2xl text-xl font-black tracking-tight" />
             <Button className="h-14 bg-primary px-8 rounded-2xl font-black uppercase tracking-widest text-xs" onClick={handleVerify}>Verify</Button>

@@ -57,19 +57,19 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
       <div className="flex justify-between items-center">
-        <div><h1 className="text-3xl font-black text-white">System Status</h1><p className="text-white/40 text-xs mt-1">Live execution pulse from the Grow Money engine.</p></div>
+        <div><h1 className="text-3xl font-black text-white">System Protocol Status</h1><p className="text-white/40 text-xs mt-1">Live execution pulse from the GM Ledger Engine.</p></div>
         <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/5 border border-white/10"><Clock className="h-4 w-4 text-primary" /><span className="text-xs font-black uppercase tracking-widest">{format(new Date(), 'dd MMM | HH:mm')}</span></div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard label="Investors" value={users?.length || 0} icon={Users} color="primary" />
-        <MetricCard label="Total Deposits" value={`₹${stats?.totalDeposits.toLocaleString()}`} icon={Upload} color="blue" />
-        <MetricCard label="Total Payouts" value={`₹${stats?.totalWithdrawals.toLocaleString()}`} icon={Download} color="orange" />
-        <MetricCard label="Pending" value={stats?.pendingRequests || 0} icon={Timer} color="red" />
+        <MetricCard label="Total Recharges" value={`₹${stats?.totalDeposits.toLocaleString()}`} icon={Upload} color="blue" />
+        <MetricCard label="Total Settlements" value={`₹${stats?.totalWithdrawals.toLocaleString()}`} icon={Download} color="orange" />
+        <MetricCard label="Pending Nodes" value={stats?.pendingRequests || 0} icon={Timer} color="red" />
       </div>
 
       <Card className="bg-[#030408]/40 border-white/[0.05] rounded-3xl p-6">
-          <CardTitle className="text-sm uppercase font-black tracking-widest text-white/20 mb-6">Financial Overview</CardTitle>
+          <CardTitle className="text-sm uppercase font-black tracking-widest text-white/20 mb-6">Asset Flow Protocol</CardTitle>
           <div className="h-[300px] w-full">
              <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={overviewData}>
