@@ -392,7 +392,7 @@ export default function ProfilePage() {
         <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
             <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2.5rem]">
                 <DialogHeader>
-                    <DialogTitle>Update Identity Node</DialogTitle>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Update Identity Node</DialogTitle>
                     <DialogDescription className="text-white/40">Enter your new profile display name.</DialogDescription>
                 </DialogHeader>
                 <div className="py-6 space-y-4">
@@ -409,7 +409,7 @@ export default function ProfilePage() {
         <Dialog open={isEditUpiOpen} onOpenChange={setIsEditUpiOpen}>
             <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2.5rem]">
                 <DialogHeader>
-                    <DialogTitle>Update Payment Node</DialogTitle>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Update Payment Node</DialogTitle>
                     <DialogDescription className="text-white/40">New details will require administrative verification protocol.</DialogDescription>
                 </DialogHeader>
                 <div className="py-6 space-y-6">
@@ -439,7 +439,7 @@ export default function ProfilePage() {
         <Dialog open={isKycOpen} onOpenChange={setIsKycOpen}>
             <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2.5rem]">
                 <DialogHeader>
-                    <DialogTitle>Identity Verification Node</DialogTitle>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Identity Verification Node</DialogTitle>
                     <DialogDescription className="text-white/40">Verified accounts unlock higher loan limits and instant payouts.</DialogDescription>
                 </DialogHeader>
                 <div className="py-6 space-y-4">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, Send, Banknote, Landmark, Timer } from 'lucide-react';
+import { Check, X, Send, Landmark, Timer, QrCode, Copy, ShieldCheck } from 'lucide-react';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import {
   doc,
@@ -36,9 +37,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { addDays, isAfter } from 'date-fns';
+import { addDays } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import Image from 'next/image';
 
 type CustomLoanRequest = {
   id: string;
@@ -92,6 +94,7 @@ export default function CustomLoansPage() {
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [isExtensionDialogOpen, setIsExtensionDialogOpen] = useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [extensionFee, setExtensionFee] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected' | 'payment_pending' | 'extension_pending'>('pending_admin_review');
@@ -131,6 +134,11 @@ export default function CustomLoansPage() {
     setIsApproveDialogOpen(true);
   };
 
+  const openPaymentDialog = (request: CustomLoanRequest) => {
+    setRequestToUpdate(request);
+    setIsPaymentDialogOpen(true);
+  };
+
   const handleApprove = () => {
     if (!requestToUpdate || !calculatedInterestInfo) return;
     const requestRef = doc(firestore, 'customLoanRequests', requestToUpdate.id);
@@ -157,7 +165,9 @@ export default function CustomLoansPage() {
         });
   };
 
-  const handleMarkAsSent = async (request: CustomLoanRequest) => {
+  const handleMarkAsSent = async () => {
+    if (!requestToUpdate) return;
+    const request = requestToUpdate;
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
     const settingsRef = doc(firestore, 'settings', 'admin');
     
@@ -165,17 +175,23 @@ export default function CustomLoansPage() {
         const settingsDoc = await transaction.get(settingsRef);
         const totalLimit = settingsDoc.data()?.totalCustomLoanLimit || 0;
         const currentUsage = settingsDoc.data()?.currentCustomLoanUsage || 0;
-        if (totalLimit > 0 && currentUsage + request.requestedAmount > totalLimit) throw new Error("Limit exceeded");
+        if (totalLimit > 0 && currentUsage + request.requestedAmount > totalLimit) throw new Error("Platform limit exceeded");
 
         const dueDate = addDays(new Date(), request.requestedDuration);
-        transaction.update(requestRef, { status: 'active', activatedAt: serverTimestamp(), dueDate: Timestamp.fromDate(dueDate) });
+        transaction.update(requestRef, { 
+            status: 'active', 
+            activatedAt: serverTimestamp(), 
+            dueDate: Timestamp.fromDate(dueDate) 
+        });
         transaction.update(settingsRef, { currentCustomLoanUsage: currentUsage + request.requestedAmount });
     })
     .then(() => {
         toast({ title: 'Loan Activated' });
+        setIsPaymentDialogOpen(false);
+        setRequestToUpdate(null);
     })
     .catch((e: any) => {
-        toast({ title: 'Failed', description: e.message, variant: 'destructive' });
+        toast({ title: 'Activation Failed', description: e.message, variant: 'destructive' });
     });
   };
   
@@ -197,125 +213,165 @@ export default function CustomLoansPage() {
     });
   };
 
-  const handleApproveExtension = () => {
-    if (!requestToUpdate || !requestToUpdate.dueDate) return;
-    const fee = parseFloat(extensionFee) || 0;
-    const extraDays = requestToUpdate.extensionRequestedDays || 0;
-    const requestRef = doc(firestore, 'customLoanRequests', requestToUpdate.id);
-    const newDueDate = addDays(requestToUpdate.dueDate.toDate(), extraDays);
-    const updateData = { 
-        status: 'active', 
-        dueDate: Timestamp.fromDate(newDueDate), 
-        totalRepayment: (requestToUpdate.totalRepayment || 0) + fee 
-    };
-
-    updateDoc(requestRef, updateData)
-        .then(() => {
-            setIsExtensionDialogOpen(false);
-            toast({ title: "Extended" });
-        })
-        .catch(async (e) => {
-            const permissionError = new FirestorePermissionError({
-                path: requestRef.path,
-                operation: 'update',
-                requestResourceData: updateData
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        });
+  const handleCopyToClipboard = (text?: string, label?: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    toast({ title: `${label} Copied!` });
   };
 
-  const handleShareOnWhatsApp = async (request: CustomLoanRequest) => {
-    try {
-        const userDoc = await getDoc(doc(firestore, 'users', request.userId));
-        if (userDoc.exists() && userDoc.data().phoneNumber) {
-            const phoneNumber = userDoc.data().phoneNumber;
-            const dueDate = request.dueDate ? request.dueDate.toDate().toLocaleDateString() : 'N/A';
-            const totalRepaymentWithPenalty = (request.totalRepayment || 0) + (request.penalty || 0);
-            
-            let message = "";
-
-            if (request.status === 'active' || request.status === 'payment_pending' || request.status === 'extension_pending') {
-                const now = new Date();
-                const isOverdue = request.dueDate && isAfter(now, request.dueDate.toDate());
-
-                if (isOverdue) {
-                    message = `⚠️ *URGENT: Custom Loan Overdue Notice* ⚠️\n\nDear *${request.userName}*,\n\nYour custom loan repayment is now *OVERDUE*. Please settle it immediately to avoid further penalties.\n\n*Settlement Summary:*\n-----------------------------------\n💵 *Amount:* ₹${request.requestedAmount.toFixed(2)}\n📈 *Total Payable:* ₹${totalRepaymentWithPenalty.toFixed(2)}\n🗓️ *Was Due On:* *${dueDate}*\n-----------------------------------\n\n*Grow Money* - Your trusted partner.`;
-                } else {
-                    message = `🔔 *Repayment Reminder: Grow Money* 🔔\n\nDear *${request.userName}*,\n\nThis is a gentle reminder regarding your active Custom Loan.\n\n*Loan Details:*\n-----------------------------------\n💵 *Amount:* ₹${request.requestedAmount.toFixed(2)}\n📈 *Repayment Due:* ₹${totalRepaymentWithPenalty.toFixed(2)}\n🗓️ *Due Date:* *${dueDate}*\n-----------------------------------\n\nThank you for choosing *Grow Money*!`;
-                }
-            } else if (request.status === 'completed') {
-                message = `✅ *Loan Successfully Settled!* ✅\n\nDear *${request.userName}*,\n\nCongratulations! Your custom loan of *₹${request.requestedAmount.toFixed(2)}* has been fully repaid. 🥂\n\n*Grow Money* - Smart Investing.`;
-            }
-
-            if (message) {
-                window.open(`https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
-            }
-        } else { toast({ variant: 'destructive', title: 'Phone Not Found' }); }
-    } catch (e) { toast({ variant: 'destructive', title: 'Error' }); }
-  }
+  const upiDeeplink = requestToUpdate?.upiId ? `upi://pay?pa=${requestToUpdate.upiId}&pn=${encodeURIComponent(requestToUpdate.userName)}&am=${requestToUpdate.requestedAmount.toFixed(2)}&cu=INR` : '';
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4"><h2 className="text-2xl font-bold">Custom Loans</h2></div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center"><h2 className="text-2xl font-bold">Custom Loans Registry</h2></div>
        <Tabs value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-            <TabsList className="flex-wrap justify-start h-auto">
-                <TabsTrigger value="pending_admin_review">Pending Admin</TabsTrigger>
-                <TabsTrigger value="pending_user_approval">Pending User</TabsTrigger>
-                <TabsTrigger value="approved_by_user">User Approved</TabsTrigger>
-                <TabsTrigger value="active">Active</TabsTrigger>
-                <TabsTrigger value="extension_pending">Extension Pending</TabsTrigger>
-                <TabsTrigger value="payment_pending">Payment Pending</TabsTrigger>
-                <TabsTrigger value="completed">Completed</TabsTrigger>
-                <TabsTrigger value="rejected">Rejected</TabsTrigger>
-                <TabsTrigger value="all">All</TabsTrigger>
+            <TabsList className="bg-white/5 border-white/10 p-1 rounded-xl h-11 flex-wrap">
+                <TabsTrigger value="pending_admin_review" className="text-[10px] font-black uppercase">Pending Review</TabsTrigger>
+                <TabsTrigger value="approved_by_user" className="text-[10px] font-black uppercase">To Be Sent</TabsTrigger>
+                <TabsTrigger value="active" className="text-[10px] font-black uppercase">Active Nodes</TabsTrigger>
+                <TabsTrigger value="payment_pending" className="text-[10px] font-black uppercase">Verify Receipt</TabsTrigger>
+                <TabsTrigger value="all" className="text-[10px] font-black uppercase">History</TabsTrigger>
             </TabsList>
         </Tabs>
-      <div className="rounded-lg border mt-4">
-        <Table><TableHeader><TableRow><TableHead>User Name</TableHead><TableHead>Details</TableHead><TableHead>Interest</TableHead><TableHead>Repayment</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+
+      <div className="rounded-2xl border border-white/5 bg-white/[0.02] overflow-hidden">
+        <Table>
+          <TableHeader className="bg-white/[0.03]">
+            <TableRow className="border-white/5">
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Borrower</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Capital</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Node Info</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Status</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 text-right pr-6">Action</TableHead>
+            </TableRow>
+          </TableHeader>
           <TableBody>
-            {loading ? <TableRow><TableCell colSpan={7} className="text-center">Loading...</TableCell></TableRow> : filteredRequests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell>{request.userName}</TableCell>
-                  <TableCell>₹{request.requestedAmount.toFixed(2)}<br/><span className="text-xs text-muted-foreground">{request.requestedDuration} days</span></TableCell>
-                  <TableCell>{request.interestRate ? `${request.interestRate.toFixed(2)}%` : 'N/A'}</TableCell>
-                  <TableCell>₹{((request.totalRepayment || 0) + (request.penalty || 0)).toFixed(2)}</TableCell>
-                  <TableCell className="text-xs">Created: {formatDate(request.createdAt)}<br/>Due: {formatDate(request.dueDate)}</TableCell>
+            {loading ? (
+                <TableRow><TableCell colSpan={5} className="text-center py-20 animate-pulse text-white/20 font-black">SYNCING LEDGER...</TableCell></TableRow>
+            ) : filteredRequests.map((request) => (
+                <TableRow key={request.id} className="border-white/5 hover:bg-white/[0.02]">
+                  <TableCell className="font-bold py-4">{request.userName}</TableCell>
+                  <TableCell>
+                      <div className="flex flex-col">
+                          <span className="font-black text-white">₹{request.requestedAmount.toLocaleString()}</span>
+                          <span className="text-[10px] text-white/40 font-bold">{request.requestedDuration} Days Term</span>
+                      </div>
+                  </TableCell>
+                  <TableCell>
+                      <div className="flex flex-col text-[10px] font-bold text-white/30">
+                          <span>ROI: {request.interestRate?.toFixed(2)}%</span>
+                          <span>DUE: {request.dueDate ? request.dueDate.toDate().toLocaleDateString() : 'TBD'}</span>
+                      </div>
+                  </TableCell>
                   <TableCell>{getStatusBadge(request.status)}</TableCell>
-                  <TableCell><div className="flex gap-2">
-                        {request.status === 'pending_admin_review' && <><Button size="sm" onClick={() => openApproveDialog(request)}><Check className="h-4 w-4 mr-1" />Approve</Button><Button size="sm" variant="destructive" onClick={() => { setRequestToUpdate(request); setIsRejectDialogOpen(true); }}><X className="h-4 w-4 mr-1"/>Reject</Button></>}
-                        {request.status === 'approved_by_user' && <Button size="sm" className="bg-green-600" onClick={() => handleMarkAsSent(request)}><Send className="h-4 w-4 mr-1"/>Mark as Sent</Button>}
-                        {(request.status === 'active' || request.status === 'extension_pending' || request.status === 'payment_pending' || request.status === 'Due') && (
-                            <div className="flex gap-2">
-                                <Button size="sm" className="bg-blue-600" onClick={() => handleMarkAsCompleted(request)}><Check className="h-4 w-4 mr-1"/>Repaid</Button>
-                                <Button variant="outline" size="sm" className="text-green-500" onClick={() => handleShareOnWhatsApp(request)}><Send className="h-4 w-4 mr-1" /> Notify</Button>
-                            </div>
+                  <TableCell className="text-right pr-6">
+                    <div className="flex justify-end gap-2">
+                        {request.status === 'pending_admin_review' && (
+                            <Button size="sm" onClick={() => openApproveDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-primary">ANALYZE & OFFER</Button>
                         )}
-                        {request.status === 'completed' && (
-                             <Button variant="outline" size="sm" className="text-green-500" onClick={() => handleShareOnWhatsApp(request)}><Send className="h-4 w-4 mr-1" /> Settled Msg</Button>
+                        {request.status === 'approved_by_user' && (
+                            <Button size="sm" onClick={() => openPaymentDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-green-600">DISPATCH FUNDS</Button>
                         )}
-                    </div></TableCell>
+                        {(request.status === 'active' || request.status === 'payment_pending') && (
+                            <Button size="sm" onClick={() => handleMarkAsCompleted(request)} variant="outline" className="h-8 rounded-lg font-black text-[10px] border-white/10 hover:bg-white/5">SETTLE NODE</Button>
+                        )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
           </TableBody></Table>
       </div>
+
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
-        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Approve & Offer</DialogTitle></DialogHeader>
-          {userKycData && <div className="space-y-1 p-3 border rounded text-xs"><p><strong>Status:</strong> {userKycData.kycStatus}</p><p><strong>PAN:</strong> {userKycData.panCard}</p><p><strong>Phone:</strong> {userKycData.phoneNumber}</p></div>}
-          {calculatedInterestInfo && <div className="space-y-2 p-3 bg-muted rounded text-sm"><div className="flex justify-between"><span>Amount:</span><span>₹{requestToUpdate?.requestedAmount}</span></div><div className="flex justify-between"><span>Interest:</span><span className="text-red-400">₹{calculatedInterestInfo.totalInterest.toFixed(2)}</span></div><Separator/><div className="flex justify-between font-bold"><span>Total Repayment:</span><span>₹{calculatedInterestInfo.totalRepayment.toFixed(2)}</span></div></div>}
-          <DialogFooter><Button variant="outline" onClick={() => setIsApproveDialogOpen(false)}>Cancel</Button><Button onClick={handleApprove}>Send Offer</Button></DialogFooter>
-        </DialogContent></Dialog>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]">
+          <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Node Approval Protocol</DialogTitle></DialogHeader>
+          <div className="space-y-6 py-4">
+              {userKycData && (
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">
+                    <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">ID Verification</p>
+                    <p className="text-sm font-bold">PAN: {userKycData.panCard || 'PENDING'}</p>
+                    <p className="text-sm font-bold">PHONE: {userKycData.phoneNumber}</p>
+                </div>
+              )}
+              {calculatedInterestInfo && (
+                <Card className="bg-primary/10 border-primary/20 rounded-2xl p-6 space-y-4">
+                    <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black uppercase text-primary/60">Asset Capital</span>
+                        <span className="text-xl font-black">₹{requestToUpdate?.requestedAmount}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-red-400">
+                        <span className="text-[10px] font-black uppercase">Matching Interest</span>
+                        <span className="text-xl font-black">₹{calculatedInterestInfo.totalInterest.toFixed(2)}</span>
+                    </div>
+                    <Separator className="bg-primary/20" />
+                    <div className="flex justify-between items-center text-white">
+                        <span className="text-[10px] font-black uppercase tracking-widest">Settlement Node</span>
+                        <span className="text-2xl font-black tracking-tighter">₹{calculatedInterestInfo.totalRepayment.toFixed(2)}</span>
+                    </div>
+                </Card>
+              )}
+          </div>
+          <DialogFooter><Button onClick={handleApprove} className="w-full h-12 rounded-xl font-black bg-primary">AUTHORIZE OFFER BROADCAST</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
+            <DialogHeader>
+                <DialogTitle className="text-center font-black uppercase tracking-tight">Fund Dispatch Protocol</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-xs">Execute manual transfer to borrower node.</DialogDescription>
+            </DialogHeader>
+            <div className="py-8 space-y-8">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="bg-white p-3 rounded-2xl shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+                        <Image
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiDeeplink)}`}
+                            alt="UPI QR"
+                            width={180}
+                            height={180}
+                        />
+                    </div>
+                    <div className="text-center">
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-[3px]">Amount to Send</p>
+                        <p className="text-3xl font-black text-green-400 tracking-tighter">₹{requestToUpdate?.requestedAmount.toFixed(2)}</p>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Borrower Payment Addr</Label>
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
+                        <span className="font-mono text-sm font-bold text-white/80">{requestToUpdate?.upiId || 'NO UPI ID'}</span>
+                        <Button variant="ghost" size="icon" onClick={() => handleCopyToClipboard(requestToUpdate?.upiId, 'UPI ID')} className="h-8 w-8 hover:bg-white/10">
+                            <Copy size={14} className="text-primary" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
+                        <a href={upiDeeplink}>
+                            <QrCode size={16} className="mr-2" /> Launch UPI Terminal
+                        </a>
+                    </Button>
+                    <Button onClick={handleMarkAsSent} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">
+                        <ShieldCheck size={18} className="mr-2" /> I HAVE PAID (ACTIVATE NODE)
+                    </Button>
+                </div>
+            </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pending_admin_review': return <Badge variant="secondary">Pending Admin</Badge>;
-      case 'pending_user_approval': return <Badge variant="outline" className="text-blue-400">Pending User</Badge>;
-      case 'approved_by_user': return <Badge variant="default">User Approved</Badge>;
-      case 'active': return <Badge variant="default" className="bg-green-600">Active</Badge>;
-      case 'extension_pending': return <Badge variant="outline" className="text-amber-500">Ext. Req</Badge>;
-      case 'completed': return <Badge variant="outline">Completed</Badge>;
-      default: return <Badge>{status}</Badge>;
+      case 'pending_admin_review': return <Badge variant="outline" className="text-[8px] font-black border-yellow-500/20 text-yellow-500 uppercase">Analysis</Badge>;
+      case 'pending_user_approval': return <Badge variant="outline" className="text-[8px] font-black border-blue-500/20 text-blue-400 uppercase">Offer Sent</Badge>;
+      case 'approved_by_user': return <Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary uppercase">Ready to Fund</Badge>;
+      case 'active': return <Badge variant="outline" className="text-[8px] font-black border-green-500/20 text-green-400 uppercase">Running</Badge>;
+      case 'payment_pending': return <Badge variant="outline" className="text-[8px] font-black border-white/10 text-white/40 uppercase">Awaiting Verification</Badge>;
+      case 'completed': return <Badge variant="outline" className="text-[8px] font-black border-white/5 text-white/20 uppercase">Settled</Badge>;
+      default: return <Badge className="text-[8px] uppercase">{status}</Badge>;
     }
 };

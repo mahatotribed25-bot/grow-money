@@ -134,45 +134,54 @@ export default function MyLoansPage() {
     <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground relative z-10">
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
         <Link href="/dashboard"><Button variant="ghost" size="icon" className="hover:bg-white/10 text-white/70"><ChevronLeft /></Button></Link>
-        <h1 className="text-lg font-bold">Loan Ledger</h1>
+        <h1 className="text-lg font-bold tracking-tight">Loan Ledger</h1>
         <div className="w-9" />
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-4xl mx-auto w-full space-y-8">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-4xl mx-auto w-full space-y-10">
          <div className="space-y-6">
-            <h2 className="text-sm font-bold uppercase tracking-[4px] text-white/30 flex items-center gap-2"><Briefcase size={16} /> Standard Loans</h2>
+            <h2 className="text-[10px] font-black uppercase tracking-[4px] text-white/20 flex items-center gap-2 px-2"><Briefcase size={12} className="text-primary" /> Standard Liability</h2>
             {loading ? (
                 <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
             ) : sortedLoans?.length === 0 ? (
-                <p className="text-center py-10 text-white/10 text-xs italic">No active or past standard loans.</p>
+                <Card className="bg-white/[0.02] border-white/5 border-dashed py-10 text-center rounded-[2rem]"><p className="text-white/20 text-[10px] uppercase font-black tracking-widest">No active standard protocols</p></Card>
             ) : sortedLoans?.map(loan => <LoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} />)}
-            
-            <h2 className="text-sm font-bold uppercase tracking-[4px] text-white/30 flex items-center gap-2 pt-6"><HandCoins size={16} /> Custom Flexi Loans</h2>
+        </div>
+
+        <div className="space-y-6">
+            <h2 className="text-[10px] font-black uppercase tracking-[4px] text-white/20 flex items-center gap-2 px-2"><HandCoins size={12} className="text-primary" /> Custom Flexi Portfolio</h2>
             {loading ? (
                 <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
             ) : sortedCustomLoans?.length === 0 ? (
-                <p className="text-center py-10 text-white/10 text-xs italic">No active or past custom loans.</p>
+                <Card className="bg-white/[0.02] border-white/5 border-dashed py-10 text-center rounded-[2rem]"><p className="text-white/20 text-[10px] uppercase font-black tracking-widest">No custom flexi requests</p></Card>
             ) : sortedCustomLoans?.map(loan => <CustomLoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} />)}
         </div>
 
         {paymentDetails && (
           <Dialog open={paymentDetails.isOpen} onOpenChange={() => setPaymentDetails(null)}>
-            <DialogContent className="bg-[#030408]/95 border-white/10 text-white rounded-[2rem]">
+            <DialogContent className="bg-[#030408]/95 border-white/10 text-white rounded-[2rem] max-w-sm">
                <DialogHeader>
-                  <DialogTitle>Confirm Repayment Protocol</DialogTitle>
-                  <DialogDescription className="text-white/40">Initiating settle node for the selected liability.</DialogDescription>
+                  <DialogTitle className="text-center font-black uppercase tracking-tight">Repayment Initiation</DialogTitle>
+                  <DialogDescription className="text-center text-white/40 text-xs">Execute settlement node via UPI protocol.</DialogDescription>
                </DialogHeader>
-               <div className="py-6 space-y-4">
-                  <div className="bg-white/5 p-5 rounded-2xl border border-white/5 flex justify-between items-center">
+               <div className="py-8 space-y-8">
+                  <div className="bg-white/5 p-6 rounded-3xl border border-white/5 flex flex-col items-center gap-1 shadow-inner">
                       <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Settle Amount</span>
-                      <span className="text-xl font-black text-primary">₹{paymentDetails.amount.toFixed(2)}</span>
+                      <span className="text-3xl font-black text-primary tracking-tighter">₹{paymentDetails.amount.toFixed(2)}</span>
                   </div>
-                  <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 text-[10px] font-bold text-primary text-center break-all">
-                      PAY TO: {paymentDetails.upiId}
+                  <div className="space-y-3">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">Target Address</Label>
+                      <div className="p-4 bg-black/40 rounded-xl border border-white/10 text-[11px] font-bold text-primary text-center break-all font-mono">
+                          {paymentDetails.upiId}
+                      </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/10 rounded-2xl">
+                      <AlertTriangle className="text-primary h-5 w-5 shrink-0" />
+                      <p className="text-[10px] text-white/40 leading-relaxed font-bold">Ensure you copy the UPI ID and pay the EXACT amount. Confirm only after successful transfer.</p>
                   </div>
                </div>
                <DialogFooter>
-                  <Button onClick={handlePaymentConfirmation} className="w-full h-12 rounded-xl font-black bg-white text-black hover:bg-primary hover:text-white transition-all">Confirm Payment Sent</Button>
+                  <Button onClick={handlePaymentConfirmation} className="w-full h-14 rounded-2xl font-black bg-primary text-white shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all">I HAVE PAID (NOTIFY ADMIN)</Button>
                </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -195,11 +204,12 @@ function LoanCard({ loan, onPayNow }: { loan: Loan, onPayNow: (loan: Loan, amoun
   const interestAmount = loan.interest || (loan.totalPayable - loan.loanAmount);
 
   return (
-    <Card className="border-white/[0.08] bg-white/[0.03] rounded-3xl p-5 space-y-6 overflow-hidden relative">
-      <div className="flex justify-between items-center">
-          <CardTitle className="text-white font-bold">{loan.planName}</CardTitle>
+    <Card className="border-white/[0.08] bg-white/[0.03] rounded-3xl p-5 space-y-6 overflow-hidden relative group">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="flex justify-between items-center relative z-10">
+          <CardTitle className="text-white font-bold tracking-tight">{loan.planName}</CardTitle>
           <Badge className={cn(
-              "text-[10px] uppercase font-black", 
+              "text-[9px] uppercase font-black tracking-widest h-5", 
               loan.status === 'Active' ? "bg-primary/20 text-primary border-primary/30" : 
               loan.status === 'Completed' ? "bg-green-500/20 text-green-400 border-green-500/30" :
               "bg-red-500/20 text-red-400 border-red-500/30"
@@ -208,45 +218,45 @@ function LoanCard({ loan, onPayNow }: { loan: Loan, onPayNow: (loan: Loan, amoun
           </Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-              <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Principal</p>
-              <p className="text-sm font-bold text-white/80">₹{loan.loanAmount.toLocaleString()}</p>
+      <div className="grid grid-cols-2 gap-3 relative z-10">
+          <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
+              <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1">Principal</p>
+              <p className="text-sm font-black text-white/80">₹{loan.loanAmount.toLocaleString()}</p>
           </div>
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-right">
-              <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Interest</p>
-              <p className="text-sm font-bold text-red-400">₹{interestAmount.toFixed(2)}</p>
+          <div className="bg-black/20 p-3 rounded-2xl border border-white/5 text-right">
+              <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1">Total Interest</p>
+              <p className="text-sm font-black text-red-400">₹{interestAmount.toFixed(2)}</p>
           </div>
           {loan.penalty ? (
-               <div className="bg-red-500/5 p-3 rounded-xl border border-red-500/10 col-span-2 flex justify-between items-center">
-                  <span className="text-[9px] font-black text-red-400 uppercase tracking-widest">Late Penalty</span>
-                  <span className="text-sm font-bold text-red-400">₹{loan.penalty.toFixed(2)}</span>
+               <div className="bg-red-500/5 p-3 rounded-2xl border border-red-500/10 col-span-2 flex justify-between items-center">
+                  <span className="text-[8px] font-black text-red-400 uppercase tracking-widest">Late Penalty Applied</span>
+                  <span className="text-sm font-black text-red-400">₹{loan.penalty.toFixed(2)}</span>
               </div>
           ) : null}
       </div>
 
-      <div className="bg-black/40 rounded-2xl p-4 flex justify-between items-center">
-          <span className="text-[10px] font-black uppercase text-white/40 tracking-widest">Total Liability</span>
-          <span className="text-xl font-black text-white">₹{totalRepayment.toFixed(2)}</span>
+      <div className="bg-black/40 rounded-2xl p-4 flex justify-between items-center border border-white/5 relative z-10">
+          <span className="text-[9px] font-black uppercase text-white/40 tracking-widest">Current Balance</span>
+          <span className="text-xl font-black text-white tracking-tighter">₹{totalRepayment.toFixed(2)}</span>
       </div>
       
-      <div className="flex justify-between px-1 text-[9px] font-bold text-white/20 uppercase tracking-widest">
+      <div className="flex justify-between px-1 text-[8px] font-bold text-white/20 uppercase tracking-[2px] relative z-10">
            <span>Due Date: {new Date(loan.dueDate?.seconds * 1000).toLocaleDateString()}</span>
-           <span>Loan ID: #{loan.id.slice(-6)}</span>
+           <span>Node ID: #{loan.id.slice(-6).toUpperCase()}</span>
       </div>
 
       {loan.status !== 'Completed' ? (
           <Button 
-            className="w-full h-12 rounded-xl bg-white text-black font-black text-xs uppercase tracking-widest shadow-xl shadow-white/5" 
+            className="w-full h-12 rounded-xl bg-white text-black font-black text-[10px] uppercase tracking-[2px] shadow-xl relative z-10" 
             onClick={() => onPayNow(loan, totalRepayment)} 
             disabled={loan.status === 'Payment Pending'}
           >
-              {loan.status === 'Payment Pending' ? 'Verifying Node...' : 'Initiate Settle Protocol'}
+              {loan.status === 'Payment Pending' ? 'Verifying Settle Node...' : 'Initiate Settlement'}
           </Button>
       ) : (
-          <div className="flex items-center justify-center gap-2 py-2 text-green-400/40">
+          <div className="flex items-center justify-center gap-2 py-2 text-green-400/40 relative z-10">
              <CheckCircle2 size={16} />
-             <span className="text-[10px] font-bold uppercase tracking-widest">Asset Successfully Settled</span>
+             <span className="text-[9px] font-black uppercase tracking-widest">Asset Fully Repaid</span>
           </div>
       )}
     </Card>
@@ -259,48 +269,49 @@ function CustomLoanCard({ loan, onPayNow }: { loan: CustomLoanRequest, onPayNow:
   const totalRepayment = (loan.totalRepayment || 0) + (loan.penalty || 0);
 
   return (
-    <Card className="border-white/[0.08] bg-white/[0.03] rounded-3xl p-5 space-y-6">
-      <div className="flex justify-between items-center">
-          <span className="text-xs font-black uppercase tracking-widest text-primary">Custom Flexi</span>
-          <Badge className="bg-white/5 border-white/10 text-white/40 text-[9px] uppercase">{loan.status.replace('_', ' ')}</Badge>
+    <Card className="border-white/[0.08] bg-white/[0.03] rounded-3xl p-5 space-y-6 relative overflow-hidden group">
+       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="flex justify-between items-center relative z-10">
+          <span className="text-[9px] font-black uppercase tracking-[3px] text-primary">Custom Flexi Protocol</span>
+          <Badge className="bg-white/5 border-white/10 text-white/40 text-[8px] font-black uppercase h-5">{loan.status.replace(/_/g, ' ')}</Badge>
       </div>
 
       {loan.status === 'pending_user_approval' ? (
-          <div className="space-y-4">
-              <div className="bg-primary/5 p-5 rounded-2xl border border-primary/20 space-y-3">
-                  <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest text-center">Protocol Offer Received</p>
+          <div className="space-y-4 relative z-10">
+              <div className="bg-primary/5 p-5 rounded-[2rem] border border-primary/20 space-y-4">
+                  <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest text-center">Verified Offer Received</p>
                   <div className="flex justify-between items-baseline font-black text-white">
-                      <span className="text-[10px] uppercase opacity-40">Settlement Node</span>
+                      <span className="text-[8px] uppercase opacity-40 font-black">Capital Due</span>
                       <span className="text-2xl tracking-tighter text-primary">₹{loan.totalRepayment?.toFixed(2)}</span>
                   </div>
                   <div className="h-px bg-primary/10" />
-                  <p className="text-[9px] text-white/30 leading-relaxed text-center">Accepting this offer will credit assets immediately following administrative broadcast.</p>
+                  <p className="text-[9px] text-white/30 leading-relaxed text-center font-bold">Accepting this protocol will credit your node immediately after administrative broadcast.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                  <Button onClick={handleAccept} className="h-12 rounded-xl bg-white text-black font-black uppercase text-xs tracking-widest">Accept</Button>
-                  <Button variant="ghost" className="h-12 rounded-xl text-red-400 font-bold uppercase text-[10px]">Decline</Button>
+                  <Button onClick={handleAccept} className="h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] tracking-widest">Accept</Button>
+                  <Button variant="ghost" className="h-12 rounded-xl text-red-400/40 font-bold uppercase text-[9px] hover:text-red-400">Decline</Button>
               </div>
           </div>
-      ) : (loan.status === 'active' || loan.status === 'payment_pending' || loan.status === 'extension_pending' || loan.status === 'Due' || loan.status === 'completed') && (
-           <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                   <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                        <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Principal</p>
-                        <p className="text-sm font-bold text-white/80">₹{loan.requestedAmount.toLocaleString()}</p>
+      ) : (loan.status === 'active' || loan.status === 'payment_pending' || loan.status === 'extension_pending' || loan.status === 'Due' || loan.status === 'completed') ? (
+           <div className="space-y-4 relative z-10">
+              <div className="grid grid-cols-2 gap-3">
+                   <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
+                        <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1">Principal</p>
+                        <p className="text-sm font-black text-white/80">₹{loan.requestedAmount.toLocaleString()}</p>
                     </div>
-                    <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-right">
-                        <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Interest</p>
-                        <p className="text-sm font-bold text-red-400">₹{loan.interestAmount?.toFixed(2) || '0.00'}</p>
+                    <div className="bg-black/20 p-3 rounded-2xl border border-white/5 text-right">
+                        <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1">Total ROI</p>
+                        <p className="text-sm font-black text-red-400">₹{loan.interestAmount?.toFixed(2) || '0.00'}</p>
                     </div>
               </div>
               
-              <div className="bg-black/40 rounded-2xl p-4 flex justify-between items-center">
-                  <span className="text-[10px] font-black uppercase text-white/40 tracking-widest">Total Liability</span>
-                  <span className="text-xl font-black text-white">₹{totalRepayment.toFixed(2)}</span>
+              <div className="bg-black/40 rounded-2xl p-4 flex justify-between items-center border border-white/5">
+                  <span className="text-[9px] font-black uppercase text-white/40 tracking-widest">Liability Node</span>
+                  <span className="text-xl font-black text-white tracking-tighter">₹{totalRepayment.toFixed(2)}</span>
               </div>
 
-              <div className="flex justify-between px-1 text-[9px] font-bold text-white/20 uppercase tracking-widest">
-                <span>Due Date: {loan.dueDate ? new Date(loan.dueDate.seconds * 1000).toLocaleDateString() : 'Pending'}</span>
+              <div className="flex justify-between px-1 text-[8px] font-bold text-white/20 uppercase tracking-[2px]">
+                <span>Expires: {loan.dueDate ? new Date(loan.dueDate.seconds * 1000).toLocaleDateString() : 'TBD'}</span>
                 <span>Node ID: #{loan.id.slice(-4).toUpperCase()}</span>
               </div>
 
@@ -310,14 +321,18 @@ function CustomLoanCard({ loan, onPayNow }: { loan: CustomLoanRequest, onPayNow:
                     onClick={() => onPayNow(loan, totalRepayment)} 
                     disabled={loan.status === 'payment_pending'}
                   >
-                      {loan.status === 'payment_pending' ? 'Verifying Settlement...' : <span className="flex items-center gap-2">INITIATE DEBT REPAYMENT <ArrowUpRight className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" size={14}/></span>}
+                      {loan.status === 'payment_pending' ? 'Verification Cycle Active' : <span className="flex items-center gap-2">Initiate Repayment <ArrowUpRight size={14}/></span>}
                   </Button>
               ) : (
                   <div className="flex items-center justify-center gap-2 py-2 text-green-400/40">
                     <CheckCircle2 size={16} />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">Liability Fully Purged</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest">Liability Terminated</span>
                   </div>
               )}
+          </div>
+      ) : (
+          <div className="py-6 text-center">
+              <p className="text-xs font-bold text-white/20 uppercase tracking-widest">{loan.status === 'pending_admin_review' ? 'Awaiting Protocol Analysis...' : 'Request Processed'}</p>
           </div>
       )}
     </Card>
@@ -328,7 +343,7 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
   return (
     <Link href={href} className={cn("flex flex-col items-center gap-1 transition-all h-full justify-center relative", active ? 'text-primary scale-110' : 'text-white/40')}>
       <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(139,92,246,0.5)]")} />
-      <span className="text-[9px] font-bold">{label}</span>
+      <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-6 bg-primary rounded-full blur-[2px]" />}
     </Link>
   );
