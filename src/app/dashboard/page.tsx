@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Wallet,
@@ -358,7 +359,7 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
                                 placeholder="0.00" 
                                 value={amt} 
                                 onChange={e => setAmt(e.target.value)} 
-                                className="h-16 pl-10 text-3xl font-black bg-white/5 border-white/10 rounded-2xl focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10"
+                                className="h-16 pl-10 text-3xl font-black bg-white/5 border-white/10 rounded-2xl focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10 text-base"
                             />
                         </div>
                         <div className="grid grid-cols-4 gap-2">

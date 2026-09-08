@@ -1,3 +1,4 @@
+
 'use client';
 import {
   ChevronLeft,
@@ -10,7 +11,8 @@ import {
   Timer,
   IndianRupee,
   Percent,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -139,10 +141,18 @@ export default function MyLoansPage() {
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-4xl mx-auto w-full space-y-8">
          <div className="space-y-6">
             <h2 className="text-sm font-bold uppercase tracking-[4px] text-white/30 flex items-center gap-2"><Briefcase size={16} /> Standard Loans</h2>
-            {loading ? <Timer className="animate-spin" /> : sortedLoans?.length === 0 ? <p className="text-center py-4 text-white/10 text-xs">No active standard loans.</p> : sortedLoans?.map(loan => <LoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} />)}
+            {loading ? (
+                <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
+            ) : sortedLoans?.length === 0 ? (
+                <p className="text-center py-10 text-white/10 text-xs italic">No active or past standard loans.</p>
+            ) : sortedLoans?.map(loan => <LoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} />)}
             
             <h2 className="text-sm font-bold uppercase tracking-[4px] text-white/30 flex items-center gap-2 pt-6"><HandCoins size={16} /> Custom Flexi Loans</h2>
-            {loading ? <Timer className="animate-spin" /> : sortedCustomLoans?.length === 0 ? <p className="text-center py-4 text-white/10 text-xs">No active custom loans.</p> : sortedCustomLoans?.map(loan => <CustomLoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} />)}
+            {loading ? (
+                <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
+            ) : sortedCustomLoans?.length === 0 ? (
+                <p className="text-center py-10 text-white/10 text-xs italic">No active or past custom loans.</p>
+            ) : sortedCustomLoans?.map(loan => <CustomLoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} />)}
         </div>
 
         {paymentDetails && (
@@ -157,7 +167,7 @@ export default function MyLoansPage() {
                       <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Settle Amount</span>
                       <span className="text-xl font-black text-primary">₹{paymentDetails.amount.toFixed(2)}</span>
                   </div>
-                  <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 text-[10px] font-bold text-primary text-center">
+                  <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 text-[10px] font-bold text-primary text-center break-all">
                       PAY TO: {paymentDetails.upiId}
                   </div>
                </div>
@@ -169,7 +179,7 @@ export default function MyLoansPage() {
         )}
       </main>
 
-      <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl h-16 flex items-center justify-around px-4">
+      <nav className="sticky bottom-0 z-30 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl h-16 flex items-center justify-around px-4">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
@@ -188,7 +198,14 @@ function LoanCard({ loan, onPayNow }: { loan: Loan, onPayNow: (loan: Loan, amoun
     <Card className="border-white/[0.08] bg-white/[0.03] rounded-3xl p-5 space-y-6 overflow-hidden relative">
       <div className="flex justify-between items-center">
           <CardTitle className="text-white font-bold">{loan.planName}</CardTitle>
-          <Badge className={cn("text-[10px] uppercase font-black", loan.status === 'Active' ? "bg-primary/20 text-primary border-primary/30" : "bg-red-500/20 text-red-400 border-red-500/30")}>{loan.status}</Badge>
+          <Badge className={cn(
+              "text-[10px] uppercase font-black", 
+              loan.status === 'Active' ? "bg-primary/20 text-primary border-primary/30" : 
+              loan.status === 'Completed' ? "bg-green-500/20 text-green-400 border-green-500/30" :
+              "bg-red-500/20 text-red-400 border-red-500/30"
+          )}>
+              {loan.status}
+          </Badge>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -209,7 +226,7 @@ function LoanCard({ loan, onPayNow }: { loan: Loan, onPayNow: (loan: Loan, amoun
       </div>
 
       <div className="bg-black/40 rounded-2xl p-4 flex justify-between items-center">
-          <span className="text-[10px] font-black uppercase text-white/40 tracking-widest">Total Settlement</span>
+          <span className="text-[10px] font-black uppercase text-white/40 tracking-widest">Total Liability</span>
           <span className="text-xl font-black text-white">₹{totalRepayment.toFixed(2)}</span>
       </div>
       
@@ -218,9 +235,20 @@ function LoanCard({ loan, onPayNow }: { loan: Loan, onPayNow: (loan: Loan, amoun
            <span>Loan ID: #{loan.id.slice(-6)}</span>
       </div>
 
-      <Button className="w-full h-12 rounded-xl bg-white text-black font-black text-xs uppercase tracking-widest shadow-xl shadow-white/5" onClick={() => onPayNow(loan, totalRepayment)} disabled={loan.status === 'Payment Pending'}>
-          {loan.status === 'Payment Pending' ? 'Verifying Node...' : 'Initiate Settle Protocol'}
-      </Button>
+      {loan.status !== 'Completed' ? (
+          <Button 
+            className="w-full h-12 rounded-xl bg-white text-black font-black text-xs uppercase tracking-widest shadow-xl shadow-white/5" 
+            onClick={() => onPayNow(loan, totalRepayment)} 
+            disabled={loan.status === 'Payment Pending'}
+          >
+              {loan.status === 'Payment Pending' ? 'Verifying Node...' : 'Initiate Settle Protocol'}
+          </Button>
+      ) : (
+          <div className="flex items-center justify-center gap-2 py-2 text-green-400/40">
+             <CheckCircle2 size={16} />
+             <span className="text-[10px] font-bold uppercase tracking-widest">Asset Successfully Settled</span>
+          </div>
+      )}
     </Card>
   );
 }
@@ -253,7 +281,7 @@ function CustomLoanCard({ loan, onPayNow }: { loan: CustomLoanRequest, onPayNow:
                   <Button variant="ghost" className="h-12 rounded-xl text-red-400 font-bold uppercase text-[10px]">Decline</Button>
               </div>
           </div>
-      ) : (loan.status === 'active' || loan.status === 'payment_pending' || loan.status === 'extension_pending' || loan.status === 'Due') && (
+      ) : (loan.status === 'active' || loan.status === 'payment_pending' || loan.status === 'extension_pending' || loan.status === 'Due' || loan.status === 'completed') && (
            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
                    <div className="bg-black/20 p-3 rounded-xl border border-white/5">
@@ -276,9 +304,20 @@ function CustomLoanCard({ loan, onPayNow }: { loan: CustomLoanRequest, onPayNow:
                 <span>Node ID: #{loan.id.slice(-4).toUpperCase()}</span>
               </div>
 
-              <Button className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] group shadow-xl shadow-white/5" onClick={() => onPayNow(loan, totalRepayment)} disabled={loan.status === 'payment_pending'}>
-                  {loan.status === 'payment_pending' ? 'Verifying Settlement...' : <span className="flex items-center gap-2">INITIATE DEBT REPAYMENT <ArrowUpRight className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" size={14}/></span>}
-              </Button>
+              {loan.status !== 'completed' ? (
+                  <Button 
+                    className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] group shadow-xl shadow-white/5" 
+                    onClick={() => onPayNow(loan, totalRepayment)} 
+                    disabled={loan.status === 'payment_pending'}
+                  >
+                      {loan.status === 'payment_pending' ? 'Verifying Settlement...' : <span className="flex items-center gap-2">INITIATE DEBT REPAYMENT <ArrowUpRight className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" size={14}/></span>}
+                  </Button>
+              ) : (
+                  <div className="flex items-center justify-center gap-2 py-2 text-green-400/40">
+                    <CheckCircle2 size={16} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Liability Fully Purged</span>
+                  </div>
+              )}
           </div>
       )}
     </Card>
