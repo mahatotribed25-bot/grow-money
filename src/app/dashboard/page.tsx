@@ -154,12 +154,13 @@ export default function Dashboard() {
         const invData = invDoc.data() as Investment;
         const now = new Date();
         const lastClaim = invData.lastClaimDate?.toDate() || invData.startDate.toDate();
-        const diffDays = Math.floor((now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60 * 24));
+        const diffTime = Math.abs(now.getTime() - lastClaim.getTime());
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
         if (diffDays < 1) throw new Error("Not yet due for claim.");
         const amountToClaim = diffDays * invData.dailyIncome;
         transaction.update(userRef, { walletBalance: (userDoc.data().walletBalance || 0) + amountToClaim, totalIncome: (userDoc.data().totalIncome || 0) + amountToClaim });
         transaction.update(invRef, { lastClaimDate: serverTimestamp() });
-        transaction.set(doc(collection(firestore, `users/${user.uid}/walletHistory`)), { amount: amountToClaim, type: 'credit', category: 'ROI Claim', createdAt: serverTimestamp() });
+        transaction.set(doc(collection(firestore, `users/${user.uid}/walletHistory`)), { amount: amountToClaim, type: 'credit', category: 'ROI Claim', description: `Daily ROI claim for ${investment.planName}`, createdAt: serverTimestamp() });
     }).then(() => toast({ title: 'Profit Claimed!' })).catch(e => toast({ title: 'Claim Failed', description: e.message, variant: 'destructive' }));
   };
 
@@ -173,7 +174,7 @@ export default function Dashboard() {
        const amountToClaim = investment.status === 'Stopped' ? (investment.finalReturn || 0) : investment.returnAmount;
        transaction.update(invRef, { status: 'Matured' });
        transaction.update(userRef, { walletBalance: (userDoc.data().walletBalance || 0) + amountToClaim, totalInvestment: Math.max(0, (userDoc.data().totalInvestment || 0) - investment.investedAmount) });
-       transaction.set(doc(collection(firestore, `users/${user.uid}/walletHistory`)), { amount: amountToClaim, type: 'credit', category: 'Settlement', createdAt: serverTimestamp() });
+       transaction.set(doc(collection(firestore, `users/${user.uid}/walletHistory`)), { amount: amountToClaim, type: 'credit', category: 'Settlement', description: `Full settlement of ${investment.planName}`, createdAt: serverTimestamp() });
      }).then(() => toast({ title: 'Plan Settled!' })).catch(e => toast({ title: 'Settlement Failed', variant: 'destructive' }));
   };
 
@@ -359,7 +360,7 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
                                 placeholder="0.00" 
                                 value={amt} 
                                 onChange={e => setAmt(e.target.value)} 
-                                className="h-16 pl-10 text-3xl font-black bg-white/5 border-white/10 rounded-2xl focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10"
+                                className="h-16 pl-10 text-3xl font-black bg-white/5 border-white/10 rounded-2xl focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10 text-base"
                             />
                         </div>
                         <div className="grid grid-cols-4 gap-2">

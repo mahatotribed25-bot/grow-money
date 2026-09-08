@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Check, X, Send, Landmark, Timer, QrCode, Copy, ShieldCheck } from 'lucide-react';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import {
@@ -76,6 +77,8 @@ type UserData = {
 
 type AdminSettings = {
     customLoanInterestPer1000?: number;
+    totalCustomLoanLimit?: number;
+    currentCustomLoanUsage?: number;
 }
 
 const formatDate = (timestamp?: Timestamp) => {
@@ -92,11 +95,7 @@ export default function CustomLoansPage() {
   const [requestToUpdate, setRequestToUpdate] = useState<CustomLoanRequest | null>(null);
   const [userKycData, setUserKycData] = useState<UserData | null>(null);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [isExtensionDialogOpen, setIsExtensionDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-  const [extensionFee, setExtensionFee] = useState('');
-  const [rejectionReason, setRejectionReason] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected' | 'payment_pending' | 'extension_pending'>('pending_admin_review');
 
   const [calculatedInterestInfo, setCalculatedInterestInfo] = useState<{
