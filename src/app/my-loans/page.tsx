@@ -1,4 +1,3 @@
-
 'use client';
 import {
   ChevronLeft,
@@ -12,7 +11,9 @@ import {
   IndianRupee,
   Percent,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Loader2,
+  ShieldCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -75,11 +76,11 @@ export default function MyLoansPage() {
   const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   const { data: customLoans, loading: customLoansLoading } = useCollection<CustomLoanRequest>(user ? query(collection(firestore, 'customLoanRequests'), where('userId', '==', user.uid)) : null);
 
+  const [isProcessing, setIsProcessing] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<{
     isOpen: boolean;
     loan: Loan | CustomLoanRequest;
     amount: number;
-    upiId: string;
   } | null>(null);
 
   const loading = loansLoading || settingsLoading || customLoansLoading;
@@ -87,39 +88,86 @@ export default function MyLoansPage() {
   const sortedLoans = allLoans?.sort((a,b) => b.startDate.seconds - a.startDate.seconds);
   const sortedCustomLoans = customLoans?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds);
 
-  const handlePaymentInitiation = (loan: Loan | CustomLoanRequest, amount: number) => {
-    const isCustom = 'requestedAmount' in loan;
-    const upiIdForPayment = isCustom 
-        ? adminSettings?.customLoanUpi || adminSettings?.adminUpi || '' 
-        : adminSettings?.adminUpi || '';
+  const initiateRazorpayPayment = async (loan: Loan | CustomLoanRequest, amount: number) => {
+    if (!user) return;
+    setIsProcessing(true);
 
-    if (!upiIdForPayment) {
-        toast({ title: "Admin UPI not set", variant: "destructive"});
-        return;
+    try {
+        // Step 1: Create Order on Backend
+        const orderRes = await fetch('/api/razorpay/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: amount * 100, // INR to Paise
+                currency: 'INR',
+                receipt: `loan_${loan.id}`
+            })
+        });
+
+        const order = await orderRes.json();
+        if (!orderRes.ok) throw new Error(order.error || 'Failed to create order');
+
+        // Step 2: Open Razorpay Modal
+        const options = {
+            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+            amount: order.amount,
+            currency: order.currency,
+            name: "Grow Money",
+            description: `Loan Settlement Node: #${loan.id.slice(-6).toUpperCase()}`,
+            order_id: order.id,
+            handler: async function (response: any) {
+                // Step 3: Verify Payment Signature
+                const verifyRes = await fetch('/api/razorpay/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(response)
+                });
+                
+                const verifyData = await verifyRes.json();
+                if (verifyData.status === 'ok') {
+                    handlePaymentSuccess(loan);
+                } else {
+                    toast({ title: "Payment Verification Failed", variant: "destructive" });
+                }
+            },
+            prefill: {
+                name: user.displayName || 'Investor',
+                email: user.email || '',
+            },
+            theme: {
+                color: "#8b5cf6"
+            }
+        };
+
+        const rzp1 = new (window as any).Razorpay(options);
+        rzp1.open();
+        
+        rzp1.on('payment.failed', function (response: any) {
+            toast({ title: "Payment Failed", description: response.error.description, variant: "destructive" });
+        });
+
+    } catch (e: any) {
+        toast({ title: "Payment Initialization Error", description: e.message, variant: "destructive" });
+    } finally {
+        setIsProcessing(false);
+        setPaymentDetails(null);
     }
-
-    setPaymentDetails({
-      isOpen: true,
-      loan,
-      amount,
-      upiId: upiIdForPayment,
-    });
   };
 
-  const handlePaymentConfirmation = () => {
-    if (!user || !paymentDetails || !paymentDetails.loan) return;
-
-    const { loan } = paymentDetails;
+  const handlePaymentSuccess = (loan: Loan | CustomLoanRequest) => {
     const isCustom = 'requestedAmount' in loan;
-    const collectionName = isCustom ? 'customLoanRequests' : `users/${user.uid}/loans`;
+    const collectionName = isCustom ? 'customLoanRequests' : `users/${user!.uid}/loans`;
     const loanRef = doc(firestore, collectionName, loan.id);
     
-    const dataToUpdate = { status: isCustom ? 'payment_pending' : 'Payment Pending' };
+    const dataToUpdate = { 
+        status: isCustom ? 'payment_pending' : 'Payment Pending',
+        paidAt: serverTimestamp(),
+        gateway: 'razorpay'
+    };
 
     updateDoc(loanRef, dataToUpdate)
         .then(() => {
-            toast({ title: 'Payment Initiated' });
-            setPaymentDetails(null);
+            toast({ title: 'Payment Verified & Secured', description: "Admin will settle the node shortly." });
         })
         .catch(async (serverError) => {
             const permissionError = new FirestorePermissionError({
@@ -146,7 +194,7 @@ export default function MyLoansPage() {
                 <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
             ) : sortedLoans?.length === 0 ? (
                 <Card className="bg-white/[0.02] border-white/5 border-dashed py-10 text-center rounded-[2rem]"><p className="text-white/20 text-[10px] uppercase font-black tracking-widest">No active standard protocols</p></Card>
-            ) : sortedLoans?.map(loan => <LoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} />)}
+            ) : sortedLoans?.map(loan => <LoanCard key={loan.id} loan={loan} onPayNow={(l, a) => setPaymentDetails({ isOpen: true, loan: l, amount: a })} />)}
         </div>
 
         <div className="space-y-6">
@@ -155,34 +203,39 @@ export default function MyLoansPage() {
                 <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
             ) : sortedCustomLoans?.length === 0 ? (
                 <Card className="bg-white/[0.02] border-white/5 border-dashed py-10 text-center rounded-[2rem]"><p className="text-white/20 text-[10px] uppercase font-black tracking-widest">No custom flexi requests</p></Card>
-            ) : sortedCustomLoans?.map(loan => <CustomLoanCard key={loan.id} loan={loan} onPayNow={handlePaymentInitiation} />)}
+            ) : sortedCustomLoans?.map(loan => <CustomLoanCard key={loan.id} loan={loan} onPayNow={(l, a) => setPaymentDetails({ isOpen: true, loan: l, amount: a })} />)}
         </div>
 
         {paymentDetails && (
           <Dialog open={paymentDetails.isOpen} onOpenChange={() => setPaymentDetails(null)}>
-            <DialogContent className="bg-[#030408]/95 border-white/10 text-white rounded-[2rem] max-w-sm">
+            <DialogContent className="bg-[#030408]/95 border-white/10 text-white rounded-[2.5rem] max-w-sm">
                <DialogHeader>
-                  <DialogTitle className="text-center font-black uppercase tracking-tight">Repayment Initiation</DialogTitle>
-                  <DialogDescription className="text-center text-white/40 text-xs">Execute settlement node via UPI protocol.</DialogDescription>
+                  <DialogTitle className="text-center font-black uppercase tracking-tight">Protocol Settlement</DialogTitle>
+                  <DialogDescription className="text-center text-white/40 text-xs">Execute settlement node via secure gateway.</DialogDescription>
                </DialogHeader>
                <div className="py-8 space-y-8">
-                  <div className="bg-white/5 p-6 rounded-3xl border border-white/5 flex flex-col items-center gap-1 shadow-inner">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Settle Amount</span>
+                  <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center gap-1 shadow-inner">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Liability to Settle</span>
                       <span className="text-3xl font-black text-primary tracking-tighter">₹{paymentDetails.amount.toFixed(2)}</span>
                   </div>
-                  <div className="space-y-3">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">Target Address</Label>
-                      <div className="p-4 bg-black/40 rounded-xl border border-white/10 text-[11px] font-bold text-primary text-center break-all font-mono">
-                          {paymentDetails.upiId}
+                  
+                  <div className="flex items-start gap-3 p-5 bg-primary/5 border border-primary/10 rounded-2xl">
+                      <ShieldCheck className="text-primary h-5 w-5 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] text-white/90 font-black uppercase tracking-widest mb-1">Encrypted Gateway</p>
+                        <p className="text-[9px] text-white/30 leading-relaxed font-bold">Your payment is secured by Razorpay Bank-Grade encryption. 100% verified protocol.</p>
                       </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/10 rounded-2xl">
-                      <AlertTriangle className="text-primary h-5 w-5 shrink-0" />
-                      <p className="text-[10px] text-white/40 leading-relaxed font-bold">Ensure you copy the UPI ID and pay the EXACT amount. Confirm only after successful transfer.</p>
                   </div>
                </div>
                <DialogFooter>
-                  <Button onClick={handlePaymentConfirmation} className="w-full h-14 rounded-2xl font-black bg-primary text-white shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all">I HAVE PAID (NOTIFY ADMIN)</Button>
+                  <Button 
+                    onClick={() => initiateRazorpayPayment(paymentDetails.loan, paymentDetails.amount)} 
+                    disabled={isProcessing}
+                    className="w-full h-15 rounded-2xl font-black bg-white text-black hover:bg-primary hover:text-white shadow-2xl transition-all gap-2"
+                  >
+                      {isProcessing ? <Loader2 className="animate-spin h-5 w-5" /> : null}
+                      {isProcessing ? "INITIALIZING SECURE LINK..." : "PAY WITH RAZORPAY"}
+                  </Button>
                </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -252,7 +305,7 @@ function LoanCard({ loan, onPayNow }: { loan: Loan, onPayNow: (loan: Loan, amoun
             onClick={() => onPayNow(loan, totalRepayment)} 
             disabled={loan.status === 'Payment Pending'}
           >
-              {loan.status === 'Payment Pending' ? 'Verifying Settle Node...' : 'Initiate Settlement'}
+              {loan.status === 'Payment Pending' ? 'Verifying Settle Node...' : 'Secure Settlement'}
           </Button>
       ) : (
           <div className="flex items-center justify-center gap-2 py-2 text-green-400/40 relative z-10">
@@ -322,7 +375,7 @@ function CustomLoanCard({ loan, onPayNow }: { loan: CustomLoanRequest, onPayNow:
                     onClick={() => onPayNow(loan, totalRepayment)} 
                     disabled={loan.status === 'payment_pending'}
                   >
-                      {loan.status === 'payment_pending' ? 'Verification Cycle Active' : <span className="flex items-center gap-2">Initiate Repayment <ArrowUpRight size={14}/></span>}
+                      {loan.status === 'payment_pending' ? 'Verification Cycle Active' : <span className="flex items-center gap-2">Settle with Razorpay <ArrowUpRight size={14}/></span>}
                   </Button>
               ) : (
                   <div className="flex items-center justify-center gap-2 py-2 text-green-400/40">
