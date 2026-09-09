@@ -13,7 +13,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
-  ShieldCheck
+  ShieldCheck,
+  Copy,
+  QrCode
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -37,6 +39,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import Image from 'next/image';
 
 type Loan = {
   id: string;
@@ -76,11 +79,11 @@ export default function MyLoansPage() {
   const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   const { data: customLoans, loading: customLoansLoading } = useCollection<CustomLoanRequest>(user ? query(collection(firestore, 'customLoanRequests'), where('userId', '==', user.uid)) : null);
 
-  const [isProcessing, setIsProcessing] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<{
     isOpen: boolean;
     loan: Loan | CustomLoanRequest;
     amount: number;
+    isCustom: boolean;
   } | null>(null);
 
   const loading = loansLoading || settingsLoading || customLoansLoading;
@@ -88,86 +91,28 @@ export default function MyLoansPage() {
   const sortedLoans = allLoans?.sort((a,b) => b.startDate.seconds - a.startDate.seconds);
   const sortedCustomLoans = customLoans?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds);
 
-  const initiateRazorpayPayment = async (loan: Loan | CustomLoanRequest, amount: number) => {
-    if (!user) return;
-    setIsProcessing(true);
-
-    try {
-        // Step 1: Create Order on Backend
-        const orderRes = await fetch('/api/razorpay/order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                amount: amount * 100, // INR to Paise
-                currency: 'INR',
-                receipt: `loan_${loan.id}`
-            })
-        });
-
-        const order = await orderRes.json();
-        if (!orderRes.ok) throw new Error(order.error || 'Failed to create order');
-
-        // Step 2: Open Razorpay Modal
-        const options = {
-            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-            amount: order.amount,
-            currency: order.currency,
-            name: "Grow Money",
-            description: `Loan Settlement Node: #${loan.id.slice(-6).toUpperCase()}`,
-            order_id: order.id,
-            handler: async function (response: any) {
-                // Step 3: Verify Payment Signature
-                const verifyRes = await fetch('/api/razorpay/verify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(response)
-                });
-                
-                const verifyData = await verifyRes.json();
-                if (verifyData.status === 'ok') {
-                    handlePaymentSuccess(loan);
-                } else {
-                    toast({ title: "Payment Verification Failed", variant: "destructive" });
-                }
-            },
-            prefill: {
-                name: user.displayName || 'Investor',
-                email: user.email || '',
-            },
-            theme: {
-                color: "#8b5cf6"
-            }
-        };
-
-        const rzp1 = new (window as any).Razorpay(options);
-        rzp1.open();
-        
-        rzp1.on('payment.failed', function (response: any) {
-            toast({ title: "Payment Failed", description: response.error.description, variant: "destructive" });
-        });
-
-    } catch (e: any) {
-        toast({ title: "Payment Initialization Error", description: e.message, variant: "destructive" });
-    } finally {
-        setIsProcessing(false);
-        setPaymentDetails(null);
-    }
+  const handleCopyToClipboard = (text?: string, label?: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    toast({ title: `${label} Copied!` });
   };
 
-  const handlePaymentSuccess = (loan: Loan | CustomLoanRequest) => {
-    const isCustom = 'requestedAmount' in loan;
-    const collectionName = isCustom ? 'customLoanRequests' : `users/${user!.uid}/loans`;
+  const handleMarkAsPaid = () => {
+    if (!user || !paymentDetails) return;
+    
+    const { loan, isCustom } = paymentDetails;
+    const collectionName = isCustom ? 'customLoanRequests' : `users/${user.uid}/loans`;
     const loanRef = doc(firestore, collectionName, loan.id);
     
     const dataToUpdate = { 
         status: isCustom ? 'payment_pending' : 'Payment Pending',
-        paidAt: serverTimestamp(),
-        gateway: 'razorpay'
+        paidNotificationAt: serverTimestamp()
     };
 
     updateDoc(loanRef, dataToUpdate)
         .then(() => {
-            toast({ title: 'Payment Verified & Secured', description: "Admin will settle the node shortly." });
+            toast({ title: 'Notification Sent', description: "Admin will verify your payment and settle the node shortly." });
+            setPaymentDetails(null);
         })
         .catch(async (serverError) => {
             const permissionError = new FirestorePermissionError({
@@ -178,6 +123,9 @@ export default function MyLoansPage() {
             errorEmitter.emit('permission-error', permissionError);
         });
   };
+
+  const targetUpi = paymentDetails?.isCustom ? (adminSettings?.customLoanUpi || adminSettings?.adminUpi) : adminSettings?.adminUpi;
+  const upiDeeplink = targetUpi ? `upi://pay?pa=${targetUpi}&pn=Grow%20Money&am=${paymentDetails?.amount.toFixed(2)}&cu=INR` : '';
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground relative z-10">
@@ -194,7 +142,7 @@ export default function MyLoansPage() {
                 <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
             ) : sortedLoans?.length === 0 ? (
                 <Card className="bg-white/[0.02] border-white/5 border-dashed py-10 text-center rounded-[2rem]"><p className="text-white/20 text-[10px] uppercase font-black tracking-widest">No active standard protocols</p></Card>
-            ) : sortedLoans?.map(loan => <LoanCard key={loan.id} loan={loan} onPayNow={(l, a) => setPaymentDetails({ isOpen: true, loan: l, amount: a })} />)}
+            ) : sortedLoans?.map(loan => <LoanCard key={loan.id} loan={loan} onPayNow={(l, a) => setPaymentDetails({ isOpen: true, loan: l, amount: a, isCustom: false })} />)}
         </div>
 
         <div className="space-y-6">
@@ -203,40 +151,54 @@ export default function MyLoansPage() {
                 <div className="flex justify-center p-10 opacity-20"><Timer className="animate-spin" /></div>
             ) : sortedCustomLoans?.length === 0 ? (
                 <Card className="bg-white/[0.02] border-white/5 border-dashed py-10 text-center rounded-[2rem]"><p className="text-white/20 text-[10px] uppercase font-black tracking-widest">No custom flexi requests</p></Card>
-            ) : sortedCustomLoans?.map(loan => <CustomLoanCard key={loan.id} loan={loan} onPayNow={(l, a) => setPaymentDetails({ isOpen: true, loan: l, amount: a })} />)}
+            ) : sortedCustomLoans?.map(loan => <CustomLoanCard key={loan.id} loan={loan} onPayNow={(l, a) => setPaymentDetails({ isOpen: true, loan: l, amount: a, isCustom: true })} />)}
         </div>
 
         {paymentDetails && (
           <Dialog open={paymentDetails.isOpen} onOpenChange={() => setPaymentDetails(null)}>
             <DialogContent className="bg-[#030408]/95 border-white/10 text-white rounded-[2.5rem] max-w-sm">
                <DialogHeader>
-                  <DialogTitle className="text-center font-black uppercase tracking-tight">Protocol Settlement</DialogTitle>
-                  <DialogDescription className="text-center text-white/40 text-xs">Execute settlement node via secure gateway.</DialogDescription>
+                  <DialogTitle className="text-center font-black uppercase tracking-tight">Manual Settlement</DialogTitle>
+                  <DialogDescription className="text-center text-white/40 text-xs">Send the exact amount to the admin node below.</DialogDescription>
                </DialogHeader>
-               <div className="py-8 space-y-8">
-                  <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center gap-1 shadow-inner">
+               
+               <div className="py-6 space-y-6">
+                  <div className="bg-white/5 p-5 rounded-[2rem] border border-white/5 flex flex-col items-center gap-1 shadow-inner">
                       <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Liability to Settle</span>
                       <span className="text-3xl font-black text-primary tracking-tighter">₹{paymentDetails.amount.toFixed(2)}</span>
                   </div>
-                  
-                  <div className="flex items-start gap-3 p-5 bg-primary/5 border border-primary/10 rounded-2xl">
-                      <ShieldCheck className="text-primary h-5 w-5 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-[10px] text-white/90 font-black uppercase tracking-widest mb-1">Encrypted Gateway</p>
-                        <p className="text-[9px] text-white/30 leading-relaxed font-bold">Your payment is secured by Razorpay Bank-Grade encryption. 100% verified protocol.</p>
+
+                  <div className="flex flex-col items-center gap-4">
+                      <div className="bg-white p-3 rounded-2xl shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+                          <Image
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiDeeplink)}`}
+                              alt="UPI QR"
+                              width={150}
+                              height={150}
+                          />
+                      </div>
+                      <div className="w-full space-y-2">
+                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Admin Payment ID</Label>
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
+                            <span className="font-mono text-sm font-bold text-white/80">{targetUpi || 'NOT SET'}</span>
+                            <Button variant="ghost" size="icon" onClick={() => handleCopyToClipboard(targetUpi, 'UPI ID')} className="h-8 w-8 hover:bg-white/10">
+                                <Copy size={14} className="text-primary" />
+                            </Button>
+                        </div>
                       </div>
                   </div>
+
+                  <div className="space-y-3">
+                      <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
+                          <a href={upiDeeplink}>
+                              <QrCode size={16} className="mr-2" /> Launch UPI App
+                          </a>
+                      </Button>
+                      <Button onClick={handleMarkAsPaid} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">
+                          <ShieldCheck size={18} className="mr-2" /> I HAVE PAID (NOTIFY ADMIN)
+                      </Button>
+                  </div>
                </div>
-               <DialogFooter>
-                  <Button 
-                    onClick={() => initiateRazorpayPayment(paymentDetails.loan, paymentDetails.amount)} 
-                    disabled={isProcessing}
-                    className="w-full h-15 rounded-2xl font-black bg-white text-black hover:bg-primary hover:text-white shadow-2xl transition-all gap-2"
-                  >
-                      {isProcessing ? <Loader2 className="animate-spin h-5 w-5" /> : null}
-                      {isProcessing ? "INITIALIZING SECURE LINK..." : "PAY WITH RAZORPAY"}
-                  </Button>
-               </DialogFooter>
             </DialogContent>
           </Dialog>
         )}
@@ -305,7 +267,7 @@ function LoanCard({ loan, onPayNow }: { loan: Loan, onPayNow: (loan: Loan, amoun
             onClick={() => onPayNow(loan, totalRepayment)} 
             disabled={loan.status === 'Payment Pending'}
           >
-              {loan.status === 'Payment Pending' ? 'Verifying Settle Node...' : 'Secure Settlement'}
+              {loan.status === 'Payment Pending' ? 'Verification Cycle Active' : 'Secure Settlement'}
           </Button>
       ) : (
           <div className="flex items-center justify-center gap-2 py-2 text-green-400/40 relative z-10">
@@ -375,7 +337,7 @@ function CustomLoanCard({ loan, onPayNow }: { loan: CustomLoanRequest, onPayNow:
                     onClick={() => onPayNow(loan, totalRepayment)} 
                     disabled={loan.status === 'payment_pending'}
                   >
-                      {loan.status === 'payment_pending' ? 'Verification Cycle Active' : <span className="flex items-center gap-2">Settle with Razorpay <ArrowUpRight size={14}/></span>}
+                      {loan.status === 'payment_pending' ? 'Verification Cycle Active' : <span className="flex items-center gap-2">Secure Settlement <ArrowUpRight size={14}/></span>}
                   </Button>
               ) : (
                   <div className="flex items-center justify-center gap-2 py-2 text-green-400/40">

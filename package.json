@@ -55,8 +55,7 @@
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.2",
-    "events": "^3.3.0",
-    "razorpay": "^2.9.5"
+    "events": "^3.3.0"
   },
   "devDependencies": {
     "@types/node": "^20",
