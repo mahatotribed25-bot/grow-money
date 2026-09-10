@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: 'grow money',
-  description: 'Secure authentication for your applications.',
+  description: 'Elite Investment & Loan Ledger Node',
 };
 
 export default function RootLayout({
