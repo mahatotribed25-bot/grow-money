@@ -16,7 +16,8 @@ import {
   QrCode,
   Clock,
   CircleDot,
-  AlertCircle
+  AlertCircle,
+  Info
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -196,7 +197,7 @@ export default function MyLoansPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-10">
         
-        {/* SECTION 1: TOTAL OBLIGATIONS (Screenshot Style) */}
+        {/* SECTION 1: TOTAL OBLIGATIONS */}
         {(activeStandardLoans.length > 0 || activeCustomLoans.length > 0) ? (
             <Card className="bg-[#0a0b14] border-white/5 rounded-[2rem] overflow-hidden shadow-2xl relative">
                 <div className="absolute top-0 right-0 p-8 opacity-5">
@@ -228,7 +229,10 @@ export default function MyLoansPage() {
                              {/* Standard Loan EMI List */}
                              {activeStandardLoans.map(loan => (
                                 <div key={loan.id} className="space-y-2">
-                                    <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest pl-2">{loan.planName} Schedule</p>
+                                    <div className="flex justify-between items-end px-2">
+                                        <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest">{loan.planName} Schedule</p>
+                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Principal: ₹{loan.loanAmount}</p>
+                                    </div>
                                     {loan.repaymentMethod === 'EMI' ? loan.emis?.map((emi, i) => (
                                         <RepaymentRow 
                                             key={`${loan.id}-${i}`}
@@ -251,12 +255,16 @@ export default function MyLoansPage() {
                              {/* Custom Loan List */}
                              {activeCustomLoans.map(loan => (
                                 <div key={loan.id} className="space-y-2">
-                                    <p className="text-[9px] font-black text-green-400/60 uppercase tracking-widest pl-2">Flexi Protocol Node</p>
+                                    <div className="flex justify-between items-end px-2">
+                                        <p className="text-[9px] font-black text-green-400/60 uppercase tracking-widest">Flexi Protocol Node</p>
+                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Taken: ₹{loan.requestedAmount}</p>
+                                    </div>
                                     <RepaymentRow 
                                         date={loan.dueDate?.toDate() || new Date()} 
                                         amount={loan.totalRepayment || 0} 
                                         status={loan.status === 'active' ? 'Active' : loan.status} 
                                         onPay={() => setPaymentDetails({ isOpen: true, loan: loan, amount: loan.totalRepayment || 0, isCustom: true })}
+                                        subtext={`Interest: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
                                     />
                                 </div>
                              ))}
@@ -352,7 +360,7 @@ export default function MyLoansPage() {
   );
 }
 
-function RepaymentRow({ date, amount, status, onPay }: { date: Date, amount: number, status: string, onPay: () => void }) {
+function RepaymentRow({ date, amount, status, onPay, subtext }: { date: Date, amount: number, status: string, onPay: () => void, subtext?: string }) {
     const isPaid = status.toLowerCase() === 'paid' || status.toLowerCase() === 'completed';
     const isPendingAdmin = status.toLowerCase() === 'payment pending';
 
@@ -361,6 +369,7 @@ function RepaymentRow({ date, amount, status, onPay }: { date: Date, amount: num
             <div className="flex flex-col">
                 <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{date.toLocaleDateString()}</span>
                 <span className="text-base font-black text-white tracking-tight">₹{amount.toFixed(2)}</span>
+                {subtext && <span className="text-[8px] font-bold text-primary/40 uppercase tracking-widest">{subtext}</span>}
             </div>
             {isPaid ? (
                 <Badge variant="outline" className="h-6 bg-green-500/10 text-green-400 border-green-500/20 text-[8px] font-black uppercase tracking-widest px-3">PAID</Badge>
@@ -376,22 +385,41 @@ function RepaymentRow({ date, amount, status, onPay }: { date: Date, amount: num
 }
 
 function HistoryCard({ loan, isCustom }: { loan: any, isCustom?: boolean }) {
+    const principal = isCustom ? (loan.requestedAmount || 0) : (loan.loanAmount || 0);
+    const total = isCustom ? (loan.totalRepayment || 0) : (loan.totalPayable || 0);
+    const interest = total - principal;
+
     return (
-        <Card className="bg-white/[0.02] border-white/5 rounded-2xl p-4 flex items-center justify-between group grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all">
-            <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-green-500/5 flex items-center justify-center border border-green-500/10">
-                    <CheckCircle2 size={18} className="text-green-500" />
+        <Card className="bg-white/[0.02] border-white/5 rounded-2xl p-5 group grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all relative overflow-hidden">
+            <div className="flex items-center justify-between relative z-10 mb-4">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-green-500/5 flex items-center justify-center border border-green-500/10">
+                        <CheckCircle2 size={18} className="text-green-500" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold text-white/80">{isCustom ? 'Flexi Protocol' : loan.planName}</p>
+                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Node ID: #{loan.id.slice(-6).toUpperCase()}</p>
+                    </div>
                 </div>
-                <div>
-                    <p className="text-sm font-bold text-white/80">{isCustom ? 'Flexi Protocol' : loan.planName}</p>
-                    <p className="text-[9px] text-white/20 uppercase font-bold tracking-widest">
-                        ₹{(isCustom ? (loan.requestedAmount || 0) : (loan.loanAmount || 0)).toLocaleString()} • Node: #{loan.id.slice(-6).toUpperCase()}
-                    </p>
+                <div className="text-right">
+                    <p className="text-[10px] font-black text-green-500/50 uppercase tracking-widest">SETTLED</p>
+                    <p className="text-[9px] text-white/10 font-bold uppercase">{new Date((loan.startDate || loan.createdAt || Timestamp.now()).seconds * 1000).toLocaleDateString()}</p>
                 </div>
             </div>
-            <div className="text-right">
-                <p className="text-[10px] font-black text-green-500/50 uppercase tracking-widest">SETTLED</p>
-                <p className="text-[9px] text-white/10 font-bold uppercase">{new Date((loan.startDate || loan.createdAt || Timestamp.now()).seconds * 1000).toLocaleDateString()}</p>
+            
+            <div className="grid grid-cols-3 gap-2 relative z-10">
+                <div className="bg-white/5 rounded-lg p-2 text-center">
+                    <p className="text-[7px] font-black text-white/20 uppercase tracking-widest">Principal</p>
+                    <p className="text-[11px] font-bold text-white/70">₹{principal}</p>
+                </div>
+                <div className="bg-white/5 rounded-lg p-2 text-center">
+                    <p className="text-[7px] font-black text-white/20 uppercase tracking-widest">Interest</p>
+                    <p className="text-[11px] font-bold text-primary/60">₹{interest.toFixed(2)}</p>
+                </div>
+                <div className="bg-white/5 rounded-lg p-2 text-center">
+                    <p className="text-[7px] font-black text-white/20 uppercase tracking-widest">Settled</p>
+                    <p className="text-[11px] font-bold text-green-400">₹{total.toFixed(2)}</p>
+                </div>
             </div>
         </Card>
     );
@@ -401,7 +429,7 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
   return (
     <Link href={href} className={cn(
         "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
-        active ? 'text-primary scale-110' : 'text-white/20 hover:text-white/40'
+        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
     )}>
       <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(139,92,246,0.5)]")} />
       <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
