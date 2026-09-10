@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -312,18 +313,18 @@ export default function ProfilePage() {
             <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl sm:col-span-2 overflow-hidden relative">
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-white/20">
-                        <FileCheck size={14} className="text-blue-400" /> KYC Identification
+                        <FileCheck size={14} className="text-blue-400" /> Identity Verification
                     </CardTitle>
                     {userData?.kycStatus !== 'Verified' && (
                         <Button onClick={() => setIsKycOpen(true)} size="sm" className="h-8 px-4 rounded-xl font-black uppercase text-[9px]">
-                           {userData?.kycStatus === 'Rejected' ? 'Re-Submit KYC' : 'Verify Identity'}
+                           {userData?.kycStatus === 'Rejected' ? 'Re-Submit' : 'Verify Node'}
                         </Button>
                     )}
                 </CardHeader>
                 <CardContent className="px-6 pb-6">
                      <div className="flex items-center justify-between">
                         <div className="space-y-1">
-                             <p className="text-sm font-bold text-white/80">Identity Status</p>
+                             <p className="text-sm font-bold text-white/80">KYC Status</p>
                              <Badge className={cn(
                                  "text-[8px] font-black uppercase h-5",
                                  userData?.kycStatus === 'Verified' ? "bg-green-500/20 text-green-400 border-green-500/30" :
@@ -438,8 +439,8 @@ export default function ProfilePage() {
         <Dialog open={isKycOpen} onOpenChange={setIsKycOpen}>
             <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2.5rem]">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Identity Verification Node</DialogTitle>
-                    <DialogDescription className="text-white/40">Verified accounts unlock higher loan limits and instant payouts.</DialogDescription>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Identification Node</DialogTitle>
+                    <DialogDescription className="text-white/40">Verified nodes unlock higher loan limits and instant payouts.</DialogDescription>
                 </DialogHeader>
                 <div className="py-6 space-y-4">
                     <div className="space-y-2">

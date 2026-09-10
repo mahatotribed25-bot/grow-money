@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Wallet,
@@ -347,7 +348,7 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
                                 <p className="text-xl font-black tracking-tighter text-white">₹{(userData?.walletBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                             </div>
                         </div>
-                        <Eye size={18} className="text-white/20" />
+                        <Eye size={18} className="text-white/20 relative z-10" />
                     </div>
 
                     <div className="space-y-4">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -24,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
-import { collection, Timestamp, where, query, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, Timestamp, where, query, doc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useMemo } from 'react';
@@ -41,6 +42,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 
 type EMI = {
@@ -117,13 +119,8 @@ export default function MyLoansPage() {
   const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
   const { data: customLoans, loading: customLoansLoading } = useCollection<CustomLoanRequest>(user ? query(collection(firestore, 'customLoanRequests'), where('userId', '==', user.uid)) : null);
 
-  const [paymentDetails, setPaymentDetails] = useState<{
-    isOpen: boolean;
-    loan: Loan | CustomLoanRequest;
-    amount: number;
-    isCustom: boolean;
-    emiIndex?: number;
-  } | null>(null);
+  const [selectedItems, setSelectedItems] = useState<{ id: string; emiIndex?: number; amount: number; isCustom: boolean; loanName: string }[]>([]);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const loading = loansLoading || settingsLoading || customLoansLoading;
   
@@ -133,16 +130,59 @@ export default function MyLoansPage() {
   const sortedCustomLoans = useMemo(() => customLoans?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds) || [], [customLoans]);
   const activeCustomLoans = sortedCustomLoans.filter(l => ['active', 'payment_pending', 'extension_pending', 'pending_user_approval'].includes(l.status));
 
-  const totalDueAmount = useMemo(() => {
-    const standardDue = activeStandardLoans.reduce((sum, l) => {
-        if (l.repaymentMethod === 'EMI') {
-            return sum + (l.emis?.filter(e => e.status !== 'Paid').reduce((s, e) => s + e.emiAmount, 0) || 0);
+  const totalSelectedAmount = useMemo(() => {
+    return selectedItems.reduce((sum, item) => sum + item.amount, 0);
+  }, [selectedItems]);
+
+  const handleToggleSelect = (loan: Loan | CustomLoanRequest, amount: number, isCustom: boolean, emiIndex?: number) => {
+    const itemKey = `${loan.id}-${emiIndex ?? 'custom'}`;
+    const exists = selectedItems.find(item => `${item.id}-${item.emiIndex ?? 'custom'}` === itemKey);
+
+    if (exists) {
+        setSelectedItems(selectedItems.filter(item => `${item.id}-${item.emiIndex ?? 'custom'}` !== itemKey));
+    } else {
+        setSelectedItems([...selectedItems, { 
+            id: loan.id, 
+            emiIndex, 
+            amount, 
+            isCustom, 
+            loanName: isCustom ? 'Flexi Protocol' : (loan as Loan).planName 
+        }]);
+    }
+  };
+
+  const handleBatchMarkAsPaid = async () => {
+    if (!user || selectedItems.length === 0) return;
+    
+    const batch = writeBatch(firestore);
+    
+    selectedItems.forEach(item => {
+        const loanRef = doc(firestore, item.isCustom ? 'customLoanRequests' : `users/${user.uid}/loans`, item.id);
+        
+        if (item.isCustom) {
+            batch.update(loanRef, { status: 'payment_pending', paidNotificationAt: serverTimestamp() });
+        } else {
+            // For Standard Loans
+            const originalLoan = allLoans?.find(l => l.id === item.id);
+            if (originalLoan && originalLoan.emis && item.emiIndex !== undefined) {
+                const updatedEmis = [...originalLoan.emis];
+                updatedEmis[item.emiIndex].status = 'Payment Pending';
+                batch.update(loanRef, { emis: updatedEmis, paidNotificationAt: serverTimestamp() });
+            } else {
+                batch.update(loanRef, { status: 'Payment Pending', paidNotificationAt: serverTimestamp() });
+            }
         }
-        return sum + l.totalPayable;
-    }, 0);
-    const customDue = activeCustomLoans.reduce((sum, l) => sum + (l.totalRepayment || 0), 0);
-    return standardDue + customDue;
-  }, [activeStandardLoans, activeCustomLoans]);
+    });
+
+    try {
+        await batch.commit();
+        toast({ title: 'Notifications Sent', description: `${selectedItems.length} payment notifications sent to admin.` });
+        setSelectedItems([]);
+        setIsPaymentModalOpen(false);
+    } catch (e: any) {
+        toast({ title: 'Update Failed', variant: 'destructive' });
+    }
+  };
 
   const handleCopyToClipboard = (text?: string, label?: string) => {
     if (!text) return;
@@ -150,40 +190,9 @@ export default function MyLoansPage() {
     toast({ title: `${label} Copied!` });
   };
 
-  const handleMarkAsPaid = () => {
-    if (!user || !paymentDetails) return;
-    
-    const { loan, isCustom, emiIndex } = paymentDetails;
-    const loanRef = doc(firestore, isCustom ? 'customLoanRequests' : `users/${user.uid}/loans`, loan.id);
-    
-    let updatePayload: any = { 
-        status: isCustom ? 'payment_pending' : 'Payment Pending',
-        paidNotificationAt: serverTimestamp()
-    };
-
-    if (!isCustom && emiIndex !== undefined && (loan as Loan).emis) {
-        const updatedEmis = [...(loan as Loan).emis!];
-        updatedEmis[emiIndex].status = 'Payment Pending';
-        updatePayload = { emis: updatedEmis, paidNotificationAt: serverTimestamp() };
-    }
-
-    updateDoc(loanRef, updatePayload)
-        .then(() => {
-            toast({ title: 'Notification Sent', description: "Admin will verify your payment shortly." });
-            setPaymentDetails(null);
-        })
-        .catch(async (serverError) => {
-            const permissionError = new FirestorePermissionError({
-                path: loanRef.path,
-                operation: 'update',
-                requestResourceData: updatePayload,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        });
-  };
-
-  const targetUpi = paymentDetails?.isCustom ? (adminSettings?.customLoanUpi || adminSettings?.adminUpi) : adminSettings?.adminUpi;
-  const upiDeeplink = targetUpi ? `upi://pay?pa=${targetUpi}&pn=Grow%20Money&am=${paymentDetails?.amount.toFixed(2)}&cu=INR` : '';
+  const hasAnyCustomSelected = selectedItems.some(item => item.isCustom);
+  const targetUpi = hasAnyCustomSelected ? (adminSettings?.customLoanUpi || adminSettings?.adminUpi) : adminSettings?.adminUpi;
+  const upiDeeplink = targetUpi ? `upi://pay?pa=${targetUpi}&pn=Grow%20Money&am=${totalSelectedAmount.toFixed(2)}&cu=INR` : '';
 
   if (loading) return <div className="flex h-screen items-center justify-center bg-[#030408]"><Timer className="animate-spin text-primary" /></div>;
 
@@ -197,21 +206,28 @@ export default function MyLoansPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-10">
         
-        {/* SECTION 1: TOTAL OBLIGATIONS */}
+        {/* SECTION 1: HERO OBLIGATIONS CARD */}
         {(activeStandardLoans.length > 0 || activeCustomLoans.length > 0) ? (
             <Card className="bg-[#0a0b14] border-white/5 rounded-[2rem] overflow-hidden shadow-2xl relative">
                 <div className="absolute top-0 right-0 p-8 opacity-5">
                     <HandCoins size={120} className="text-primary" />
                 </div>
                 <CardHeader className="pb-2 pt-8">
-                    <p className="text-[10px] font-black uppercase tracking-[4px] text-white/20">Current Obligations</p>
+                    <p className="text-[10px] font-black uppercase tracking-[4px] text-white/20">Active Obligations</p>
                 </CardHeader>
                 <CardContent className="space-y-8">
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-sm font-bold text-white/60">Total Amount Due</span>
-                        <span className="text-4xl font-black text-white tracking-tighter">
-                            ₹{totalDueAmount.toLocaleString()}
-                        </span>
+                    <div className="flex justify-between items-center">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase text-white/20 tracking-widest mb-1">Due for Settlement</span>
+                            <span className="text-4xl font-black text-white tracking-tighter">
+                                ₹{totalSelectedAmount > 0 ? totalSelectedAmount.toLocaleString() : "0.00"}
+                            </span>
+                        </div>
+                        {selectedItems.length > 0 && (
+                            <Button onClick={() => setIsPaymentModalOpen(true)} className="h-12 px-6 rounded-2xl bg-[#22c55e] text-white font-black uppercase text-[10px] tracking-widest animate-in zoom-in-50">
+                                Pay Selected ({selectedItems.length})
+                            </Button>
+                        )}
                     </div>
 
                     <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between shadow-inner">
@@ -223,7 +239,10 @@ export default function MyLoansPage() {
                     </div>
 
                     <div className="space-y-4">
-                        <p className="text-[10px] font-black uppercase tracking-[4px] text-white/20 pl-1">Repayment Schedule</p>
+                        <div className="flex items-center justify-between px-1">
+                             <p className="text-[10px] font-black uppercase tracking-[4px] text-white/20">Repayment Schedule</p>
+                             <p className="text-[8px] font-bold text-white/40 uppercase">Select items to pay</p>
+                        </div>
                         
                         <div className="space-y-3">
                              {/* Standard Loan EMI List */}
@@ -231,7 +250,7 @@ export default function MyLoansPage() {
                                 <div key={loan.id} className="space-y-2">
                                     <div className="flex justify-between items-end px-2">
                                         <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest">{loan.planName} Schedule</p>
-                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Principal: ₹{loan.loanAmount}</p>
+                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Node ID: #{loan.id.slice(-6).toUpperCase()}</p>
                                     </div>
                                     {loan.repaymentMethod === 'EMI' ? loan.emis?.map((emi, i) => (
                                         <RepaymentRow 
@@ -239,14 +258,16 @@ export default function MyLoansPage() {
                                             date={emi.dueDate.toDate()} 
                                             amount={emi.emiAmount} 
                                             status={emi.status} 
-                                            onPay={() => setPaymentDetails({ isOpen: true, loan: loan, amount: emi.emiAmount, isCustom: false, emiIndex: i })}
+                                            isSelected={!!selectedItems.find(item => item.id === loan.id && item.emiIndex === i)}
+                                            onToggle={() => handleToggleSelect(loan, emi.emiAmount, false, i)}
                                         />
                                     )) : (
                                         <RepaymentRow 
                                             date={loan.dueDate.toDate()} 
                                             amount={loan.totalPayable} 
                                             status={loan.status} 
-                                            onPay={() => setPaymentDetails({ isOpen: true, loan: loan, amount: loan.totalPayable, isCustom: false })}
+                                            isSelected={!!selectedItems.find(item => item.id === loan.id && item.emiIndex === undefined)}
+                                            onToggle={() => handleToggleSelect(loan, loan.totalPayable, false)}
                                         />
                                     )}
                                 </div>
@@ -263,8 +284,9 @@ export default function MyLoansPage() {
                                         date={loan.dueDate?.toDate() || new Date()} 
                                         amount={loan.totalRepayment || 0} 
                                         status={loan.status === 'active' ? 'Active' : loan.status} 
-                                        onPay={() => setPaymentDetails({ isOpen: true, loan: loan, amount: loan.totalRepayment || 0, isCustom: true })}
                                         subtext={`Interest: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
+                                        isSelected={!!selectedItems.find(item => item.id === loan.id)}
+                                        onToggle={() => handleToggleSelect(loan, loan.totalRepayment || 0, true)}
                                     />
                                 </div>
                              ))}
@@ -298,55 +320,64 @@ export default function MyLoansPage() {
             </div>
         </div>
 
-        {/* SETTLEMENT DIALOG */}
-        {paymentDetails && (
-          <Dialog open={paymentDetails.isOpen} onOpenChange={() => setPaymentDetails(null)}>
+        {/* BATCH PAYMENT DIALOG */}
+        <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
             <DialogContent className="bg-[#030408]/95 border-white/10 text-white rounded-[2.5rem] max-w-sm">
-               <DialogHeader>
-                  <DialogTitle className="text-center font-black uppercase tracking-tight">Manual Settlement</DialogTitle>
-                  <DialogDescription className="text-center text-white/40 text-xs">Authorize dispatch to the GM Admin Node.</DialogDescription>
-               </DialogHeader>
-               
-               <div className="py-6 space-y-6">
-                  <div className="bg-white/5 p-5 rounded-[2rem] border border-white/5 flex flex-col items-center gap-1 shadow-inner">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Target Amount</span>
-                      <span className="text-3xl font-black text-primary tracking-tighter">₹{paymentDetails.amount.toFixed(2)}</span>
-                  </div>
+                <DialogHeader>
+                    <DialogTitle className="text-center font-black uppercase tracking-tight">Batch Settlement</DialogTitle>
+                    <DialogDescription className="text-center text-white/40 text-[10px] uppercase tracking-widest">Authorize dispatch for {selectedItems.length} selected items</DialogDescription>
+                </DialogHeader>
+                
+                <div className="py-6 space-y-6">
+                    <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center gap-1 shadow-inner">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Total Net Amount</span>
+                        <span className="text-4xl font-black text-primary tracking-tighter">₹{totalSelectedAmount.toFixed(2)}</span>
+                    </div>
 
-                  <div className="flex flex-col items-center gap-4">
-                      <div className="bg-white p-3 rounded-2xl shadow-[0_0_50px_rgba(255,255,255,0.1)]">
-                          <Image
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiDeeplink)}`}
-                              alt="UPI QR"
-                              width={150}
-                              height={150}
-                          />
-                      </div>
-                      <div className="w-full space-y-2">
-                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Admin UPI ID</Label>
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
-                            <span className="font-mono text-sm font-bold text-white/80">{targetUpi || 'NOT SET'}</span>
-                            <Button variant="ghost" size="icon" onClick={() => handleCopyToClipboard(targetUpi, 'UPI ID')} className="h-8 w-8 hover:bg-white/10">
-                                <Copy size={14} className="text-primary" />
-                            </Button>
+                    <ScrollArea className="max-h-24 pr-4">
+                        <div className="space-y-2">
+                            {selectedItems.map((item, i) => (
+                                <div key={i} className="flex justify-between text-[10px] font-bold text-white/40 uppercase">
+                                    <span>{item.loanName}</span>
+                                    <span>₹{item.amount.toFixed(2)}</span>
+                                </div>
+                            ))}
                         </div>
-                      </div>
-                  </div>
+                    </ScrollArea>
 
-                  <div className="space-y-3">
-                      <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
-                          <a href={upiDeeplink}>
-                              <QrCode size={16} className="mr-2" /> Launch UPI Terminal
-                          </a>
-                      </Button>
-                      <Button onClick={handleMarkAsPaid} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">
-                          <ShieldCheck size={18} className="mr-2" /> I HAVE PAID (FINALIZE)
-                      </Button>
-                  </div>
-               </div>
+                    <div className="flex flex-col items-center gap-4 pt-2">
+                        <div className="bg-white p-3 rounded-2xl shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+                            <Image
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiDeeplink)}`}
+                                alt="UPI QR"
+                                width={150}
+                                height={150}
+                            />
+                        </div>
+                        <div className="w-full space-y-2">
+                            <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Admin UPI ID</Label>
+                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
+                                <span className="font-mono text-xs font-bold text-white/80">{targetUpi || 'NOT SET'}</span>
+                                <Button variant="ghost" size="icon" onClick={() => handleCopyToClipboard(targetUpi, 'UPI ID')} className="h-8 w-8 hover:bg-white/10">
+                                    <Copy size={14} className="text-primary" />
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
+                            <a href={upiDeeplink}>
+                                <QrCode size={16} className="mr-2" /> Open UPI App Terminal
+                            </a>
+                        </Button>
+                        <Button onClick={handleBatchMarkAsPaid} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all">
+                            <ShieldCheck size={18} className="mr-2" /> I HAVE PAID (FINALIZE BATCH)
+                        </Button>
+                    </div>
+                </div>
             </DialogContent>
-          </Dialog>
-        )}
+        </Dialog>
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl h-16 flex items-center justify-around px-4">
@@ -360,25 +391,38 @@ export default function MyLoansPage() {
   );
 }
 
-function RepaymentRow({ date, amount, status, onPay, subtext }: { date: Date, amount: number, status: string, onPay: () => void, subtext?: string }) {
+function RepaymentRow({ date, amount, status, isSelected, onToggle, subtext }: { date: Date, amount: number, status: string, isSelected: boolean, onToggle: () => void, subtext?: string }) {
     const isPaid = status.toLowerCase() === 'paid' || status.toLowerCase() === 'completed';
     const isPendingAdmin = status.toLowerCase() === 'payment pending';
+    const isSelectable = !isPaid && !isPendingAdmin;
 
     return (
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.03] group hover:bg-white/5 transition-all">
-            <div className="flex flex-col">
-                <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{date.toLocaleDateString()}</span>
-                <span className="text-base font-black text-white tracking-tight">₹{amount.toFixed(2)}</span>
-                {subtext && <span className="text-[8px] font-bold text-primary/40 uppercase tracking-widest">{subtext}</span>}
+        <div 
+            onClick={() => isSelectable && onToggle()}
+            className={cn(
+                "flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer group",
+                isSelected ? "bg-primary/10 border-primary/40 shadow-lg" : "bg-white/[0.02] border-white/[0.03] hover:bg-white/5",
+                !isSelectable && "cursor-default opacity-80"
+            )}
+        >
+            <div className="flex items-center gap-4">
+                {isSelectable && (
+                    <Checkbox checked={isSelected} onCheckedChange={onToggle} className="h-5 w-5 rounded-lg border-white/20 data-[state=checked]:bg-primary" />
+                )}
+                <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{date.toLocaleDateString()}</span>
+                    <span className="text-base font-black text-white tracking-tight">₹{amount.toFixed(2)}</span>
+                    {subtext && <span className="text-[8px] font-bold text-primary/40 uppercase tracking-widest">{subtext}</span>}
+                </div>
             </div>
             {isPaid ? (
                 <Badge variant="outline" className="h-6 bg-green-500/10 text-green-400 border-green-500/20 text-[8px] font-black uppercase tracking-widest px-3">PAID</Badge>
             ) : isPendingAdmin ? (
-                <Badge variant="outline" className="h-6 bg-primary/10 text-primary border-primary/20 text-[8px] font-black uppercase tracking-widest px-3">PENDING ADMIN</Badge>
+                <Badge variant="outline" className="h-6 bg-primary/10 text-primary border-primary/20 text-[8px] font-black uppercase tracking-widest px-3">VERIFYING</Badge>
             ) : (
-                <Button size="sm" onClick={onPay} className="h-8 rounded-lg bg-[#22c55e] text-white font-black uppercase text-[9px] tracking-widest shadow-lg shadow-green-500/20 hover:scale-105 active:scale-95 transition-all">
-                    PAY NOW
-                </Button>
+                <div className={cn("h-6 px-3 flex items-center justify-center rounded-full text-[8px] font-black uppercase tracking-widest border transition-colors", isSelected ? "bg-primary text-white border-primary" : "bg-white/5 text-white/20 border-white/5")}>
+                    {isSelected ? 'SELECTED' : 'SELECT'}
+                </div>
             )}
         </div>
     )
@@ -398,7 +442,7 @@ function HistoryCard({ loan, isCustom }: { loan: any, isCustom?: boolean }) {
                     </div>
                     <div>
                         <p className="text-sm font-bold text-white/80">{isCustom ? 'Flexi Protocol' : loan.planName}</p>
-                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Node ID: #{loan.id.slice(-6).toUpperCase()}</p>
+                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Protocol Node ID: #{loan.id.slice(-6).toUpperCase()}</p>
                     </div>
                 </div>
                 <div className="text-right">
@@ -408,15 +452,15 @@ function HistoryCard({ loan, isCustom }: { loan: any, isCustom?: boolean }) {
             </div>
             
             <div className="grid grid-cols-3 gap-2 relative z-10">
-                <div className="bg-white/5 rounded-lg p-2 text-center">
+                <div className="bg-white/5 rounded-lg p-2 text-center border border-white/5">
                     <p className="text-[7px] font-black text-white/20 uppercase tracking-widest">Principal</p>
                     <p className="text-[11px] font-bold text-white/70">₹{principal}</p>
                 </div>
-                <div className="bg-white/5 rounded-lg p-2 text-center">
+                <div className="bg-white/5 rounded-lg p-2 text-center border border-white/5">
                     <p className="text-[7px] font-black text-white/20 uppercase tracking-widest">Interest</p>
                     <p className="text-[11px] font-bold text-primary/60">₹{interest.toFixed(2)}</p>
                 </div>
-                <div className="bg-white/5 rounded-lg p-2 text-center">
+                <div className="bg-white/5 rounded-lg p-2 text-center border border-white/5">
                     <p className="text-[7px] font-black text-white/20 uppercase tracking-widest">Settled</p>
                     <p className="text-[11px] font-bold text-green-400">₹{total.toFixed(2)}</p>
                 </div>
@@ -431,7 +475,7 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
         "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
         active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
     )}>
-      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(139,92,246,0.5)]")} />
+      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
       <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-6 bg-primary rounded-full blur-[2px]" />}
     </Link>
