@@ -18,7 +18,8 @@ import {
   Smartphone,
   Handshake,
   FileCheck,
-  ArrowRight
+  ArrowRight,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -99,7 +100,7 @@ type UserData = {
   photoURL?: string;
   referralCode?: string;
   upiId?: string;
-  upiProvider?: 'PhonePe' | 'Google Pay' | 'Paytm';
+  upiProvider?: string;
   upiStatus?: 'Unverified' | 'Pending' | 'Verified' | 'Rejected';
   vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
   trustScore?: number;
@@ -129,7 +130,7 @@ export default function ProfilePage() {
   
   const [editName, setEditName] = useState('');
   const [editUpiId, setEditUpiId] = useState('');
-  const [editUpiProvider, setEditUpiProvider] = useState<'PhonePe' | 'Google Pay' | 'Paytm' | ''>('');
+  const [editUpiProvider, setEditUpiProvider] = useState('');
   
   const [kycPan, setKycPan] = useState('');
   const [kycAadhaar, setKycAadhaar] = useState('');

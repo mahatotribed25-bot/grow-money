@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -283,7 +282,10 @@ export default function CustomLoansPage() {
 
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
         <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]">
-          <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Node Approval Protocol</DialogTitle></DialogHeader>
+          <DialogHeader>
+              <DialogTitle className="text-xl font-black uppercase tracking-tight">Node Approval Protocol</DialogTitle>
+              <DialogDescription className="text-xs text-white/40">Review borrower KYC and calculate risk factors.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-6 py-4">
               {userKycData && (
                 <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">

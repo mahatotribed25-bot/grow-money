@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, Send } from 'lucide-react';
+import { Check, X, Send, Copy } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import {
   doc,
@@ -153,6 +153,11 @@ export default function UpiRequestsPage() {
     });
   };
 
+  const handleCopyToClipboard = (text: string) => {
+      navigator.clipboard.writeText(text);
+      toast({ title: "UPI Copied!" });
+  }
+
   const getStatusBadge = (status: UpiRequest['status']) => {
     switch (status) {
         case 'pending': return <Badge variant="secondary">Pending Admin</Badge>;
@@ -203,7 +208,12 @@ export default function UpiRequestsPage() {
               filteredUpiRequests.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell>{request.userName}</TableCell>
-                  <TableCell>{request.upiId}</TableCell>
+                  <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs">{request.upiId}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyToClipboard(request.upiId)}><Copy size={12}/></Button>
+                      </div>
+                  </TableCell>
                   <TableCell>
                       <Badge variant="outline">{request.upiProvider}</Badge>
                   </TableCell>
@@ -282,7 +292,7 @@ export default function UpiRequestsPage() {
             </DialogDescription>
           </DialogHeader>
            <div className="py-4 space-y-4">
-             <p>Send payment to: <span className="font-mono p-1 bg-muted rounded">{requestToUpdate?.upiId}</span></p>
+             <p className="text-sm">Send payment to: <span className="font-mono p-1 bg-muted rounded font-bold">{requestToUpdate?.upiId}</span></p>
             <div className="space-y-2">
                 <Label htmlFor="confirmationAmount">Amount Sent (e.g., 1.07)</Label>
                 <Input

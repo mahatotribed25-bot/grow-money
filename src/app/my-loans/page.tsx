@@ -404,7 +404,7 @@ function RepaymentRow({ date, amount, status, isSelected, onToggle, subtext }: {
         >
             <div className="flex items-center gap-4">
                 {isSelectable && (
-                    <Checkbox checked={isSelected} onCheckedChange={onToggle} className="h-5 w-5 rounded-lg border-white/20 data-[state=checked]:bg-primary" />
+                    <Checkbox checked={isSelected} onToggle={onToggle} className="h-5 w-5 rounded-lg border-white/20 data-[state=checked]:bg-primary" />
                 )}
                 <div className="flex flex-col">
                     <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{date.toLocaleDateString()}</span>
@@ -474,7 +474,7 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
     )}>
       <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
       <span className="text-[10px] tracking-tighter">{label}</span>
-      {active && <div className="absolute -bottom-1 h-1 w-6 bg-primary rounded-full blur-[2px]" />}
+      {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>
   );
 }
