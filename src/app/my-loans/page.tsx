@@ -1,4 +1,5 @@
 'use client';
+
 import {
   ChevronLeft,
   Home,
@@ -14,7 +15,8 @@ import {
   Copy,
   QrCode,
   Clock,
-  CircleDot
+  CircleDot,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -24,7 +26,7 @@ import { useCollection, useFirestore, useDoc } from '@/firebase';
 import { collection, Timestamp, where, query, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
@@ -124,11 +126,22 @@ export default function MyLoansPage() {
 
   const loading = loansLoading || settingsLoading || customLoansLoading;
   
-  const sortedLoans = allLoans?.sort((a,b) => b.startDate.seconds - a.startDate.seconds);
-  const activeStandardLoan = sortedLoans?.find(l => l.status !== 'Completed');
+  const sortedLoans = useMemo(() => allLoans?.sort((a,b) => b.startDate.seconds - a.startDate.seconds) || [], [allLoans]);
+  const activeStandardLoans = sortedLoans.filter(l => l.status !== 'Completed');
   
-  const sortedCustomLoans = customLoans?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds);
-  const activeCustomLoan = sortedCustomLoans?.find(l => l.status === 'active' || l.status === 'payment_pending');
+  const sortedCustomLoans = useMemo(() => customLoans?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds) || [], [customLoans]);
+  const activeCustomLoans = sortedCustomLoans.filter(l => ['active', 'payment_pending', 'extension_pending', 'pending_user_approval'].includes(l.status));
+
+  const totalDueAmount = useMemo(() => {
+    const standardDue = activeStandardLoans.reduce((sum, l) => {
+        if (l.repaymentMethod === 'EMI') {
+            return sum + (l.emis?.filter(e => e.status !== 'Paid').reduce((s, e) => s + e.emiAmount, 0) || 0);
+        }
+        return sum + l.totalPayable;
+    }, 0);
+    const customDue = activeCustomLoans.reduce((sum, l) => sum + (l.totalRepayment || 0), 0);
+    return standardDue + customDue;
+  }, [activeStandardLoans, activeCustomLoans]);
 
   const handleCopyToClipboard = (text?: string, label?: string) => {
     if (!text) return;
@@ -183,8 +196,8 @@ export default function MyLoansPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-10">
         
-        {/* SECTION 1: TOTAL OBLIGATIONS (Screenshot Top Style) */}
-        {(activeStandardLoan || activeCustomLoan) && (
+        {/* SECTION 1: TOTAL OBLIGATIONS (Screenshot Style) */}
+        {(activeStandardLoans.length > 0 || activeCustomLoans.length > 0) ? (
             <Card className="bg-[#0a0b14] border-white/5 rounded-[2rem] overflow-hidden shadow-2xl relative">
                 <div className="absolute top-0 right-0 p-8 opacity-5">
                     <HandCoins size={120} className="text-primary" />
@@ -196,50 +209,69 @@ export default function MyLoansPage() {
                     <div className="flex justify-between items-baseline">
                         <span className="text-sm font-bold text-white/60">Total Amount Due</span>
                         <span className="text-4xl font-black text-white tracking-tighter">
-                            ₹{((activeStandardLoan?.totalPayable || 0) + (activeCustomLoan?.totalRepayment || 0)).toLocaleString()}
+                            ₹{totalDueAmount.toLocaleString()}
                         </span>
                     </div>
 
                     <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between shadow-inner">
                         <div className="flex items-center gap-3">
                             <Clock size={16} className="text-primary animate-pulse" />
-                            <span className="text-[10px] font-black uppercase tracking-[2px] text-white/40">Time Remaining</span>
+                            <span className="text-[10px] font-black uppercase tracking-[2px] text-white/40">Next Deadline</span>
                         </div>
-                        <TimeRemaining targetDate={activeStandardLoan?.dueDate.toDate() || activeCustomLoan?.dueDate?.toDate() || new Date()} />
+                        <TimeRemaining targetDate={activeStandardLoans[0]?.dueDate.toDate() || activeCustomLoans[0]?.dueDate?.toDate() || new Date()} />
                     </div>
 
                     <div className="space-y-4">
                         <p className="text-[10px] font-black uppercase tracking-[4px] text-white/20 pl-1">Repayment Schedule</p>
                         
-                        {/* LIST ITEMS (Matches the screenshot list) */}
-                        <div className="space-y-2">
-                             {activeStandardLoan?.repaymentMethod === 'EMI' ? activeStandardLoan.emis?.map((emi, i) => (
-                                <RepaymentRow 
-                                    key={i}
-                                    date={emi.dueDate.toDate()} 
-                                    amount={emi.emiAmount} 
-                                    status={emi.status} 
-                                    onPay={() => setPaymentDetails({ isOpen: true, loan: activeStandardLoan, amount: emi.emiAmount, isCustom: false, emiIndex: i })}
-                                />
-                             )) : activeStandardLoan && (
-                                <RepaymentRow 
-                                    date={activeStandardLoan.dueDate.toDate()} 
-                                    amount={activeStandardLoan.totalPayable} 
-                                    status={activeStandardLoan.status} 
-                                    onPay={() => setPaymentDetails({ isOpen: true, loan: activeStandardLoan, amount: activeStandardLoan.totalPayable, isCustom: false })}
-                                />
-                             )}
+                        <div className="space-y-3">
+                             {/* Standard Loan EMI List */}
+                             {activeStandardLoans.map(loan => (
+                                <div key={loan.id} className="space-y-2">
+                                    <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest pl-2">{loan.planName} Schedule</p>
+                                    {loan.repaymentMethod === 'EMI' ? loan.emis?.map((emi, i) => (
+                                        <RepaymentRow 
+                                            key={`${loan.id}-${i}`}
+                                            date={emi.dueDate.toDate()} 
+                                            amount={emi.emiAmount} 
+                                            status={emi.status} 
+                                            onPay={() => setPaymentDetails({ isOpen: true, loan: loan, amount: emi.emiAmount, isCustom: false, emiIndex: i })}
+                                        />
+                                    )) : (
+                                        <RepaymentRow 
+                                            date={loan.dueDate.toDate()} 
+                                            amount={loan.totalPayable} 
+                                            status={loan.status} 
+                                            onPay={() => setPaymentDetails({ isOpen: true, loan: loan, amount: loan.totalPayable, isCustom: false })}
+                                        />
+                                    )}
+                                </div>
+                             ))}
 
-                             {activeCustomLoan && (
-                                <RepaymentRow 
-                                    date={activeCustomLoan.dueDate?.toDate() || new Date()} 
-                                    amount={activeCustomLoan.totalRepayment || 0} 
-                                    status={activeCustomLoan.status === 'active' ? 'Active' : activeCustomLoan.status} 
-                                    onPay={() => setPaymentDetails({ isOpen: true, loan: activeCustomLoan, amount: activeCustomLoan.totalRepayment || 0, isCustom: true })}
-                                />
-                             )}
+                             {/* Custom Loan List */}
+                             {activeCustomLoans.map(loan => (
+                                <div key={loan.id} className="space-y-2">
+                                    <p className="text-[9px] font-black text-green-400/60 uppercase tracking-widest pl-2">Flexi Protocol Node</p>
+                                    <RepaymentRow 
+                                        date={loan.dueDate?.toDate() || new Date()} 
+                                        amount={loan.totalRepayment || 0} 
+                                        status={loan.status === 'active' ? 'Active' : loan.status} 
+                                        onPay={() => setPaymentDetails({ isOpen: true, loan: loan, amount: loan.totalRepayment || 0, isCustom: true })}
+                                    />
+                                </div>
+                             ))}
                         </div>
                     </div>
+                </CardContent>
+            </Card>
+        ) : (
+            <Card className="bg-white/5 border-dashed border-white/10 rounded-[2rem] py-20 text-center">
+                <CardContent className="space-y-4">
+                    <HandCoins size={48} className="mx-auto text-white/10" />
+                    <p className="text-white/20 text-sm font-bold uppercase tracking-widest">No active liabilities</p>
+                    <Button asChild variant="outline" className="border-white/10 text-[10px] font-black uppercase tracking-widest h-10 rounded-xl">
+                        <Link href="/loans">Apply for Capital</Link>
+                    </Button>
                 </CardContent>
             </Card>
         )}
@@ -250,9 +282,9 @@ export default function MyLoansPage() {
                 <ShieldCheck size={14} className="text-green-500" /> Settled History
             </h2>
             <div className="grid gap-4">
-                {sortedLoans?.filter(l => l.status === 'Completed').map(loan => <HistoryCard key={loan.id} loan={loan} />)}
-                {sortedCustomLoans?.filter(l => l.status === 'completed').map(loan => <HistoryCard key={loan.id} loan={loan} isCustom />)}
-                {!sortedLoans?.some(l => l.status === 'Completed') && !sortedCustomLoans?.some(l => l.status === 'completed') && (
+                {sortedLoans.filter(l => l.status === 'Completed').map(loan => <HistoryCard key={loan.id} loan={loan} />)}
+                {sortedCustomLoans.filter(l => l.status === 'completed').map(loan => <HistoryCard key={loan.id} loan={loan} isCustom />)}
+                {!sortedLoans.some(l => l.status === 'Completed') && !sortedCustomLoans.some(l => l.status === 'completed') && (
                     <p className="text-center text-[10px] text-white/10 uppercase font-black py-10">No past transactions archived</p>
                 )}
             </div>
@@ -321,7 +353,7 @@ export default function MyLoansPage() {
 }
 
 function RepaymentRow({ date, amount, status, onPay }: { date: Date, amount: number, status: string, onPay: () => void }) {
-    const isPaid = status.toLowerCase() === 'paid';
+    const isPaid = status.toLowerCase() === 'paid' || status.toLowerCase() === 'completed';
     const isPendingAdmin = status.toLowerCase() === 'payment pending';
 
     return (
@@ -353,13 +385,13 @@ function HistoryCard({ loan, isCustom }: { loan: any, isCustom?: boolean }) {
                 <div>
                     <p className="text-sm font-bold text-white/80">{isCustom ? 'Flexi Protocol' : loan.planName}</p>
                     <p className="text-[9px] text-white/20 uppercase font-bold tracking-widest">
-                        ₹{(isCustom ? loan.requestedAmount : loan.loanAmount).toLocaleString()} • Node: #{loan.id.slice(-6).toUpperCase()}
+                        ₹{(isCustom ? (loan.requestedAmount || 0) : (loan.loanAmount || 0)).toLocaleString()} • Node: #{loan.id.slice(-6).toUpperCase()}
                     </p>
                 </div>
             </div>
             <div className="text-right">
                 <p className="text-[10px] font-black text-green-500/50 uppercase tracking-widest">SETTLED</p>
-                <p className="text-[9px] text-white/10 font-bold uppercase">{new Date((loan.startDate || loan.createdAt).seconds * 1000).toLocaleDateString()}</p>
+                <p className="text-[9px] text-white/10 font-bold uppercase">{new Date((loan.startDate || loan.createdAt || Timestamp.now()).seconds * 1000).toLocaleDateString()}</p>
             </div>
         </Card>
     );
