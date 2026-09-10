@@ -9,27 +9,24 @@ import {
   Trophy,
   ArrowUpRight,
   Timer,
-  IndianRupee,
   CheckCircle2,
   ShieldCheck,
   Copy,
   QrCode,
   Clock,
-  CircleDot,
   AlertCircle,
-  Info
+  Info,
+  ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
-import { collection, Timestamp, where, query, doc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, Timestamp, where, query, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useMemo } from 'react';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -128,7 +125,7 @@ export default function MyLoansPage() {
   const activeStandardLoans = sortedLoans.filter(l => l.status !== 'Completed');
   
   const sortedCustomLoans = useMemo(() => customLoans?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds) || [], [customLoans]);
-  const activeCustomLoans = sortedCustomLoans.filter(l => ['active', 'payment_pending', 'extension_pending', 'pending_user_approval'].includes(l.status));
+  const activeCustomLoans = sortedCustomLoans.filter(l => ['active', 'payment_pending', 'extension_pending', 'pending_user_approval', 'approved_by_user'].includes(l.status));
 
   const totalSelectedAmount = useMemo(() => {
     return selectedItems.reduce((sum, item) => sum + item.amount, 0);
