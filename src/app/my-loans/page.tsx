@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -43,6 +42,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 
 type EMI = {
@@ -162,21 +162,20 @@ export default function MyLoansPage() {
         if (item.isCustom) {
             batch.update(loanRef, { status: 'payment_pending', paidNotificationAt: serverTimestamp() });
         } else {
-            // For Standard Loans
             const originalLoan = allLoans?.find(l => l.id === item.id);
             if (originalLoan && originalLoan.emis && item.emiIndex !== undefined) {
                 const updatedEmis = [...originalLoan.emis];
                 updatedEmis[item.emiIndex].status = 'Payment Pending';
-                batch.update(loanRef, { emis: updatedEmis, paidNotificationAt: serverTimestamp() });
+                batch.update(loanRef, { emis: updatedEmis });
             } else {
-                batch.update(loanRef, { status: 'Payment Pending', paidNotificationAt: serverTimestamp() });
+                batch.update(loanRef, { status: 'Payment Pending' });
             }
         }
     });
 
     try {
         await batch.commit();
-        toast({ title: 'Notifications Sent', description: `${selectedItems.length} payment notifications sent to admin.` });
+        toast({ title: 'Notifications Sent', description: `${selectedItems.length} payments notified to admin.` });
         setSelectedItems([]);
         setIsPaymentModalOpen(false);
     } catch (e: any) {
@@ -245,7 +244,6 @@ export default function MyLoansPage() {
                         </div>
                         
                         <div className="space-y-3">
-                             {/* Standard Loan EMI List */}
                              {activeStandardLoans.map(loan => (
                                 <div key={loan.id} className="space-y-2">
                                     <div className="flex justify-between items-end px-2">
@@ -273,18 +271,17 @@ export default function MyLoansPage() {
                                 </div>
                              ))}
 
-                             {/* Custom Loan List */}
                              {activeCustomLoans.map(loan => (
                                 <div key={loan.id} className="space-y-2">
                                     <div className="flex justify-between items-end px-2">
                                         <p className="text-[9px] font-black text-green-400/60 uppercase tracking-widest">Flexi Protocol Node</p>
-                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Taken: ₹{loan.requestedAmount}</p>
+                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">ID: {loan.id.slice(-6).toUpperCase()}</p>
                                     </div>
                                     <RepaymentRow 
                                         date={loan.dueDate?.toDate() || new Date()} 
                                         amount={loan.totalRepayment || 0} 
                                         status={loan.status === 'active' ? 'Active' : loan.status} 
-                                        subtext={`Interest: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
+                                        subtext={`Principal: ₹${loan.requestedAmount} | Int: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
                                         isSelected={!!selectedItems.find(item => item.id === loan.id)}
                                         onToggle={() => handleToggleSelect(loan, loan.totalRepayment || 0, true)}
                                     />
@@ -476,7 +473,7 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
         active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
     )}>
       <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
-      <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
+      <span className="text-[10px] tracking-tighter">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-6 bg-primary rounded-full blur-[2px]" />}
     </Link>
   );
