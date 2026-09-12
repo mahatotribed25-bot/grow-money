@@ -7,16 +7,11 @@ import {
   Briefcase,
   HandCoins,
   Trophy,
-  ArrowUpRight,
-  Timer,
-  CheckCircle2,
   ShieldCheck,
   Copy,
   QrCode,
   Clock,
-  AlertCircle,
-  Info,
-  ChevronRight
+  Timer
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -41,6 +36,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
+import { useSettings } from '@/context/settings-context';
 
 type EMI = {
   emiAmount: number;
@@ -101,7 +97,7 @@ const TimeRemaining = ({ targetDate }: { targetDate: Date }) => {
     }, [targetDate]);
 
     return (
-        <span className="font-mono font-black text-white/80">
+        <span className="font-mono font-black text-foreground/80">
             {timeLeft.d}D {timeLeft.h}H {timeLeft.m}M {timeLeft.s}S
         </span>
     );
@@ -111,6 +107,7 @@ export default function MyLoansPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { t } = useSettings();
   
   const { data: allLoans, loading: loansLoading } = useCollection<Loan>(user ? `users/${user.uid}/loans` : null);
   const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
@@ -190,54 +187,50 @@ export default function MyLoansPage() {
   const targetUpi = hasAnyCustomSelected ? (adminSettings?.customLoanUpi || adminSettings?.adminUpi) : adminSettings?.adminUpi;
   const upiDeeplink = targetUpi ? `upi://pay?pa=${targetUpi}&pn=Grow%20Money&am=${totalSelectedAmount.toFixed(2)}&cu=INR` : '';
 
-  if (loading) return <div className="flex h-screen items-center justify-center bg-[#030408]"><Timer className="animate-spin text-primary" /></div>;
+  if (loading) return <div className="flex h-screen items-center justify-center bg-background"><Timer className="animate-spin text-primary" /></div>;
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-[#030408] text-foreground relative z-10 pb-20">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
-        <Link href="/dashboard"><Button variant="ghost" size="icon" className="hover:bg-white/10 text-white/70"><ChevronLeft /></Button></Link>
-        <h1 className="text-lg font-bold tracking-tighter uppercase">Loan Ledger</h1>
+    <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300 pb-20">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
+        <Link href="/dashboard"><Button variant="ghost" size="icon" className="hover:bg-accent text-foreground/70"><ChevronLeft /></Button></Link>
+        <h1 className="text-lg font-bold tracking-tighter uppercase">{t.nav.loans}</h1>
         <div className="w-9" />
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-10">
         
-        {/* SECTION 1: HERO OBLIGATIONS CARD */}
         {(activeStandardLoans.length > 0 || activeCustomLoans.length > 0) ? (
-            <Card className="bg-[#0a0b14] border-white/5 rounded-[2rem] overflow-hidden shadow-2xl relative">
-                <div className="absolute top-0 right-0 p-8 opacity-5">
-                    <HandCoins size={120} className="text-primary" />
-                </div>
+            <Card className="bg-card border-border rounded-[2rem] overflow-hidden shadow-2xl relative">
                 <CardHeader className="pb-2 pt-8">
-                    <p className="text-[10px] font-black uppercase tracking-[4px] text-white/20">Active Obligations</p>
+                    <p className="text-[10px] font-black uppercase tracking-[4px] text-muted-foreground">Active Obligations</p>
                 </CardHeader>
                 <CardContent className="space-y-8">
                     <div className="flex justify-between items-center">
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase text-white/20 tracking-widest mb-1">Due for Settlement</span>
-                            <span className="text-4xl font-black text-white tracking-tighter">
+                            <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Due for Settlement</span>
+                            <span className="text-4xl font-black tracking-tighter">
                                 ₹{totalSelectedAmount > 0 ? totalSelectedAmount.toLocaleString() : "0.00"}
                             </span>
                         </div>
                         {selectedItems.length > 0 && (
-                            <Button onClick={() => setIsPaymentModalOpen(true)} className="h-12 px-6 rounded-2xl bg-[#22c55e] text-white font-black uppercase text-[10px] tracking-widest animate-in zoom-in-50">
+                            <Button onClick={() => setIsPaymentModalOpen(true)} className="h-12 px-6 rounded-2xl bg-accent text-accent-foreground font-black uppercase text-[10px] tracking-widest animate-in zoom-in-50">
                                 Pay Selected ({selectedItems.length})
                             </Button>
                         )}
                     </div>
 
-                    <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between shadow-inner">
+                    <div className="bg-muted border border-border rounded-2xl p-4 flex items-center justify-between shadow-inner">
                         <div className="flex items-center gap-3">
                             <Clock size={16} className="text-primary animate-pulse" />
-                            <span className="text-[10px] font-black uppercase tracking-[2px] text-white/40">Next Deadline</span>
+                            <span className="text-[10px] font-black uppercase tracking-[2px] text-muted-foreground">Next Deadline</span>
                         </div>
                         <TimeRemaining targetDate={activeStandardLoans[0]?.dueDate.toDate() || activeCustomLoans[0]?.dueDate?.toDate() || new Date()} />
                     </div>
 
                     <div className="space-y-4">
                         <div className="flex items-center justify-between px-1">
-                             <p className="text-[10px] font-black uppercase tracking-[4px] text-white/20">Repayment Schedule</p>
-                             <p className="text-[8px] font-bold text-white/40 uppercase">Select items to pay</p>
+                             <p className="text-[10px] font-black uppercase tracking-[4px] text-muted-foreground">Repayment Schedule</p>
+                             <p className="text-[8px] font-bold text-muted-foreground uppercase">Select items to pay</p>
                         </div>
                         
                         <div className="space-y-3">
@@ -245,7 +238,7 @@ export default function MyLoansPage() {
                                 <div key={loan.id} className="space-y-2">
                                     <div className="flex justify-between items-end px-2">
                                         <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest">{loan.planName} Schedule</p>
-                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Node ID: #{loan.id.slice(-6).toUpperCase()}</p>
+                                        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Node ID: #{loan.id.slice(-6).toUpperCase()}</p>
                                     </div>
                                     {loan.repaymentMethod === 'EMI' ? loan.emis?.map((emi, i) => (
                                         <RepaymentRow 
@@ -271,8 +264,8 @@ export default function MyLoansPage() {
                              {activeCustomLoans.map(loan => (
                                 <div key={loan.id} className="space-y-2">
                                     <div className="flex justify-between items-end px-2">
-                                        <p className="text-[9px] font-black text-green-400/60 uppercase tracking-widest">Flexi Protocol Node</p>
-                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">ID: {loan.id.slice(-6).toUpperCase()}</p>
+                                        <p className="text-[9px] font-black text-accent/60 uppercase tracking-widest">Flexi Protocol Node</p>
+                                        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">ID: {loan.id.slice(-6).toUpperCase()}</p>
                                     </div>
                                     <RepaymentRow 
                                         date={loan.dueDate?.toDate() || new Date()} 
@@ -289,49 +282,47 @@ export default function MyLoansPage() {
                 </CardContent>
             </Card>
         ) : (
-            <Card className="bg-white/5 border-dashed border-white/10 rounded-[2rem] py-20 text-center">
+            <Card className="bg-muted/20 border-dashed border-border rounded-[2rem] py-20 text-center">
                 <CardContent className="space-y-4">
-                    <HandCoins size={48} className="mx-auto text-white/10" />
-                    <p className="text-white/20 text-sm font-bold uppercase tracking-widest">No active liabilities</p>
-                    <Button asChild variant="outline" className="border-white/10 text-[10px] font-black uppercase tracking-widest h-10 rounded-xl">
+                    <HandCoins size={48} className="mx-auto text-muted-foreground/20" />
+                    <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest">No active liabilities</p>
+                    <Button asChild variant="outline" className="border-border text-[10px] font-black uppercase tracking-widest h-10 rounded-xl">
                         <Link href="/loans">Apply for Capital</Link>
                     </Button>
                 </CardContent>
             </Card>
         )}
 
-        {/* SECTION 2: HISTORY (Settled Nodes) */}
         <div className="space-y-6">
-            <h2 className="text-[10px] font-black uppercase tracking-[4px] text-white/20 flex items-center gap-2 px-2">
-                <ShieldCheck size={14} className="text-green-500" /> Settled History
+            <h2 className="text-[10px] font-black uppercase tracking-[4px] text-muted-foreground flex items-center gap-2 px-2">
+                <ShieldCheck size={14} className="text-accent" /> Settled History
             </h2>
             <div className="grid gap-4">
                 {sortedLoans.filter(l => l.status === 'Completed').map(loan => <HistoryCard key={loan.id} loan={loan} />)}
                 {sortedCustomLoans.filter(l => l.status === 'completed').map(loan => <HistoryCard key={loan.id} loan={loan} isCustom />)}
                 {!sortedLoans.some(l => l.status === 'Completed') && !sortedCustomLoans.some(l => l.status === 'completed') && (
-                    <p className="text-center text-[10px] text-white/10 uppercase font-black py-10">No past transactions archived</p>
+                    <p className="text-center text-[10px] text-muted-foreground uppercase font-black py-10">No past transactions archived</p>
                 )}
             </div>
         </div>
 
-        {/* BATCH PAYMENT DIALOG */}
         <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
-            <DialogContent className="bg-[#030408]/95 border-white/10 text-white rounded-[2.5rem] max-w-sm">
+            <DialogContent className="rounded-[2.5rem] max-w-sm">
                 <DialogHeader>
                     <DialogTitle className="text-center font-black uppercase tracking-tight">Batch Settlement</DialogTitle>
-                    <DialogDescription className="text-center text-white/40 text-[10px] uppercase tracking-widest">Authorize dispatch for {selectedItems.length} selected items</DialogDescription>
+                    <DialogDescription className="text-center text-muted-foreground text-[10px] uppercase tracking-widest">Authorize dispatch for {selectedItems.length} selected items</DialogDescription>
                 </DialogHeader>
                 
                 <div className="py-6 space-y-6">
-                    <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center gap-1 shadow-inner">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Total Net Amount</span>
+                    <div className="bg-muted p-6 rounded-[2rem] border border-border flex flex-col items-center gap-1 shadow-inner">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Net Amount</span>
                         <span className="text-4xl font-black text-primary tracking-tighter">₹{totalSelectedAmount.toFixed(2)}</span>
                     </div>
 
                     <ScrollArea className="max-h-24 pr-4">
                         <div className="space-y-2">
                             {selectedItems.map((item, i) => (
-                                <div key={i} className="flex justify-between text-[10px] font-bold text-white/40 uppercase">
+                                <div key={i} className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
                                     <span>{item.loanName}</span>
                                     <span>₹{item.amount.toFixed(2)}</span>
                                 </div>
@@ -340,7 +331,7 @@ export default function MyLoansPage() {
                     </ScrollArea>
 
                     <div className="flex flex-col items-center gap-4 pt-2">
-                        <div className="bg-white p-3 rounded-2xl shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+                        <div className="bg-white p-3 rounded-2xl shadow-xl">
                             <Image
                                 src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiDeeplink)}`}
                                 alt="UPI QR"
@@ -349,10 +340,10 @@ export default function MyLoansPage() {
                             />
                         </div>
                         <div className="w-full space-y-2">
-                            <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Admin UPI ID</Label>
-                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
-                                <span className="font-mono text-xs font-bold text-white/80">{targetUpi || 'NOT SET'}</span>
-                                <Button variant="ghost" size="icon" onClick={() => handleCopyToClipboard(targetUpi, 'UPI ID')} className="h-8 w-8 hover:bg-white/10">
+                            <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Admin UPI ID</Label>
+                            <div className="bg-muted border border-border rounded-xl p-4 flex justify-between items-center group">
+                                <span className="font-mono text-xs font-bold">{targetUpi || 'NOT SET'}</span>
+                                <Button variant="ghost" size="icon" onClick={() => handleCopyToClipboard(targetUpi, 'UPI ID')} className="h-8 w-8 hover:bg-background">
                                     <Copy size={14} className="text-primary" />
                                 </Button>
                             </div>
@@ -360,12 +351,12 @@ export default function MyLoansPage() {
                     </div>
 
                     <div className="space-y-3">
-                        <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
+                        <Button asChild className="w-full h-12 rounded-xl bg-foreground text-background font-black uppercase tracking-widest text-[10px] shadow-xl">
                             <a href={upiDeeplink}>
                                 <QrCode size={16} className="mr-2" /> Open UPI App Terminal
                             </a>
                         </Button>
-                        <Button onClick={handleBatchMarkAsPaid} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all">
+                        <Button onClick={handleBatchMarkAsPaid} className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black shadow-xl hover:scale-[1.02] transition-all">
                             <ShieldCheck size={18} className="mr-2" /> I HAVE PAID (FINALIZE BATCH)
                         </Button>
                     </div>
@@ -374,12 +365,12 @@ export default function MyLoansPage() {
         </Dialog>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl h-16 flex items-center justify-around px-4">
-          <BottomNavItem icon={Home} label="Home" href="/dashboard" />
-          <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
-          <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-          <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" active/>
-          <BottomNavItem icon={User} label="Profile" href="/profile" />
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-xl h-16 flex items-center justify-around px-4">
+          <BottomNavItem icon={Home} label={t.nav.home} href="/dashboard" />
+          <BottomNavItem icon={Briefcase} label={t.nav.plans} href="/plans" />
+          <BottomNavItem icon={Trophy} label={t.nav.leaders} href="/leaderboard" />
+          <BottomNavItem icon={HandCoins} label={t.nav.loans} href="/my-loans" active/>
+          <BottomNavItem icon={User} label={t.nav.profile} href="/profile" />
       </nav>
     </div>
   );
@@ -395,26 +386,26 @@ function RepaymentRow({ date, amount, status, isSelected, onToggle, subtext }: {
             onClick={() => isSelectable && onToggle()}
             className={cn(
                 "flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer group",
-                isSelected ? "bg-primary/10 border-primary/40 shadow-lg" : "bg-white/[0.02] border-white/[0.03] hover:bg-white/5",
+                isSelected ? "bg-primary/10 border-primary/40 shadow-lg" : "bg-muted/30 border-border hover:bg-muted",
                 !isSelectable && "cursor-default opacity-80"
             )}
         >
             <div className="flex items-center gap-4">
                 {isSelectable && (
-                    <Checkbox checked={isSelected} onToggle={onToggle} className="h-5 w-5 rounded-lg border-white/20 data-[state=checked]:bg-primary" />
+                    <Checkbox checked={isSelected} onCheckedChange={onToggle} className="h-5 w-5 rounded-lg border-border" />
                 )}
                 <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{date.toLocaleDateString()}</span>
-                    <span className="text-base font-black text-white tracking-tight">₹{amount.toFixed(2)}</span>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{date.toLocaleDateString()}</span>
+                    <span className="text-base font-black tracking-tight">₹{amount.toFixed(2)}</span>
                     {subtext && <span className="text-[8px] font-bold text-primary/40 uppercase tracking-widest">{subtext}</span>}
                 </div>
             </div>
             {isPaid ? (
-                <Badge variant="outline" className="h-6 bg-green-500/10 text-green-400 border-green-500/20 text-[8px] font-black uppercase tracking-widest px-3">PAID</Badge>
+                <Badge variant="outline" className="h-6 bg-accent/10 text-accent border-accent/20 text-[8px] font-black uppercase tracking-widest px-3">PAID</Badge>
             ) : isPendingAdmin ? (
                 <Badge variant="outline" className="h-6 bg-primary/10 text-primary border-primary/20 text-[8px] font-black uppercase tracking-widest px-3">VERIFYING</Badge>
             ) : (
-                <div className={cn("h-6 px-3 flex items-center justify-center rounded-full text-[8px] font-black uppercase tracking-widest border transition-colors", isSelected ? "bg-primary text-white border-primary" : "bg-white/5 text-white/20 border-white/5")}>
+                <div className={cn("h-6 px-3 flex items-center justify-center rounded-full text-[8px] font-black uppercase tracking-widest border transition-colors", isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-muted text-muted-foreground border-border")}>
                     {isSelected ? 'SELECTED' : 'SELECT'}
                 </div>
             )}
@@ -428,35 +419,35 @@ function HistoryCard({ loan, isCustom }: { loan: any, isCustom?: boolean }) {
     const interest = total - principal;
 
     return (
-        <Card className="bg-white/[0.02] border-white/5 rounded-2xl p-5 group grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all relative overflow-hidden">
+        <Card className="bg-muted/20 border-border rounded-2xl p-5 group grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all relative overflow-hidden">
             <div className="flex items-center justify-between relative z-10 mb-4">
                 <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-green-500/5 flex items-center justify-center border border-green-500/10">
-                        <CheckCircle2 size={18} className="text-green-500" />
+                    <div className="h-10 w-10 rounded-xl bg-accent/5 flex items-center justify-center border border-accent/10">
+                        <CheckCircle2 size={18} className="text-accent" />
                     </div>
                     <div>
-                        <p className="text-sm font-bold text-white/80">{isCustom ? 'Flexi Protocol' : loan.planName}</p>
-                        <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Protocol Node ID: #{loan.id.slice(-6).toUpperCase()}</p>
+                        <p className="text-sm font-bold">{isCustom ? 'Flexi Protocol' : loan.planName}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Protocol Node ID: #{loan.id.slice(-6).toUpperCase()}</p>
                     </div>
                 </div>
                 <div className="text-right">
-                    <p className="text-[10px] font-black text-green-500/50 uppercase tracking-widest">SETTLED</p>
-                    <p className="text-[9px] text-white/10 font-bold uppercase">{new Date((loan.startDate || loan.createdAt || Timestamp.now()).seconds * 1000).toLocaleDateString()}</p>
+                    <p className="text-[10px] font-black text-accent/50 uppercase tracking-widest">SETTLED</p>
+                    <p className="text-[9px] text-muted-foreground font-bold uppercase">{new Date((loan.startDate || loan.createdAt || Timestamp.now()).seconds * 1000).toLocaleDateString()}</p>
                 </div>
             </div>
             
             <div className="grid grid-cols-3 gap-2 relative z-10">
-                <div className="bg-white/5 rounded-lg p-2 text-center border border-white/5">
-                    <p className="text-[7px] font-black text-white/20 uppercase tracking-widest">Principal</p>
-                    <p className="text-[11px] font-bold text-white/70">₹{principal}</p>
+                <div className="bg-muted rounded-lg p-2 text-center border border-border">
+                    <p className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Principal</p>
+                    <p className="text-[11px] font-bold">₹{principal}</p>
                 </div>
-                <div className="bg-white/5 rounded-lg p-2 text-center border border-white/5">
-                    <p className="text-[7px] font-black text-white/20 uppercase tracking-widest">Interest</p>
+                <div className="bg-muted rounded-lg p-2 text-center border border-border">
+                    <p className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Interest</p>
                     <p className="text-[11px] font-bold text-primary/60">₹{interest.toFixed(2)}</p>
                 </div>
-                <div className="bg-white/5 rounded-lg p-2 text-center border border-white/5">
-                    <p className="text-[7px] font-black text-white/20 uppercase tracking-widest">Settled</p>
-                    <p className="text-[11px] font-bold text-green-400">₹{total.toFixed(2)}</p>
+                <div className="bg-muted rounded-lg p-2 text-center border border-border">
+                    <p className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Settled</p>
+                    <p className="text-[11px] font-bold text-accent">₹{total.toFixed(2)}</p>
                 </div>
             </div>
         </Card>
@@ -467,9 +458,9 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
   return (
     <Link href={href} className={cn(
         "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
-        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
+        active ? 'text-primary scale-110' : 'text-muted-foreground hover:text-foreground'
     )}>
-      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
+      <Icon className={cn("h-5 w-5")} />
       <span className="text-[10px] tracking-tighter">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>

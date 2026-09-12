@@ -4,12 +4,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Inter } from 'next/font/google';
 import { UserPresence } from '@/components/UserPresence';
+import { SettingsProvider } from '@/context/settings-context';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
-
 export const metadata: Metadata = {
-  title: 'grow money',
+  title: 'Grow Money',
   description: 'Elite Investment & Loan Ledger Node',
 };
 
@@ -19,13 +19,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full dark">
-      <body className={`${inter.variable} font-body antialiased h-full bg-background`}>
+    <html lang="en" className="h-full">
+      <body className={`${inter.variable} font-body antialiased h-full`}>
         <FirebaseClientProvider>
-          <UserPresence />
-          {children}
+          <SettingsProvider>
+            <UserPresence />
+            {children}
+            <Toaster />
+          </SettingsProvider>
         </FirebaseClientProvider>
-        <Toaster />
       </body>
     </html>
   );

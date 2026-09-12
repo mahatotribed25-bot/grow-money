@@ -19,7 +19,6 @@ import {
   Smartphone,
   HelpCircle,
   TrendingUp,
-  IndianRupee,
   Users
 } from 'lucide-react';
 import Link from 'next/link';
@@ -61,6 +60,7 @@ import { cn } from '@/lib/utils';
 import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CashDispenseAnimation } from '@/components/dashboard/CashDispenseAnimation';
+import { useSettings } from '@/context/settings-context';
 
 type UserData = {
   id: string;
@@ -111,13 +111,13 @@ const SlideToClaim = ({ onComplete, disabled, label, lockedLabel }: { onComplete
   const handleMouseUp = () => { if (sliderValue < 95) setSliderValue(0); };
 
   return (
-    <div className={cn("relative h-12 w-full rounded-xl overflow-hidden border transition-all duration-300", disabled ? "bg-white/5 border-white/5 opacity-50" : "bg-white/10 border-white/10")}>
+    <div className={cn("relative h-12 w-full rounded-xl overflow-hidden border transition-all duration-300", disabled ? "bg-muted/30 border-border opacity-50" : "bg-muted border-border")}>
       <div className="absolute inset-y-0 left-0 bg-primary/20 transition-all duration-75" style={{ width: `${sliderValue}%` }} />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <span className="text-[10px] font-black uppercase tracking-widest">{disabled ? (lockedLabel || "Action Locked") : (isCompleted ? "Success!" : label)}</span>
       </div>
       <input type="range" min="0" max="100" value={sliderValue} onChange={handleSliderChange} onMouseUp={handleMouseUp} onTouchEnd={handleMouseUp} disabled={disabled || isCompleted} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed" />
-      <div className={cn("absolute top-1 left-1 bottom-1 aspect-square rounded-lg flex items-center justify-center transition-all duration-75 pointer-events-none", disabled ? "bg-white/10 text-white/20" : "bg-white text-black shadow-lg")} style={{ left: `calc(${sliderValue}% - ${sliderValue > 0 ? '40px' : '0px'})`, marginLeft: sliderValue > 0 ? '0' : '4px' }}>
+      <div className={cn("absolute top-1 left-1 bottom-1 aspect-square rounded-lg flex items-center justify-center transition-all duration-75 pointer-events-none", disabled ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground shadow-lg")} style={{ left: `calc(${sliderValue}% - ${sliderValue > 0 ? '40px' : '0px'})`, marginLeft: sliderValue > 0 ? '0' : '4px' }}>
         <ChevronRight className={cn("h-5 w-5", !disabled && "animate-pulse")} />
       </div>
     </div>
@@ -128,6 +128,7 @@ export default function Dashboard() {
   const firestore = useFirestore();
   const { user, loading: userLoading } = useUser();
   const { toast } = useToast();
+  const { t } = useSettings();
 
   const { data: userData, loading: userDataLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   const { data: adminSettings } = useDoc<AdminSettings>(user ? 'settings/admin' : null);
@@ -179,29 +180,29 @@ export default function Dashboard() {
 
   const activeInvestments = investments?.filter((inv) => inv.status === 'Active' || inv.status === 'Stopped');
 
-  if (userLoading || userDataLoading || investmentsLoading) return <div className="flex h-screen items-center justify-center bg-[#030408]"><Timer className="animate-spin text-primary" /></div>;
+  if (userLoading || userDataLoading || investmentsLoading) return <div className="flex h-screen items-center justify-center"><Timer className="animate-spin text-primary" /></div>;
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground">
+    <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
        <AlertDialog open={showWelcomePopup} onOpenChange={setShowWelcomePopup}>
-        <AlertDialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 rounded-[2rem]">
+        <AlertDialogContent className="rounded-[2rem]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-center text-white text-2xl font-black tracking-tight">Welcome, {userData?.name} 💰</AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-white/40 font-bold uppercase tracking-widest text-[10px]">Your journey starts now!</AlertDialogDescription>
+            <AlertDialogTitle className="text-center text-2xl font-black tracking-tight">Welcome, {userData?.name} 💰</AlertDialogTitle>
+            <AlertDialogDescription className="text-center font-bold uppercase tracking-widest text-[10px]">Your journey starts now!</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogAction onClick={() => setShowWelcomePopup(false)} className="w-full bg-primary font-black h-14 rounded-2xl shadow-xl shadow-primary/20">Authorize & Enter</AlertDialogAction>
+          <AlertDialogAction onClick={() => setShowWelcomePopup(false)} className="w-full bg-primary text-primary-foreground font-black h-14 rounded-2xl shadow-xl">Authorize & Enter</AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
 
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-xl sm:px-6">
         <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /><h1 className="text-xl font-bold tracking-tighter">Grow Money</h1></div>
         <Link href="/profile">
-          <Badge variant="outline" className="border-white/10 bg-white/5 h-10 px-3 gap-2 rounded-full hover:bg-white/10 transition-all">
+          <Badge variant="outline" className="border-border bg-muted h-10 px-3 gap-2 rounded-full hover:bg-accent transition-all">
             <Avatar className="h-7 w-7">
               <AvatarImage src={userData?.photoURL} />
               <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-black">{userData?.name?.charAt(0)}</AvatarFallback>
             </Avatar>
-            <span className="animate-rgb-glow font-black text-xs tracking-tight">{userData?.name || 'User'}</span>
+            <span className="font-black text-xs tracking-tight">{userData?.name || 'User'}</span>
           </Badge>
         </Link>
       </header>
@@ -211,57 +212,54 @@ export default function Dashboard() {
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         <div className="rounded-3xl overflow-hidden shadow-2xl"><BannerCarousel /></div>
         
-        <WalletSummary userData={userData} adminSettings={adminSettings} loading={userDataLoading} />
+        <WalletSummary userData={userData} adminSettings={adminSettings} loading={userDataLoading} t={t} />
 
-        <div className="flex items-center justify-between"><h2 className="text-sm font-black uppercase tracking-[3px] text-white/40 flex items-center gap-2"><Activity size={14} className="text-primary" /> Active Portfolios</h2><Button variant="ghost" size="sm" asChild className="text-primary text-[10px] font-black uppercase tracking-widest"><Link href="/plans">Browser Market <ArrowRight className="ml-1 h-3 w-3" /></Link></Button></div>
+        <div className="flex items-center justify-between"><h2 className="text-sm font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2"><Activity size={14} className="text-primary" /> {t.dashboard.active_portfolios}</h2><Button variant="ghost" size="sm" asChild className="text-primary text-[10px] font-black uppercase tracking-widest"><Link href="/plans">{t.dashboard.browse_market} <ArrowRight className="ml-1 h-3 w-3" /></Link></Button></div>
 
         <div className="grid gap-4 sm:grid-cols-2">
             {activeInvestments?.map(inv => <ActivePlanCard key={inv.id} investment={inv} onClaimProfit={handleClaimProfit} onClaimMaturity={handleClaimMaturity} />)}
-            {activeInvestments?.length === 0 && <Card className="bg-white/[0.02] border-dashed border-white/5 rounded-3xl py-12 text-center"><p className="text-white/20 text-xs font-bold uppercase tracking-widest">No active nodes.</p></Card>}
+            {activeInvestments?.length === 0 && <Card className="bg-muted/20 border-dashed border-border rounded-3xl py-12 text-center"><p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">No active nodes.</p></Card>}
         </div>
 
-        <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl p-6 shadow-2xl">
-            <CardTitle className="text-[10px] font-black uppercase tracking-[4px] text-white/20 mb-6">Service Integration</CardTitle>
+        <Card className="bg-card border-border rounded-3xl p-6 shadow-2xl">
+            <CardTitle className="text-[10px] font-black uppercase tracking-[4px] text-muted-foreground mb-6">{t.dashboard.service_integration}</CardTitle>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <QuickActionButton icon={TrendingUp} label="Market" href="/plans" color="text-green-400" />
-                <QuickActionButton icon={Zap} label="Wheel" href="/lucky-spin" color="text-yellow-400" />
-                <QuickActionButton icon={HandCoins} label="Standard Loan" href="/loans" color="text-orange-400" />
-                <QuickActionButton icon={FileText} label="Flexi Loan" href="/custom-loan" color="text-red-400" />
-                <QuickActionButton icon={Users} label="Syndicate" href="/group-investing" color="text-purple-400" />
+                <QuickActionButton icon={TrendingUp} label={t.dashboard.market} href="/plans" color="text-green-600" />
+                <QuickActionButton icon={Zap} label={t.dashboard.wheel} href="/lucky-spin" color="text-yellow-600" />
+                <QuickActionButton icon={HandCoins} label={t.dashboard.standard_loan} href="/loans" color="text-orange-600" />
+                <QuickActionButton icon={FileText} label={t.dashboard.flexi_loan} href="/custom-loan" color="text-red-600" />
+                <QuickActionButton icon={Users} label={t.dashboard.syndicate} href="/group-investing" color="text-purple-600" />
             </div>
         </Card>
       </main>
 
-      <nav className="sticky bottom-0 z-30 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl h-16 flex items-center justify-around px-4">
-          <BottomNavItem icon={Home} label="Home" href="/dashboard" active />
-          <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
-          <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-          <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
-          <BottomNavItem icon={User} label="Profile" href="/profile" />
+      <nav className="sticky bottom-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-xl h-16 flex items-center justify-around px-4">
+          <BottomNavItem icon={Home} label={t.nav.home} href="/dashboard" active />
+          <BottomNavItem icon={Briefcase} label={t.nav.plans} href="/plans" />
+          <BottomNavItem icon={Trophy} label={t.nav.leaders} href="/leaderboard" />
+          <BottomNavItem icon={HandCoins} label={t.nav.loans} href="/my-loans" />
+          <BottomNavItem icon={User} label={t.nav.profile} href="/profile" />
       </nav>
     </div>
   );
 }
 
-function WalletSummary({ userData, adminSettings, loading }: { userData?: UserData | null, adminSettings?: AdminSettings | null, loading: boolean }) {
+function WalletSummary({ userData, adminSettings, loading, t }: { userData?: UserData | null, adminSettings?: AdminSettings | null, loading: boolean, t: any }) {
   return (
-    <Card className="border-white/[0.08] bg-white/[0.03] rounded-[2rem] p-8 space-y-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
-            <Wallet size={120} className="text-white" />
-        </div>
+    <Card className="border-border bg-card rounded-[2rem] p-8 space-y-8 shadow-2xl relative overflow-hidden">
         <div className="text-center space-y-1 relative z-10">
           <p className="text-4xl font-black tracking-tighter">{loading ? '...' : `₹${(userData?.walletBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}`}</p>
-          <p className="text-[10px] text-white/20 uppercase font-black tracking-[4px]">Verified Capital</p>
+          <p className="text-[10px] text-muted-foreground uppercase font-black tracking-[4px]">{t.dashboard.balance}</p>
         </div>
         <div className="grid grid-cols-2 gap-4 relative z-10">
-          <DepositButton adminUpi={adminSettings?.adminUpi} />
-          <WithdrawButton adminSettings={adminSettings} userData={userData} />
+          <DepositButton adminUpi={adminSettings?.adminUpi} t={t} />
+          <WithdrawButton adminSettings={adminSettings} userData={userData} t={t} />
         </div>
     </Card>
   );
 }
 
-function DepositButton({ adminUpi }: { adminUpi?: string }) {
+function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -277,29 +275,29 @@ function DepositButton({ adminUpi }: { adminUpi?: string }) {
 
   return (
     <Dialog>
-      <DialogTrigger asChild><Button className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl shadow-white/5"><Upload size={16} className="mr-2" /> Recharge</Button></DialogTrigger>
-      <DialogContent className="bg-[#030408]/95 backdrop-blur-2xl border-white/10 text-white rounded-[2rem]">
+      <DialogTrigger asChild><Button className="w-full h-14 rounded-2xl bg-foreground text-background font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl"><Upload size={16} className="mr-2" /> {t.dashboard.recharge}</Button></DialogTrigger>
+      <DialogContent className="rounded-[2rem]">
         <DialogHeader>
           <DialogTitle className="text-xl font-black uppercase tracking-tight">Node Funding</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 py-4">
             <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">Amount (INR)</Label>
-                <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} className="bg-white/5 border-white/10 h-14 rounded-xl text-xl font-black" />
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Amount (INR)</Label>
+                <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} className="h-14 rounded-xl text-xl font-black" />
             </div>
             {qrUrl && <div className="bg-white p-4 rounded-3xl flex justify-center shadow-2xl animate-in zoom-in-95"><Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="QR" width={180} height={160} /></div>}
             <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-1">Ref Transaction ID</Label>
-                <Input placeholder="Enter 12-digit ID" value={tid} onChange={e => setTid(e.target.value)} className="bg-white/5 border-white/10 h-12 rounded-xl" />
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Ref Transaction ID</Label>
+                <Input placeholder="Enter 12-digit ID" value={tid} onChange={e => setTid(e.target.value)} className="h-12 rounded-xl" />
             </div>
-            <Button onClick={handleSubmit} className="w-full h-14 bg-primary rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/20">Confirm Protocol</Button>
+            <Button onClick={handleSubmit} className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-widest shadow-xl">Confirm Protocol</Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSettings | null, userData?: UserData | null }) {
+function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminSettings | null, userData?: UserData | null, t: any }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -332,34 +330,34 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
   return (
     <>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild><Button variant="outline" className="w-full h-14 rounded-2xl border-white/10 bg-white/5 text-white/50 font-black uppercase tracking-widest text-xs hover:bg-white/10 hover:text-white transition-all"><Download size={16} className="mr-2" /> Withdraw</Button></DialogTrigger>
-            <DialogContent className="bg-[#030408]/95 border-white/10 text-white sm:max-w-md p-0 overflow-hidden rounded-[2.5rem] shadow-2xl">
-                <header className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+            <DialogTrigger asChild><Button variant="outline" className="w-full h-14 rounded-2xl border-border bg-muted text-muted-foreground font-black uppercase tracking-widest text-xs hover:bg-accent hover:text-foreground transition-all"><Download size={16} className="mr-2" /> {t.dashboard.withdraw}</Button></DialogTrigger>
+            <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-[2.5rem] shadow-2xl">
+                <header className="p-6 border-b border-border bg-muted/20 flex items-center justify-between">
                     <DialogTitle className="text-lg font-black tracking-tight uppercase">Capital Dispatch</DialogTitle>
-                    <HelpCircle className="text-white/20 h-5 w-5" />
+                    <HelpCircle className="text-muted-foreground h-5 w-5" />
                 </header>
                 <div className="p-6 space-y-8">
-                     <div className="bg-white/5 border border-white/5 rounded-[1.5rem] p-5 flex items-center justify-between shadow-inner">
+                     <div className="bg-muted border border-border rounded-[1.5rem] p-5 flex items-center justify-between shadow-inner">
                         <div className="flex items-center gap-4">
                             <div className="h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary shadow-lg border border-primary/20"><Wallet size={24}/></div>
                             <div>
-                                <p className="text-[9px] font-black text-white/20 uppercase tracking-[2px]">Asset Balance</p>
-                                <p className="text-xl font-black tracking-tighter text-white">₹{(userData?.walletBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[2px]">Asset Balance</p>
+                                <p className="text-xl font-black tracking-tighter">₹{(userData?.walletBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                             </div>
                         </div>
-                        <Eye size={18} className="text-white/20 relative z-10" />
+                        <Eye size={18} className="text-muted-foreground relative z-10" />
                     </div>
 
                     <div className="space-y-4">
-                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-[3px] ml-1">Dispatch Amount</Label>
+                        <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] ml-1">Dispatch Amount</Label>
                         <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-white/20">₹</span>
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-muted-foreground">₹</span>
                             <Input 
                                 type="number" 
                                 placeholder="0.00" 
                                 value={amt} 
                                 onChange={e => setAmt(e.target.value)} 
-                                className="h-16 pl-10 text-3xl font-black bg-white/5 border-white/10 rounded-2xl focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10 text-base"
+                                className="h-16 pl-10 text-3xl font-black bg-muted border-border rounded-2xl focus:ring-primary focus:border-primary/50"
                             />
                         </div>
                         <div className="grid grid-cols-4 gap-2">
@@ -369,8 +367,8 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
                                     variant="outline" 
                                     onClick={() => setAmt(a.toString())}
                                     className={cn(
-                                        "h-11 rounded-xl font-black border-white/5 hover:bg-primary/20 transition-all",
-                                        amt === a.toString() ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" : "bg-white/5 text-white/20"
+                                        "h-11 rounded-xl font-black border-border hover:bg-primary/20 transition-all",
+                                        amt === a.toString() ? "bg-primary text-primary-foreground border-primary shadow-lg" : "bg-muted text-muted-foreground"
                                     )}
                                 >
                                     ₹{a}
@@ -378,22 +376,8 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
                             ))}
                         </div>
                     </div>
-
-                    <div className="space-y-4">
-                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-[3px] ml-1">Verified Channel</Label>
-                        <div className="bg-white/5 border border-primary/30 rounded-2xl p-5 flex items-center justify-between shadow-inner">
-                            <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary border border-primary/20"><Smartphone size={24}/></div>
-                                <div>
-                                    <p className="text-sm font-black text-white/80">Digital ATM Node</p>
-                                    <p className="text-[9px] text-white/20 uppercase font-black">Direct Ledger Credit</p>
-                                </div>
-                            </div>
-                            <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/40"><CheckCircle2 size={14} className="text-white"/></div>
-                        </div>
-                    </div>
                     
-                    <Button onClick={handleWithdraw} className="w-full h-16 rounded-[1.5rem] bg-primary text-white font-black text-lg shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all">
+                    <Button onClick={handleWithdraw} className="w-full h-16 rounded-[1.5rem] bg-primary text-primary-foreground font-black text-lg shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
                         Authorize Dispatch
                     </Button>
                 </div>
@@ -407,14 +391,13 @@ function WithdrawButton({ adminSettings, userData }: { adminSettings?: AdminSett
 function ActivePlanCard({ investment, onClaimProfit, onClaimMaturity }: { investment: Investment, onClaimProfit: (i: Investment) => void, onClaimMaturity: (i: Investment) => void }) {
   const isMatured = new Date() >= investment.maturityDate.toDate();
   return (
-    <Card className="border-white/[0.08] bg-white/[0.03] rounded-3xl p-6 space-y-5 shadow-2xl relative overflow-hidden group">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    <Card className="border-border bg-card rounded-3xl p-6 space-y-5 shadow-2xl relative overflow-hidden group">
         <div className="flex justify-between items-start relative z-10">
             <div>
-                <p className="text-base font-bold text-white tracking-tight">{investment.planName}</p>
+                <p className="text-base font-bold tracking-tight">{investment.planName}</p>
                 <Badge className="bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest mt-1.5 h-4 border-primary/10">Active Node</Badge>
             </div>
-            <p className="text-sm font-black text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]">+₹{investment.dailyIncome}/day</p>
+            <p className="text-sm font-black text-accent">+₹{investment.dailyIncome}/day</p>
         </div>
         <div className="relative z-10">
             <SlideToClaim label={isMatured ? "Slide to Liquidate" : "Claim Daily Profit"} onComplete={() => isMatured ? onClaimMaturity(investment) : onClaimProfit(investment)} />
@@ -425,8 +408,8 @@ function ActivePlanCard({ investment, onClaimProfit, onClaimMaturity }: { invest
 
 function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href: string, active?: boolean }) {
   return (
-    <Link href={href} className={cn("flex flex-col items-center gap-1 transition-all h-full justify-center relative", active ? 'text-primary scale-110' : 'text-white/20 hover:text-white/40')}>
-      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(139,92,246,0.5)]")} />
+    <Link href={href} className={cn("flex flex-col items-center gap-1 transition-all h-full justify-center relative", active ? 'text-primary scale-110' : 'text-muted-foreground hover:text-foreground')}>
+      <Icon className={cn("h-5 w-5")} />
       <span className="text-[9px] font-black uppercase tracking-tight">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-6 bg-primary rounded-full blur-[2px]" />}
     </Link>
@@ -435,8 +418,8 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
 
 function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.ElementType, label: string, href: string, color: string }) {
     return (
-        <Link href={href} className="flex flex-col items-center gap-2 p-5 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-white/10 transition-all group shadow-xl">
-            <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", color)} /><span className="text-[9px] font-black uppercase text-white/20 tracking-[2px] group-hover:text-white/40 transition-colors">{label}</span>
+        <Link href={href} className="flex flex-col items-center gap-2 p-5 bg-muted/30 border border-border rounded-2xl hover:bg-accent/10 hover:border-accent/30 transition-all group shadow-sm">
+            <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", color)} /><span className="text-[9px] font-black uppercase text-muted-foreground tracking-[2px] group-hover:text-foreground transition-colors">{label}</span>
         </Link>
     )
 }

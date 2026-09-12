@@ -6,7 +6,6 @@ import {
   User,
   Briefcase,
   TrendingUp,
-  Users as UsersIcon,
   HandCoins,
   Trophy,
   AlertCircle,
@@ -27,6 +26,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useSettings } from '@/context/settings-context';
 
 type InvestmentPlan = {
   id: string;
@@ -64,12 +64,12 @@ export default function PlansPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { t } = useSettings();
 
   const { data: plans, loading } = useCollection<InvestmentPlan>('investmentPlans');
   const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}`: null);
   const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
   
-  // Fetch active custom loans for the user to restrict investment
   const { data: userCustomLoans } = useCollection<any>(
     user ? query(collection(firestore, 'customLoanRequests'), where('userId', '==', user.uid), where('status', 'in', ['active', 'extension_pending', 'payment_pending', 'pending_user_approval', 'approved_by_user'])) : null
   );
@@ -82,7 +82,6 @@ export default function PlansPage() {
         return;
     }
     
-    // Restriction: Cannot invest if active custom loan exists
     if (hasActiveCustomLoan) {
         toast({ 
             variant: 'destructive', 
@@ -230,19 +229,19 @@ export default function PlansPage() {
   const comingSoonPlans = plans?.filter(p => p.status === 'Coming Soon');
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground relative z-10">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
+    <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
         <div className="flex items-center gap-2">
             <Link href="/dashboard">
-            <Button variant="ghost" size="icon" className="hover:bg-white/10 text-white/70">
+            <Button variant="ghost" size="icon" className="hover:bg-accent">
                 <ChevronLeft className="h-5 w-5" />
             </Button>
             </Link>
-            <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Investment Plans</h1>
+            <h1 className="text-lg font-bold tracking-tight">{t.nav.plans}</h1>
         </div>
         <div className="flex items-center gap-2">
-             <Badge variant="outline" className="border-white/10 bg-white/5 h-8 px-4 rounded-xl">
-                <span className="animate-rgb-glow font-black tracking-tighter text-sm">
+             <Badge variant="outline" className="border-border bg-muted h-8 px-4 rounded-xl">
+                <span className="font-black tracking-tighter text-sm">
                     {userData?.name || 'User'}
                 </span>
              </Badge>
@@ -251,7 +250,7 @@ export default function PlansPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 max-w-5xl mx-auto w-full">
         {hasActiveCustomLoan && (
-            <Card className="bg-red-500/10 border-red-500/30 text-red-400 p-4 rounded-2xl flex items-center gap-3 animate-pulse">
+            <Card className="bg-destructive/10 border-destructive/30 text-destructive p-4 rounded-2xl flex items-center gap-3">
                 <AlertCircle className="shrink-0 h-5 w-5" />
                 <p className="text-xs font-bold uppercase tracking-tight">Investment Disabled: You have an active custom loan. Please settle it to unlock investments.</p>
             </Card>
@@ -260,7 +259,7 @@ export default function PlansPage() {
         {loading ? (
            <div className="flex flex-col items-center justify-center py-20 gap-4">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-              <p className="text-[10px] font-bold uppercase tracking-[4px] text-white/20">Accessing Vault</p>
+              <p className="text-[10px] font-bold uppercase tracking-[4px] text-muted-foreground">Accessing Vault</p>
            </div>
         ) : (
           <>
@@ -271,11 +270,11 @@ export default function PlansPage() {
                 ))
             ) : (
                 !comingSoonPlans?.length && (
-                    <Card className="col-span-full bg-white/5 border-white/10 backdrop-blur-xl rounded-3xl p-10 text-center">
+                    <Card className="col-span-full bg-muted/20 border-border rounded-3xl p-10 text-center">
                         <CardContent className="space-y-4">
-                            <Briefcase size={48} className="mx-auto text-white/10" />
-                            <h3 className="text-xl font-bold text-white/80">No Plans Active</h3>
-                            <p className="text-white/40 text-sm max-w-xs mx-auto">New wealth-building opportunities are being prepared. Check back soon!</p>
+                            <Briefcase size={48} className="mx-auto text-muted-foreground/20" />
+                            <h3 className="text-xl font-bold">No Plans Active</h3>
+                            <p className="text-muted-foreground text-sm max-w-xs mx-auto">New wealth-building opportunities are being prepared. Check back soon!</p>
                         </CardContent>
                     </Card>
                 )
@@ -284,7 +283,7 @@ export default function PlansPage() {
 
             {comingSoonPlans && comingSoonPlans.length > 0 && (
                 <div className="space-y-6">
-                    <h2 className="text-xl font-bold text-white/40 uppercase tracking-widest pl-2">Coming Soon</h2>
+                    <h2 className="text-xl font-bold text-muted-foreground uppercase tracking-widest pl-2">Coming Soon</h2>
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {comingSoonPlans.map((plan, index) => (
                             <PlanCard key={plan.id} plan={plan} onInvest={handleInvest} userBalance={userData?.walletBalance || 0} index={index + 10} disabled={hasActiveCustomLoan} />
@@ -296,13 +295,13 @@ export default function PlansPage() {
         )}
       </main>
 
-      <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
+      <nav className="sticky bottom-0 z-20 border-t border-border/20 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
-          <BottomNavItem icon={Home} label="Home" href="/dashboard" />
-          <BottomNavItem icon={Briefcase} label="Plans" href="/plans" active />
-          <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-          <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
-          <BottomNavItem icon={User} label="Profile" href="/profile" />
+          <BottomNavItem icon={Home} label={t.nav.home} href="/dashboard" />
+          <BottomNavItem icon={Briefcase} label={t.nav.plans} href="/plans" active />
+          <BottomNavItem icon={Trophy} label={t.nav.leaders} href="/leaderboard" />
+          <BottomNavItem icon={HandCoins} label={t.nav.loans} href="/my-loans" />
+          <BottomNavItem icon={User} label={t.nav.profile} href="/profile" />
         </div>
       </nav>
     </div>
@@ -319,8 +318,8 @@ function PlanCard({ plan, onInvest, userBalance, index, disabled }: { plan: Inve
 
   return (
     <Card className={cn(
-        "shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden transition-all duration-300 relative group",
-        (!isAvailable || isOutOfStock || disabled) ? 'opacity-40 grayscale' : 'hover:scale-[1.02] hover:bg-white/[0.06] hover:border-white/20'
+        "shadow-lg border-border bg-card rounded-3xl overflow-hidden transition-all duration-300 relative group",
+        (!isAvailable || isOutOfStock || disabled) ? 'opacity-40 grayscale' : 'hover:scale-[1.02] hover:bg-accent/10'
     )}>
       <div className="relative h-44 w-full overflow-hidden">
         <Image 
@@ -330,60 +329,51 @@ function PlanCard({ plan, onInvest, userBalance, index, disabled }: { plan: Inve
             className="object-cover transition-transform duration-500 group-hover:scale-110"
             data-ai-hint={planImage.imageHint}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#030408] via-[#030408]/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />
         <div className="absolute top-4 right-4">
              {isOutOfStock ? (
-                <Badge className="bg-red-500/80 text-white border-none text-[10px] font-bold">SOLD OUT</Badge>
+                <Badge className="bg-destructive text-destructive-foreground border-none text-[10px] font-bold">SOLD OUT</Badge>
              ) : !isAvailable && (
-                <Badge className="bg-white/20 text-white border-none text-[10px] font-bold backdrop-blur-md">UPCOMING</Badge>
+                <Badge className="bg-muted text-muted-foreground border-none text-[10px] font-bold">UPCOMING</Badge>
              )}
         </div>
       </div>
 
       <CardHeader className="pb-4 relative -mt-8">
         <div className="flex flex-col gap-1">
-            <CardTitle className="text-xl font-bold text-white group-hover:text-primary transition-colors">{plan.name}</CardTitle>
+            <CardTitle className="text-xl font-bold group-hover:text-primary transition-colors">{plan.name}</CardTitle>
             <Badge variant="outline" className="w-fit text-[8px] h-4 uppercase font-black tracking-widest border-primary/20 text-primary">
                 {plan.payoutFrequency?.replace('_', ' ')}
             </Badge>
         </div>
-        <CardDescription className="text-white/40 flex items-center gap-1.5 mt-1 font-bold">
+        <CardDescription className="text-muted-foreground flex items-center gap-1.5 mt-1 font-bold">
            <TrendingUp size={14} /> ₹{(plan.price || 0).toLocaleString()} Entry
         </CardDescription>
       </CardHeader>
       
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
-            <PlanDetail label="Daily ROI" value={`₹${(plan.dailyIncome || 0).toFixed(2)}`} valueClass="text-green-400" />
-            <PlanDetail label="Cycle" value={`${plan.validity || 0} Days`} valueClass="text-white" />
+            <PlanDetail label="Daily ROI" value={`₹${(plan.dailyIncome || 0).toFixed(2)}`} valueClass="text-accent" />
+            <PlanDetail label="Cycle" value={`${plan.validity || 0} Days`} />
         </div>
         
-        <div className="bg-black/40 rounded-2xl p-4 border border-white/5 space-y-2">
-             <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/30">
+        <div className="bg-muted/50 rounded-2xl p-4 border border-border space-y-2">
+             <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                 <span>Total Net Profit</span>
-                <span className="text-green-400 font-black">+₹{(plan.totalIncome || 0).toFixed(2)}</span>
+                <span className="text-accent font-black">+₹{(plan.totalIncome || 0).toFixed(2)}</span>
              </div>
-             <div className="flex justify-between text-sm font-bold text-white/90">
+             <div className="flex justify-between text-sm font-bold">
                 <span>Total Payout</span>
                 <span className="text-xl font-black tracking-tighter">₹{(plan.finalReturn || 0).toFixed(2)}</span>
              </div>
         </div>
 
-        {plan.stock !== undefined && isAvailable && (
-            <div className="flex items-center justify-center gap-2">
-                <div className="h-1 w-12 rounded-full bg-white/5 overflow-hidden">
-                    <div className="h-full bg-primary" style={{ width: `${(plan.stock / 100) * 100}%` }} />
-                </div>
-                <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">{plan.stock} units available</span>
-            </div>
-        )}
-
         <Button 
             className={cn(
                 "w-full h-12 rounded-xl font-bold transition-all duration-300",
                 canAfford && isAvailable && !isOutOfStock && !disabled 
-                    ? "bg-white text-black hover:bg-primary hover:text-white shadow-lg shadow-white/5" 
-                    : "bg-white/5 text-white/20 border-white/5"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg" 
+                    : "bg-muted text-muted-foreground border-border"
             )}
             onClick={() => onInvest(plan)} 
             disabled={!canAfford || !isAvailable || isOutOfStock || disabled}
@@ -397,8 +387,8 @@ function PlanCard({ plan, onInvest, userBalance, index, disabled }: { plan: Inve
 
 function PlanDetail({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
-    <div className="flex flex-col bg-white/5 p-2.5 rounded-xl border border-white/5">
-      <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest mb-1">{label}</span>
+    <div className="flex flex-col bg-muted/30 p-2.5 rounded-xl border border-border">
+      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{label}</span>
       <span className={cn("text-sm font-bold tracking-tight", valueClass)}>{value}</span>
     </div>
   );
@@ -420,10 +410,10 @@ function BottomNavItem({
       href={href}
       className={cn(
         "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
-        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
+        active ? 'text-primary scale-110' : 'text-muted-foreground hover:text-foreground'
       )}
     >
-      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
+      <Icon className={cn("h-5 w-5")} />
       <span className="text-[10px] tracking-tight">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>
