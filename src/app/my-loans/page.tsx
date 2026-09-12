@@ -11,7 +11,9 @@ import {
   Copy,
   QrCode,
   Clock,
-  Timer
+  Timer,
+  CheckCircle2,
+  CheckCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
