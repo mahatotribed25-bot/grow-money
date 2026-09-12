@@ -119,7 +119,7 @@ type UserData = {
   phoneNumber?: string;
 };
 
-const translations = {
+const translations: Record<string, any> = {
   en: {
     title: "Investor Account",
     node: "Investor Node",
@@ -132,7 +132,8 @@ const translations = {
     recharge: "Recharge",
     payout: "Payout",
     pools: "Pools",
-    export: "Export to Excel"
+    export: "Export to Excel",
+    select_lang: "Select Language"
   },
   hi: {
     title: "निवेशक खाता",
@@ -146,7 +147,38 @@ const translations = {
     recharge: "रिचार्ज",
     payout: "पेआउट",
     pools: "पूल",
-    export: "एक्सेल में एक्सपोर्ट करें"
+    export: "एक्सेल में एक्सपोर्ट करें",
+    select_lang: "भाषा चुनें"
+  },
+  mr: {
+    title: "गुंतवणूकदार खाते",
+    node: "गुंतवणूकदार नोड",
+    identity: "ओळख पडताळणी",
+    payment: "पेमेंट नोड",
+    referral: "रेफरल लिंक",
+    logout: "ओळख डी-ऑथोराईझ करा",
+    kyc_status: "KYC स्थिती",
+    ledger: "खाते वही",
+    recharge: "रिचार्ज",
+    payout: "पेआउट",
+    pools: "पूल",
+    export: "एक्सेलमध्ये एक्सपोर्ट करा",
+    select_lang: "भाषा निवडा"
+  },
+  gu: {
+    title: "રોકાણકાર ખાતું",
+    node: "રોકાણકાર નોડ",
+    identity: "ઓળખ ચકાસણી",
+    payment: "પેમેન્ટ નોડ",
+    referral: "રેફરલ લિંક",
+    logout: "ઓળખ ડી-ઓથોરાઇઝ કરો",
+    kyc_status: "KYC સ્થિતિ",
+    ledger: "ખાતાવહી",
+    recharge: "રિચાર્જ",
+    payout: "પેઆઉટ",
+    pools: "પૂલ",
+    export: "એક્સેલમાં એક્સપોર્ટ કરો",
+    select_lang: "ભાષા પસંદ કરો"
   }
 };
 
@@ -178,10 +210,10 @@ export default function ProfilePage() {
 
   const [selectedReceipt, setSelectedReceipt] = useState<{ tx: Transaction, type: 'deposit' | 'withdrawal' } | null>(null);
 
-  const [language, setLanguage] = useState<'en' | 'hi'>('en');
+  const [language, setLanguage] = useState<'en' | 'hi' | 'mr' | 'gu'>('en');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
-  const t = translations[language];
+  const t = translations[language] || translations['en'];
 
   useEffect(() => {
     if (!user) return;
@@ -271,7 +303,7 @@ export default function ProfilePage() {
         setIsKycOpen(false);
         if (refetchUser) refetchUser();
     } catch (e) {
-        toast({ title: "Error", variant: "destructive" });
+        toast({ title: "Error", description: "Submission failed.", variant: "destructive" });
     }
   };
 
@@ -308,13 +340,22 @@ export default function ProfilePage() {
   return (
     <div className={cn("flex min-h-screen w-full flex-col bg-[#030408] text-foreground relative overflow-hidden", theme === 'light' && "bg-slate-50 text-slate-900")}>
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
-        <Link href="/dashboard"><Button variant="ghost" size="icon"><ChevronLeft /></Button></Link>
+        <Link href="/dashboard"><Button variant="ghost" size="icon" className="hover:bg-white/10"><ChevronLeft className={cn(theme === 'light' ? 'text-slate-900' : 'text-white')} /></Button></Link>
         <h1 className="text-lg font-bold tracking-tight">{t.title}</h1>
-        <div className="flex gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')} className="rounded-full w-8 h-8">
-                <Languages size={18} className="text-white/60" />
-            </Button>
-             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="rounded-full w-8 h-8">
+        <div className="flex gap-2 items-center">
+            <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
+                <SelectTrigger className="w-10 h-8 p-0 border-none bg-transparent hover:bg-white/10 flex items-center justify-center rounded-full">
+                    <Languages size={18} className={cn(theme === 'light' ? 'text-slate-600' : 'text-white/60')} />
+                </SelectTrigger>
+                <SelectContent className="bg-[#030408] border-white/10 text-white">
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="hi">हिंदी</SelectItem>
+                    <SelectItem value="mr">मराठी</SelectItem>
+                    <SelectItem value="gu">ગુજરાતી</SelectItem>
+                </SelectContent>
+            </Select>
+
+             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="rounded-full w-8 h-8 hover:bg-white/10">
                 {theme === 'dark' ? <Sun size={18} className="text-white/60" /> : <Moon size={18} className="text-slate-600" />}
             </Button>
         </div>
@@ -509,7 +550,7 @@ export default function ProfilePage() {
                             <SelectTrigger className="bg-white/5 border-white/10 h-12 rounded-xl">
                                 <SelectValue placeholder="Select Method" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#030408] border-white/10">
+                            <SelectContent className="bg-[#030408] border-white/10 text-white">
                                 <SelectItem value="PhonePe">PhonePe</SelectItem>
                                 <SelectItem value="Google Pay">Google Pay</SelectItem>
                                 <SelectItem value="Paytm">Paytm</SelectItem>
@@ -610,10 +651,13 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
         <ScrollArea className="h-80">
             <Table>
                 <TableHeader className="bg-white/[0.02]">
-                    <TableRow className="border-white/10">{headers.map(h => <TableHead key={h} className="text-[10px] font-black text-white/20 uppercase tracking-[3px] py-4">{h}</TableHead>)}</TableRow>
+                    <TableRow className="border-white/10">
+                        {headers.map(h => <TableHead key={h} className="text-[10px] font-black text-white/20 uppercase tracking-[3px] py-4">{h}</TableHead>)}
+                    </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic">No nodes active.</TableCell></TableRow>}</TableBody>
+                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic">No nodes active.</TableCell></TableRow>}
+                </TableBody>
             </Table>
         </ScrollArea>
     </Card>
@@ -709,7 +753,7 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
         <CardTitle className="text-primary text-[10px] font-black uppercase tracking-[4px] mb-4">Protocol Challenge</CardTitle>
         <p className="text-xs text-white/50 mb-6">Enter micro-transaction sum received to finalize node.</p>
         <div className="flex gap-2">
-            <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="bg-black/40 border-white/10 h-14 rounded-2xl text-xl font-black" />
+            <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="bg-black/40 border-white/10 h-14 rounded-2xl text-xl font-black text-white" />
             <Button className="h-14 bg-primary px-8 rounded-2xl font-black" onClick={handleVerify}>Verify</Button>
         </div>
     </Card>
