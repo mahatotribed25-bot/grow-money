@@ -7,7 +7,37 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown, Timer, Send, TrendingUp, TrendingDown, History as HistoryIcon, IdCard, Smartphone } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  ArrowRight, 
+  User, 
+  Ban, 
+  RefreshCcw, 
+  Wallet, 
+  Briefcase, 
+  Download, 
+  Upload, 
+  Fingerprint, 
+  HandCoins, 
+  CheckCircle, 
+  Users2, 
+  PowerOff, 
+  Mail, 
+  CreditCard, 
+  Phone, 
+  FileCheck, 
+  ShieldCheck, 
+  ShieldX, 
+  Crown, 
+  Timer, 
+  Send, 
+  TrendingUp, 
+  TrendingDown, 
+  History as HistoryIcon, 
+  IdCard, 
+  Smartphone,
+  CheckCircle2
+} from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp, orderBy } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -130,14 +160,6 @@ type GroupInvestment = {
     investorId: string;
 }
 
-type GroupLoanPlan = {
-    id: string;
-    loanAmount: number;
-    interest: number;
-    totalRepayment: number;
-    amountRepaid?: number;
-}
-
 function useUserGroupInvestments(userId?: string) {
     const [investments, setInvestments] = useState<GroupInvestment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -152,17 +174,21 @@ function useUserGroupInvestments(userId?: string) {
         const fetchInvestments = async () => {
             setLoading(true);
             const allInvestments: GroupInvestment[] = [];
-            const q = query(collection(firestore, 'groupLoanPlans'));
-            const plansSnapshot = await getDocs(q);
+            try {
+                const q = query(collection(firestore, 'groupLoanPlans'));
+                const plansSnapshot = await getDocs(q);
 
-            for (const planDoc of plansSnapshot.docs) {
-                const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
-                const iq = query(investmentsRef, where('investorId', '==', userId));
-                const investmentSnapshot = await getDocs(iq);
+                for (const planDoc of plansSnapshot.docs) {
+                    const investmentsRef = collection(firestore, `groupLoanPlans/${planDoc.id}/investments`);
+                    const iq = query(investmentsRef, where('investorId', '==', userId));
+                    const investmentSnapshot = await getDocs(iq);
 
-                investmentSnapshot.forEach(invDoc => {
-                    allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
-                });
+                    investmentSnapshot.forEach(invDoc => {
+                        allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
+                    });
+                }
+            } catch (e) {
+                console.error("Error fetching group investments:", e);
             }
 
             setInvestments(allInvestments);
@@ -195,7 +221,7 @@ const getStatusVariant = (status: string) => {
     case 'Stopped':
       return 'destructive';
     case 'Payment Pending':
-        return 'outline'
+        return 'outline';
     default:
       return 'secondary';
   }
@@ -222,15 +248,15 @@ const WithdrawalStatus = ({ tx }: { tx: Transaction }) => {
     if (tx.status === 'pending') {
         if (tx.delayBonusActive) {
             return (
-                 <div className="p-2 text-xs rounded-md bg-blue-500/10 text-blue-300 space-y-1">
+                 <div className="p-2 text-xs rounded-md bg-blue-500/10 text-blue-300 space-y-1 mt-2">
                     <p className="font-semibold flex items-center gap-1"><Timer size={14}/> Delay Bonus Active</p>
                     <p>User is earning ₹{tx.delayBonusAmountPerDay || 0}/day.</p>
                     <p>Days Waiting: {waitingDays}</p>
                     <p>Bonus Earned: ₹{bonusEarned.toFixed(2)}</p>
                  </div>
-            )
+            );
         }
-        return <p className="text-xs text-muted-foreground">The user's withdrawal is under processing.</p>
+        return <p className="text-xs text-muted-foreground mt-2">The user's withdrawal is under processing.</p>;
     }
 
     return null;
@@ -299,7 +325,7 @@ export default function UserDetailPage() {
           requestResourceData: { permissions, role: newRole },
         });
         errorEmitter.emit('permission-error', permissionError);
-    })
+    });
   }
 
   const handleToggleStatus = () => {
@@ -540,7 +566,7 @@ export default function UserDetailPage() {
   };
 
   if (loading) return <div className="flex items-center justify-center h-full"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
-  if (!user) return <p>User not found.</p>;
+  if (!user) return <p className="text-white/40 text-center py-20">User not found.</p>;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -683,7 +709,9 @@ export default function UserDetailPage() {
                         <TableCell className="pl-6 py-4 font-bold text-white/80">{item.planName}</TableCell>
                         <TableCell>
                             <div className="flex flex-col">
-                                <span className="text-xs font-bold text-white/60">₹{(item.investedAmount || 0).toLocaleString()} <ArrowRight size={10} className="inline mx-1"/> ₹{(item.returnAmount || 0).toLocaleString()}</span>
+                                <span className="text-xs font-bold text-white/60">
+                                    ₹{(item.investedAmount || 0).toLocaleString()} <ArrowRight size={10} className="inline mx-1"/> ₹{(item.returnAmount || 0).toLocaleString()}
+                                </span>
                                 <span className="text-[9px] text-white/20 font-black uppercase mt-1">Start: {formatDate(item.startDate)}</span>
                             </div>
                         </TableCell>
@@ -776,7 +804,7 @@ function InfoBox({ title, value, icon: Icon, color }: { title: string, value: st
       </div>
       <p className={cn("text-xl font-black tracking-tighter text-white truncate", color)}>{value}</p>
     </div>
-  )
+  );
 }
 
 function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
@@ -804,7 +832,7 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
             </TableBody>
         </Table>
     </Card>
-  )
+  );
 }
 
 function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: ActiveLoan; user: UserData; onCompleteLoan: (id: string, amt: number) => void; onConfirmEmi: (l: ActiveLoan, i: number) => void; }) {
@@ -912,3 +940,4 @@ function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: Activ
     </Card>
   );
 }
+
