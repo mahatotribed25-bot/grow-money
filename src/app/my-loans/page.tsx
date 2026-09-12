@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -13,7 +14,10 @@ import {
   Clock,
   Timer,
   CheckCircle2,
-  CheckCircle
+  CheckCircle,
+  ArrowUpRight,
+  AlertCircle,
+  Info
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -193,7 +197,7 @@ export default function MyLoansPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300 pb-20">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-sm px-4 sm:px-6">
         <Link href="/dashboard"><Button variant="ghost" size="icon" className="hover:bg-accent text-foreground/70"><ChevronLeft /></Button></Link>
         <h1 className="text-lg font-bold tracking-tighter uppercase">{t.nav.loans}</h1>
         <div className="w-9" />

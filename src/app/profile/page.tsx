@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -281,6 +282,12 @@ export default function ProfilePage() {
                     <SelectItem value="hi">हिंदी</SelectItem>
                     <SelectItem value="mr">मराठी</SelectItem>
                     <SelectItem value="gu">ગુજરાતી</SelectItem>
+                    <SelectItem value="te">తెలుగు</SelectItem>
+                    <SelectItem value="ml">മലയാളം</SelectItem>
+                    <SelectItem value="ta">தமிழ்</SelectItem>
+                    <SelectItem value="kn">ಕನ್ನಡ</SelectItem>
+                    <SelectItem value="bn">বাংলা</SelectItem>
+                    <SelectItem value="bh">बिहारी (भोजपुरी)</SelectItem>
                 </SelectContent>
             </Select>
 
@@ -573,15 +580,6 @@ export default function ProfilePage() {
   );
 }
 
-function InfoBox({ title, value, icon: Icon, badgeVariant }: { title: string, value: string, icon: React.ElementType, badgeVariant?: any }) {
-  return (
-    <div className="rounded-lg border border-border p-4 flex flex-col gap-2">
-      <div className="flex items-center justify-between text-muted-foreground"><p className="text-sm font-medium">{title}</p><Icon className="h-4 w-4" /></div>
-      {badgeVariant ? <Badge variant={badgeVariant} className="w-fit capitalize">{value}</Badge> : <p className="text-lg font-bold truncate">{value}</p>}
-    </div>
-  )
-}
-
 function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
   return (
     <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-lg">
@@ -593,8 +591,7 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic">No nodes active.</TableCell></TableRow>}
-                </TableBody>
+                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic">No nodes active.</TableCell></TableRow>}</TableBody>
             </Table>
         </ScrollArea>
     </Card>
