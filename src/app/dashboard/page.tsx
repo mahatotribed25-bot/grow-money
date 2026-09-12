@@ -341,35 +341,80 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
   const { toast } = useToast();
   const [amount, setAmount] = useState('');
   const [tid, setTid] = useState('');
+  const [isSabrActive, setIsSabrActive] = useState(false);
   const qrUrl = amount ? `upi://pay?pa=${adminUpi}&pn=Grow%20Money&am=${amount}&cu=INR` : '';
 
   const handleSubmit = () => {
-    if (!user || !amount || !tid) return;
-    addDoc(collection(firestore, 'deposits'), { userId: user.uid, name: user.displayName, amount: parseFloat(amount), transactionId: tid, status: 'pending', createdAt: serverTimestamp() })
-      .then(() => { toast({ title: 'Protocol Initiated', description: 'Request sent to ledger.' }); setAmount(''); setTid(''); });
+    if (!user || !amount || !tid) {
+      toast({ title: "Validation Error", description: "Amount and Transaction ID are required.", variant: "destructive" });
+      return;
+    }
+    
+    setIsSabrActive(true);
+    
+    // Simulate protocol processing time with witty overlay
+    setTimeout(() => {
+      addDoc(collection(firestore, 'deposits'), { 
+        userId: user.uid, 
+        name: user.displayName, 
+        amount: parseFloat(amount), 
+        transactionId: tid, 
+        status: 'pending', 
+        createdAt: serverTimestamp() 
+      })
+      .then(() => { 
+        toast({ title: 'Protocol Initiated', description: 'Request sent to ledger.' }); 
+        setAmount(''); 
+        setTid(''); 
+        setIsSabrActive(false);
+      })
+      .catch((e) => {
+        console.error(e);
+        setIsSabrActive(false);
+        toast({ title: "Submission Error", variant: "destructive" });
+      });
+    }, 2500);
   };
 
   return (
-    <Dialog>
-      <DialogTrigger asChild><Button className="w-full h-14 rounded-2xl bg-foreground text-background font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl"><Upload size={16} className="mr-2" /> {t.dashboard.recharge}</Button></DialogTrigger>
-      <DialogContent className="rounded-[2rem]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-black uppercase tracking-tight">Node Funding</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-6 py-4">
-            <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Amount (INR)</Label>
-                <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} className="h-14 rounded-xl text-xl font-black" />
+    <>
+      <Dialog>
+        <DialogTrigger asChild><Button className="w-full h-14 rounded-2xl bg-foreground text-background font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl"><Upload size={16} className="mr-2" /> {t.dashboard.recharge}</Button></DialogTrigger>
+        <DialogContent className="rounded-[2rem]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">Node Funding</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+              <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Amount (INR)</Label>
+                  <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} className="h-14 rounded-xl text-xl font-black" />
+              </div>
+              {qrUrl && <div className="bg-white p-4 rounded-3xl flex justify-center shadow-2xl animate-in zoom-in-95"><Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="QR" width={180} height={160} /></div>}
+              <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Ref Transaction ID</Label>
+                  <Input placeholder="Enter 12-digit ID" value={tid} onChange={e => setTid(e.target.value)} className="h-12 rounded-xl" />
+              </div>
+              <Button onClick={handleSubmit} className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-widest shadow-xl">Confirm Protocol</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {isSabrActive && (
+        <div className="fixed inset-0 z-[300] bg-background/80 backdrop-blur-2xl flex flex-col items-center justify-center animate-in fade-in duration-500 p-6 text-center">
+            <div className="text-8xl mb-8 animate-bounce">⏳</div>
+            <h2 className="text-3xl font-black text-white tracking-tighter uppercase mb-2 animate-in slide-in-from-bottom-2 duration-700">Zara Sabr Karo</h2>
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest animate-pulse">Amount on its way, checking node integrity!</p>
+            
+            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-3">
+                <div className="flex gap-2">
+                  <div className="h-2 w-2 rounded-full bg-primary animate-ping" />
+                  <div className="h-2 w-2 rounded-full bg-primary animate-ping delay-150" />
+                  <div className="h-2 w-2 rounded-full bg-primary animate-ping delay-300" />
+                </div>
             </div>
-            {qrUrl && <div className="bg-white p-4 rounded-3xl flex justify-center shadow-2xl animate-in zoom-in-95"><Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="QR" width={180} height={160} /></div>}
-            <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Ref Transaction ID</Label>
-                <Input placeholder="Enter 12-digit ID" value={tid} onChange={e => setTid(e.target.value)} className="h-12 rounded-xl" />
-            </div>
-            <Button onClick={handleSubmit} className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-widest shadow-xl">Confirm Protocol</Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+    </>
   );
 }
 
