@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Wallet,
@@ -19,7 +20,8 @@ import {
   Smartphone,
   HelpCircle,
   TrendingUp,
-  Users
+  Users,
+  PlayCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -45,7 +47,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   collection,
   addDoc,
@@ -76,6 +78,7 @@ type UserData = {
 type AdminSettings = {
   adminUpi?: string;
   minWithdrawal?: number;
+  homepageVideoUrl?: string;
 };
 
 type Investment = {
@@ -212,6 +215,10 @@ export default function Dashboard() {
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         <div className="rounded-3xl overflow-hidden shadow-2xl"><BannerCarousel /></div>
         
+        {adminSettings?.homepageVideoUrl && (
+          <VideoPlayerSection url={adminSettings.homepageVideoUrl} />
+        )}
+
         <WalletSummary userData={userData} adminSettings={adminSettings} loading={userDataLoading} t={t} />
 
         <div className="flex items-center justify-between"><h2 className="text-sm font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2"><Activity size={14} className="text-primary" /> {t.dashboard.active_portfolios}</h2><Button variant="ghost" size="sm" asChild className="text-primary text-[10px] font-black uppercase tracking-widest"><Link href="/plans">{t.dashboard.browse_market} <ArrowRight className="ml-1 h-3 w-3" /></Link></Button></div>
@@ -242,6 +249,39 @@ export default function Dashboard() {
       </nav>
     </div>
   );
+}
+
+function VideoPlayerSection({ url }: { url: string }) {
+    const embedUrl = useMemo(() => {
+        if (!url) return null;
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
+    }, [url]);
+
+    if (!embedUrl) return null;
+
+    return (
+        <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-2xl">
+            <CardHeader className="py-4 border-b border-border/10">
+                <CardTitle className="text-[10px] font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2">
+                    <PlayCircle size={14} className="text-primary" /> Training & Insights
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 aspect-video">
+                <iframe
+                    width="100%"
+                    height="100%"
+                    src={embedUrl}
+                    title="YouTube video player"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    className="w-full h-full"
+                ></iframe>
+            </CardContent>
+        </Card>
+    );
 }
 
 function WalletSummary({ userData, adminSettings, loading, t }: { userData?: UserData | null, adminSettings?: AdminSettings | null, loading: boolean, t: any }) {
@@ -423,3 +463,4 @@ function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.Ele
         </Link>
     )
 }
+

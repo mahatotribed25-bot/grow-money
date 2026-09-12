@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users, Phone, Zap } from 'lucide-react';
+import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users, Phone, Zap, PlayCircle } from 'lucide-react';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
@@ -63,7 +63,8 @@ type AdminSettings = {
     silver: number;
     gold: number;
     platinum: number;
-  }
+  };
+  homepageVideoUrl?: string;
 };
 
 export default function SettingsPage() {
@@ -90,6 +91,7 @@ export default function SettingsPage() {
   const [maintenanceDuration, setMaintenanceDuration] = useState(5);
   const [profitStartDate, setProfitStartDate] = useState<Date | null>(null);
   const [p2pFee, setP2pFee] = useState(2);
+  const [homepageVideoUrl, setHomepageVideoUrl] = useState('');
 
   // Spin Settings
   const [spinCost, setSpinCost] = useState(0);
@@ -130,6 +132,7 @@ export default function SettingsPage() {
       setMaxCustomLoanAmount(settings.maxCustomLoanAmount || 5000);
       setTotalCustomLoanLimit(settings.totalCustomLoanLimit || 0);
       setProfitStartDate(settings.profitCalculationStartDate?.toDate() || null);
+      setHomepageVideoUrl(settings.homepageVideoUrl || '');
       
       setDelayCompensationEnabled(settings.delayCompensationEnabled || false);
       setDelayBonusPerDay(settings.delayBonusPerDay || 0);
@@ -184,6 +187,7 @@ export default function SettingsPage() {
       spinRewards: rewardsArray,
       vipTiers,
       vipWithdrawalGst: vipGst,
+      homepageVideoUrl,
     };
 
     setDoc(settingsRef, settingsData, { merge: true })
@@ -491,6 +495,30 @@ export default function SettingsPage() {
                     </div>
                 </div>
                  <Separator />
+
+                <div>
+                    <CardTitle className="flex items-center gap-2"><PlayCircle className="text-primary" /> Homepage Video Node</CardTitle>
+                     <CardDescription>
+                        Set a YouTube video to be displayed on every user's dashboard.
+                    </CardDescription>
+                    <div className="space-y-4 mt-4 p-4 border border-primary/20 rounded-xl bg-primary/5">
+                        <div className="space-y-2">
+                            <Label htmlFor="homepage-video">YouTube Video URL</Label>
+                            <Input 
+                                id="homepage-video" 
+                                placeholder="https://www.youtube.com/watch?v=..." 
+                                value={homepageVideoUrl} 
+                                onChange={(e) => setHomepageVideoUrl(e.target.value)} 
+                                className="bg-white/5 border-white/10"
+                            />
+                            <p className="text-[10px] text-white/40 uppercase font-black tracking-widest">
+                                Leave empty to hide the video player from the dashboard.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <Separator />
+
                 <div>
                     <CardTitle className="flex items-center gap-2"><HandCoins /> Delay Compensation Settings</CardTitle>
                      <CardDescription>
@@ -847,3 +875,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
