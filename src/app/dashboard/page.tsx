@@ -342,6 +342,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
   const [amount, setAmount] = useState('');
   const [tid, setTid] = useState('');
   const [isSabrActive, setIsSabrActive] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const qrUrl = amount ? `upi://pay?pa=${adminUpi}&pn=Grow%20Money&am=${amount}&cu=INR` : '';
 
   const handleSubmit = () => {
@@ -367,6 +368,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
         setAmount(''); 
         setTid(''); 
         setIsSabrActive(false);
+        setIsOpen(false); // Close the dialog
       })
       .catch((e) => {
         console.error(e);
@@ -378,7 +380,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
 
   return (
     <>
-      <Dialog>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild><Button className="w-full h-14 rounded-2xl bg-foreground text-background font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl"><Upload size={16} className="mr-2" /> {t.dashboard.recharge}</Button></DialogTrigger>
         <DialogContent className="rounded-[2rem]">
           <DialogHeader>
