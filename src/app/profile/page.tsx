@@ -55,7 +55,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { ScrollArea } from '../ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
@@ -119,7 +119,6 @@ type UserData = {
   phoneNumber?: string;
 };
 
-// Simple translations object
 const translations = {
   en: {
     title: "Investor Account",
@@ -179,7 +178,6 @@ export default function ProfilePage() {
 
   const [selectedReceipt, setSelectedReceipt] = useState<{ tx: Transaction, type: 'deposit' | 'withdrawal' } | null>(null);
 
-  // Settings State
   const [language, setLanguage] = useState<'en' | 'hi'>('en');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
@@ -612,7 +610,7 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
         <ScrollArea className="h-80">
             <Table>
                 <TableHeader className="bg-white/[0.02]">
-                    <TableRow className="border-white/10">{headers.map(h => <TableHead key={h} className="text-[10px] font-black text-white/20 uppercase tracking-[3px] py-4">{h}</TableHead>)}</TableHeader>
+                    <TableRow className="border-white/10">{headers.map(h => <TableHead key={h} className="text-[10px] font-black text-white/20 uppercase tracking-[3px] py-4">{h}</TableHead>)}</TableRow>
                 </TableHeader>
                 <TableBody>
                     {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic">No nodes active.</TableCell></TableRow>}</TableBody>
@@ -740,7 +738,7 @@ function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: Reac
         "flex flex-col items-center gap-1 transition-all h-full justify-center relative",
         active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
     )}>
-        <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_10px_rgba(139,92,246,0.5)]")} />
+        <Icon className={cn("h-5 w-5", active && "drop-shadow-0_0_10px_rgba(139,92,246,0.5)")} />
         <span className="text-[9px] font-black uppercase tracking-tight">{label}</span>
         {active && <div className="absolute -bottom-1 h-1 w-6 bg-primary rounded-full blur-[2px]" />}
     </Link>
