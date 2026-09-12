@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -87,7 +88,7 @@ export default function SubAdminLayout({
   );
    const { data: pendingKycRequests } = useCollection<KycRequest>(
     isAuthorized && permissions?.canManageKyc ? 'users' : null,
-    { where: ['kycStatus', '==', 'pending'] }
+    { where: ['kycStatus', '==', 'Pending'] } // Fixed: Capital P
   );
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(
     isAuthorized && permissions?.canManageCustomLoans ? 'customLoanRequests' : null,
@@ -118,7 +119,7 @@ export default function SubAdminLayout({
 
   useEffect(() => {
     if (loading) {
-      return; // Wait until loading is complete
+      return; 
     }
 
     if (!user) {
@@ -141,7 +142,6 @@ export default function SubAdminLayout({
   }
 
   if (!isAuthorized) {
-    // While redirecting, show a spinner. This prevents a flash of the subadmin content.
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />

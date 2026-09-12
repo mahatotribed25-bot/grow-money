@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X } from 'lucide-react';
+import { Check, X, Timer } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import {
   doc,
@@ -34,7 +34,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
 type KycUser = {
-  id: string; // This will be the user's ID
+  id: string; 
   name: string;
   panCard?: string;
   aadhaarNumber?: string;
@@ -45,12 +45,13 @@ type KycUser = {
 
 const formatDate = (timestamp?: Timestamp) => {
   if (!timestamp) return 'N/A';
-  return new Date(timestamp.seconds * 1000).toLocaleDateString();
+  return new Date(timestamp.seconds * 1000).toLocaleString();
 };
 
 export default function KycRequestsPage() {
+  // Fixed: matching 'Pending' with capital P
   const { data: pendingUsers, loading } = useCollection<KycUser>('users', {
-    where: ['kycStatus', '==', 'pending'],
+    where: ['kycStatus', '==', 'Pending'],
   });
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -69,7 +70,7 @@ export default function KycRequestsPage() {
     if (newStatus === 'Rejected') {
         updateData.kycRejectionReason = reason;
     } else {
-        updateData.kycRejectionReason = ''; // Clear reason on approval
+        updateData.kycRejectionReason = ''; 
     }
 
     updateDoc(userRef, updateData)
@@ -81,7 +82,6 @@ export default function KycRequestsPage() {
             });
         })
         .catch((error) => {
-            console.error('Error updating KYC status:', error);
             const permissionError = new FirestorePermissionError({
                 path: userRef.path,
                 operation: 'update',
@@ -108,9 +108,9 @@ export default function KycRequestsPage() {
   };
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">KYC Verification Requests</h2>
-      <div className="rounded-lg border">
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">KYC Verification Requests</h2>
+      <div className="rounded-lg border border-white/10 bg-white/5 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -119,30 +119,31 @@ export default function KycRequestsPage() {
               <TableHead>Aadhaar</TableHead>
               <TableHead>Phone Number</TableHead>
               <TableHead>Submitted On</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
-                  Loading...
+                <TableCell colSpan={6} className="text-center py-10">
+                   <Timer className="animate-spin h-5 w-5 mx-auto mb-2 text-primary" />
+                   Loading Identities...
                 </TableCell>
               </TableRow>
             ) : pendingUsers && pendingUsers.length > 0 ? (
               pendingUsers.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.panCard || 'N/A'}</TableCell>
-                  <TableCell>{user.aadhaarNumber || 'N/A'}</TableCell>
+                  <TableCell className="font-bold">{user.name}</TableCell>
+                  <TableCell className="font-mono">{user.panCard || 'N/A'}</TableCell>
+                  <TableCell className="font-mono">{user.aadhaarNumber || 'N/A'}</TableCell>
                   <TableCell>{user.phoneNumber || 'N/A'}</TableCell>
-                  <TableCell>{formatDate(user.kycSubmissionDate)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
+                  <TableCell className="text-xs text-muted-foreground">{formatDate(user.kycSubmissionDate)}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                            className="text-green-500 border-green-500/20 hover:bg-green-500/10"
                             onClick={() => handleUpdateStatus(user, 'Verified')}
                         >
                             <Check className="h-4 w-4 mr-1" /> Approve
@@ -150,7 +151,7 @@ export default function KycRequestsPage() {
                         <Button
                             variant="outline"
                             size="sm"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                            className="text-red-500 border-red-500/20 hover:bg-red-500/10"
                             onClick={() => openRejectDialog(user)}
                         >
                             <X className="h-4 w-4 mr-1" /> Reject
@@ -161,7 +162,7 @@ export default function KycRequestsPage() {
               ))
             ) : (
                  <TableRow>
-                    <TableCell colSpan={6} className="text-center">
+                    <TableCell colSpan={6} className="text-center py-10 text-muted-foreground italic">
                       No pending KYC requests.
                     </TableCell>
                 </TableRow>
@@ -170,11 +171,11 @@ export default function KycRequestsPage() {
         </Table>
       </div>
        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-2xl">
           <DialogHeader>
             <DialogTitle>Reason for Rejection</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this KYC request. The user will see this reason.
+            <DialogDescription className="text-white/40">
+              Please provide a reason for rejecting this KYC request.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -182,11 +183,12 @@ export default function KycRequestsPage() {
               placeholder="Enter reason here..."
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
+              className="bg-white/5 border-white/10"
             />
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" onClick={() => {setIsRejectDialogOpen(false); setRejectionReason('');}}>Cancel</Button>
+              <Button variant="ghost">Cancel</Button>
             </DialogClose>
             <Button variant="destructive" onClick={handleConfirmRejection}>Confirm Rejection</Button>
           </DialogFooter>

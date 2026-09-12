@@ -60,7 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const { data: pendingDeposits } = useCollection<DepositRequest>(isAdmin ? 'deposits' : null, { where: ['status', '==', 'pending'] });
   const { data: pendingWithdrawals } = useCollection<WithdrawalRequest>(isAdmin ? 'withdrawals' : null, { where: ['status', '==', 'pending'] });
-  const { data: pendingKycRequests } = useCollection<KycRequest>(isAdmin ? 'users' : null, { where: ['kycStatus', '==', 'pending'] });
+  const { data: pendingKycRequests } = useCollection<KycRequest>(isAdmin ? 'users' : null, { where: ['kycStatus', '==', 'Pending'] });
   const { data: pendingUpiRequests } = useCollection<UpiRequest>(isAdmin ? 'upiRequests' : null, { where: ['status', '==', 'pending'] });
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(isAdmin ? 'customLoanRequests' : null, { where: ['status', 'in', ['pending_admin_review', 'extension_pending']] });
 

@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X } from 'lucide-react';
+import { Check, X, Timer } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import {
   doc,
@@ -34,7 +34,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
 type KycUser = {
-  id: string; // This will be the user's ID
+  id: string; 
   name: string;
   panCard?: string;
   aadhaarNumber?: string;
@@ -45,12 +45,13 @@ type KycUser = {
 
 const formatDate = (timestamp?: Timestamp) => {
   if (!timestamp) return 'N/A';
-  return new Date(timestamp.seconds * 1000).toLocaleDateString();
+  return new Date(timestamp.seconds * 1000).toLocaleString();
 };
 
 export default function KycRequestsPage() {
+  // Fixed: matching 'Pending' with capital P as set in profile page
   const { data: pendingUsers, loading } = useCollection<KycUser>('users', {
-    where: ['kycStatus', '==', 'pending'],
+    where: ['kycStatus', '==', 'Pending'],
   });
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -69,7 +70,7 @@ export default function KycRequestsPage() {
     if (newStatus === 'Rejected') {
         updateData.kycRejectionReason = reason;
     } else {
-        updateData.kycRejectionReason = ''; // Clear reason on approval
+        updateData.kycRejectionReason = ''; 
     }
 
     updateDoc(userRef, updateData)
@@ -81,7 +82,6 @@ export default function KycRequestsPage() {
             });
         })
         .catch((error) => {
-            console.error('Error updating KYC status:', error);
             const permissionError = new FirestorePermissionError({
                 path: userRef.path,
                 operation: 'update',
@@ -108,52 +108,56 @@ export default function KycRequestsPage() {
   };
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">KYC Verification Requests</h2>
-      <div className="rounded-lg border">
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white">KYC Verification Registry</h2>
+        <p className="text-sm text-white/40">Review identities and authorize investor nodes.</p>
+      </div>
+      <div className="rounded-2xl border border-white/5 bg-white/[0.02] overflow-hidden shadow-2xl">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User Name</TableHead>
-              <TableHead>PAN Card</TableHead>
-              <TableHead>Aadhaar</TableHead>
-              <TableHead>Phone Number</TableHead>
-              <TableHead>Submitted On</TableHead>
-              <TableHead>Actions</TableHead>
+          <TableHeader className="bg-white/[0.02]">
+            <TableRow className="border-white/5">
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pl-6">Investor</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">PAN Node</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Aadhaar Node</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Contact</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Submitted At</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pr-6 text-right">Decision</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
-                  Loading...
+                <TableCell colSpan={6} className="text-center py-20">
+                   <Timer className="animate-spin h-6 w-6 text-primary mx-auto mb-2" />
+                   <p className="text-[10px] font-black uppercase text-white/20 tracking-widest">Accessing Identities...</p>
                 </TableCell>
               </TableRow>
             ) : pendingUsers && pendingUsers.length > 0 ? (
               pendingUsers.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.panCard || 'N/A'}</TableCell>
-                  <TableCell>{user.aadhaarNumber || 'N/A'}</TableCell>
-                  <TableCell>{user.phoneNumber || 'N/A'}</TableCell>
-                  <TableCell>{formatDate(user.kycSubmissionDate)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
+                <TableRow key={user.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                  <TableCell className="pl-6 font-bold text-white/90">{user.name}</TableCell>
+                  <TableCell className="font-mono text-xs">{user.panCard || 'N/A'}</TableCell>
+                  <TableCell className="font-mono text-xs">{user.aadhaarNumber || 'N/A'}</TableCell>
+                  <TableCell className="text-xs">{user.phoneNumber || 'N/A'}</TableCell>
+                  <TableCell className="text-[10px] font-bold text-white/20 uppercase">{formatDate(user.kycSubmissionDate)}</TableCell>
+                  <TableCell className="pr-6 text-right">
+                    <div className="flex justify-end gap-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                            className="bg-green-600/10 text-green-500 border-green-500/20 hover:bg-green-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
                             onClick={() => handleUpdateStatus(user, 'Verified')}
                         >
-                            <Check className="h-4 w-4 mr-1" /> Approve
+                            <Check className="h-3 w-3 mr-1" /> VERIFY
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                            className="bg-red-600/10 text-red-500 border-red-500/20 hover:bg-red-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
                             onClick={() => openRejectDialog(user)}
                         >
-                            <X className="h-4 w-4 mr-1" /> Reject
+                            <X className="h-3 w-3 mr-1" /> DENY
                         </Button>
                     </div>
                   </TableCell>
@@ -161,8 +165,8 @@ export default function KycRequestsPage() {
               ))
             ) : (
                  <TableRow>
-                    <TableCell colSpan={6} className="text-center">
-                      No pending KYC requests.
+                    <TableCell colSpan={6} className="text-center py-20 text-white/10 italic">
+                      No identities pending protocol review.
                     </TableCell>
                 </TableRow>
             )}
@@ -170,25 +174,26 @@ export default function KycRequestsPage() {
         </Table>
       </div>
        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]">
           <DialogHeader>
-            <DialogTitle>Reason for Rejection</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this KYC request. The user will see this reason.
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">Identity Rejection</DialogTitle>
+            <DialogDescription className="text-white/40 text-xs">
+              Provide a clear reason for denying this node's verification request.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Textarea
-              placeholder="Enter reason here..."
+              placeholder="e.g. Identity blur or mismatched data..."
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
+              className="bg-white/5 border-white/10"
             />
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" onClick={() => {setIsRejectDialogOpen(false); setRejectionReason('');}}>Cancel</Button>
+              <Button variant="ghost" className="text-white/40">Cancel</Button>
             </DialogClose>
-            <Button variant="destructive" onClick={handleConfirmRejection}>Confirm Rejection</Button>
+            <Button variant="destructive" className="rounded-xl font-bold px-8" onClick={handleConfirmRejection}>Confirm Denial</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
