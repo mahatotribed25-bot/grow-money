@@ -19,7 +19,14 @@ import {
   Handshake,
   FileCheck,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  Download,
+  Languages,
+  Moon,
+  Sun,
+  FileSpreadsheet,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -36,7 +43,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import TrustScoreMeter from '@/components/TrustScoreMeter';
 import {
@@ -48,9 +55,10 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -58,6 +66,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import * as XLSX from 'xlsx';
 
 type Transaction = {
   id: string;
@@ -110,6 +119,38 @@ type UserData = {
   phoneNumber?: string;
 };
 
+// Simple translations object
+const translations = {
+  en: {
+    title: "Investor Account",
+    node: "Investor Node",
+    identity: "Identity Verification",
+    payment: "Payment Node",
+    referral: "Referral Link",
+    logout: "De-Authorize Identity",
+    kyc_status: "KYC Status",
+    ledger: "Ledger",
+    recharge: "Recharge",
+    payout: "Payout",
+    pools: "Pools",
+    export: "Export to Excel"
+  },
+  hi: {
+    title: "निवेशक खाता",
+    node: "निवेशक नोड",
+    identity: "पहचान सत्यापन",
+    payment: "भुगतान नोड",
+    referral: "रेफरल लिंक",
+    logout: "पहचान डी-ऑथोराइज़ करें",
+    kyc_status: "KYC स्थिति",
+    ledger: "खाता बही",
+    recharge: "रिचार्ज",
+    payout: "पेआउट",
+    pools: "पूल",
+    export: "एक्सेल में एक्सपोर्ट करें"
+  }
+};
+
 export default function ProfilePage() {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -137,6 +178,12 @@ export default function ProfilePage() {
   const [kycPhone, setKycPhone] = useState('');
 
   const [selectedReceipt, setSelectedReceipt] = useState<{ tx: Transaction, type: 'deposit' | 'withdrawal' } | null>(null);
+
+  // Settings State
+  const [language, setLanguage] = useState<'en' | 'hi'>('en');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+
+  const t = translations[language];
 
   useEffect(() => {
     if (!user) return;
@@ -230,14 +277,49 @@ export default function ProfilePage() {
     }
   };
 
+  const exportToExcel = () => {
+    if (!walletHistory || walletHistory.length === 0) {
+        toast({ title: "No Data", description: "No transaction history to export.", variant: "destructive" });
+        return;
+    }
+
+    const dataToExport = walletHistory.map(item => ({
+        Date: new Date(item.createdAt.seconds * 1000).toLocaleString(),
+        Category: item.category,
+        Description: item.description,
+        Type: item.type.toUpperCase(),
+        Amount: item.type === 'credit' ? item.amount : -item.amount
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+    XLSX.writeFile(workbook, `Transactions_${user?.uid.slice(0, 5)}.xlsx`);
+    
+    toast({ title: "Export Successful", description: "Transaction ledger downloaded." });
+  };
+
+  const kycProgress = useMemo(() => {
+    if (userData?.kycStatus === 'Verified') return 100;
+    if (userData?.kycStatus === 'Pending') return 50;
+    return 10;
+  }, [userData]);
+
   const awaitingConfirmationRequest = upiRequests?.find(req => req.status === 'awaiting_confirmation');
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-[#030408] text-foreground relative overflow-hidden">
+    <div className={cn("flex min-h-screen w-full flex-col bg-[#030408] text-foreground relative overflow-hidden", theme === 'light' && "bg-slate-50 text-slate-900")}>
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
         <Link href="/dashboard"><Button variant="ghost" size="icon"><ChevronLeft /></Button></Link>
-        <h1 className="text-lg font-bold tracking-tight">Investor Account</h1>
-        <div className="w-9" />
+        <h1 className="text-lg font-bold tracking-tight">{t.title}</h1>
+        <div className="flex gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')} className="rounded-full w-8 h-8">
+                <Languages size={18} className="text-white/60" />
+            </Button>
+             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="rounded-full w-8 h-8">
+                {theme === 'dark' ? <Sun size={18} className="text-white/60" /> : <Moon size={18} className="text-slate-600" />}
+            </Button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 max-w-4xl mx-auto w-full">
@@ -255,7 +337,7 @@ export default function ProfilePage() {
                   </Button>
               </div>
               <div className="text-center sm:text-left space-y-1">
-                <CardTitle className="text-2xl font-black text-white tracking-tight">{userData?.name || 'Investor Node'}</CardTitle>
+                <CardTitle className="text-2xl font-black text-white tracking-tight">{userData?.name || t.node}</CardTitle>
                 <CardDescription className="text-white/40 font-medium">{user?.email}</CardDescription>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-2">
                     <Badge className="bg-primary/20 border-primary/30 text-primary uppercase text-[9px] font-black tracking-widest px-3 py-1 rounded-lg">
@@ -274,7 +356,7 @@ export default function ProfilePage() {
             <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl group">
                 <CardHeader>
                     <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-white/20 group-hover:text-primary transition-colors">
-                        <Gift size={14} className="text-primary" /> Referral Link
+                        <Gift size={14} className="text-primary" /> {t.referral}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="flex justify-between items-center bg-black/40 p-4 rounded-2xl mx-4 mb-4 border border-white/5">
@@ -286,7 +368,7 @@ export default function ProfilePage() {
             <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl">
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-white/20">
-                        <Smartphone size={14} className="text-green-400" /> Payment Node
+                        <Smartphone size={14} className="text-green-400" /> {t.payment}
                     </CardTitle>
                     <Button variant="ghost" size="sm" onClick={() => setIsEditUpiOpen(true)} className="h-6 text-[9px] font-black uppercase text-primary hover:text-white">Update</Button>
                 </CardHeader>
@@ -310,21 +392,26 @@ export default function ProfilePage() {
                 </CardContent>
             </Card>
 
-            <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl sm:col-span-2 overflow-hidden relative">
-                <CardHeader className="flex flex-row items-center justify-between">
+            <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl sm:col-span-2 overflow-hidden relative p-6">
+                <div className="flex flex-row items-center justify-between mb-4">
                     <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-white/20">
-                        <FileCheck size={14} className="text-blue-400" /> Identity Verification
+                        <FileCheck size={14} className="text-blue-400" /> {t.identity}
                     </CardTitle>
                     {userData?.kycStatus !== 'Verified' && (
                         <Button onClick={() => setIsKycOpen(true)} size="sm" className="h-8 px-4 rounded-xl font-black uppercase text-[9px]">
                            {userData?.kycStatus === 'Rejected' ? 'Re-Submit' : 'Verify Node'}
                         </Button>
                     )}
-                </CardHeader>
-                <CardContent className="px-6 pb-6">
-                     <div className="flex items-center justify-between">
+                </div>
+                <div className="space-y-4">
+                    <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-white/40 mb-1 px-1">
+                        <span>Verification Protocol</span>
+                        <span>{kycProgress}%</span>
+                    </div>
+                    <Progress value={kycProgress} className="h-2" />
+                    <div className="flex items-center justify-between mt-2">
                         <div className="space-y-1">
-                             <p className="text-sm font-bold text-white/80">KYC Status</p>
+                             <p className="text-sm font-bold text-white/80">{t.kyc_status}</p>
                              <Badge className={cn(
                                  "text-[8px] font-black uppercase h-5",
                                  userData?.kycStatus === 'Verified' ? "bg-green-500/20 text-green-400 border-green-500/30" :
@@ -340,20 +427,25 @@ export default function ProfilePage() {
                                 <ShieldCheck size={20} />
                              </div>
                         )}
-                     </div>
-                </CardContent>
+                    </div>
+                </div>
             </Card>
         </div>
 
         {awaitingConfirmationRequest && <AmountVerificationCard request={awaitingConfirmationRequest} />}
 
         <Tabs defaultValue="history">
-            <TabsList className="grid w-full grid-cols-4 bg-white/5 h-14 rounded-2xl p-1.5 border border-white/5">
-                <TabsTrigger value="history" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">Ledger</TabsTrigger>
-                <TabsTrigger value="deposits" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">Recharge</TabsTrigger>
-                <TabsTrigger value="withdrawals" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">Payout</TabsTrigger>
-                <TabsTrigger value="groups" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">Pools</TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between mb-4">
+                <TabsList className="grid w-full grid-cols-4 bg-white/5 h-14 rounded-2xl p-1.5 border border-white/5 flex-1 mr-4">
+                    <TabsTrigger value="history" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">{t.ledger}</TabsTrigger>
+                    <TabsTrigger value="deposits" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">{t.recharge}</TabsTrigger>
+                    <TabsTrigger value="withdrawals" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">{t.payout}</TabsTrigger>
+                    <TabsTrigger value="groups" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10">{t.pools}</TabsTrigger>
+                </TabsList>
+                <Button variant="outline" size="icon" onClick={exportToExcel} className="h-14 w-14 rounded-2xl border-white/5 bg-white/5 hover:bg-green-500/10 text-green-400 shadow-2xl" title={t.export}>
+                    <FileSpreadsheet size={20} />
+                </Button>
+            </div>
             <div className="mt-6">
                 <TabsContent value="history">
                     <HistoryTable 
@@ -385,7 +477,7 @@ export default function ProfilePage() {
         </Tabs>
 
         <Button onClick={handleLogout} className="w-full h-14 bg-white/5 border border-white/10 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 text-white/40 rounded-2xl font-black uppercase tracking-[3px] text-xs transition-all">
-          <LogOut size={16} className="mr-3" /> De-Authorize Identity
+          <LogOut size={16} className="mr-3" /> {t.logout}
         </Button>
 
         {/* Edit Profile Dialog */}
@@ -520,7 +612,7 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
         <ScrollArea className="h-80">
             <Table>
                 <TableHeader className="bg-white/[0.02]">
-                    <TableRow className="border-white/10">{headers.map(h => <TableHead key={h} className="text-[10px] font-black text-white/20 uppercase tracking-[3px] py-4">{h}</TableHead>)}</TableRow>
+                    <TableRow className="border-white/10">{headers.map(h => <TableHead key={h} className="text-[10px] font-black text-white/20 uppercase tracking-[3px] py-4">{h}</TableHead>)}</TableHeader>
                 </TableHeader>
                 <TableBody>
                     {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic">No nodes active.</TableCell></TableRow>}</TableBody>

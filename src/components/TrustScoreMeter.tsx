@@ -1,7 +1,13 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Info } from 'lucide-react';
 
 const TrustScoreMeter = ({ score }: { score: number }) => {
   const [displayScore, setDisplayScore] = useState(300);
@@ -58,66 +64,90 @@ const TrustScoreMeter = ({ score }: { score: number }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
-        <defs>
-          <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" style={{ stopColor: '#ef4444' }} />
-            <stop offset="50%" style={{ stopColor: '#facc15' }} />
-            <stop offset="100%" style={{ stopColor: '#22c55e' }} />
-          </linearGradient>
-        </defs>
+    <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto relative">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="cursor-help w-full">
+              <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+                <defs>
+                  <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style={{ stopColor: '#ef4444' }} />
+                    <stop offset="50%" style={{ stopColor: '#facc15' }} />
+                    <stop offset="100%" style={{ stopColor: '#22c55e' }} />
+                  </linearGradient>
+                </defs>
 
-        {/* Gauge arc (top semi-circle, from West to East) */}
-        <path
-          d={describeArc(cx, cy, radius, 180, 360)}
-          fill="none"
-          stroke="url(#gaugeGradient)"
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-        />
+                {/* Gauge arc (top semi-circle, from West to East) */}
+                <path
+                  d={describeArc(cx, cy, radius, 180, 360)}
+                  fill="none"
+                  stroke="url(#gaugeGradient)"
+                  strokeWidth={strokeWidth}
+                  strokeLinecap="round"
+                />
 
-        {/* Needle group, rotated around the pivot point */}
-        <g
-          transform={`rotate(${rotation} ${cx} ${cy})`}
-          style={{ transition: 'transform 0.5s cubic-bezier(0.64, 0, 0.78, 1)' }}
-        >
-          {/* The needle itself, pointing left (west) from the pivot */}
-          <line
-            x1={cx}
-            y1={cy}
-            x2={cx - radius + (strokeWidth / 2)}
-            y2={cy}
-            stroke="hsl(var(--foreground))"
-            strokeWidth={3}
-            strokeLinecap="round"
-          />
-        </g>
-        
-        {/* Pivot point circle on top of the needle */}
-        <circle cx={cx} cy={cy} r="6" fill="hsl(var(--foreground))" />
-        <circle cx={cx} cy={cy} r="3" fill="hsl(var(--background))" />
-        
-        {/* Text */}
-        <text
-          x={cx}
-          y={cy - 65}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          className="text-lg font-semibold fill-current text-muted-foreground"
-        >
-          YOUR SCORE
-        </text>
-        <text
-          x={cx}
-          y={cy - 30}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          className="text-6xl font-bold fill-current"
-        >
-          {Math.round(displayScore)}
-        </text>
-      </svg>
+                {/* Needle group, rotated around the pivot point */}
+                <g
+                  transform={`rotate(${rotation} ${cx} ${cy})`}
+                  style={{ transition: 'transform 0.5s cubic-bezier(0.64, 0, 0.78, 1)' }}
+                >
+                  {/* The needle itself, pointing left (west) from the pivot */}
+                  <line
+                    x1={cx}
+                    y1={cy}
+                    x2={cx - radius + (strokeWidth / 2)}
+                    y2={cy}
+                    stroke="hsl(var(--foreground))"
+                    strokeWidth={3}
+                    strokeLinecap="round"
+                  />
+                </g>
+                
+                {/* Pivot point circle on top of the needle */}
+                <circle cx={cx} cy={cy} r="6" fill="hsl(var(--foreground))" />
+                <circle cx={cx} cy={cy} r="3" fill="hsl(var(--background))" />
+                
+                {/* Text */}
+                <text
+                  x={cx}
+                  y={cy - 65}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="text-lg font-semibold fill-current text-muted-foreground"
+                >
+                  YOUR SCORE
+                </text>
+                <text
+                  x={cx}
+                  y={cy - 30}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="text-6xl font-bold fill-current"
+                >
+                  {Math.round(displayScore)}
+                </text>
+              </svg>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-[200px] bg-slate-900 border-white/10 text-white p-4 rounded-xl shadow-2xl">
+            <div className="space-y-2">
+                <p className="font-bold flex items-center gap-2"><Info size={14} className="text-primary"/> Trust Score Guide</p>
+                <p className="text-[10px] text-white/60 leading-relaxed">
+                    Maintain a high score to unlock lower interest rates and faster custom loan approvals.
+                </p>
+                <ul className="text-[9px] list-disc pl-4 text-green-400 space-y-1">
+                    <li>Repay loans on time (+50 pts)</li>
+                    <li>Successful KYC (+100 pts)</li>
+                    <li>Active Investments (+20 pts each)</li>
+                </ul>
+                <ul className="text-[9px] list-disc pl-4 text-red-400">
+                    <li>Overdue Payments (-100 pts)</li>
+                </ul>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 };
