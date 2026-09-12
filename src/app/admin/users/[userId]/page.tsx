@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown, Timer, Send, TrendingUp, TrendingDown, History as HistoryIcon } from 'lucide-react';
+import { ArrowLeft, User, Ban, RefreshCcw, Wallet, Briefcase, Download, Upload, Fingerprint, HandCoins, CheckCircle, Users2, PowerOff, Mail, CreditCard, Phone, FileCheck, ShieldCheck, ShieldX, Crown, Timer, Send, TrendingUp, TrendingDown, History as HistoryIcon, IdCard, Smartphone } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp, orderBy } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -36,6 +36,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 
 type UserPermissions = {
     canManageDeposits?: boolean;
@@ -542,170 +543,267 @@ export default function UserDetailPage() {
   if (!user) return <p>User not found.</p>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => router.back()}>
+            <Button variant="outline" size="icon" onClick={() => router.back()} className="h-10 w-10 rounded-xl border-white/10 hover:bg-white/5">
             <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-2xl font-bold">User Details</h2>
+            <div>
+                <h2 className="text-2xl font-bold text-white">Investor Profile</h2>
+                <p className="text-[10px] font-black uppercase text-white/20 tracking-[3px]">Protocol ID: {user.id.slice(-12).toUpperCase()}</p>
+            </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-            <Button variant={user.status === 'Blocked' ? 'default' : 'destructive'} onClick={handleToggleStatus}>
+            <Button variant={user.status === 'Blocked' ? 'default' : 'destructive'} onClick={handleToggleStatus} className="h-10 rounded-xl font-bold">
                 <Ban className="mr-2 h-4 w-4" />
-                {user.status === 'Blocked' ? 'Unblock User' : 'Block User'}
+                {user.status === 'Blocked' ? 'Unblock Node' : 'Terminate Node'}
             </Button>
-             <Button variant="outline" onClick={handlePasswordReset}>
+             <Button variant="outline" onClick={handlePasswordReset} className="h-10 rounded-xl border-white/10 text-white/60 hover:text-white">
               <Mail className="mr-2 h-4 w-4" />
-              Send Password Reset
+              Reset Access
             </Button>
             <AlertDialog>
                 <AlertDialogTrigger asChild>
-                     <Button variant="destructive" className="bg-orange-500 hover:bg-orange-600">
+                     <Button variant="destructive" className="h-10 rounded-xl bg-orange-600 hover:bg-orange-700 font-bold">
                         <RefreshCcw className="mr-2 h-4 w-4" />
-                        Reset User Data
+                        Purge Data
                     </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent className="bg-[#030408] border-white/10 text-white rounded-3xl">
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete all history and reset the wallet.
+                    <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Full Ledger Purge?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-white/40">
+                      This action will permanently delete all transaction history and reset the wallet nodes for this user. This is irreversible.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleResetData} className="bg-destructive hover:bg-destructive/90">Confirm</AlertDialogAction>
+                    <AlertDialogCancel className="bg-transparent border-white/10 text-white/40">Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleResetData} className="bg-destructive hover:bg-destructive/90 text-white font-bold px-8">Confirm Purge</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16 border-2 border-primary/20 rounded-2xl">
-                  <AvatarImage src={user.photoURL} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-2xl font-black">
-                      {user.name?.charAt(0) || 'U'}
-                  </AvatarFallback>
-              </Avatar>
-              <div>
-                  <CardTitle className="text-2xl font-bold text-white">{user.name}</CardTitle>
-                  <CardDescription className="text-white/40">{user.email}</CardDescription>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2 bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] overflow-hidden shadow-2xl">
+            <CardHeader className="pb-8 pt-8">
+              <div className="flex items-center gap-6">
+                  <Avatar className="h-24 w-24 border-4 border-primary/20 rounded-[2.5rem] shadow-2xl">
+                      <AvatarImage src={user.photoURL} />
+                      <AvatarFallback className="bg-primary/10 text-primary text-3xl font-black">
+                          {user.name?.charAt(0) || 'U'}
+                      </AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-2">
+                      <CardTitle className="text-3xl font-black text-white tracking-tight">{user.name}</CardTitle>
+                      <CardDescription className="text-white/30 font-bold uppercase text-[10px] tracking-[2px]">{user.email}</CardDescription>
+                      <div className="flex gap-2">
+                          <Badge className="bg-primary/20 text-primary border-primary/30 text-[9px] font-black tracking-widest px-3 py-1 rounded-lg">
+                              {user.status === 'Blocked' ? 'OFFLINE' : 'OPERATIONAL'}
+                          </Badge>
+                          <Badge variant="outline" className="border-white/5 text-white/20 text-[9px] font-black px-3 rounded-lg uppercase">VIP: {user.role === 'subadmin' ? 'SYSTEM ADM' : 'INVESTOR'}</Badge>
+                      </div>
+                  </div>
               </div>
-          </div>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <InfoBox title="User ID" value={user.id} icon={Fingerprint} />
-          <InfoBox title="Wallet Balance" value={`₹${(user.walletBalance || 0).toFixed(2)}`} icon={Wallet} />
-          <InfoBox title="Total Investment" value={`₹${(user.totalInvestment || 0).toFixed(2)}`} icon={Briefcase} />
-          <InfoBox title="Status" value={user.status || 'Active'} icon={User} badgeVariant={getStatusVariant(user.status || 'Active')} />
-        </CardContent>
-      </Card>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-8 px-8">
+              <InfoBox title="Current Balance" value={`₹${(user.walletBalance || 0).toLocaleString()}`} icon={Wallet} />
+              <InfoBox title="Active Assets" value={`₹${(user.totalInvestment || 0).toLocaleString()}`} icon={Briefcase} />
+              <InfoBox title="Total Revenue" value={`₹${(user.totalIncome || 0).toLocaleString()}`} icon={TrendingUp} color="text-green-400" />
+            </CardContent>
+          </Card>
 
-      <Tabs defaultValue="history">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="investments">Investments</TabsTrigger>
-          <TabsTrigger value="group-investments">Groups</TabsTrigger>
-          <TabsTrigger value="loans">Loans</TabsTrigger>
-          <TabsTrigger value="deposits">Deposits</TabsTrigger>
-          <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
+          <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] shadow-2xl overflow-hidden group">
+              <CardHeader className="bg-white/[0.01] border-b border-white/[0.05] py-4">
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[4px] text-white/40 flex items-center gap-2">
+                      <IdCard size={14} className="text-primary" /> Identity Ledger (KYC)
+                  </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                   <div className="space-y-4">
+                       <KycInfoRow label="PAN Node" value={user.panCard || 'NOT LINKED'} icon={Fingerprint} mono />
+                       <KycInfoRow label="Aadhaar Node" value={user.aadhaarNumber || 'NOT LINKED'} icon={FileCheck} mono />
+                       <KycInfoRow label="Contact Link" value={user.phoneNumber || 'NOT LINKED'} icon={Phone} />
+                   </div>
+                   <Separator className="bg-white/5" />
+                   <div className="flex justify-between items-center">
+                        <div className="space-y-0.5">
+                            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">Verification Status</p>
+                            <p className={cn("text-xs font-black uppercase", user.kycStatus === 'Verified' ? 'text-green-400' : 'text-amber-500')}>
+                                {user.kycStatus || 'NOT SUBMITTED'}
+                            </p>
+                        </div>
+                        {user.kycStatus === 'Verified' && <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500 border border-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.2)]"><ShieldCheck size={20}/></div>}
+                   </div>
+              </CardContent>
+          </Card>
+      </div>
+
+      <Tabs defaultValue="history" className="w-full">
+        <TabsList className="bg-white/5 border-white/10 p-1.5 h-16 rounded-[1.5rem] w-full max-w-2xl mx-auto flex gap-2">
+          <TabsTrigger value="history" className="flex-1 rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10 data-[state=active]:text-primary">Ledger</TabsTrigger>
+          <TabsTrigger value="investments" className="flex-1 rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10 data-[state=active]:text-primary">Assets</TabsTrigger>
+          <TabsTrigger value="loans" className="flex-1 rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10 data-[state=active]:text-primary">Debts</TabsTrigger>
+          <TabsTrigger value="deposits" className="flex-1 rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10 data-[state=active]:text-primary">Inflow</TabsTrigger>
+          <TabsTrigger value="withdrawals" className="flex-1 rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10 data-[state=active]:text-primary">Outflow</TabsTrigger>
         </TabsList>
-        <TabsContent value="history">
-             <HistoryTable
-              headers={['Category', 'Amount', 'Type', 'Date']}
-              items={walletHistory}
-              renderRow={(item: WalletHistoryEntry) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                          <div className="font-medium">{item.category}</div>
-                          <div className="text-[10px] text-muted-foreground">{item.description}</div>
-                      </TableCell>
-                      <TableCell className={cn("font-bold", item.type === 'credit' ? 'text-green-500' : 'text-red-500')}>
-                          {item.type === 'credit' ? '+' : '-'}₹{item.amount.toFixed(2)}
-                      </TableCell>
-                      <TableCell><Badge variant="outline" className="capitalize">{item.type}</Badge></TableCell>
-                      <TableCell className="text-xs">{formatDate(item.createdAt)}</TableCell>
+
+        <div className="mt-8">
+            <TabsContent value="history" className="animate-in slide-in-from-bottom-2 duration-500">
+                <HistoryTable
+                    headers={['Protocol Flow', 'Value']}
+                    items={walletHistory}
+                    renderRow={(item: WalletHistoryEntry) => (
+                        <TableRow key={item.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                        <TableCell className="pl-6 py-4">
+                            <p className="text-sm font-bold text-white/80">{item.category}</p>
+                            <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">{item.description}</p>
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                            <div className="flex flex-col items-end">
+                                <span className={cn("text-sm font-black tracking-tighter", item.type === 'credit' ? 'text-green-400' : 'text-red-400')}>
+                                    {item.type === 'credit' ? '+' : '-'}₹{item.amount.toLocaleString()}
+                                </span>
+                                <span className="text-[9px] text-white/20 uppercase font-bold">{formatDate(item.createdAt)}</span>
+                            </div>
+                        </TableCell>
+                        </TableRow>
+                    )}
+                />
+            </TabsContent>
+
+            <TabsContent value="investments" className="animate-in slide-in-from-bottom-2 duration-500">
+            <HistoryTable
+                headers={['Investment Node', 'Financial Path', 'Decision']}
+                items={investments}
+                renderRow={(item: Investment) => (
+                        <TableRow key={item.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                        <TableCell className="pl-6 py-4 font-bold text-white/80">{item.planName}</TableCell>
+                        <TableCell>
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-white/60">₹{(item.investedAmount || 0).toLocaleString()} <ArrowRight size={10} className="inline mx-1"/> ₹{(item.returnAmount || 0).toLocaleString()}</span>
+                                <span className="text-[9px] text-white/20 font-black uppercase mt-1">Start: {formatDate(item.startDate)}</span>
+                            </div>
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                            {item.status === 'Active' ? (
+                                <Button variant="ghost" size="sm" onClick={() => handleStopInvestment(item)} className="text-red-400 hover:text-red-300 hover:bg-red-400/10 font-black text-[9px] uppercase h-8 rounded-lg border border-red-500/20">
+                                    TERMINATE NODE
+                                </Button>
+                            ) : (
+                                <Badge variant={getStatusVariant(item.status)} className="text-[9px] font-black uppercase px-3 h-6">{item.status}</Badge>
+                            )}
+                        </TableCell>
+                        </TableRow>
+                    )}
+                />
+            </TabsContent>
+
+            <TabsContent value="loans" className="animate-in slide-in-from-bottom-2 duration-500 space-y-4">
+                {loans && loans.length > 0 ? loans.map(loan => (
+                    <LoanDetails key={loan.id} user={user} loan={loan} onCompleteLoan={handleCompleteLoan} onConfirmEmi={handleConfirmEmiPayment} />
+                )) : <div className="text-center py-20 bg-white/[0.02] border border-dashed border-white/10 rounded-[2rem] text-white/20 italic text-sm">No liabilities detected on this node.</div>}
+            </TabsContent>
+
+            <TabsContent value="deposits" className="animate-in slide-in-from-bottom-2 duration-500">
+                <HistoryTable
+                headers={['Value', 'Reference ID', 'Decision']}
+                items={deposits}
+                renderRow={(item: Transaction) => (
+                    <TableRow key={item.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                    <TableCell className="pl-6 py-4">
+                        <div className="font-black text-white/80">₹{(item.amount || 0).toLocaleString()}</div>
+                        <div className="text-[9px] text-white/20 uppercase font-black">{formatDate(item.createdAt)}</div>
+                    </TableCell>
+                    <TableCell className="font-mono text-[10px] text-white/40 tracking-widest">{item.transactionId || 'INTERNAL_TRANS'}</TableCell>
+                    <TableCell className="text-right pr-6">
+                        <Badge variant={getStatusVariant(item.status)} className="text-[9px] font-black uppercase px-3 h-6">{item.status}</Badge>
+                    </TableCell>
                     </TableRow>
                 )}
-            />
-        </TabsContent>
-        <TabsContent value="investments">
-           <HistoryTable
-              headers={['Plan', 'Details', 'Status', 'Dates', 'Action']}
-              items={investments}
-              renderRow={(item: Investment) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.planName}</TableCell>
-                      <TableCell>₹{(item.investedAmount || 0).toFixed(2)} {' -> '} ₹{(item.returnAmount || 0).toFixed(2)}</TableCell>
-                      <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
-                      <TableCell className="text-xs">{formatDate(item.startDate)}</TableCell>
-                      <TableCell>
-                          {item.status === 'Active' && <Button variant="destructive" size="sm" onClick={() => handleStopInvestment(item)}><PowerOff className="mr-2 h-4 w-4" /> Stop</Button>}
-                      </TableCell>
+                />
+            </TabsContent>
+
+            <TabsContent value="withdrawals" className="animate-in slide-in-from-bottom-2 duration-500">
+                <HistoryTable
+                headers={['Value', 'Pipeline Status', 'Action']}
+                items={withdrawals}
+                renderRow={(item: Transaction) => (
+                    <TableRow key={item.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                    <TableCell className="pl-6 py-4">
+                        <div className="font-black text-red-400">-₹{(item.finalAmount ?? item.amount).toLocaleString()}</div>
+                        <div className="text-[9px] text-white/20 uppercase font-black">{formatDate(item.createdAt)}</div>
+                    </TableCell>
+                    <TableCell>
+                        <div className="flex flex-col gap-1">
+                            <Badge variant={getStatusVariant(item.status)} className="w-fit text-[9px] font-black uppercase px-2 h-5">{item.status}</Badge>
+                            <WithdrawalStatus tx={item} />
+                        </div>
+                    </TableCell>
+                    <TableCell className="text-right pr-6">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-white/20 hover:text-primary"><HistoryIcon size={14}/></Button>
+                    </TableCell>
                     </TableRow>
                 )}
-            />
-        </TabsContent>
-         <TabsContent value="group-investments">
-            <GroupInvestmentTable investments={groupInvestments} />
-        </TabsContent>
-         <TabsContent value="loans">
-            {loans && loans.length > 0 ? loans.map(loan => (
-                <LoanDetails key={loan.id} user={user} loan={loan} onCompleteLoan={handleCompleteLoan} onConfirmEmi={handleConfirmEmiPayment} />
-            )) : <Card><CardContent className="pt-6 text-center">No history.</CardContent></Card>}
-        </TabsContent>
-        <TabsContent value="deposits">
-             <HistoryTable
-              headers={['Amount', 'Transaction ID', 'Status', 'Date']}
-              items={deposits}
-              renderRow={(item: Transaction) => (
-                <TableRow key={item.id}>
-                  <TableCell>₹{(item.amount || 0).toFixed(2)}</TableCell>
-                  <TableCell>{item.transactionId || 'N/A'}</TableCell>
-                  <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
-                  <TableCell>{formatDate(item.createdAt)}</TableCell>
-                </TableRow>
-              )}
-            />
-        </TabsContent>
-        <TabsContent value="withdrawals">
-             <HistoryTable
-              headers={['Amount', 'Status', 'Details', 'Date']}
-              items={withdrawals}
-              renderRow={(item: Transaction) => (
-                <TableRow key={item.id}>
-                  <TableCell>₹{(item.finalAmount ?? item.amount).toFixed(2)}</TableCell>
-                  <TableCell><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></TableCell>
-                  <TableCell className="text-xs text-muted-foreground"><WithdrawalStatus tx={item} /></TableCell>
-                  <TableCell>{formatDate(item.createdAt)}</TableCell>
-                </TableRow>
-              )}
-            />
-        </TabsContent>
+                />
+            </TabsContent>
+        </div>
       </Tabs>
     </div>
   );
 }
 
-function InfoBox({ title, value, icon: Icon, badgeVariant }: { title: string, value: string, icon: React.ElementType, badgeVariant?: any }) {
+function KycInfoRow({ label, value, icon: Icon, mono }: { label: string, value: string, icon: any, mono?: boolean }) {
+    return (
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-white/40">
+                <Icon size={14} className="shrink-0" />
+                <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
+            </div>
+            <span className={cn("text-xs font-bold text-white/80", mono && "font-mono")}>{value}</span>
+        </div>
+    );
+}
+
+function InfoBox({ title, value, icon: Icon, color }: { title: string, value: string, icon: React.ElementType, color?: string }) {
   return (
-    <div className="rounded-lg border p-4 flex flex-col gap-2">
-      <div className="flex items-center justify-between text-muted-foreground"><p className="text-sm font-medium">{title}</p><Icon className="h-4 w-4" /></div>
-      {badgeVariant ? <Badge variant={badgeVariant} className="w-fit capitalize">{value}</Badge> : <p className="text-lg font-bold truncate">{value}</p>}
+    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-4 group hover:bg-white/[0.04] transition-all">
+      <div className="flex items-center justify-between text-white/20">
+          <p className="text-[9px] font-black uppercase tracking-widest">{title}</p>
+          <Icon className="h-4 w-4" />
+      </div>
+      <p className={cn("text-xl font-black tracking-tighter text-white truncate", color)}>{value}</p>
     </div>
   )
 }
 
 function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
   return (
-    <Card><CardContent className="pt-6"><div className="rounded-lg border">
-          <Table><TableHeader><TableRow>{headers.map(h => <TableHead key={h}>{h}</TableHead>)}</TableRow></TableHeader>
-            <TableBody>{items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center">No records.</TableCell></TableRow>}</TableBody>
-          </Table></div></CardContent></Card>
+    <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] overflow-hidden shadow-2xl">
+        <Table>
+            <TableHeader className="bg-white/[0.02]">
+                <TableRow className="border-white/10 hover:bg-transparent">
+                    {headers.map((h, i) => (
+                        <TableHead key={h} className={cn(
+                            "text-[10px] font-black uppercase tracking-widest text-white/30 py-5",
+                            i === 0 ? "pl-6" : i === headers.length - 1 ? "pr-6 text-right" : ""
+                        )}>
+                            {h}
+                        </TableHead>
+                    ))}
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {items && items.length > 0 ? items.map(renderRow) : (
+                    <TableRow className="border-transparent">
+                        <TableCell colSpan={headers.length} className="text-center py-20 text-white/10 italic text-sm">No transaction sequences detected.</TableCell>
+                    </TableRow>
+                )}
+            </TableBody>
+        </Table>
+    </Card>
   )
 }
 
@@ -715,7 +813,7 @@ function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: Activ
 
   const handleSendReminder = () => {
     if (!user || !user.phoneNumber) {
-        toast({ variant: 'destructive', title: 'Phone Not Found' });
+        toast({ variant: 'destructive', title: 'Phone Not Found', description: "Node missing phone link." });
         return;
     }
 
@@ -735,61 +833,82 @@ function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: Activ
   };
 
   return (
-    <Card className="mb-4">
-      <CardHeader>
-        <CardTitle className="flex justify-between">
-          <span>{loan.planName}</span>
-          <Badge variant={getStatusVariant(loan.status)}>{loan.status}</Badge>
-        </CardTitle>
-        <CardDescription>Principal: ₹{loan.loanAmount.toFixed(2)} | Total: ₹{totalRepayment.toFixed(2)}</CardDescription>
+    <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] overflow-hidden shadow-2xl">
+      <CardHeader className="bg-white/[0.01] border-b border-white/[0.05] pb-4">
+        <div className="flex justify-between items-center">
+            <div>
+                <CardTitle className="text-white text-lg font-bold tracking-tight">{loan.planName}</CardTitle>
+                <CardDescription className="text-[10px] font-black uppercase text-white/20 tracking-widest mt-0.5">#{loan.id.slice(-8).toUpperCase()}</CardDescription>
+            </div>
+            <Badge variant={getStatusVariant(loan.status)} className="text-[10px] font-black uppercase h-6 px-3">{loan.status}</Badge>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6 px-8 pb-8 space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+             <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
+                <p className="text-[9px] text-white/20 uppercase tracking-widest font-black mb-1">Principal Debt</p>
+                <p className="text-sm font-bold text-white">₹{(loan.loanAmount || 0).toLocaleString()}</p>
+            </div>
+             <div className="bg-black/20 p-3 rounded-2xl border border-white/5 text-right">
+                <p className="text-[9px] text-white/20 uppercase tracking-widest font-black mb-1">Total Settlement</p>
+                <p className="text-sm font-black text-red-400">₹{totalRepayment.toLocaleString()}</p>
+            </div>
+        </div>
+
         {loan.repaymentMethod === 'Direct' ? (
-          <div><p>Due: {formatDate(loan.dueDate)}</p>
-            {loan.status === 'Payment Pending' && <Button size="sm" onClick={() => onCompleteLoan(loan.id, totalRepayment)} className="mt-2"><CheckCircle size={16} className="mr-2" /> Confirm Payment</Button>}
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] text-white/20 uppercase font-black">Settlement Window</p>
+                <p className="text-xs font-bold text-white/70">Due: {formatDate(loan.dueDate)}</p>
+              </div>
+            {loan.status === 'Payment Pending' && (
+                <Button onClick={() => onCompleteLoan(loan.id, totalRepayment)} className="bg-green-600 hover:bg-green-700 h-10 px-6 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-green-500/20">
+                    <CheckCircle size={14} className="mr-2" /> VERIFY RECEIPT
+                </Button>
+            )}
           </div>
         ) : loan.repaymentMethod === 'EMI' && loan.emis ? (
-          <Collapsible>
-            <CollapsibleTrigger asChild><Button variant="outline" size="sm" className="w-full">Schedule <ChevronDown className="h-4 w-4 ml-2" /></Button></CollapsibleTrigger>
-            <CollapsibleContent className="mt-4">
-              <Table><TableHeader><TableRow><TableHead>Amt</TableHead><TableHead>Due</TableHead><TableHead>Status</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
+          <Collapsible className="w-full">
+            <CollapsibleTrigger asChild>
+                <Button variant="outline" className="w-full h-12 rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest">
+                    REPAYMENT SCHEDULE <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4 pt-4 border-t border-white/5 animate-in slide-in-from-top-2">
+              <Table>
+                <TableHeader>
+                    <TableRow className="border-white/5 hover:bg-transparent">
+                        <TableHead className="text-[9px] font-black uppercase text-white/20 py-3">Installment</TableHead>
+                        <TableHead className="text-[9px] font-black uppercase text-white/20">Deadline</TableHead>
+                        <TableHead className="text-[9px] font-black uppercase text-white/20 text-right">Protocol</TableHead>
+                    </TableRow>
+                </TableHeader>
                 <TableBody>
                   {loan.emis.map((emi, index) => (
-                        <TableRow key={index}>
-                            <TableCell>₹{emi.emiAmount.toFixed(2)}</TableCell>
-                            <TableCell className="text-xs">{formatDate(emi.dueDate)}</TableCell>
-                            <TableCell><Badge variant={getStatusVariant(emi.status)}>{emi.status}</Badge></TableCell>
-                            <TableCell>{emi.status === 'Payment Pending' && <Button size="sm" onClick={() => onConfirmEmi(loan, index)}>Confirm</Button>}</TableCell>
+                        <TableRow key={index} className="border-white/[0.02] hover:bg-white/[0.01]">
+                            <TableCell className="font-bold text-white/80 py-3">₹{emi.emiAmount.toFixed(2)}</TableCell>
+                            <TableCell className="text-[10px] text-white/30 font-bold">{formatDate(emi.dueDate)}</TableCell>
+                            <TableCell className="text-right">
+                                {emi.status === 'Payment Pending' ? (
+                                    <Button size="sm" onClick={() => onConfirmEmi(loan, index)} className="h-7 px-3 rounded-lg bg-green-600 font-black text-[9px] uppercase">CONFIRM</Button>
+                                ) : (
+                                    <Badge variant={getStatusVariant(emi.status)} className="text-[8px] h-5 font-black uppercase">{emi.status}</Badge>
+                                )}
+                            </TableCell>
                         </TableRow>
                       ))}
                 </TableBody>
               </Table>
             </CollapsibleContent>
           </Collapsible>
-        ) : <p>No details.</p>}
-        {['Active', 'Due'].includes(loan.status) && <Button onClick={handleSendReminder} variant="outline" size="sm" className="mt-4 w-full text-green-500 border-green-500/50"><Send className="mr-2 h-4 w-4" /> Send Reminder</Button>}
+        ) : <div className="text-center p-4 border border-dashed border-white/10 rounded-2xl text-[10px] uppercase font-black text-white/10 tracking-[3px]">Protocol Details Missing</div>}
+        
+        {['Active', 'Due'].includes(loan.status) && (
+            <Button onClick={handleSendReminder} variant="outline" className="w-full h-12 rounded-xl border-green-500/20 bg-green-500/5 hover:bg-green-600 hover:text-white text-green-500 font-black text-[10px] uppercase tracking-widest shadow-xl transition-all">
+                <Send className="mr-3 h-4 w-4" /> BROADCAST REPAYMENT ALERT
+            </Button>
+        )}
       </CardContent>
     </Card>
   );
-}
-
-function GroupInvestmentTableRow({ investment }: { investment: GroupInvestment }) {
-    const { data: planData } = useDoc<GroupLoanPlan>(investment ? `groupLoanPlans/${investment.planId}`: null);
-    const progress = planData && planData.totalRepayment > 0 ? ((planData.amountRepaid || 0) / planData.totalRepayment) * 100 : 0;
-    return (
-        <TableRow>
-            <TableCell><div className='font-medium'>{investment.planName}</div></TableCell>
-            <TableCell>₹{(investment.investedAmount || 0).toFixed(2)}</TableCell>
-            <TableCell className="text-green-400">₹{(investment.amountReceived || 0).toFixed(2)}</TableCell>
-            <TableCell>{planData ? <div className="w-24"><Progress value={progress} className="h-2" /><span className="text-xs">{progress.toFixed(0)}%</span></div> : '...'}</TableCell>
-        </TableRow>
-    );
-}
-
-function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
-    return (
-        <Card><CardContent className="pt-6"><Table><TableHeader><TableRow><TableHead>Plan</TableHead><TableHead>Invested</TableHead><TableHead>Received</TableHead><TableHead>Progress</TableHead></TableRow></TableHeader>
-            <TableBody>{investments && investments.length > 0 ? investments.map(inv => <GroupInvestmentTableRow key={inv.id} investment={inv} />) : <TableRow><TableCell colSpan={4} className="text-center">No investments.</TableCell></TableRow>}</TableBody>
-        </Table></CardContent></Card>
-    );
 }
