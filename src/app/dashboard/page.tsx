@@ -64,6 +64,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CashDispenseAnimation } from '@/components/dashboard/CashDispenseAnimation';
 import { useSettings } from '@/context/settings-context';
 import {
+  type CarouselApi,
   Carousel,
   CarouselContent,
   CarouselItem,
@@ -204,7 +205,7 @@ export default function Dashboard() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-xl sm:px-6">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-xl px-4 backdrop-blur-sm sm:px-6">
         <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /><h1 className="text-xl font-bold tracking-tighter">Grow Money</h1></div>
         <Link href="/profile">
           <Badge variant="outline" className="border-border bg-muted h-10 px-3 gap-2 rounded-full hover:bg-accent transition-all">
@@ -259,6 +260,9 @@ export default function Dashboard() {
 }
 
 function VideoCarouselSection({ urls }: { urls: string[] }) {
+    const [api, setApi] = useState<CarouselApi>();
+    const [current, setCurrent] = useState(0);
+
     const validUrls = useMemo(() => {
         return urls
             .map(url => {
@@ -270,6 +274,14 @@ function VideoCarouselSection({ urls }: { urls: string[] }) {
             .filter(Boolean) as string[];
     }, [urls]);
 
+    useEffect(() => {
+        if (!api) return;
+        setCurrent(api.selectedScrollSnap());
+        api.on("select", () => {
+            setCurrent(api.selectedScrollSnap());
+        });
+    }, [api]);
+
     if (validUrls.length === 0) return null;
 
     return (
@@ -280,11 +292,11 @@ function VideoCarouselSection({ urls }: { urls: string[] }) {
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-                <Carousel className="w-full">
+                <Carousel setApi={setApi} opts={{ loop: true }} className="w-full">
                     <CarouselContent>
                         {validUrls.map((embedUrl, index) => (
                             <CarouselItem key={index}>
-                                <div className="aspect-video w-full">
+                                <div className="aspect-video w-full bg-black">
                                     <iframe
                                         width="100%"
                                         height="100%"
@@ -301,20 +313,30 @@ function VideoCarouselSection({ urls }: { urls: string[] }) {
                     </CarouselContent>
                     {validUrls.length > 1 && (
                         <>
-                            <div className="absolute top-1/2 left-4 -translate-y-1/2 z-10 opacity-0 group-hover/carousel:opacity-100 transition-opacity">
-                                <CarouselPrevious className="relative left-0 bg-black/40 border-white/10 hover:bg-black/60" />
+                            <div className="absolute top-1/2 left-2 -translate-y-1/2 z-20 flex">
+                                <CarouselPrevious className="static translate-y-0 h-10 w-10 bg-black/60 border-white/10 text-white hover:bg-black/80" />
                             </div>
-                            <div className="absolute top-1/2 right-4 -translate-y-1/2 z-10 opacity-0 group-hover/carousel:opacity-100 transition-opacity">
-                                <CarouselNext className="relative right-0 bg-black/40 border-white/10 hover:bg-black/60" />
-                            </div>
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-                                {validUrls.map((_, i) => (
-                                    <div key={i} className="h-1 w-4 rounded-full bg-white/20" />
-                                ))}
+                            <div className="absolute top-1/2 right-2 -translate-y-1/2 z-20 flex">
+                                <CarouselNext className="static translate-y-0 h-10 w-10 bg-black/60 border-white/10 text-white hover:bg-black/80" />
                             </div>
                         </>
                     )}
                 </Carousel>
+                {validUrls.length > 1 && (
+                    <div className="flex justify-center gap-1.5 py-4 bg-muted/20 border-t border-border/5">
+                        {validUrls.map((_, i) => (
+                            <button
+                                key={i}
+                                onClick={() => api?.scrollTo(i)}
+                                className={cn(
+                                    "h-1 rounded-full transition-all duration-300",
+                                    current === i ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                                )}
+                                aria-label={`Go to slide ${i + 1}`}
+                            />
+                        ))}
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
@@ -380,26 +402,28 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild><Button className="w-full h-14 rounded-2xl bg-foreground text-background font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl"><Upload size={16} className="mr-2" /> {t.dashboard.recharge}</Button></DialogTrigger>
-        <DialogContent className="rounded-[2rem]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black uppercase tracking-tight">Node Funding</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-              <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Amount (INR)</Label>
-                  <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} className="h-14 rounded-xl text-xl font-black" />
-              </div>
-              {qrUrl && <div className="bg-white p-4 rounded-3xl flex justify-center shadow-2xl animate-in zoom-in-95"><Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="QR" width={180} height={160} /></div>}
-              <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Ref Transaction ID</Label>
-                  <Input placeholder="Enter 12-digit ID" value={tid} onChange={e => setTid(e.target.value)} className="h-12 rounded-xl" />
-              </div>
-              <Button onClick={handleSubmit} className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-widest shadow-xl">Confirm Protocol</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <div className="w-full">
+        <Button onClick={() => setIsOpen(true)} className="w-full h-14 rounded-2xl bg-foreground text-background font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl"><Upload size={16} className="mr-2" /> {t.dashboard.recharge}</Button>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogContent className="rounded-[2rem]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black uppercase tracking-tight">Node Funding</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Amount (INR)</Label>
+                    <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} className="h-14 rounded-xl text-xl font-black" />
+                </div>
+                {qrUrl && <div className="bg-white p-4 rounded-3xl flex justify-center shadow-2xl animate-in zoom-in-95"><Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="QR" width={180} height={160} /></div>}
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Ref Transaction ID</Label>
+                    <Input placeholder="Enter 12-digit ID" value={tid} onChange={e => setTid(e.target.value)} className="h-12 rounded-xl" />
+                </div>
+                <Button onClick={handleSubmit} className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-widest shadow-xl">Confirm Protocol</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       {isSabrActive && (
         <div className="fixed inset-0 z-[300] bg-background/80 backdrop-blur-2xl flex flex-col items-center justify-center animate-in fade-in duration-500 p-6 text-center">
