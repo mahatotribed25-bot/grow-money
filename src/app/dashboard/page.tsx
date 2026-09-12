@@ -63,6 +63,13 @@ import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CashDispenseAnimation } from '@/components/dashboard/CashDispenseAnimation';
 import { useSettings } from '@/context/settings-context';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 type UserData = {
   id: string;
@@ -78,7 +85,7 @@ type UserData = {
 type AdminSettings = {
   adminUpi?: string;
   minWithdrawal?: number;
-  homepageVideoUrl?: string;
+  homepageVideoUrls?: string[];
 };
 
 type Investment = {
@@ -215,8 +222,8 @@ export default function Dashboard() {
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         <div className="rounded-3xl overflow-hidden shadow-2xl"><BannerCarousel /></div>
         
-        {adminSettings?.homepageVideoUrl && (
-          <VideoPlayerSection url={adminSettings.homepageVideoUrl} />
+        {adminSettings?.homepageVideoUrls && adminSettings.homepageVideoUrls.length > 0 && (
+          <VideoCarouselSection urls={adminSettings.homepageVideoUrls} />
         )}
 
         <WalletSummary userData={userData} adminSettings={adminSettings} loading={userDataLoading} t={t} />
@@ -251,34 +258,63 @@ export default function Dashboard() {
   );
 }
 
-function VideoPlayerSection({ url }: { url: string }) {
-    const embedUrl = useMemo(() => {
-        if (!url) return null;
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-        const match = url.match(regExp);
-        return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
-    }, [url]);
+function VideoCarouselSection({ urls }: { urls: string[] }) {
+    const validUrls = useMemo(() => {
+        return urls
+            .map(url => {
+                if (!url) return null;
+                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                const match = url.match(regExp);
+                return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
+            })
+            .filter(Boolean) as string[];
+    }, [urls]);
 
-    if (!embedUrl) return null;
+    if (validUrls.length === 0) return null;
 
     return (
-        <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-2xl">
+        <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-2xl relative group/carousel">
             <CardHeader className="py-4 border-b border-border/10">
                 <CardTitle className="text-[10px] font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2">
-                    <PlayCircle size={14} className="text-primary" /> Training & Insights
+                    <PlayCircle size={14} className="text-primary" /> Training & Insights Hub
                 </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 aspect-video">
-                <iframe
-                    width="100%"
-                    height="100%"
-                    src={embedUrl}
-                    title="YouTube video player"
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                    className="w-full h-full"
-                ></iframe>
+            <CardContent className="p-0">
+                <Carousel className="w-full">
+                    <CarouselContent>
+                        {validUrls.map((embedUrl, index) => (
+                            <CarouselItem key={index}>
+                                <div className="aspect-video w-full">
+                                    <iframe
+                                        width="100%"
+                                        height="100%"
+                                        src={embedUrl}
+                                        title={`YouTube video player ${index + 1}`}
+                                        frameBorder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                        allowFullScreen
+                                        className="w-full h-full"
+                                    ></iframe>
+                                </div>
+                            </CarouselItem>
+                        ))}
+                    </CarouselContent>
+                    {validUrls.length > 1 && (
+                        <>
+                            <div className="absolute top-1/2 left-4 -translate-y-1/2 z-10 opacity-0 group-hover/carousel:opacity-100 transition-opacity">
+                                <CarouselPrevious className="relative left-0 bg-black/40 border-white/10 hover:bg-black/60" />
+                            </div>
+                            <div className="absolute top-1/2 right-4 -translate-y-1/2 z-10 opacity-0 group-hover/carousel:opacity-100 transition-opacity">
+                                <CarouselNext className="relative right-0 bg-black/40 border-white/10 hover:bg-black/60" />
+                            </div>
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                                {validUrls.map((_, i) => (
+                                    <div key={i} className="h-1 w-4 rounded-full bg-white/20" />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </Carousel>
             </CardContent>
         </Card>
     );
@@ -463,4 +499,3 @@ function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.Ele
         </Link>
     )
 }
-
