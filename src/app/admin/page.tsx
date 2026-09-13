@@ -328,7 +328,7 @@ export default function AdminDashboard() {
                     <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Live Activity</span>
                 </CardHeader>
                 
-                <div className="aspect-square relative flex items-center justify-center">
+                <div className="aspect-square relative flex items-center justify-center border border-white/5 rounded-[1.5rem] bg-black/40 shadow-inner">
                     <div className="absolute inset-0 bg-primary/5 rounded-full blur-[60px] animate-pulse" />
                     <FuturisticWorldMap />
                 </div>
@@ -353,60 +353,97 @@ export default function AdminDashboard() {
 }
 
 /**
- * A futuristic stylized SVG World Map with animated nodes and traffic.
+ * A highly detailed futuristic SVG World Map with improved continent paths and network animations.
  */
 function FuturisticWorldMap() {
     return (
-        <svg viewBox="0 0 400 400" className="w-full h-full drop-shadow-[0_0_30px_rgba(139,92,246,0.1)]">
-            {/* Stylized World Map Paths */}
-            <g className="fill-white/5 stroke-white/[0.03]" strokeWidth="1">
-                {/* Asia/India focus */}
-                <path d="M220,150 Q250,140 280,160 T320,180 L340,220 Q310,250 280,240 T240,200 Z" />
-                <path d="M200,180 Q210,195 215,220 L205,240 Q190,220 185,200 Z" className="fill-primary/20 stroke-primary/30" /> {/* India focus */}
-                {/* Americas */}
-                <path d="M60,140 Q90,130 110,160 T130,220 L100,280 Q70,250 50,220 Z" />
-                {/* Europe/Africa */}
-                <path d="M150,140 Q180,130 200,150 L210,200 Q180,240 150,250 T130,190 Z" />
+        <svg viewBox="0 0 1000 600" className="w-full h-full drop-shadow-[0_0_30px_rgba(139,92,246,0.1)]">
+            <defs>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                <radialGradient id="nodeGradient" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+                </radialGradient>
+            </defs>
+
+            {/* Stylized Detailed Continent Paths */}
+            <g className="fill-white/[0.04] stroke-white/[0.08]" strokeWidth="0.5">
+                {/* North America */}
+                <path d="M150,150 L250,140 L300,180 L280,300 L180,320 L120,250 Z" />
+                {/* South America */}
+                <path d="M280,320 L350,330 L380,450 L320,550 L270,450 Z" />
+                {/* Europe */}
+                <path d="M450,140 L550,130 L580,180 L540,240 L480,220 Z" />
+                {/* Africa */}
+                <path d="M480,240 L580,220 L620,350 L580,480 L450,450 L420,300 Z" />
+                {/* Asia */}
+                <path d="M580,130 L850,120 L920,250 L850,400 L650,420 L580,250 Z" />
+                {/* Australia */}
+                <path d="M800,430 L880,440 L900,500 L820,520 Z" />
+                
+                {/* India focus highlighting */}
+                <path d="M660,250 L710,240 L730,300 L680,340 Z" className="fill-primary/20 stroke-primary/40" filter="url(#glow)" />
             </g>
 
-            {/* Glowing Connection Lines (Traffic) */}
-            <g className="stroke-primary/20" strokeWidth="0.5" fill="none">
-                <path d="M110,170 Q160,150 205,210" className="animate-pulse" />
-                <path d="M210,220 Q260,180 290,170" className="animate-pulse delay-700" />
-                <path d="M180,170 Q160,200 110,240" className="animate-pulse delay-300" />
+            {/* Network Connection Arcs */}
+            <g className="stroke-primary/30" strokeWidth="1" fill="none" opacity="0.6">
+                <path d="M220,230 Q450,150 695,290" className="animate-pulse" /> {/* NY to India */}
+                <path d="M510,180 Q600,200 695,290" className="animate-pulse delay-500" /> {/* London to India */}
+                <path d="M695,290 Q850,250 880,200" className="animate-pulse delay-1000" /> {/* India to Tokyo */}
+                <path d="M620,260 Q650,270 695,290" className="animate-pulse" /> {/* Dubai to India */}
             </g>
 
             {/* Moving Data Particles */}
-            <circle r="1.5" className="fill-primary shadow-lg">
-                <animateMotion 
-                    dur="4s" 
-                    repeatCount="indefinite" 
-                    path="M110,170 Q160,150 205,210"
-                />
-            </circle>
-            <circle r="1.5" className="fill-blue-400">
+            <circle r="3" className="fill-primary shadow-[0_0_10px_#8b5cf6]">
                 <animateMotion 
                     dur="5s" 
+                    repeatCount="indefinite" 
+                    path="M220,230 Q450,150 695,290"
+                />
+            </circle>
+            <circle r="2.5" className="fill-blue-400">
+                <animateMotion 
+                    dur="4s" 
                     begin="1s"
                     repeatCount="indefinite" 
-                    path="M210,220 Q260,180 290,170"
+                    path="M510,180 Q600,200 695,290"
+                />
+            </circle>
+            <circle r="2" className="fill-green-400">
+                <animateMotion 
+                    dur="6s" 
+                    begin="2s"
+                    repeatCount="indefinite" 
+                    path="M695,290 Q850,250 880,200"
                 />
             </circle>
 
-            {/* Glowing Nodes */}
+            {/* Scanning Radar Wave from India Node */}
+            <circle cx="695" cy="290" r="10" className="fill-none stroke-primary/40" strokeWidth="1">
+                <animate attributeName="r" from="10" to="250" dur="4s" repeatCount="indefinite" />
+                <animate attributeName="opacity" from="0.8" to="0" dur="4s" repeatCount="indefinite" />
+            </circle>
+
+            {/* Glowing Connection Nodes */}
             <g>
-                {/* Node: Mumbai/India */}
-                <circle cx="205" cy="210" r="4" className="fill-primary animate-pulse" />
-                <circle cx="205" cy="210" r="8" className="stroke-primary/40 fill-none animate-ping" strokeWidth="1" />
+                {/* Node: Mumbai (Main Center) */}
+                <circle cx="695" cy="290" r="8" className="fill-primary animate-pulse shadow-[0_0_20px_#8b5cf6]" />
+                <circle cx="695" cy="290" r="15" className="stroke-primary/40 fill-none animate-ping" strokeWidth="2" />
                 
-                {/* Node: London/Europe */}
-                <circle cx="160" cy="155" r="2.5" className="fill-white/20" />
+                {/* Node: London */}
+                <circle cx="510" cy="180" r="5" className="fill-white/40" />
                 
-                {/* Node: New York/US */}
-                <circle cx="110" cy="170" r="2.5" className="fill-white/20" />
+                {/* Node: New York */}
+                <circle cx="220" cy="230" r="5" className="fill-white/40" />
                 
-                {/* Node: Tokyo/Japan */}
-                <circle cx="310" cy="180" r="2.5" className="fill-white/20" />
+                {/* Node: Tokyo */}
+                <circle cx="880" cy="200" r="4" className="fill-white/40" />
+
+                {/* Node: Dubai */}
+                <circle cx="620" cy="260" r="4" className="fill-white/40" />
             </g>
         </svg>
     )
