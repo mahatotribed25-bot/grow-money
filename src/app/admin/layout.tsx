@@ -25,6 +25,7 @@ import {
   Menu,
   CheckCircle2,
   ArrowUpRight,
+  BellRing,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -104,6 +105,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AdminNavItem icon={Users} href="/admin/users">Investors</AdminNavItem>
             
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Validation Nodes</div>
+            <AdminNavItem icon={BellRing} href="/admin/reminders">Reminder Hub</AdminNavItem>
             <AdminNavItem icon={FileCheck} href="/admin/kyc-requests" count={pendingKycRequests?.length}>KYC Pipeline</AdminNavItem>
             <AdminNavItem icon={Handshake} href="/admin/upi-requests" count={pendingUpiRequests?.length}>UPI Registry</AdminNavItem>
             <AdminNavItem icon={Upload} href="/admin/deposits" count={pendingDeposits?.length}>Inflow Nodes</AdminNavItem>
