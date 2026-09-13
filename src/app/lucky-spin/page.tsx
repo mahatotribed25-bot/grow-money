@@ -56,7 +56,7 @@ export default function LuckySpinPage() {
         const prize = rewards[sliceIndex];
         
         // Spinning animation logic: Full rotations + the specific slice center
-        const fullRotations = 10; // More rotations for extra speed
+        const fullRotations = 12; // More rotations for extra speed
         const sliceDegrees = 360 / 8;
         const targetRotation = rotation + (360 * fullRotations) + (sliceIndex * sliceDegrees) + (sliceDegrees / 2);
         
@@ -147,16 +147,16 @@ export default function LuckySpinPage() {
                 </div>
 
                 <div className="relative">
-                    {/* The Needle/Pointer with better design */}
+                    {/* The Needle/Pointer */}
                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-30 filter drop-shadow-[0_10px_20px_rgba(139,92,246,0.5)]">
                         <div className="w-10 h-12 bg-gradient-to-b from-primary to-purple-800 clip-triangle rotate-180 border-2 border-white/40 shadow-inner" 
                              style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }} />
                         <div className="absolute top-8 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-white shadow-[0_0_10px_#fff]" />
                     </div>
 
-                    {/* Outer Neon Ring */}
-                    <div className="absolute inset-[-15px] rounded-full border-4 border-primary/20 blur-xl animate-pulse" />
-                    <div className="absolute inset-[-8px] rounded-full border-2 border-primary/30" />
+                    {/* Outer Neon Ring Effects */}
+                    <div className="absolute inset-[-20px] rounded-full border-4 border-primary/10 blur-2xl animate-pulse" />
+                    <div className="absolute inset-[-10px] rounded-full border-2 border-primary/20 shadow-[0_0_30px_rgba(139,92,246,0.2)]" />
 
                     {/* The Wheel */}
                     <div 
@@ -179,7 +179,7 @@ export default function LuckySpinPage() {
                             >
                                 <div className="absolute top-[18%] left-[68%] -translate-x-1/2 -rotate-[68deg] flex flex-col items-center gap-1 group">
                                     <span className={cn(
-                                        "text-[13px] font-black tracking-tighter drop-shadow-md",
+                                        "text-[14px] font-black tracking-tighter drop-shadow-md",
                                         prize > 0 ? "text-yellow-400" : "text-white/20"
                                     )}>
                                         ₹{prize}
@@ -191,12 +191,12 @@ export default function LuckySpinPage() {
                         
                         {/* Decorative Slice Dividers */}
                         {[0,1,2,3,4,5,6,7].map(i => (
-                            <div key={i} className="absolute top-1/2 left-1/2 w-full h-px bg-white/[0.03] origin-left" style={{ transform: `rotate(${i * 45}deg)` }} />
+                            <div key={i} className="absolute top-1/2 left-1/2 w-full h-px bg-white/[0.05] origin-left" style={{ transform: `rotate(${i * 45}deg)` }} />
                         ))}
 
                         {/* Center Hub */}
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-[#0d0e14] border-[6px] border-[#1a1b23] flex items-center justify-center z-20 shadow-[0_0_30px_rgba(0,0,0,0.8)]">
-                             <div className="w-4 h-4 rounded-full bg-primary shadow-[0_0_15px_rgba(139,92,246,1)] animate-pulse" />
+                             <div className="w-5 h-5 rounded-full bg-primary shadow-[0_0_15px_rgba(139,92,246,1)] animate-pulse" />
                              <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent to-white/5" />
                         </div>
                     </div>
@@ -208,11 +208,11 @@ export default function LuckySpinPage() {
                         
                         <div className="flex justify-between items-center mb-8 px-2">
                             <div className="text-left space-y-1">
-                                <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">Entry Tickets</p>
+                                <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">Protocol Entry</p>
                                 <p className="text-2xl font-black text-white tracking-tighter">₹{spinCost}</p>
                             </div>
                             <div className="text-right space-y-1">
-                                <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">Your Credit</p>
+                                <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">Liquid Capital</p>
                                 <p className={cn(
                                     "text-2xl font-black tracking-tighter",
                                     canAfford ? "text-primary" : "text-red-400"
@@ -224,6 +224,21 @@ export default function LuckySpinPage() {
                             <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-400 animate-in fade-in slide-in-from-bottom-2">
                                 <AlertCircle size={18} className="shrink-0" />
                                 <p className="text-xs font-bold text-left leading-relaxed">Insufficient wallet balance to play. Please recharge to continue.</p>
+                            </div>
+                        )}
+
+                        {result !== null && !isSpinning && (
+                            <div className="mb-6 p-6 rounded-2xl bg-primary/10 border border-primary/20 animate-in zoom-in-95 duration-300">
+                                <p className="text-[10px] font-black uppercase text-primary tracking-[4px] mb-2">Outcome Verified</p>
+                                <div className="text-3xl font-black text-white">
+                                    {result > 0 ? (
+                                        <span className="flex items-center justify-center gap-2 text-green-400">
+                                            <Trophy size={24} /> +₹{result}
+                                        </span>
+                                    ) : (
+                                        <span className="text-white/40 uppercase text-lg">Empty Node</span>
+                                    )}
+                                </div>
                             </div>
                         )}
 
@@ -243,23 +258,23 @@ export default function LuckySpinPage() {
                                 <div className="absolute inset-0 bg-primary/20 animate-pulse" />
                             )}
                             <span className="relative z-10 flex items-center gap-2">
-                                {isSpinning ? "CALCULATING DESTINY..." : !canAfford ? "LOW BALANCE" : "LAUNCH SPIN"}
+                                {isSpinning ? "SYNCING DESTINY..." : !canAfford ? "LOW BALANCE" : "INITIATE SPIN"}
                                 {!isSpinning && canAfford && <Zap size={20} className="fill-current" />}
                             </span>
                         </Button>
                         
-                        <p className="mt-4 text-[9px] font-bold text-white/20 uppercase tracking-[3px]">Game ID: #SPIN-{new Date().getTime().toString().slice(-6)}</p>
+                        <p className="mt-4 text-[9px] font-bold text-white/20 uppercase tracking-[3px]">Protocol ID: #GM-{new Date().getTime().toString().slice(-6)}</p>
                     </Card>
 
                     <div className="flex items-center justify-center gap-5 text-white/20">
                          <div className="flex items-center gap-2">
                             <ShieldCheck size={16} className="text-green-500/50" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Verified RNG</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">RNG VERIFIED</span>
                          </div>
                          <div className="h-4 w-px bg-white/10" />
                          <div className="flex items-center gap-2">
                             <HandCoins size={16} className="text-primary/50" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Instant Auto-Credit</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">AUTO-CREDIT</span>
                          </div>
                     </div>
                 </div>
