@@ -1,3 +1,4 @@
+
 'use client';
 import {
   ChevronLeft,
@@ -11,6 +12,10 @@ import {
   Timer,
   ArrowUpRight,
   CheckCircle2,
+  Activity,
+  Calendar,
+  IndianRupee,
+  TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -25,6 +30,7 @@ import { useState, useEffect } from 'react';
 import { doc, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useSettings } from '@/context/settings-context';
 
 
 type Investment = {
@@ -73,6 +79,7 @@ const CountdownTimer = ({ endDate }: { endDate: Date }) => {
 
 export default function MyPlansPage() {
   const { user, loading: userLoading } = useUser();
+  const { t } = useSettings();
   const { data: investments, loading: investmentsLoading } =
     useCollection<Investment>(
       user ? `users/${user.uid}/investments` : null
@@ -141,39 +148,41 @@ export default function MyPlansPage() {
   const maturedInvestments = investments?.filter((inv) => inv.status === 'Matured') || [];
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-transparent text-foreground relative z-10">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
+    <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
         <Link href="/dashboard">
-          <Button variant="ghost" size="icon" className="hover:bg-white/10 text-white/70">
+          <Button variant="ghost" size="icon" className="hover:bg-accent">
             <ChevronLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Investment Vault</h1>
+        <h1 className="text-lg font-bold tracking-tight flex items-center gap-2">
+            <Activity className="text-primary h-5 w-5" /> Investment Vault
+        </h1>
         <div className="w-9" />
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-4xl mx-auto w-full space-y-6">
          <Tabs defaultValue="active">
-            <TabsList className="grid w-full grid-cols-2 bg-white/5 border-white/10 p-1 h-14 rounded-2xl">
-                <TabsTrigger value="active" className="rounded-xl data-[state=active]:bg-white/10 h-full font-bold uppercase tracking-widest text-[10px]">Active & Live</TabsTrigger>
-                <TabsTrigger value="matured" className="rounded-xl data-[state=active]:bg-white/10 h-full font-bold uppercase tracking-widest text-[10px]">Settled Logs</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 bg-muted h-14 rounded-2xl p-1.5 border border-border">
+                <TabsTrigger value="active" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">Active & Live</TabsTrigger>
+                <TabsTrigger value="matured" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">Settled Logs</TabsTrigger>
             </TabsList>
             
             <TabsContent value="active" className="mt-6">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-3">
                         <Timer className="animate-spin text-primary" />
-                        <p className="text-[10px] font-bold uppercase tracking-[4px] text-white/20">Syncing Assets</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[4px] text-muted-foreground">Syncing Assets</p>
                     </div>
                 ) : activeInvestments.length > 0 ? (
                     <div className="grid gap-6">
                         {activeInvestments.map(inv => <InvestmentCard key={inv.id} investment={inv} onClaim={handleClaimReturn} />)}
                     </div>
                 ) : (
-                    <Card className="bg-white/5 border-white/10 backdrop-blur-xl rounded-3xl p-10 text-center border-dashed">
+                    <Card className="bg-muted/30 border-border border-dashed rounded-3xl p-10 text-center">
                         <CardContent className="space-y-4">
-                            <p className="text-white/40 text-sm">No active wealth-building plans found.</p>
-                            <Button asChild variant="outline" className="border-white/10 h-10 rounded-xl">
+                            <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest">No active wealth-building plans.</p>
+                            <Button asChild variant="outline" className="border-border h-10 rounded-xl">
                                 <Link href="/plans">Browse Market</Link>
                             </Button>
                         </CardContent>
@@ -185,16 +194,16 @@ export default function MyPlansPage() {
                  {loading ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-3">
                         <Timer className="animate-spin text-primary" />
-                        <p className="text-[10px] font-bold uppercase tracking-[4px] text-white/20">Syncing Assets</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[4px] text-muted-foreground">Syncing Assets</p>
                     </div>
                 ) : maturedInvestments.length > 0 ? (
                     <div className="grid gap-6">
                         {maturedInvestments.map(inv => <InvestmentCard key={inv.id} investment={inv} onClaim={handleClaimReturn} />)}
                     </div>
                 ) : (
-                    <Card className="bg-white/5 border-white/10 backdrop-blur-xl rounded-3xl p-10 text-center border-dashed">
+                    <Card className="bg-muted/30 border-border border-dashed rounded-3xl p-10 text-center">
                         <CardContent className="space-y-4">
-                            <p className="text-white/40 text-sm">No investment history yet.</p>
+                            <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest">No investment history yet.</p>
                         </CardContent>
                     </Card>
                 )}
@@ -202,14 +211,12 @@ export default function MyPlansPage() {
          </Tabs>
       </main>
 
-      <nav className="sticky bottom-0 z-20 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs font-medium">
-          <BottomNavItem icon={Home} label="Home" href="/dashboard" />
-          <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
-          <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
-          <BottomNavItem icon={HandCoins} label="Loans" href="/my-loans" />
-          <BottomNavItem icon={User} label="Profile" href="/profile" />
-        </div>
+      <nav className="sticky bottom-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-sm h-16 flex items-center justify-around px-4">
+          <BottomNavItem icon={Home} label={t.nav.home} href="/dashboard" />
+          <BottomNavItem icon={Briefcase} label={t.nav.plans} href="/plans" active/>
+          <BottomNavItem icon={Trophy} label={t.nav.leaders} href="/leaderboard" />
+          <BottomNavItem icon={HandCoins} label={t.nav.loans} href="/my-loans" />
+          <BottomNavItem icon={User} label={t.nav.profile} href="/profile" />
       </nav>
     </div>
   );
@@ -247,10 +254,10 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
   }
 
   const getBadge = () => {
-    if (investment.status === 'Matured') return <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] uppercase font-bold">Settled</Badge>;
-    if (wasStoppedEarly) return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] uppercase font-bold">Terminated</Badge>;
-    if (isClaimable) return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[10px] uppercase font-bold">Mature</Badge>;
-    return <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] uppercase font-bold">Growing</Badge>;
+    if (investment.status === 'Matured') return <Badge className="bg-accent/20 text-accent border-accent/30 text-[10px] uppercase font-black">Settled</Badge>;
+    if (wasStoppedEarly) return <Badge className="bg-destructive/20 text-destructive border-destructive/30 text-[10px] uppercase font-black">Terminated</Badge>;
+    if (isClaimable) return <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] uppercase font-black">Ready</Badge>;
+    return <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] uppercase font-black">Active Node</Badge>;
   }
   
   const totalProfit = wasStoppedEarly
@@ -262,13 +269,14 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
     : investment.returnAmount || 0;
 
   return (
-    <Card className="shadow-2xl border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-3xl overflow-hidden group relative">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-      <CardHeader className="pb-4 border-b border-white/[0.05] bg-white/[0.01]">
+    <Card className="bg-card border-border shadow-2xl rounded-3xl overflow-hidden group relative">
+      <CardHeader className="pb-4 border-b border-border/5">
         <div className="flex justify-between items-center">
-            <div>
-                <CardTitle className="text-white font-bold tracking-tight">{investment.planName}</CardTitle>
-                <CardDescription className="text-white/30 text-[10px] uppercase tracking-widest font-bold">Started: {startDate.toLocaleDateString()}</CardDescription>
+            <div className="space-y-1">
+                <CardTitle className="text-lg font-bold tracking-tight">{investment.planName}</CardTitle>
+                <div className="flex items-center gap-2 text-muted-foreground text-[10px] font-black uppercase tracking-widest">
+                    <Calendar size={12} /> {startDate.toLocaleDateString()}
+                </div>
             </div>
             {getBadge()}
         </div>
@@ -276,58 +284,58 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
       <CardContent className="pt-6 space-y-6">
         
         <div className="grid grid-cols-2 gap-3">
-             <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
-                <p className="text-[9px] text-white/20 uppercase tracking-widest font-bold mb-1">Principal</p>
-                <p className="text-sm font-bold text-white/90">₹{(investment.investedAmount || 0).toLocaleString()}</p>
+             <div className="bg-muted/50 p-4 rounded-2xl border border-border">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mb-1">Principal</p>
+                <p className="text-base font-black tracking-tighter">₹{(investment.investedAmount || 0).toLocaleString()}</p>
             </div>
-             <div className="bg-black/20 p-3 rounded-2xl border border-white/5 text-right">
-                <p className="text-[9px] text-white/20 uppercase tracking-widest font-bold mb-1">Daily ROI</p>
-                <p className="text-sm font-bold text-green-400">+₹{(investment.dailyIncome || 0).toFixed(2)}</p>
+             <div className="bg-muted/50 p-4 rounded-2xl border border-border text-right">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mb-1">Daily Flow</p>
+                <p className="text-base font-black text-accent tracking-tighter">+₹{(investment.dailyIncome || 0).toFixed(2)}</p>
             </div>
-            <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
-                <p className="text-[9px] text-white/20 uppercase tracking-widest font-bold mb-1">Accrued Profit</p>
-                <p className="text-sm font-bold text-green-400">₹{totalProfit.toFixed(2)}</p>
+            <div className="bg-muted/50 p-4 rounded-2xl border border-border">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mb-1">Accrued Profit</p>
+                <p className="text-base font-black text-accent tracking-tighter">₹{totalProfit.toFixed(2)}</p>
             </div>
-             <div className="bg-black/20 p-3 rounded-2xl border border-white/5 text-right">
-                <p className="text-[9px] text-white/20 uppercase tracking-widest font-bold mb-1">Projected Return</p>
-                <p className="text-sm font-bold text-white">₹{finalReturn.toFixed(2)}</p>
+             <div className="bg-muted/50 p-4 rounded-2xl border border-border text-right">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mb-1">Settlement</p>
+                <p className="text-base font-black tracking-tighter">₹{finalReturn.toFixed(2)}</p>
             </div>
         </div>
 
         {wasStoppedEarly && (
-            <div className="p-3 bg-red-500/10 rounded-2xl border border-red-500/20 text-center">
-                <p className="text-[10px] text-red-200/60 leading-relaxed font-medium">
-                    This plan was terminated manually after {investment.daysActive} active days.
+            <div className="p-4 bg-destructive/5 rounded-2xl border border-destructive/10 text-center">
+                <p className="text-[10px] text-destructive font-black uppercase tracking-widest">
+                    Node Terminated Early (Day {investment.daysActive})
                 </p>
             </div>
         )}
 
         {investment.status === 'Active' && (
             isClaimable ? (
-                 <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-primary hover:text-white shadow-xl shadow-white/5 transition-all">
-                    {isClaiming ? 'Transferring funds...' : 'Claim Full Maturity Return'}
+                 <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full h-14 rounded-2xl font-black bg-primary text-primary-foreground shadow-xl hover:scale-[1.02] transition-all">
+                    {isClaiming ? 'Settling Protocol...' : 'Authorize Final Settlement'}
                 </Button>
             ) : (
-                <div className="space-y-3 pt-2">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-[3px] text-white/20 px-2">
-                        <span>Cycle Status</span>
+                <div className="space-y-3 pt-2 px-2">
+                    <div className="flex justify-between text-[10px] font-black uppercase tracking-[3px] text-muted-foreground">
+                        <span>Cycle Pulse</span>
                         <CountdownTimer endDate={maturityDate} />
                     </div>
-                    <Progress value={progress} className="h-1.5 bg-white/5" />
+                    <Progress value={progress} className="h-1.5" />
                 </div>
             )
         )}
         
         {investment.status === 'Stopped' && (
-             <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full h-12 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 shadow-xl shadow-red-500/20 transition-all">
-                {isClaiming ? 'Processing Settlement...' : 'Recover Partial Funds'}
+             <Button onClick={handleClaimClick} disabled={isClaiming} className="w-full h-14 rounded-2xl font-black bg-destructive text-destructive-foreground shadow-xl hover:scale-[1.02] transition-all">
+                {isClaiming ? 'Settling Assets...' : 'Collect Partial Assets'}
             </Button>
         )}
 
         {investment.status === 'Matured' && (
-             <div className="flex items-center justify-center gap-2 py-2 text-green-400/40">
-                <CheckCircle2 size={16} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Asset Successfully Liquidated</span>
+             <div className="flex items-center justify-center gap-2 py-4 bg-accent/5 rounded-2xl border border-accent/10">
+                <CheckCircle2 size={20} className="text-accent" />
+                <span className="text-[10px] font-black uppercase tracking-[3px] text-accent">Node Fully Settled</span>
              </div>
         )}
       </CardContent>
@@ -336,27 +344,14 @@ function InvestmentCard({ investment, onClaim }: { investment: Investment, onCla
 }
 
 
-function BottomNavItem({
-  icon: Icon,
-  label,
-  href,
-  active = false,
-}: {
-  icon: React.ElementType;
-  label: string;
-  href: string;
-  active?: boolean;
-}) {
+function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href: string, active?: boolean }) {
   return (
-    <Link
-      href={href}
-      className={cn(
+    <Link href={href} className={cn(
         "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
-        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
-      )}
-    >
-      <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]")} />
-      <span className="text-[10px] tracking-tight">{label}</span>
+        active ? 'text-primary scale-110' : 'text-muted-foreground hover:text-foreground'
+    )}>
+      <Icon className={cn("h-5 w-5")} />
+      <span className="text-[9px] font-black uppercase tracking-tight">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>
   );

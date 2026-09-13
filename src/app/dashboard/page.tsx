@@ -229,7 +229,19 @@ export default function Dashboard() {
 
         <WalletSummary userData={userData} adminSettings={adminSettings} loading={userDataLoading} t={t} />
 
-        <div className="flex items-center justify-between"><h2 className="text-sm font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2"><Activity size={14} className="text-primary" /> {t.dashboard.active_portfolios}</h2><Button variant="ghost" size="sm" asChild className="text-primary text-[10px] font-black uppercase tracking-widest"><Link href="/plans">{t.dashboard.browse_market} <ArrowRight className="ml-1 h-3 w-3" /></Link></Button></div>
+        <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2">
+                <Activity size={14} className="text-primary" /> {t.dashboard.active_portfolios}
+            </h2>
+            <div className="flex gap-2">
+                <Button variant="ghost" size="sm" asChild className="text-muted-foreground text-[10px] font-black uppercase tracking-widest border border-border/10">
+                    <Link href="/my-plans">{t.dashboard.vault} <ArrowRight className="ml-1 h-3 w-3" /></Link>
+                </Button>
+                <Button variant="ghost" size="sm" asChild className="text-primary text-[10px] font-black uppercase tracking-widest">
+                    <Link href="/plans">{t.dashboard.market} <ArrowRight className="ml-1 h-3 w-3" /></Link>
+                </Button>
+            </div>
+        </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
             {activeInvestments?.map(inv => <ActivePlanCard key={inv.id} investment={inv} onClaimProfit={handleClaimProfit} onClaimMaturity={handleClaimMaturity} />)}
