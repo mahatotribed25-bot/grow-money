@@ -21,7 +21,9 @@ export const translations: Record<Language, any> = {
       wheel: "Wheel",
       standard_loan: "Standard Loan",
       flexi_loan: "Flexi Loan",
-      syndicate: "Syndicate"
+      syndicate: "Syndicate",
+      media_hub: "Media Hub",
+      training_center: "Training Hub"
     },
     profile: {
       title: "Investor Account",
@@ -59,7 +61,9 @@ export const translations: Record<Language, any> = {
       wheel: "व्हील",
       standard_loan: "स्टैंडर्ड लोन",
       flexi_loan: "फ्लेक्सी लोन",
-      syndicate: "सिंडिकेट"
+      syndicate: "सिंडिकेट",
+      media_hub: "मीडिया हब",
+      training_center: "ट्रेनिंग सेंटर"
     },
     profile: {
       title: "निवेशक खाता",
@@ -97,7 +101,9 @@ export const translations: Record<Language, any> = {
       wheel: "व्हील",
       standard_loan: "स्टँडर्ड लोन",
       flexi_loan: "फ्लेक्सी लोन",
-      syndicate: "सिंडिकेट"
+      syndicate: "सिंडिकेट",
+      media_hub: "मीडिया हब",
+      training_center: "प्रशिक्षण केंद्र"
     },
     profile: {
       title: "गुंतवणूकदार खाते",
@@ -135,7 +141,9 @@ export const translations: Record<Language, any> = {
       wheel: "વ્હીલ",
       standard_loan: "સ્ટાન્ડર્ડ લોન",
       flexi_loan: "ફ્લેક્સી લોન",
-      syndicate: "સિન્ડિકેટ"
+      syndicate: "સિન્ડિકેટ",
+      media_hub: "મીડિયા હબ",
+      training_center: "ટ્રેનિંગ સેન્ટર"
     },
     profile: {
       title: "રોકાણકાર ખાતું",
@@ -173,7 +181,9 @@ export const translations: Record<Language, any> = {
       wheel: "వీల్",
       standard_loan: "స్టాండర్డ్ లోన్",
       flexi_loan: "ఫ్లెక్సీ లోన్",
-      syndicate: "సిండికేట్"
+      syndicate: "సిండికేట్",
+      media_hub: "మీడియా హబ్",
+      training_center: "ట్రైనింగ్ సెంటర్"
     },
     profile: {
       title: "పెట్టుబడిదారుల ఖాతా",
@@ -211,7 +221,9 @@ export const translations: Record<Language, any> = {
       wheel: "വീൽ",
       standard_loan: "സ്റ്റാൻഡേർഡ് ലോൺ",
       flexi_loan: "ഫ്ലെക്സി ലോൺ",
-      syndicate: "സിൻഡിക്കേറ്റ്"
+      syndicate: "സിൻഡിക്കേറ്റ്",
+      media_hub: "മീഡിയ ഹബ്",
+      training_center: "പരിശീലന കേന്ദ്രം"
     },
     profile: {
       title: "ഇൻവെസ്റ്റർ അക്കൗണ്ട്",
@@ -249,7 +261,9 @@ export const translations: Record<Language, any> = {
       wheel: "சக்கரம்",
       standard_loan: "நிலையான கடன்",
       flexi_loan: "நெகிழ்வான கடன்",
-      syndicate: "சிண்டிகேட்"
+      syndicate: "சிண்டிகேட்",
+      media_hub: "மீடியா ஹப்",
+      training_center: "பயிற்சி மையம்"
     },
     profile: {
       title: "முதலீட்டாளர் கணக்கு",
@@ -287,7 +301,9 @@ export const translations: Record<Language, any> = {
       wheel: "ಚಕ್ರ",
       standard_loan: "ಸ್ಟ್ಯಾಂಡರ್ಡ್ ಸಾಲ",
       flexi_loan: "ಫ್ಲೆಕ್ಸಿ ಸಾಲ",
-      syndicate: "ಸಿಂಡಿಕೇಟ್"
+      syndicate: "ಸಿಂಡಿಕೇಟ್",
+      media_hub: "ಮೀಡಿಯಾ ಹಬ್",
+      training_center: "ತರಬೇತಿ ಕೇಂದ್ರ"
     },
     profile: {
       title: "ಹೂಡಿಕೆದಾರರ ಖಾತೆ",
@@ -325,7 +341,9 @@ export const translations: Record<Language, any> = {
       wheel: "হুইল",
       standard_loan: "স্ট্যান্ডার্ড লোন",
       flexi_loan: "ফ্লেক্সি লোন",
-      syndicate: "সিন্ডিকেট"
+      syndicate: "সিন্ডিকেট",
+      media_hub: "মিডিয়া হাব",
+      training_center: "প্রশিক্ষণ কেন্দ্র"
     },
     profile: {
       title: "বিনিয়োগকারী অ্যাকাউন্ট",
@@ -363,7 +381,9 @@ export const translations: Record<Language, any> = {
       wheel: "व्हील",
       standard_loan: "स्टैंडर्ड लोन",
       flexi_loan: "फ्लेक्सी लोन",
-      syndicate: "सिंडिकेट"
+      syndicate: "सिंडिकेट",
+      media_hub: "मीडिया हब",
+      training_center: "ट्रेनिंग सेंटर"
     },
     profile: {
       title: "निवेशक खाता",

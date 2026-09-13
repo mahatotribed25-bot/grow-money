@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Wallet,
@@ -63,14 +62,6 @@ import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CashDispenseAnimation } from '@/components/dashboard/CashDispenseAnimation';
 import { useSettings } from '@/context/settings-context';
-import {
-  type CarouselApi,
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 
 type UserData = {
   id: string;
@@ -223,11 +214,27 @@ export default function Dashboard() {
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         <div className="rounded-3xl overflow-hidden shadow-2xl"><BannerCarousel /></div>
         
-        {adminSettings?.homepageVideoUrls && adminSettings.homepageVideoUrls.length > 0 && (
-          <VideoCarouselSection urls={adminSettings.homepageVideoUrls} />
-        )}
-
         <WalletSummary userData={userData} adminSettings={adminSettings} loading={userDataLoading} t={t} />
+
+        <Link href="/media" className="block group">
+            <Card className="bg-gradient-to-br from-primary/20 via-primary/5 to-transparent border-primary/20 rounded-[1.5rem] p-5 shadow-xl transition-all hover:scale-[1.02] active:scale-95 relative overflow-hidden">
+                <div className="flex items-center justify-between relative z-10">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg border border-white/20">
+                            <PlayCircle size={24} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-primary uppercase tracking-[2px] mb-0.5">{t.dashboard.media_hub}</p>
+                            <h3 className="text-sm font-bold tracking-tight">{t.dashboard.training_center}</h3>
+                        </div>
+                    </div>
+                    <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                        <ArrowRight size={20} />
+                    </div>
+                </div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[50px] -mr-16 -mt-16 rounded-full" />
+            </Card>
+        </Link>
 
         <div className="flex items-center justify-between">
             <h2 className="text-sm font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2">
@@ -271,89 +278,6 @@ export default function Dashboard() {
   );
 }
 
-function VideoCarouselSection({ urls }: { urls: string[] }) {
-    const [api, setApi] = useState<CarouselApi>();
-    const [current, setCurrent] = useState(0);
-
-    const validUrls = useMemo(() => {
-        return urls
-            .map(url => {
-                if (!url) return null;
-                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                const match = url.match(regExp);
-                return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
-            })
-            .filter(Boolean) as string[];
-    }, [urls]);
-
-    useEffect(() => {
-        if (!api) return;
-        setCurrent(api.selectedScrollSnap());
-        api.on("select", () => {
-            setCurrent(api.selectedScrollSnap());
-        });
-    }, [api]);
-
-    if (validUrls.length === 0) return null;
-
-    return (
-        <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-2xl relative group/carousel">
-            <CardHeader className="py-4 border-b border-border/10">
-                <CardTitle className="text-[10px] font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2">
-                    <PlayCircle size={14} className="text-primary" /> Training & Insights Hub
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-                <Carousel setApi={setApi} opts={{ loop: true }} className="w-full">
-                    <CarouselContent>
-                        {validUrls.map((embedUrl, index) => (
-                            <CarouselItem key={index}>
-                                <div className="aspect-video w-full bg-black">
-                                    <iframe
-                                        width="100%"
-                                        height="100%"
-                                        src={embedUrl}
-                                        title={`YouTube video player ${index + 1}`}
-                                        frameBorder="0"
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                        allowFullScreen
-                                        className="w-full h-full"
-                                    ></iframe>
-                                </div>
-                            </CarouselItem>
-                        ))}
-                    </CarouselContent>
-                    {validUrls.length > 1 && (
-                        <>
-                            <div className="absolute top-1/2 left-2 -translate-y-1/2 z-20 flex">
-                                <CarouselPrevious className="static translate-y-0 h-10 w-10 bg-black/60 border-white/10 text-white hover:bg-black/80" />
-                            </div>
-                            <div className="absolute top-1/2 right-2 -translate-y-1/2 z-20 flex">
-                                <CarouselNext className="static translate-y-0 h-10 w-10 bg-black/60 border-white/10 text-white hover:bg-black/80" />
-                            </div>
-                        </>
-                    )}
-                </Carousel>
-                {validUrls.length > 1 && (
-                    <div className="flex justify-center gap-1.5 py-4 bg-muted/20 border-t border-border/5">
-                        {validUrls.map((_, i) => (
-                            <button
-                                key={i}
-                                onClick={() => api?.scrollTo(i)}
-                                className={cn(
-                                    "h-1 rounded-full transition-all duration-300",
-                                    current === i ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
-                                )}
-                                aria-label={`Go to slide ${i + 1}`}
-                            />
-                        ))}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-    );
-}
-
 function WalletSummary({ userData, adminSettings, loading, t }: { userData?: UserData | null, adminSettings?: AdminSettings | null, loading: boolean, t: any }) {
   return (
     <Card className="border-border bg-card rounded-[2rem] p-8 space-y-8 shadow-2xl relative overflow-hidden">
@@ -387,7 +311,6 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
     
     setIsSabrActive(true);
     
-    // Simulate protocol processing time with witty overlay
     setTimeout(() => {
       addDoc(collection(firestore, 'deposits'), { 
         userId: user.uid, 
@@ -402,7 +325,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
         setAmount(''); 
         setTid(''); 
         setIsSabrActive(false);
-        setIsOpen(false); // Close the dialog
+        setIsOpen(false); 
       })
       .catch((e) => {
         console.error(e);
