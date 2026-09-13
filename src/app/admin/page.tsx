@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -18,7 +19,9 @@ import {
   Bell,
   RefreshCcw,
   Globe,
-  MessageSquare
+  MessageSquare,
+  ShieldCheck,
+  ZapOff
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useCollection, useUser, useDoc } from '@/firebase';
@@ -37,7 +40,7 @@ import {
     Cell
 } from 'recharts';
 import { format, startOfDay, isSameDay, subDays } from 'date-fns';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { Timestamp } from 'firebase/firestore';
@@ -160,7 +163,7 @@ export default function AdminDashboard() {
             subInfo={`${kycRequests?.length || 0} Pending KYC`}
         />
         <GlassMetricCard 
-            title="Ledger Requests" 
+            title="Ledger Volume" 
             value="12.5M" 
             change="+19.1%" 
             trend="up"
@@ -319,33 +322,94 @@ export default function AdminDashboard() {
             </Card>
 
             {/* Geographic Traffic - Right */}
-            <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] p-6 shadow-2xl overflow-hidden relative">
+            <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] p-6 shadow-2xl overflow-hidden relative group">
                 <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">Geographic Nodes</CardTitle>
                     <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Live Activity</span>
                 </CardHeader>
+                
                 <div className="aspect-square relative flex items-center justify-center">
-                    <Globe size={180} className="text-primary/10 absolute animate-pulse" strokeWidth={1} />
-                    <div className="relative w-full h-full flex items-center justify-center">
-                         {/* Visual heat map nodes */}
-                         <div className="absolute top-1/4 left-1/3 h-4 w-4 rounded-full bg-primary/40 blur-md animate-ping" />
-                         <div className="absolute top-1/2 left-1/2 h-6 w-6 rounded-full bg-green-500/40 blur-lg animate-ping delay-700" />
-                         <div className="absolute bottom-1/3 right-1/4 h-3 w-3 rounded-full bg-blue-500/40 blur-md animate-ping delay-300" />
-                    </div>
+                    <div className="absolute inset-0 bg-primary/5 rounded-full blur-[60px] animate-pulse" />
+                    <FuturisticWorldMap />
                 </div>
-                <div className="space-y-3 mt-6">
-                    <div className="flex justify-between items-center px-2">
-                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Main Node: INDIA</span>
-                        <span className="text-[10px] font-black text-green-400 uppercase tracking-widest">Active</span>
+
+                <div className="space-y-4 mt-8 px-2">
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e]" />
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest">Main Node: INDIA</span>
+                        </div>
+                        <Badge variant="outline" className="h-5 border-white/5 text-[8px] font-bold text-white/30 uppercase px-2">Operational</Badge>
                     </div>
-                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-primary w-[85%] rounded-full shadow-[0_0_10px_#8b5cf6]" />
+                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-500 w-[85%] rounded-full shadow-[0_0_15px_rgba(139,92,246,0.5)]" />
+                        <div className="absolute inset-0 w-full h-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" style={{ backgroundSize: '200% 100%' }} />
                     </div>
                 </div>
             </Card>
       </div>
     </div>
   );
+}
+
+/**
+ * A futuristic stylized SVG World Map with animated nodes and traffic.
+ */
+function FuturisticWorldMap() {
+    return (
+        <svg viewBox="0 0 400 400" className="w-full h-full drop-shadow-[0_0_30px_rgba(139,92,246,0.1)]">
+            {/* Stylized World Map Paths */}
+            <g className="fill-white/5 stroke-white/[0.03]" strokeWidth="1">
+                {/* Asia/India focus */}
+                <path d="M220,150 Q250,140 280,160 T320,180 L340,220 Q310,250 280,240 T240,200 Z" />
+                <path d="M200,180 Q210,195 215,220 L205,240 Q190,220 185,200 Z" className="fill-primary/20 stroke-primary/30" /> {/* India focus */}
+                {/* Americas */}
+                <path d="M60,140 Q90,130 110,160 T130,220 L100,280 Q70,250 50,220 Z" />
+                {/* Europe/Africa */}
+                <path d="M150,140 Q180,130 200,150 L210,200 Q180,240 150,250 T130,190 Z" />
+            </g>
+
+            {/* Glowing Connection Lines (Traffic) */}
+            <g className="stroke-primary/20" strokeWidth="0.5" fill="none">
+                <path d="M110,170 Q160,150 205,210" className="animate-pulse" />
+                <path d="M210,220 Q260,180 290,170" className="animate-pulse delay-700" />
+                <path d="M180,170 Q160,200 110,240" className="animate-pulse delay-300" />
+            </g>
+
+            {/* Moving Data Particles */}
+            <circle r="1.5" className="fill-primary shadow-lg">
+                <animateMotion 
+                    dur="4s" 
+                    repeatCount="indefinite" 
+                    path="M110,170 Q160,150 205,210"
+                />
+            </circle>
+            <circle r="1.5" className="fill-blue-400">
+                <animateMotion 
+                    dur="5s" 
+                    begin="1s"
+                    repeatCount="indefinite" 
+                    path="M210,220 Q260,180 290,170"
+                />
+            </circle>
+
+            {/* Glowing Nodes */}
+            <g>
+                {/* Node: Mumbai/India */}
+                <circle cx="205" cy="210" r="4" className="fill-primary animate-pulse" />
+                <circle cx="205" cy="210" r="8" className="stroke-primary/40 fill-none animate-ping" strokeWidth="1" />
+                
+                {/* Node: London/Europe */}
+                <circle cx="160" cy="155" r="2.5" className="fill-white/20" />
+                
+                {/* Node: New York/US */}
+                <circle cx="110" cy="170" r="2.5" className="fill-white/20" />
+                
+                {/* Node: Tokyo/Japan */}
+                <circle cx="310" cy="180" r="2.5" className="fill-white/20" />
+            </g>
+        </svg>
+    )
 }
 
 function GlassMetricCard({ 
