@@ -28,6 +28,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -206,7 +207,7 @@ export default function KycRequestsPage() {
                             )}
                         </div>
                         {previewUser?.panImage && (
-                            <Button asChild variant="outline" size="sm" className="w-full border-white/5 bg-white/5 text-[10px] font-black uppercase">
+                            <Button asChild variant="outline" size="sm" className="w-full border-white/5 bg-white/5 text-[10px] font-black uppercase text-white hover:bg-white/10">
                                 <a href={previewUser.panImage} download={`${previewUser.name}_PAN.png`}><Download size={14} className="mr-2"/> Download PAN</a>
                             </Button>
                         )}
@@ -221,14 +222,14 @@ export default function KycRequestsPage() {
                             )}
                         </div>
                         {previewUser?.aadhaarImage && (
-                            <Button asChild variant="outline" size="sm" className="w-full border-white/5 bg-white/5 text-[10px] font-black uppercase">
+                            <Button asChild variant="outline" size="sm" className="w-full border-white/5 bg-white/5 text-[10px] font-black uppercase text-white hover:bg-white/10">
                                 <a href={previewUser.aadhaarImage} download={`${previewUser.name}_AADHAAR.png`}><Download size={14} className="mr-2"/> Download Aadhaar</a>
                             </Button>
                         )}
                     </div>
                 </div>
                 <DialogFooter>
-                    <DialogClose asChild><Button variant="ghost">Close Library</Button></DialogClose>
+                    <DialogClose asChild><Button variant="ghost" className="text-white/40">Close Library</Button></DialogClose>
                 </DialogFooter>
             </DialogContent>
        </Dialog>
