@@ -22,6 +22,8 @@ import {
   Search,
   LayoutGrid,
   Menu,
+  CheckCircle2,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
