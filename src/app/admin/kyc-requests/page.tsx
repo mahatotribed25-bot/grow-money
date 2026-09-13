@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -12,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, Timer } from 'lucide-react';
+import { Check, X, Timer, Eye, ImageIcon, Download } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import {
   doc,
@@ -32,6 +31,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import Image from 'next/image';
 
 type KycUser = {
   id: string; 
@@ -41,6 +41,8 @@ type KycUser = {
   phoneNumber?: string;
   kycStatus: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
   kycSubmissionDate?: Timestamp;
+  panImage?: string;
+  aadhaarImage?: string;
 };
 
 const formatDate = (timestamp?: Timestamp) => {
@@ -49,7 +51,6 @@ const formatDate = (timestamp?: Timestamp) => {
 };
 
 export default function KycRequestsPage() {
-  // Fixed: matching 'Pending' with capital P as set in profile page
   const { data: pendingUsers, loading } = useCollection<KycUser>('users', {
     where: ['kycStatus', '==', 'Pending'],
   });
@@ -59,6 +60,9 @@ export default function KycRequestsPage() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [userToUpdate, setUserToUpdate] = useState<KycUser | null>(null);
+  
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewUser, setPreviewUser] = useState<KycUser | null>(null);
 
   const handleUpdateStatus = (
     user: KycUser,
@@ -107,6 +111,11 @@ export default function KycRequestsPage() {
     setUserToUpdate(null);
   };
 
+  const openPreview = (user: KycUser) => {
+      setPreviewUser(user);
+      setIsPreviewOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -120,7 +129,7 @@ export default function KycRequestsPage() {
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pl-6">Investor</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">PAN Node</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Aadhaar Node</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Contact</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Documents</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Submitted At</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pr-6 text-right">Decision</TableHead>
             </TableRow>
@@ -139,7 +148,12 @@ export default function KycRequestsPage() {
                   <TableCell className="pl-6 font-bold text-white/90">{user.name}</TableCell>
                   <TableCell className="font-mono text-xs">{user.panCard || 'N/A'}</TableCell>
                   <TableCell className="font-mono text-xs">{user.aadhaarNumber || 'N/A'}</TableCell>
-                  <TableCell className="text-xs">{user.phoneNumber || 'N/A'}</TableCell>
+                  <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => openPreview(user)} className="h-8 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white px-3 gap-2">
+                        <ImageIcon size={14} />
+                        <span className="text-[10px] font-black uppercase">View Docs</span>
+                      </Button>
+                  </TableCell>
                   <TableCell className="text-[10px] font-bold text-white/20 uppercase">{formatDate(user.kycSubmissionDate)}</TableCell>
                   <TableCell className="pr-6 text-right">
                     <div className="flex justify-end gap-2">
@@ -173,6 +187,52 @@ export default function KycRequestsPage() {
           </TableBody>
         </Table>
       </div>
+
+       {/* Image Preview Modal */}
+       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+            <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Identity Document Preview</DialogTitle>
+                    <DialogDescription className="text-white/40">Review uploaded PAN and Aadhaar nodes for {previewUser?.name}.</DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6">
+                    <div className="space-y-3">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60">PAN CARD NODE</Label>
+                        <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                            {previewUser?.panImage ? (
+                                <Image src={previewUser.panImage} alt="PAN" fill className="object-contain" />
+                            ) : (
+                                <div className="h-full w-full flex items-center justify-center text-white/10 italic text-xs">No image uploaded</div>
+                            )}
+                        </div>
+                        {previewUser?.panImage && (
+                            <Button asChild variant="outline" size="sm" className="w-full border-white/5 bg-white/5 text-[10px] font-black uppercase">
+                                <a href={previewUser.panImage} download={`${previewUser.name}_PAN.png`}><Download size={14} className="mr-2"/> Download PAN</a>
+                            </Button>
+                        )}
+                    </div>
+                    <div className="space-y-3">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-accent/60">AADHAAR NODE</Label>
+                        <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                             {previewUser?.aadhaarImage ? (
+                                <Image src={previewUser.aadhaarImage} alt="Aadhaar" fill className="object-contain" />
+                            ) : (
+                                <div className="h-full w-full flex items-center justify-center text-white/10 italic text-xs">No image uploaded</div>
+                            )}
+                        </div>
+                        {previewUser?.aadhaarImage && (
+                            <Button asChild variant="outline" size="sm" className="w-full border-white/5 bg-white/5 text-[10px] font-black uppercase">
+                                <a href={previewUser.aadhaarImage} download={`${previewUser.name}_AADHAAR.png`}><Download size={14} className="mr-2"/> Download Aadhaar</a>
+                            </Button>
+                        )}
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="ghost">Close Library</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+       </Dialog>
+
        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
         <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]">
           <DialogHeader>

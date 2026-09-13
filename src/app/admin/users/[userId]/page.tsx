@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -36,7 +35,8 @@ import {
   History as HistoryIcon, 
   IdCard, 
   Smartphone,
-  CheckCircle2
+  CheckCircle2,
+  ImageIcon
 } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp, orderBy } from 'firebase/firestore';
@@ -67,6 +67,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import Image from 'next/image';
 
 type UserPermissions = {
     canManageDeposits?: boolean;
@@ -92,6 +93,8 @@ type UserData = {
   kycRejectionReason?: string;
   role?: 'user' | 'subadmin';
   permissions?: UserPermissions;
+  panImage?: string;
+  aadhaarImage?: string;
 };
 
 type WalletHistoryEntry = {
@@ -290,6 +293,8 @@ export default function UserDetailPage() {
   const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(`withdrawals`, { where: ['userId', '==', userId]});
   const { data: groupInvestments, loading: groupInvestmentsLoading } = useUserGroupInvestments(userId);
   
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
   const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading || loansLoading || groupInvestmentsLoading || historyLoading;
 
   useEffect(() => {
@@ -451,6 +456,8 @@ export default function UserDetailPage() {
               vipLevel: 'Bronze',
               trustScore: 500,
               lastCheckIn: deleteField(),
+              panImage: deleteField(),
+              aadhaarImage: deleteField(),
           });
 
           docRefsToDelete.forEach(ref => transaction.delete(ref));
@@ -642,10 +649,15 @@ export default function UserDetailPage() {
           </Card>
 
           <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] shadow-2xl overflow-hidden group">
-              <CardHeader className="bg-white/[0.01] border-b border-white/[0.05] py-4">
+              <CardHeader className="bg-white/[0.01] border-b border-white/[0.05] py-4 flex flex-row items-center justify-between">
                   <CardTitle className="text-[10px] font-black uppercase tracking-[4px] text-white/40 flex items-center gap-2">
                       <IdCard size={14} className="text-primary" /> Identity Ledger (KYC)
                   </CardTitle>
+                  {(user.panImage || user.aadhaarImage) && (
+                      <Button variant="ghost" size="icon" onClick={() => setIsPreviewOpen(true)} className="h-8 w-8 text-primary hover:bg-primary/10">
+                        <ImageIcon size={16} />
+                      </Button>
+                  )}
               </CardHeader>
               <CardContent className="p-6 space-y-6">
                    <div className="space-y-4">
@@ -685,7 +697,7 @@ export default function UserDetailPage() {
                         <TableRow key={item.id} className="border-white/[0.03] hover:bg-white/[0.01]">
                         <TableCell className="pl-6 py-4">
                             <p className="text-sm font-bold text-white/80">{item.category}</p>
-                            <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">{item.description}</p>
+                            <p className="text-[9px] text-white/30 uppercase font-black tracking-widest">{item.description}</p>
                         </TableCell>
                         <TableCell className="text-right pr-6">
                             <div className="flex flex-col items-end">
@@ -779,6 +791,41 @@ export default function UserDetailPage() {
             </TabsContent>
         </div>
       </Tabs>
+
+      {/* KYC Image Preview Modal */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+            <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">KYC Node Preview</DialogTitle>
+                    <DialogDescription className="text-white/40">Review uploaded documents for {user.name}.</DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6">
+                    <div className="space-y-3">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60">PAN CARD IMAGE</Label>
+                        <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                            {user.panImage ? (
+                                <Image src={user.panImage} alt="PAN" fill className="object-contain" />
+                            ) : (
+                                <div className="h-full w-full flex items-center justify-center text-white/10 italic text-xs">No PAN image linked</div>
+                            )}
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-accent/60">AADHAAR CARD IMAGE</Label>
+                        <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                             {user.aadhaarImage ? (
+                                <Image src={user.aadhaarImage} alt="Aadhaar" fill className="object-contain" />
+                            ) : (
+                                <div className="h-full w-full flex items-center justify-center text-white/10 italic text-xs">No Aadhaar image linked</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="ghost">Close Preview</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+       </Dialog>
     </div>
   );
 }
@@ -940,4 +987,3 @@ function LoanDetails({ loan, user, onCompleteLoan, onConfirmEmi }: { loan: Activ
     </Card>
   );
 }
-

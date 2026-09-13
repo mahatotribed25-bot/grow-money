@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -21,7 +20,9 @@ import {
   FileSpreadsheet,
   Moon,
   Sun,
-  Languages
+  Languages,
+  Upload,
+  ImageIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -50,7 +51,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
@@ -64,6 +65,7 @@ import {
 import * as XLSX from 'xlsx';
 import { useSettings } from '@/context/settings-context';
 import { Language } from '@/lib/translations';
+import Image from 'next/image';
 
 type Transaction = {
   id: string;
@@ -114,6 +116,8 @@ type UserData = {
   panCard?: string;
   aadhaarNumber?: string;
   phoneNumber?: string;
+  panImage?: string;
+  aadhaarImage?: string;
 };
 
 export default function ProfilePage() {
@@ -142,6 +146,8 @@ export default function ProfilePage() {
   const [kycPan, setKycPan] = useState('');
   const [kycAadhaar, setKycAadhaar] = useState('');
   const [kycPhone, setKycPhone] = useState('');
+  const [panImage, setPanImage] = useState<string | null>(null);
+  const [aadhaarImage, setAadhaarImage] = useState<string | null>(null);
 
   const [selectedReceipt, setSelectedReceipt] = useState<{ tx: Transaction, type: 'deposit' | 'withdrawal' } | null>(null);
 
@@ -170,6 +176,8 @@ export default function ProfilePage() {
       setKycPan(userData.panCard || '');
       setKycAadhaar(userData.aadhaarNumber || '');
       setKycPhone(userData.phoneNumber || '');
+      setPanImage(userData.panImage || null);
+      setAadhaarImage(userData.aadhaarImage || null);
     }
   }, [userData]);
 
@@ -213,9 +221,31 @@ export default function ProfilePage() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'pan' | 'aadhaar') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+        toast({ title: "File Too Large", description: "Image must be less than 2MB.", variant: "destructive" });
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        if (type === 'pan') setPanImage(reader.result as string);
+        else setAadhaarImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmitKyc = async () => {
     if (!user || !kycPan || !kycAadhaar || !kycPhone) {
         toast({ title: "Missing Data", description: "Fill in all fields.", variant: "destructive" });
+        return;
+    }
+
+    if (!panImage || !aadhaarImage) {
+        toast({ title: "Images Required", description: "Please upload photos of your PAN and Aadhaar.", variant: "destructive" });
         return;
     }
 
@@ -225,6 +255,8 @@ export default function ProfilePage() {
             panCard: kycPan.toUpperCase(),
             aadhaarNumber: kycAadhaar,
             phoneNumber: kycPhone,
+            panImage: panImage,
+            aadhaarImage: aadhaarImage,
             kycStatus: 'Pending',
             kycSubmissionDate: serverTimestamp()
         });
@@ -503,18 +535,50 @@ export default function ProfilePage() {
 
         {/* KYC Dialog */}
         <Dialog open={isKycOpen} onOpenChange={setIsKycOpen}>
-            <DialogContent className="rounded-[2.5rem]">
+            <DialogContent className="rounded-[2.5rem] max-w-lg">
                 <DialogHeader>
                     <DialogTitle className="text-xl font-black uppercase tracking-tight">Identity Node</DialogTitle>
                     <DialogDescription>Verified status required for premium asset access.</DialogDescription>
                 </DialogHeader>
                 <div className="py-6 space-y-4">
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">PAN Card</Label>
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">PAN Card Number</Label>
                         <Input value={kycPan} onChange={e => setKycPan(e.target.value)} placeholder="ABCDE1234F" className="h-12 rounded-xl font-mono uppercase" />
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">PAN Image</Label>
+                            <div className="relative h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/20">
+                                {panImage ? (
+                                    <Image src={panImage} alt="PAN" fill className="object-cover" />
+                                ) : (
+                                    <div className="flex flex-col items-center gap-1">
+                                        <Upload size={16} className="text-muted-foreground" />
+                                        <span className="text-[8px] font-black text-muted-foreground">UPLOAD</span>
+                                    </div>
+                                )}
+                                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pan')} className="absolute inset-0 opacity-0 cursor-pointer" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Aadhaar Image</Label>
+                            <div className="relative h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/20">
+                                {aadhaarImage ? (
+                                    <Image src={aadhaarImage} alt="Aadhaar" fill className="object-cover" />
+                                ) : (
+                                    <div className="flex flex-col items-center gap-1">
+                                        <Upload size={16} className="text-muted-foreground" />
+                                        <span className="text-[8px] font-black text-muted-foreground">UPLOAD</span>
+                                    </div>
+                                )}
+                                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'aadhaar')} className="absolute inset-0 opacity-0 cursor-pointer" />
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Aadhaar Node</Label>
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Aadhaar Node Number</Label>
                         <Input value={kycAadhaar} onChange={e => setKycAadhaar(e.target.value)} placeholder="1234 5678 9012" className="h-12 rounded-xl" />
                     </div>
                     <div className="space-y-2">
