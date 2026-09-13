@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -36,7 +37,7 @@ import type { Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
@@ -144,6 +145,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="p-0 border-r border-white/5 w-[300px]">
+                    <SheetHeader>
+                        <SheetTitle className="sr-only">Admin Navigation Menu</SheetTitle>
+                    </SheetHeader>
                     <NavContent />
                 </SheetContent>
              </Sheet>
