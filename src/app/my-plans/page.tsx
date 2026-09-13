@@ -27,7 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useState, useEffect } from 'react';
-import { doc, runTransaction } from 'firebase/firestore';
+import { doc, runTransaction, collection, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/context/settings-context';
@@ -95,6 +95,7 @@ export default function MyPlansPage() {
        await runTransaction(firestore, async (transaction) => {
          const userRef = doc(firestore, 'users', user.uid);
          const invRef = doc(firestore, 'users', user.uid, 'investments', investment.id);
+         const historyRef = doc(collection(firestore, `users/${user.uid}/walletHistory`));
          
          const userDoc = await transaction.get(userRef);
          const invDoc = await transaction.get(invRef);
@@ -103,7 +104,6 @@ export default function MyPlansPage() {
          
          const invData = invDoc.data();
          if (invData.status === 'Matured') {
-            toast({ title: "Already Claimed", description: "This investment has already been claimed.", variant: "destructive" });
             return;
          }
 
@@ -119,7 +119,10 @@ export default function MyPlansPage() {
          let newWalletBalance = userDoc.data().walletBalance || 0;
          let newTotalInvestment = userDoc.data().totalInvestment || 0;
          
+         // 1. Update Investment Status
          transaction.update(invRef, { status: 'Matured' });
+
+         // 2. Update User Balances
          newWalletBalance += amountToClaim;
          newTotalInvestment -= investment.investedAmount;
 
@@ -127,6 +130,15 @@ export default function MyPlansPage() {
            walletBalance: newWalletBalance,
            totalInvestment: newTotalInvestment < 0 ? 0 : newTotalInvestment,
            totalIncome: (userDoc.data().totalIncome || 0) + (amountToClaim - investment.investedAmount)
+         });
+
+         // 3. Log to Ledger (Wallet History)
+         transaction.set(historyRef, {
+            amount: amountToClaim,
+            type: 'credit',
+            category: 'Settlement',
+            description: `Full settlement of ${investment.planName}`,
+            createdAt: serverTimestamp()
          });
        });
 

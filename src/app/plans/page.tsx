@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -171,11 +172,12 @@ export default function PlansPage() {
             vipLevel: newVipLevel,
         });
 
+        // Log the debit entry to wallet history
         transaction.set(historyRef, {
             amount: planPrice,
             type: 'debit',
             category: 'Investment',
-            description: `Secured plan: ${plan.name}`,
+            description: `Secured plan: ${plan.name} (Capital Node)`,
             createdAt: serverTimestamp()
         });
 
