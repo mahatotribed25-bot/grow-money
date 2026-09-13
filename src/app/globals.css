@@ -20,7 +20,7 @@
     --secondary-foreground: 222.2 47.4% 11.2%;
 
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 30%; /* Darker for better contrast in light mode */
+    --muted-foreground: 215.4 16.3% 30%;
 
     --accent: 139 72% 46%;
     --accent-foreground: 210 40% 98%;
@@ -118,4 +118,15 @@
 .animate-shimmer {
   background-size: 200% 100%;
   animation: shimmer 3s infinite linear;
+}
+
+@keyframes cash-fly {
+    0% { transform: translate(-50%, -50%) scale(0) rotate(0deg); opacity: 0; }
+    20% { transform: translate(-50%, -150%) scale(1) rotate(-10deg); opacity: 1; }
+    80% { transform: translate(-50%, -150%) scale(1) rotate(-10deg); opacity: 1; }
+    100% { transform: translate(-50%, -300%) scale(0.8) rotate(-20deg); opacity: 0; }
+}
+
+.animate-cash-fly {
+    animation: cash-fly 3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
