@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, HandCoins, Info, Copy, QrCode, Send } from 'lucide-react';
+import { Check, X, HandCoins, Info, Copy, QrCode, Send, Loader2 } from 'lucide-react';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
@@ -30,6 +31,8 @@ import {
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
 type AdminSettings = {
   delayCompensationEnabled?: boolean;
@@ -70,6 +73,9 @@ export default function WithdrawalsPage() {
   const [requestToApprove, setRequestToApprove] = useState<WithdrawalRequest | null>(null);
   const [calculatedBonus, setCalculatedBonus] = useState(0);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const filteredWithdrawals = useMemo(() => {
     if (!withdrawals) return [];
@@ -80,61 +86,81 @@ export default function WithdrawalsPage() {
     return sorted.filter((w) => w.status === filterStatus);
   }, [withdrawals, filterStatus]);
 
-  const handleShareOnWhatsApp = (withdrawal: WithdrawalRequest) => {
-    const paidDateStr = withdrawal.paidDate
-      ? new Date(withdrawal.paidDate.seconds * 1000).toLocaleString()
-      : new Date().toLocaleString();
-
-    const message = `
-✅ *Payment Successful!*
-
-Dear *${withdrawal.name}*,
-
-Your withdrawal request has been approved and processed successfully.
-
-*Transaction Details:*
------------------------------------
-➡️ *Initial Request:* ₹${withdrawal.amount.toFixed(2)}
-📉 *GST Deducted:* ₹${(withdrawal.gstAmount || 0).toFixed(2)}
-🎁 *Delay Bonus Added:* ₹${(withdrawal.totalDelayBonus || 0).toFixed(2)}
-💰 *Final Payout Sent:* *₹${(withdrawal.finalAmount || withdrawal.amount).toFixed(2)}*
-🏦 *UPI ID:* ${withdrawal.upiId}
-🗓️ *Processed On:* ${paidDateStr}
------------------------------------
-
-The amount has been sent to your registered UPI ID. Thank you for being with Grow Money!
-    `.trim();
-    
-    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
   };
 
-  const handleReject = (withdrawal: WithdrawalRequest) => {
+  const handleSelectAll = () => {
+    if (selectedIds.length === filteredWithdrawals.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredWithdrawals.map(w => w.id));
+    }
+  };
+
+  const rejectWithdrawal = async (withdrawal: WithdrawalRequest) => {
     const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
     const userRef = doc(firestore, 'users', withdrawal.userId);
 
-    runTransaction(firestore, async (transaction) => {
+    await runTransaction(firestore, async (transaction) => {
         const userDoc = await transaction.get(userRef);
-        if (!userDoc.exists()) {
-            throw 'User does not exist!';
-        }
+        if (!userDoc.exists()) throw 'User does not exist!';
         const newBalance = (userDoc.data().walletBalance || 0) + withdrawal.amount;
         transaction.update(userRef, { walletBalance: newBalance });
         transaction.update(withdrawalRef, { status: 'rejected' });
-    })
+    });
+  };
+
+  const approveWithdrawal = async (withdrawal: WithdrawalRequest) => {
+    const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
+    await updateDoc(withdrawalRef, {
+        status: 'approved',
+        paidDate: serverTimestamp(),
+        finalAmount: withdrawal.finalAmount || withdrawal.amount
+    });
+  };
+
+  const handleBatchAction = async (newStatus: 'approved' | 'rejected') => {
+    if (selectedIds.length === 0) return;
+    
+    setIsProcessing(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of selectedIds) {
+      const withdrawal = filteredWithdrawals.find(w => w.id === id);
+      if (withdrawal && withdrawal.status === 'pending') {
+        try {
+          if (newStatus === 'approved') await approveWithdrawal(withdrawal);
+          else await rejectWithdrawal(withdrawal);
+          successCount++;
+        } catch (e) {
+          failCount++;
+        }
+      }
+    }
+
+    toast({
+      title: "Batch Action Complete",
+      description: `${successCount} requests ${newStatus}. ${failCount > 0 ? `${failCount} failed.` : ''}`,
+      variant: failCount > 0 ? "destructive" : "default"
+    });
+
+    setSelectedIds([]);
+    setIsProcessing(false);
+  };
+
+  const handleReject = (withdrawal: WithdrawalRequest) => {
+    rejectWithdrawal(withdrawal)
     .then(() => {
-        toast({
-            title: 'Withdrawal Rejected',
-            description: `The withdrawal request for ${withdrawal.name} has been rejected and the amount returned to their wallet.`,
-            variant: 'destructive',
-        });
+        toast({ title: 'Withdrawal Rejected', variant: 'destructive' });
     })
     .catch((error) => {
-        console.error('Error rejecting withdrawal:', error);
         const permissionError = new FirestorePermissionError({
-          path: `users/${withdrawal.userId} or withdrawals/${withdrawal.id}`,
+          path: `withdrawals/${withdrawal.id}`,
           operation: 'write',
-          requestResourceData: { status: 'rejected' },
         });
         errorEmitter.emit('permission-error', permissionError);
     });
@@ -142,7 +168,7 @@ The amount has been sent to your registered UPI ID. Thank you for being with Gro
 
   const handleActivateBonus = (withdrawal: WithdrawalRequest) => {
     if (!adminSettings?.delayBonusPerDay || adminSettings.delayBonusPerDay <= 0) {
-        toast({ title: 'Set Bonus Amount First', description: 'Please set a bonus amount per day in admin settings.', variant: 'destructive'});
+        toast({ title: 'Set Bonus Amount First', variant: "destructive"});
         return;
     }
     const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
@@ -153,15 +179,7 @@ The amount has been sent to your registered UPI ID. Thank you for being with Gro
     };
     updateDoc(withdrawalRef, updateData)
     .then(() => {
-        toast({ title: 'Bonus Activated', description: `Daily bonus of ₹${adminSettings.delayBonusPerDay} is now active for ${withdrawal.name}.` });
-    })
-    .catch(error => {
-        const permissionError = new FirestorePermissionError({
-          path: withdrawalRef.path,
-          operation: 'update',
-          requestResourceData: updateData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        toast({ title: 'Bonus Activated' });
     });
   };
 
@@ -172,11 +190,9 @@ The amount has been sent to your registered UPI ID. Thank you for being with Gro
         const now = new Date();
         const diffTime = Math.abs(now.getTime() - startDate.getTime());
         let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
         if (adminSettings.maxBonusDays && diffDays > adminSettings.maxBonusDays) {
             diffDays = adminSettings.maxBonusDays;
         }
-
         bonus = diffDays * (withdrawal.delayBonusAmountPerDay || 0);
     }
     setCalculatedBonus(bonus);
@@ -186,38 +202,26 @@ The amount has been sent to your registered UPI ID. Thank you for being with Gro
 
   const handleConfirmPaymentSent = () => {
     if (!requestToApprove) return;
-
     const baseAmount = requestToApprove.finalAmount || requestToApprove.amount;
     const totalPayout = baseAmount + calculatedBonus;
     
-    const withdrawalRef = doc(firestore, 'withdrawals', requestToApprove.id);
-    const updateData = {
+    updateDoc(doc(firestore, 'withdrawals', requestToApprove.id), {
         status: 'approved',
         totalDelayBonus: calculatedBonus,
         finalAmount: totalPayout,
         paidDate: serverTimestamp()
-    };
-
-    updateDoc(withdrawalRef, updateData)
+    })
     .then(() => {
-        toast({ title: 'Withdrawal Approved', description: `Withdrawal for ${requestToApprove.name} has been marked as paid.` });
+        toast({ title: 'Withdrawal Approved' });
         setIsPaymentDialogOpen(false);
         setRequestToApprove(null);
-    })
-    .catch(error => {
-        const permissionError = new FirestorePermissionError({
-          path: withdrawalRef.path,
-          operation: 'update',
-          requestResourceData: updateData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
     });
   };
 
   const handleCopyToClipboard = (text: string, label: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
-    toast({ title: `${label} Copied!`, description: text });
+    toast({ title: `${label} Copied!` });
   };
 
   const totalPayout = requestToApprove ? (requestToApprove.finalAmount || requestToApprove.amount) + calculatedBonus : 0;
@@ -225,116 +229,142 @@ The amount has been sent to your registered UPI ID. Thank you for being with Gro
 
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <h2 className="text-2xl font-bold">Withdrawal Requests</h2>
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 px-4 py-2 rounded-xl animate-in zoom-in-95">
+             <span className="text-xs font-black uppercase text-primary">{selectedIds.length} Selected</span>
+             <div className="flex gap-2">
+                <Button 
+                    size="sm" 
+                    onClick={() => handleBatchAction('approved')} 
+                    disabled={isProcessing}
+                    className="bg-green-600 hover:bg-green-700 h-8 rounded-lg font-bold text-[10px]"
+                >
+                    {isProcessing ? <Loader2 className="animate-spin h-3 w-3 mr-1" /> : <Check className="h-3 w-3 mr-1" />}
+                    APPROVE ALL
+                </Button>
+                <Button 
+                    size="sm" 
+                    variant="destructive" 
+                    onClick={() => handleBatchAction('rejected')} 
+                    disabled={isProcessing}
+                    className="h-8 rounded-lg font-bold text-[10px]"
+                >
+                    {isProcessing ? <Loader2 className="animate-spin h-3 w-3 mr-1" /> : <X className="h-3 w-3 mr-1" />}
+                    REJECT ALL
+                </Button>
+             </div>
+          </div>
+        )}
       </div>
 
-      <Tabs value={filterStatus} onValueChange={(value) => setFilterStatus(value as any)}>
-            <TabsList>
-                <TabsTrigger value="pending">Pending</TabsTrigger>
-                <TabsTrigger value="approved">Approved</TabsTrigger>
-                <TabsTrigger value="rejected">Rejected</TabsTrigger>
-                <TabsTrigger value="all">All</TabsTrigger>
+       <Tabs value={filterStatus} onValueChange={(value) => { setFilterStatus(value as any); setSelectedIds([]); }}>
+            <TabsList className="bg-white/5 border-white/10 p-1 rounded-xl">
+                <TabsTrigger value="pending" className="text-[10px] font-black uppercase">Pending</TabsTrigger>
+                <TabsTrigger value="approved" className="text-[10px] font-black uppercase">Approved</TabsTrigger>
+                <TabsTrigger value="rejected" className="text-[10px] font-black uppercase">Rejected</TabsTrigger>
+                <TabsTrigger value="all" className="text-[10px] font-black uppercase">History</TabsTrigger>
             </TabsList>
         </Tabs>
 
-      <div className="rounded-lg border mt-4">
+      <div className="rounded-2xl border border-white/5 bg-white/[0.02] overflow-hidden mt-4 shadow-2xl">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User Name</TableHead>
-              <TableHead>Payout</TableHead>
-              <TableHead>UPI ID</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
+          <TableHeader className="bg-white/[0.03]">
+            <TableRow className="border-white/5">
+              <TableHead className="w-12 pl-6">
+                <Checkbox 
+                    checked={selectedIds.length === filteredWithdrawals.length && filteredWithdrawals.length > 0}
+                    onCheckedChange={handleSelectAll}
+                />
+              </TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Investor</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Payout</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Payment Addr</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Status</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pr-6 text-right">Dispatch</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center">
-                  Loading...
-                </TableCell>
+              <TableRow className="border-transparent">
+                <TableCell colSpan={6} className="text-center py-20 text-white/20 font-black animate-pulse">SYNCING NODES...</TableCell>
               </TableRow>
             ) : filteredWithdrawals.length > 0 ? (
               filteredWithdrawals.map((withdrawal) => (
-                <TableRow key={withdrawal.id}>
-                  <TableCell>
-                    <div className="font-medium">{withdrawal.name || 'N/A'}</div>
-                    <div className="text-xs text-muted-foreground">{formatDate(withdrawal.createdAt)}</div>
+                <TableRow key={withdrawal.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                  <TableCell className="pl-6">
+                    <Checkbox 
+                        checked={selectedIds.includes(withdrawal.id)}
+                        onCheckedChange={() => handleToggleSelect(withdrawal.id)}
+                    />
                   </TableCell>
                   <TableCell>
-                    <div className="font-bold">₹{(withdrawal.finalAmount || withdrawal.amount).toFixed(2)}</div>
-                    <div className="text-xs text-destructive"> (inc. ₹{(withdrawal.gstAmount || 0).toFixed(2)} GST)</div>
+                    <div className="font-bold text-white/90">{withdrawal.name || 'N/A'}</div>
+                    <div className="text-[9px] text-white/20 uppercase font-bold">{formatDate(withdrawal.createdAt)}</div>
                   </TableCell>
-                  <TableCell>{withdrawal.upiId}</TableCell>
+                  <TableCell>
+                    <div className="font-black text-white">₹{(withdrawal.finalAmount || withdrawal.amount).toLocaleString()}</div>
+                    <div className="text-[9px] text-red-400 font-bold uppercase">₹{(withdrawal.gstAmount || 0).toFixed(2)} TAX</div>
+                  </TableCell>
+                  <TableCell className="font-mono text-[10px] text-primary">{withdrawal.upiId}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
                         <Badge
-                          variant={
-                            withdrawal.status === 'approved'
-                              ? 'default'
-                              : withdrawal.status === 'rejected'
-                              ? 'destructive'
-                              : 'secondary'
-                          }
+                          variant="outline"
+                          className={cn(
+                            "text-[9px] font-black uppercase h-5",
+                            withdrawal.status === 'approved' ? "border-green-500/20 text-green-400 bg-green-500/5" :
+                            withdrawal.status === 'rejected' ? "border-red-500/20 text-red-500 bg-red-500/5" :
+                            "border-white/10 text-white/40"
+                          )}
                         >
                           {withdrawal.status}
                         </Badge>
                         {withdrawal.delayBonusActive && withdrawal.status === 'pending' && (
-                            <Badge variant="outline" className="border-blue-500 text-blue-400">Bonus Active</Badge>
+                            <Badge variant="outline" className="border-blue-500/40 text-blue-400 bg-blue-500/5 text-[8px] h-4">BONUS NODE</Badge>
                         )}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="pr-6 text-right">
                     {withdrawal.status === 'pending' && (
-                      <div className="flex gap-2">
+                      <div className="flex justify-end gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                           className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                           className="bg-green-600/10 text-green-500 border-green-500/20 hover:bg-green-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
                           onClick={() => openApproveDialog(withdrawal)}
                         >
-                          <Check className="h-4 w-4 mr-1" /> Approve
+                          PROCESS
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                           className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                           className="bg-red-600/10 text-red-500 border-red-500/20 hover:bg-red-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
                           onClick={() => handleReject(withdrawal)}
                         >
-                          <X className="h-4 w-4 mr-1" /> Reject
+                          REJECT
                         </Button>
                          {adminSettings?.delayCompensationEnabled && !withdrawal.delayBonusActive && (
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                                className="bg-blue-600/10 text-blue-400 border-blue-400/20 hover:bg-blue-600 hover:text-white h-8 rounded-lg px-3 font-bold text-[9px]"
                                 onClick={() => handleActivateBonus(withdrawal)}
                             >
-                                <HandCoins className="h-4 w-4 mr-1" /> Bonus
+                                <HandCoins className="h-3 w-3 mr-1" /> BONUS
                             </Button>
                         )}
                       </div>
-                    )}
-                    {withdrawal.status === 'approved' && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                            onClick={() => handleShareOnWhatsApp(withdrawal)}
-                        >
-                            <Send className="h-4 w-4 mr-1" /> Share on WhatsApp
-                        </Button>
                     )}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
-                <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        No {filterStatus} withdrawals found.
+                <TableRow className="border-transparent">
+                    <TableCell colSpan={6} className="text-center py-20 text-white/10 italic text-sm">
+                        No {filterStatus} nodes detected.
                     </TableCell>
                 </TableRow>
             )}
@@ -343,74 +373,50 @@ The amount has been sent to your registered UPI ID. Thank you for being with Gro
       </div>
 
        <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
             <DialogHeader>
-                <DialogTitle>Process Withdrawal</DialogTitle>
-                <DialogDescription>
-                    Send payment to {requestToApprove?.name} and then confirm.
-                </DialogDescription>
+                <DialogTitle className="text-center font-black uppercase tracking-tight">Fund Dispatch Node</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-xs">Execute manual transfer to investor node.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-                <div className="flex flex-col items-center gap-2 p-4 rounded-md bg-muted">
-                    <p className="font-semibold">Scan QR Code to Pay</p>
-                     <div className="bg-white p-2 rounded-md">
+            <div className="space-y-6 py-6">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="bg-white p-3 rounded-2xl shadow-xl">
                         <Image
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiDeeplink)}`}
-                            alt="UPI QR Code"
-                            width={200}
-                            height={200}
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiDeeplink)}`}
+                            alt="UPI QR"
+                            width={180}
+                            height={180}
                         />
+                    </div>
+                    <div className="text-center">
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-[3px]">Amount to Send</p>
+                        <p className="text-3xl font-black text-green-400 tracking-tighter">₹{totalPayout.toFixed(2)}</p>
+                        {calculatedBonus > 0 && <p className="text-[9px] font-bold text-blue-400 uppercase mt-1">+₹{calculatedBonus} Bonus Included</p>}
                     </div>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                    <Label htmlFor="upiId" className="text-muted-foreground">UPI ID</Label>
-                    <div className="flex items-center gap-2">
-                        <span id="upiId" className="font-mono">{requestToApprove?.upiId}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(requestToApprove?.upiId || '', 'UPI ID')}>
-                            <Copy className="h-4 w-4" />
+                <div className="space-y-2 px-1">
+                    <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Destination ID</Label>
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
+                        <span className="font-mono text-sm font-bold text-primary">{requestToApprove?.upiId}</span>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10" onClick={() => handleCopyToClipboard(requestToApprove?.upiId || '', 'UPI ID')}>
+                            <Copy size={14} />
                         </Button>
                     </div>
                 </div>
 
-                <div className="space-y-2 rounded-md border p-3">
-                    <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Withdrawal Amount:</span>
-                        <span className="font-semibold">₹{(requestToApprove?.finalAmount || requestToApprove?.amount || 0).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-green-400">
-                        <span className="text-muted-foreground">Delay Bonus:</span>
-                        <span className="font-semibold">+ ₹{calculatedBonus.toFixed(2)}</span>
-                    </div>
-                </div>
-                 
-                <div className="flex items-center justify-between text-lg font-bold">
-                    <Label htmlFor="totalAmount">Total to Pay</Label>
-                    <div className="flex items-center gap-2">
-                        <span id="totalAmount" className="font-mono">₹{totalPayout.toFixed(2)}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(totalPayout.toFixed(2), 'Amount')}>
-                            <Copy className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-
-                 <Button asChild className="w-full">
+                 <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
                     <a href={upiDeeplink}>
-                        <QrCode className="mr-2" /> Pay with UPI App
+                        <QrCode size={16} className="mr-2" /> Launch UPI Terminal
                     </a>
                 </Button>
-            </div>
-            <DialogFooter className="sm:justify-between">
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary">Cancel</Button>
-                </DialogClose>
-                <Button type="button" onClick={handleConfirmPaymentSent}>
-                    <Check className="mr-2" />
-                    Confirm Payment Sent
+                <Button onClick={handleConfirmPaymentSent} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">
+                    <Check className="mr-2" /> I HAVE PAID (FINALIZE)
                 </Button>
-            </DialogFooter>
+            </div>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
+
