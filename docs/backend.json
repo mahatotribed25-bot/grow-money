@@ -15,7 +15,9 @@
         "totalIncome": { "type": "number" },
         "status": { "type": "string", "enum": ["Active", "Blocked"] },
         "trustScore": { "type": "number" },
-        "vipLevel": { "type": "string", "enum": ["Bronze", "Silver", "Gold", "Platinum"] }
+        "vipLevel": { "type": "string", "enum": ["Bronze", "Silver", "Gold", "Platinum"] },
+        "kycStatus": { "type": "string", "enum": ["Not Submitted", "Pending", "Verified", "Rejected"] },
+        "kycExpiryDate": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email"]
     },

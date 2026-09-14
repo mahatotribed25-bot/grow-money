@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -12,11 +13,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Check, X, Timer, Eye, ImageIcon, Download } from 'lucide-react';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useDoc } from '@/firebase';
 import {
   doc,
   updateDoc,
   Timestamp,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -33,6 +35,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Image from 'next/image';
+import { addDays } from 'date-fns';
 
 type KycUser = {
   id: string; 
@@ -46,15 +49,20 @@ type KycUser = {
   aadhaarImage?: string;
 };
 
+type AdminSettings = {
+    kycValidityDays?: number;
+}
+
 const formatDate = (timestamp?: Timestamp) => {
   if (!timestamp) return 'N/A';
   return new Date(timestamp.seconds * 1000).toLocaleString();
 };
 
 export default function KycRequestsPage() {
-  const { data: pendingUsers, loading } = useCollection<KycUser>('users', {
+  const { data: pendingUsers, loading: usersLoading } = useCollection<KycUser>('users', {
     where: ['kycStatus', '==', 'Pending'],
   });
+  const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>('settings/admin');
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -65,6 +73,8 @@ export default function KycRequestsPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewUser, setPreviewUser] = useState<KycUser | null>(null);
 
+  const loading = usersLoading || settingsLoading;
+
   const handleUpdateStatus = (
     user: KycUser,
     newStatus: 'Verified' | 'Rejected',
@@ -72,10 +82,16 @@ export default function KycRequestsPage() {
   ) => {
     const userRef = doc(firestore, 'users', user.id);
     const updateData: any = { kycStatus: newStatus };
+    
     if (newStatus === 'Rejected') {
         updateData.kycRejectionReason = reason;
     } else {
         updateData.kycRejectionReason = ''; 
+        // Calculate Expiry Date
+        const validityDays = adminSettings?.kycValidityDays || 365;
+        const expiryDate = addDays(new Date(), validityDays);
+        updateData.kycExpiryDate = Timestamp.fromDate(expiryDate);
+        updateData.kycVerifiedAt = serverTimestamp();
     }
 
     updateDoc(userRef, updateData)

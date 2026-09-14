@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users, Phone, Zap, PlayCircle, Plus, Trash2 } from 'lucide-react';
+import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users, Phone, Zap, PlayCircle, Plus, Trash2, ShieldCheck } from 'lucide-react';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
@@ -38,6 +39,7 @@ type AdminSettings = {
   customLoanInterestPer1000?: number;
   customLoanUpi?: string;
   kycGoogleFormUrl?: string;
+  kycValidityDays?: number;
   maxCustomLoanAmount?: number;
   totalCustomLoanLimit?: number;
   currentCustomLoanUsage?: number;
@@ -83,6 +85,7 @@ export default function SettingsPage() {
   const [customLoanInterest, setCustomLoanInterest] = useState(5);
   const [customLoanUpi, setCustomLoanUpi] = useState('');
   const [kycGoogleFormUrl, setKycGoogleFormUrl] = useState('');
+  const [kycValidityDays, setKycValidityDays] = useState(365);
   const [maxCustomLoanAmount, setMaxCustomLoanAmount] = useState(0);
   const [totalCustomLoanLimit, setTotalCustomLoanLimit] = useState(0);
   const [isUnderMaintenance, setIsUnderMaintenance] = useState(false);
@@ -127,6 +130,7 @@ export default function SettingsPage() {
       setCustomLoanInterest(settings.customLoanInterestPer1000 || 5);
       setCustomLoanUpi(settings.customLoanUpi || '');
       setKycGoogleFormUrl(settings.kycGoogleFormUrl || '');
+      setKycValidityDays(settings.kycValidityDays || 365);
       setMaxCustomLoanAmount(settings.maxCustomLoanAmount || 5000);
       setTotalCustomLoanLimit(settings.totalCustomLoanLimit || 0);
       setProfitStartDate(settings.profitCalculationStartDate?.toDate() || null);
@@ -177,6 +181,7 @@ export default function SettingsPage() {
       customLoanInterestPer1000: Number(customLoanInterest),
       customLoanUpi,
       kycGoogleFormUrl: kycGoogleFormUrl,
+      kycValidityDays: Number(kycValidityDays),
       maxCustomLoanAmount: Number(maxCustomLoanAmount),
       totalCustomLoanLimit: Number(totalCustomLoanLimit),
       delayCompensationEnabled,
@@ -390,7 +395,7 @@ export default function SettingsPage() {
   const maintenanceEndsAt = settings?.maintenanceEndTime ? settings.maintenanceEndTime.toDate().toLocaleString() : null;
 
   return (
-    <div>
+    <div className="pb-20">
       <h2 className="text-2xl font-bold mb-4">Admin Settings</h2>
       <Card>
         <CardContent className="pt-6 space-y-6">
@@ -742,6 +747,36 @@ export default function SettingsPage() {
                 </div>
                 <Separator />
                 <div>
+                    <CardTitle className="flex items-center gap-2"><ShieldCheck className="text-primary"/> KYC & Verification Control</CardTitle>
+                    <CardDescription>Manage user identity protocols and expiration.</CardDescription>
+                     <div className="space-y-4 mt-4">
+                         <div className="space-y-2">
+                            <Label htmlFor="kyc-validity">KYC Validity Period (Days)</Label>
+                            <Input
+                                id="kyc-validity"
+                                type="number"
+                                placeholder="e.g., 365"
+                                value={kycValidityDays}
+                                onChange={(e) => setKycValidityDays(Number(e.target.value))}
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                Number of days after which a user must re-verify their identity.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="kyc-google-form-url">Legacy KYC Google Form URL</Label>
+                            <Input
+                            id="kyc-google-form-url"
+                            type="url"
+                            placeholder="https://docs.google.com/forms/..."
+                            value={kycGoogleFormUrl}
+                            onChange={(e) => setKycGoogleFormUrl(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                </div>
+                <Separator />
+                <div>
                     <CardTitle>Loan Settings</CardTitle>
                      <div className="space-y-4 mt-4">
                          <div className="space-y-2">
@@ -842,26 +877,8 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 </div>
-                 <Separator />
-                 <div>
-                    <CardTitle>KYC Settings</CardTitle>
-                     <div className="space-y-4 mt-4">
-                         <div className="space-y-2">
-                            <Label htmlFor="kyc-google-form-url">KYC Google Form URL</Label>
-                            <Input
-                            id="kyc-google-form-url"
-                            type="url"
-                            placeholder="https://docs.google.com/forms/..."
-                            value={kycGoogleFormUrl}
-                            onChange={(e) => setKycGoogleFormUrl(e.target.value)}
-                            />
-                             <p className="text-sm text-muted-foreground">
-                                Link to the Google Form for users to submit their KYC documents.
-                            </p>
-                        </div>
-                    </div>
-                </div>
                 <Separator />
+                
                 <div>
                     <CardTitle>Referral Settings</CardTitle>
                      <div className="space-y-4 mt-4">
@@ -881,8 +898,8 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <Button onClick={handleSaveGeneral} className="mt-4">
-                  Save All Settings
+                <Button onClick={handleSaveGeneral} className="mt-4 w-full h-12 rounded-xl bg-primary text-white font-black uppercase tracking-widest shadow-xl shadow-primary/20">
+                  Commit Global Settings
                 </Button>
             </>
            )}

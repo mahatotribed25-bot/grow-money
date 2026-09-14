@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -22,7 +23,8 @@ import {
   Sun,
   Languages,
   Upload,
-  ImageIcon
+  ImageIcon,
+  AlertTriangle
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -113,6 +115,8 @@ type UserData = {
   vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
   trustScore?: number;
   kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
+  kycRejectionReason?: string;
+  kycExpiryDate?: Timestamp;
   panCard?: string;
   aadhaarNumber?: string;
   phoneNumber?: string;
@@ -291,11 +295,22 @@ export default function ProfilePage() {
     toast({ title: "Export Successful", description: "Transaction ledger downloaded." });
   };
 
+  const isKycExpired = useMemo(() => {
+    if (!userData?.kycExpiryDate) return false;
+    return userData.kycExpiryDate.toDate() < new Date();
+  }, [userData]);
+
+  const kycStatusDisplay = useMemo(() => {
+    if (isKycExpired) return 'Expired';
+    return userData?.kycStatus || 'Not Submitted';
+  }, [userData, isKycExpired]);
+
   const kycProgress = useMemo(() => {
+    if (isKycExpired) return 10;
     if (userData?.kycStatus === 'Verified') return 100;
     if (userData?.kycStatus === 'Pending') return 50;
     return 10;
-  }, [userData]);
+  }, [userData, isKycExpired]);
 
   const awaitingConfirmationRequest = upiRequests?.find(req => req.status === 'awaiting_confirmation');
 
@@ -403,9 +418,9 @@ export default function ProfilePage() {
                     <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-muted-foreground">
                         <FileCheck size={14} className="text-primary" /> {t.profile.identity}
                     </CardTitle>
-                    {userData?.kycStatus !== 'Verified' && (
+                    {(userData?.kycStatus !== 'Verified' || isKycExpired) && (
                         <Button onClick={() => setIsKycOpen(true)} size="sm" className="h-8 px-4 rounded-xl font-black uppercase text-[9px]">
-                           {userData?.kycStatus === 'Rejected' ? 'Re-Submit' : 'Verify Node'}
+                           {isKycExpired ? 'Re-Verify Node' : userData?.kycStatus === 'Rejected' ? 'Re-Submit' : 'Verify Node'}
                         </Button>
                     )}
                 </div>
@@ -420,20 +435,37 @@ export default function ProfilePage() {
                              <p className="text-sm font-bold">{t.profile.kyc_status}</p>
                              <Badge className={cn(
                                  "text-[8px] font-black uppercase h-5",
+                                 isKycExpired ? "bg-red-500/20 text-red-500 border-red-500/30" :
                                  userData?.kycStatus === 'Verified' ? "bg-accent/20 text-accent border-accent/30" :
                                  userData?.kycStatus === 'Pending' ? "bg-primary/20 text-primary border-primary/30" :
                                  userData?.kycStatus === 'Rejected' ? "bg-destructive/20 text-destructive border-destructive/30" :
                                  "bg-muted text-muted-foreground border-border"
                              )}>
-                                 {userData?.kycStatus || 'Not Submitted'}
+                                 {kycStatusDisplay}
                              </Badge>
                         </div>
-                        {userData?.kycStatus === 'Verified' && (
+                        {userData?.kycExpiryDate && userData.kycStatus === 'Verified' && !isKycExpired && (
+                            <div className="text-right">
+                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Valid Until</p>
+                                <p className="text-xs font-bold">{userData.kycExpiryDate.toDate().toLocaleDateString()}</p>
+                            </div>
+                        )}
+                        {userData?.kycStatus === 'Verified' && !isKycExpired && (
                              <div className="h-10 w-10 rounded-full bg-accent/20 flex items-center justify-center text-accent">
                                 <ShieldCheck size={20} />
                              </div>
                         )}
+                        {isKycExpired && (
+                             <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center text-destructive">
+                                <AlertTriangle size={20} />
+                             </div>
+                        )}
                     </div>
+                    {isKycExpired && (
+                        <p className="text-[10px] text-red-400 font-bold bg-red-500/5 p-3 rounded-xl border border-red-500/20 animate-pulse">
+                            ⚠️ Identity protocol has expired. Re-verification required to maintain node access.
+                        </p>
+                    )}
                 </div>
             </Card>
         </div>
