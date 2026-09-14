@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, ShieldCheck, Copy, QrCode } from 'lucide-react';
+import { Check, X, ShieldCheck, Copy, QrCode, Timer, Landmark, Smartphone } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import {
   doc,
@@ -170,7 +170,6 @@ export default function LoanRequestsPage() {
 
     batch.set(loanRef, activeLoanData);
 
-    // Add to wallet history for disbursement
     batch.set(historyRef, {
         amount: plan.loanAmount,
         type: 'credit',
@@ -240,69 +239,73 @@ export default function LoanRequestsPage() {
 
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">Loan Requests</h2>
-      <div className="rounded-lg border">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-white">Standard Loan Requests</h2>
+        <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">Validation Pipeline</p>
+      </div>
+
+      <div className="rounded-2xl border border-white/5 bg-white/[0.02] overflow-hidden shadow-2xl">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User Name</TableHead>
-              <TableHead>Plan Name</TableHead>
-              <TableHead>Loan Amount</TableHead>
-              <TableHead>User UPI</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
+          <TableHeader className="bg-white/[0.02]">
+            <TableRow className="border-white/5">
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pl-6 py-5">Investor</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Asset Details</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Principal</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Payment Address</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Status</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pr-6 text-right">Dispatch</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
-                  Loading...
+                <TableCell colSpan={6} className="text-center py-20">
+                   <Timer className="animate-spin h-6 w-6 text-primary mx-auto mb-2" />
+                   <p className="text-[10px] font-black uppercase text-white/20 tracking-widest">Accessing Pipeline...</p>
                 </TableCell>
               </TableRow>
-            ) : (
-              loanRequests?.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell>{request.userName}</TableCell>
-                  <TableCell>{request.planName}</TableCell>
-                  <TableCell>₹{(request.loanAmount || 0).toFixed(2)}</TableCell>
-                  <TableCell>{request.userUpiId || 'N/A'}</TableCell>
-                  <TableCell>{formatDate(request.createdAt)}</TableCell>
+            ) : loanRequests && loanRequests.length > 0 ? (
+              loanRequests.map((request) => (
+                <TableRow key={request.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                  <TableCell className="pl-6 py-4 font-bold text-white/90">{request.userName}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant={
-                        request.status === 'approved' || request.status === 'sent'
-                          ? 'default'
-                          : request.status === 'rejected'
-                          ? 'destructive'
-                          : 'secondary'
-                      }
-                      className="capitalize"
-                    >
+                      <div className="flex flex-col">
+                          <span className="text-xs font-bold text-white/80">{request.planName}</span>
+                          <span className="text-[9px] text-white/20 uppercase font-black">{request.repaymentMethod} Node</span>
+                      </div>
+                  </TableCell>
+                  <TableCell className="font-black text-white">₹{(request.loanAmount || 0).toLocaleString()}</TableCell>
+                  <TableCell className="font-mono text-[10px] text-primary">{request.userUpiId || 'NO UPI'}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn(
+                        "text-[9px] font-black uppercase h-6 px-3",
+                        request.status === 'sent' ? "border-green-500/20 text-green-400 bg-green-500/5" :
+                        request.status === 'rejected' ? "border-red-500/20 text-red-500 bg-red-500/5" :
+                        "border-white/10 text-white/40"
+                    )}>
                       {request.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
+                  <TableCell className="pr-6 text-right">
+                    <div className="flex justify-end gap-2">
                        {request.status === 'pending' && (
                            <>
                              <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                                className="bg-green-600/10 text-green-500 border-green-500/20 hover:bg-green-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
                                 onClick={() => handleApproveClick(request)}
                               >
-                                <Check className="h-4 w-4 mr-1" /> Approve
+                                DISPATCH
                               </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                className="bg-red-600/10 text-red-500 border-red-500/20 hover:bg-red-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
                                 onClick={() => openRejectDialog(request)}
                               >
-                                <X className="h-4 w-4 mr-1" /> Reject
+                                DENY
                               </Button>
                            </>
                        )}
@@ -310,90 +313,83 @@ export default function LoanRequestsPage() {
                   </TableCell>
                 </TableRow>
               ))
+            ) : (
+                <TableRow>
+                    <TableCell colSpan={6} className="text-center py-20 text-white/10 italic">No loan requests in current window.</TableCell>
+                </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
+
        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]">
           <DialogHeader>
-            <DialogTitle>Reason for Rejection</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this loan request. The user will see this reason.
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">Request Denial</DialogTitle>
+            <DialogDescription className="text-white/40 text-xs">
+              Provide a clear reason for rejecting this protocol request.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Textarea
-              placeholder="Enter reason here..."
+              placeholder="e.g. Identity mismatch or low trust score..."
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
+              className="bg-white/5 border-white/10"
             />
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" onClick={() => {setIsRejectDialogOpen(false); setRejectionReason('');}}>Cancel</Button>
+              <Button variant="ghost" className="text-white/40">Cancel</Button>
             </DialogClose>
-            <Button variant="destructive" onClick={handleConfirmRejection}>Confirm Rejection</Button>
+            <Button variant="destructive" className="rounded-xl font-bold px-8" onClick={handleConfirmRejection}>Confirm Denial</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       
        <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
             <DialogHeader>
-                <DialogTitle>Process Loan Payment</DialogTitle>
-                <DialogDescription>
-                    Send loan amount to {requestToProcess?.userName} and then confirm.
+                <DialogTitle className="text-xl font-black uppercase tracking-tight text-center">Fund Dispatch Node</DialogTitle>
+                <DialogDescription className="text-white/40 text-center text-xs">
+                    Execute manual transfer to investor node.
                 </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-                <div className="flex flex-col items-center gap-2 p-4 rounded-md bg-muted">
-                    <p className="font-semibold">Scan QR Code to Pay</p>
-                     <div className="bg-white p-2 rounded-md">
+            <div className="space-y-6 py-6">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="bg-white p-3 rounded-2xl shadow-xl">
                         <Image
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiDeeplink)}`}
-                            alt="UPI QR Code"
-                            width={200}
-                            height={200}
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiDeeplink)}`}
+                            alt="UPI QR"
+                            width={180}
+                            height={180}
                         />
+                    </div>
+                    <div className="text-center">
+                         <p className="text-[10px] font-black text-white/20 uppercase tracking-[3px]">Dispatch Sum</p>
+                         <p className="text-3xl font-black text-green-400 tracking-tighter">₹{(requestToProcess?.loanAmount || 0).toLocaleString()}</p>
                     </div>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                    <Label htmlFor="upiId" className="text-muted-foreground">User UPI ID</Label>
-                    <div className="flex items-center gap-2">
-                        <span id="upiId" className="font-mono">{requestToProcess?.userUpiId}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(requestToProcess?.userUpiId || '', 'UPI ID')}>
-                            <Copy className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-                 
-                <div className="flex items-center justify-between text-lg font-bold">
-                    <Label htmlFor="totalAmount">Amount to Pay</Label>
-                    <div className="flex items-center gap-2">
-                        <span id="totalAmount" className="font-mono">₹{(requestToProcess?.loanAmount || 0).toFixed(2)}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard((requestToProcess?.loanAmount || 0).toFixed(2), 'Amount')}>
-                            <Copy className="h-4 w-4" />
+                <div className="space-y-2 px-1">
+                    <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Destination ID</Label>
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center">
+                        <span className="font-mono text-sm font-bold text-primary">{requestToProcess?.userUpiId}</span>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10" onClick={() => handleCopyToClipboard(requestToProcess?.userUpiId || '', 'UPI ID')}>
+                            <Copy size={14} />
                         </Button>
                     </div>
                 </div>
 
-                 <Button asChild className="w-full">
+                 <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
                     <a href={upiDeeplink}>
-                        <QrCode className="mr-2" /> Pay with UPI App
+                        <QrCode size={16} className="mr-2" /> Launch UPI Terminal
                     </a>
                 </Button>
-            </div>
-            <DialogFooter className="sm:justify-between">
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary" onClick={() => setRequestToProcess(null)}>Cancel</Button>
-                </DialogClose>
-                <Button type="button" onClick={handleConfirmPaymentSent}>
-                    <ShieldCheck className="mr-2" />
-                    Confirm Payment Sent
+                <Button onClick={handleConfirmPaymentSent} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">
+                    <ShieldCheck size={18} className="mr-2" /> I HAVE PAID (ACTIVATE NODE)
                 </Button>
-            </DialogFooter>
+            </div>
         </DialogContent>
       </Dialog>
     </div>

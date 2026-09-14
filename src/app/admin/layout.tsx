@@ -31,7 +31,10 @@ import {
   ClipboardCheck,
   FileStack,
   Zap,
-  Smartphone
+  Smartphone,
+  ShieldCheck,
+  Landmark,
+  Hammer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +62,7 @@ type KycRequest = { id: string, name: string, kycSubmissionDate: Timestamp };
 type UpiRequest = BaseRequest & { userName: string };
 type CustomLoanRequest = BaseRequest & { userName: string, status: string };
 type TaskSubmission = BaseRequest & { status: string };
+type StandardLoanRequest = BaseRequest & { userName: string, status: string };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
@@ -78,6 +82,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { data: pendingUpiRequests } = useCollection<UpiRequest>(isAdmin ? 'upiRequests' : null, { where: ['status', '==', 'pending'] });
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(isAdmin ? 'customLoanRequests' : null, { where: ['status', 'in', ['pending_admin_review', 'extension_pending']] });
   const { data: pendingSubmissions } = useCollection<TaskSubmission>(isAdmin ? 'taskSubmissions' : null, { where: ['status', '==', 'pending'] });
+  const { data: pendingStandardLoans } = useCollection<StandardLoanRequest>(isAdmin ? 'loanRequests' : null, { where: ['status', '==', 'pending'] });
 
   const notifications = useMemo(() => {
     if (!isAdmin) return [];
@@ -113,17 +118,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AdminNavItem icon={Users} href="/admin/users">Investors</AdminNavItem>
             
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Product Forge</div>
-            <AdminNavItem icon={TrendingUp} href="/admin/investment-plans">Standard Plans</AdminNavItem>
-            <AdminNavItem icon={Users2} href="/admin/group-loans">Group Pools</AdminNavItem>
-            <AdminNavItem icon={Handshake} href="/admin/p2p-loans">P2P Marketplace</AdminNavItem>
+            <AdminNavItem icon={TrendingUp} href="/admin/investment-plans">Investment Forge</AdminNavItem>
+            <AdminNavItem icon={Users2} href="/admin/group-loans">Group Pool Forge</AdminNavItem>
+            <AdminNavItem icon={Hammer} href="/admin/loan-plans">Standard Loan Forge</AdminNavItem>
             
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Market & Work</div>
             <AdminNavItem icon={ClipboardCheck} href="/admin/tasks">Earn Tasks</AdminNavItem>
             <AdminNavItem icon={FileStack} href="/admin/task-submissions" count={pendingSubmissions?.length}>Work Submissions</AdminNavItem>
+            <AdminNavItem icon={Handshake} href="/admin/p2p-loans">P2P Marketplace</AdminNavItem>
             <AdminNavItem icon={Zap} href="/admin/custom-loans" count={pendingCustomLoanRequests?.length}>Flexi Protocols</AdminNavItem>
             
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Validation Nodes</div>
             <AdminNavItem icon={BellRing} href="/admin/reminders">Reminder Hub</AdminNavItem>
+            <AdminNavItem icon={Landmark} href="/admin/loans" count={pendingStandardLoans?.length}>Loan Requests</AdminNavItem>
             <AdminNavItem icon={FileCheck} href="/admin/kyc-requests" count={pendingKycRequests?.length}>KYC Pipeline</AdminNavItem>
             <AdminNavItem icon={Smartphone} href="/admin/upi-requests" count={pendingUpiRequests?.length}>UPI Registry</AdminNavItem>
             <AdminNavItem icon={Upload} href="/admin/deposits" count={pendingDeposits?.length}>Inflow Nodes</AdminNavItem>
@@ -147,7 +154,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen w-full bg-[#020306] text-white flex overflow-hidden">
-      {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-[280px] bg-[#020306] border-r border-white/[0.03] relative z-20">
         <NavContent />
       </aside>

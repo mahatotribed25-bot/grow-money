@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, IndianRupee, Timer, Percent, Landmark } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Badge } from '@/components/ui/badge';
 
 type DurationType = 'Days' | 'Weeks' | 'Months' | 'Years';
 
@@ -87,7 +88,6 @@ export default function LoanPlansPage() {
         toast({ title: 'Loan Plan deleted successfully' });
       })
       .catch((error) => {
-        console.error('Error deleting plan: ', error);
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
@@ -114,7 +114,6 @@ export default function LoanPlansPage() {
           setEditingPlan(null);
         })
         .catch((error) => {
-          console.error('Error updating plan: ', error);
           const permissionError = new FirestorePermissionError({
             path: planRef.path,
             operation: 'update',
@@ -131,7 +130,6 @@ export default function LoanPlansPage() {
           setEditingPlan(null);
         })
         .catch((error) => {
-          console.error('Error creating plan: ', error);
           const permissionError = new FirestorePermissionError({
             path: collectionRef.path,
             operation: 'create',
@@ -153,58 +151,57 @@ export default function LoanPlansPage() {
   };
   
   return (
-    <div>
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Loan Plans</h2>
-        <Button onClick={handleCreateNew}>
+        <h2 className="text-2xl font-bold text-white">Standard Loan Forge</h2>
+        <Button onClick={handleCreateNew} className="rounded-xl font-bold bg-white text-black hover:bg-primary hover:text-white">
           <PlusCircle className="h-4 w-4 mr-2" />
-          Create New Loan Plan
+          Craft New Template
         </Button>
       </div>
-      <div className="rounded-lg border">
+
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Plan Name</TableHead>
-              <TableHead>Loan Amount</TableHead>
-              <TableHead>Interest</TableHead>
-              <TableHead>Tax</TableHead>
-              <TableHead>Total Repayment</TableHead>
-              <TableHead>Duration</TableHead>
-              <TableHead>Actions</TableHead>
+          <TableHeader className="bg-white/[0.02]">
+            <TableRow className="border-white/10">
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest pl-6">Node Name</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest">Principal</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest">Interest / Tax</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest">Settlement</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest">Term</TableHead>
+              <TableHead className="text-white/30 text-[10px] uppercase font-black tracking-widest pr-6">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
-                  Loading...
+                <TableCell colSpan={6} className="text-center py-20 text-white/20 animate-pulse font-bold">
+                  SYNCING LOAN REGISTRY...
                 </TableCell>
               </TableRow>
             ) : (
               plans?.map((plan) => (
-                <TableRow key={plan.id}>
-                  <TableCell>{plan.name}</TableCell>
-                  <TableCell>₹{(plan.loanAmount || 0).toFixed(2)}</TableCell>
-                  <TableCell>₹{(plan.interest || 0).toFixed(2)}</TableCell>
-                  <TableCell>₹{(plan.tax || 0).toFixed(2)}</TableCell>
-                  <TableCell>₹{(plan.totalRepayment || 0).toFixed(2)}</TableCell>
-                  <TableCell>{plan.duration} {plan.durationType}</TableCell>
+                <TableRow key={plan.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                  <TableCell className="pl-6 font-bold text-white/80">{plan.name}</TableCell>
+                  <TableCell className="text-white/60">₹{(plan.loanAmount || 0).toLocaleString()}</TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(plan)}
-                      >
+                      <div className="flex flex-col text-[10px] font-bold">
+                          <span className="text-red-400">Int: ₹{(plan.interest || 0).toLocaleString()}</span>
+                          <span className="text-blue-400">Tax: ₹{(plan.tax || 0).toLocaleString()}</span>
+                      </div>
+                  </TableCell>
+                  <TableCell className="font-black text-white">₹{(plan.totalRepayment || 0).toLocaleString()}</TableCell>
+                  <TableCell>
+                      <Badge variant="outline" className="border-white/10 text-white/40 text-[9px] uppercase font-black">
+                          {plan.duration} {plan.durationType}
+                      </Badge>
+                  </TableCell>
+                  <TableCell className="pr-6">
+                    <div className="flex gap-1 justify-end">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(plan)} className="h-8 w-8 hover:bg-white/10">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-500 hover:text-red-600"
-                        onClick={() => handleDelete(plan.id)}
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500/40 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleDelete(plan.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -212,87 +209,48 @@ export default function LoanPlansPage() {
                 </TableRow>
               ))
             )}
+            {!loading && plans?.length === 0 && (
+                <TableRow>
+                    <TableCell colSpan={6} className="text-center py-20 text-white/10 italic">No loan templates forged yet.</TableCell>
+                </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white max-w-lg rounded-[2rem]">
           <DialogHeader>
-            <DialogTitle>
-              {editingPlan && 'id' in editingPlan ? 'Edit Loan Plan' : 'Create New Loan Plan'}
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">
+              {editingPlan && 'id' in editingPlan ? 'Modify Loan Template' : 'Forge New Loan Protocol'}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-6">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
-              <Input
-                id="name"
-                value={editingPlan?.name || ''}
-                onChange={(e) => handleFieldChange('name', e.target.value)}
-                className="col-span-3"
-              />
+              <Label htmlFor="name" className="text-right text-white/60 text-xs">Node Name</Label>
+              <Input id="name" value={editingPlan?.name || ''} onChange={(e) => handleFieldChange('name', e.target.value)} className="col-span-3 bg-white/5 border-white/10 rounded-xl" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="loanAmount" className="text-right">
-                Loan Amount
-              </Label>
-              <Input
-                id="loanAmount"
-                type="number"
-                value={editingPlan?.loanAmount || 0}
-                onChange={(e) =>
-                  handleFieldChange('loanAmount', e.target.value)
-                }
-                className="col-span-3"
-              />
+              <Label htmlFor="loanAmount" className="text-right text-white/60 text-xs">Principal (₹)</Label>
+              <Input id="loanAmount" type="number" value={editingPlan?.loanAmount || 0} onChange={(e) => handleFieldChange('loanAmount', e.target.value)} className="col-span-3 bg-white/5 border-white/10 rounded-xl" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="interest" className="text-right">
-                Interest
-              </Label>
-              <Input
-                id="interest"
-                type="number"
-                value={editingPlan?.interest || 0}
-                onChange={(e) => handleFieldChange('interest', e.target.value)}
-                className="col-span-3"
-              />
+              <Label htmlFor="interest" className="text-right text-white/60 text-xs">Interest (₹)</Label>
+              <Input id="interest" type="number" value={editingPlan?.interest || 0} onChange={(e) => handleFieldChange('interest', e.target.value)} className="col-span-3 bg-white/5 border-white/10 rounded-xl" />
             </div>
              <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="tax" className="text-right">
-                Tax
-              </Label>
-              <Input
-                id="tax"
-                type="number"
-                value={editingPlan?.tax || 0}
-                onChange={(e) => handleFieldChange('tax', e.target.value)}
-                className="col-span-3"
-              />
+              <Label htmlFor="tax" className="text-right text-white/60 text-xs">Tax (₹)</Label>
+              <Input id="tax" type="number" value={editingPlan?.tax || 0} onChange={(e) => handleFieldChange('tax', e.target.value)} className="col-span-3 bg-white/5 border-white/10 rounded-xl" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="duration" className="text-right">
-                Duration
-              </Label>
-              <Input
-                id="duration"
-                type="number"
-                value={editingPlan?.duration || 1}
-                onChange={(e) => handleFieldChange('duration', e.target.value)}
-                className="col-span-1"
-              />
+              <Label htmlFor="duration" className="text-right text-white/60 text-xs">Term</Label>
+              <Input id="duration" type="number" value={editingPlan?.duration || 1} onChange={(e) => handleFieldChange('duration', e.target.value)} className="col-span-1 bg-white/5 border-white/10 rounded-xl" />
               <div className="col-span-2">
-                <Select
-                    value={editingPlan?.durationType || 'Days'}
-                    onValueChange={(value: DurationType) => handleFieldChange('durationType', value)}
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select unit" />
+                <Select value={editingPlan?.durationType || 'Days'} onValueChange={(value: DurationType) => handleFieldChange('durationType', value)}>
+                    <SelectTrigger className="bg-white/5 border-white/10 rounded-xl">
+                        <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-[#030408] border-white/10">
                         <SelectItem value="Days">Days</SelectItem>
                         <SelectItem value="Weeks">Weeks</SelectItem>
                         <SelectItem value="Months">Months</SelectItem>
@@ -302,29 +260,19 @@ export default function LoanPlansPage() {
               </div>
             </div>
              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="emiOption" className="text-right">EMI Option</Label>
-                <Switch 
-                    id="emiOption" 
-                    checked={editingPlan?.emiOption} 
-                    onCheckedChange={(checked) => handleFieldChange('emiOption', checked)}
-                    className="col-span-3"
-                />
+                <Label htmlFor="emiOption" className="text-right text-white/60 text-xs">EMI Node</Label>
+                <Switch id="emiOption" checked={editingPlan?.emiOption} onCheckedChange={(checked) => handleFieldChange('emiOption', checked)} />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="directPayOption" className="text-right">Direct Pay Option</Label>
-                <Switch 
-                    id="directPayOption" 
-                    checked={editingPlan?.directPayOption} 
-                    onCheckedChange={(checked) => handleFieldChange('directPayOption', checked)}
-                    className="col-span-3"
-                />
+                <Label htmlFor="directPayOption" className="text-right text-white/60 text-xs">Full Payout</Label>
+                <Switch id="directPayOption" checked={editingPlan?.directPayOption} onCheckedChange={(checked) => handleFieldChange('directPayOption', checked)} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <DialogClose asChild>
-              <Button variant="outline" onClick={() => { setIsDialogOpen(false); setEditingPlan(null); }}>Cancel</Button>
+              <Button variant="ghost" className="text-white/40" onClick={() => { setIsDialogOpen(false); setEditingPlan(null); }}>Cancel</Button>
             </DialogClose>
-            <Button onClick={handleSave}>Save Plan</Button>
+            <Button onClick={handleSave} className="rounded-xl font-bold bg-white text-black hover:bg-primary hover:text-white px-8">Authorize Template</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
