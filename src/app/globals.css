@@ -127,6 +127,17 @@
     100% { transform: translate(-50%, -300%) scale(0.8) rotate(-20deg); opacity: 0; }
 }
 
+@keyframes cash-slide-horizontal {
+    0% { transform: translateX(-150%) scale(0.5); opacity: 0; }
+    20% { transform: translateX(-20%) scale(1); opacity: 1; }
+    80% { transform: translateX(20%) scale(1); opacity: 1; }
+    100% { transform: translateX(150%) scale(0.5); opacity: 0; }
+}
+
 .animate-cash-fly {
     animation: cash-fly 3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-cash-slide-horizontal {
+    animation: cash-slide-horizontal 3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

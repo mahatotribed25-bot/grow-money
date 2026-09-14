@@ -7,10 +7,7 @@ import {
     Wallet, 
     ShieldCheck, 
     ArrowLeft, 
-    HelpCircle, 
-    Smartphone,
-    Timer,
-    CircleDot,
+    Timer, 
     Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +24,7 @@ type Note = {
     id: number;
     value: number;
     rotation: number;
-    offsetX: number;
+    offsetY: number;
 }
 
 export function CashDispenseAnimation({ isOpen, onClose, amount }: CashDispenseAnimationProps) {
@@ -53,7 +50,7 @@ export function CashDispenseAnimation({ isOpen, onClose, amount }: CashDispenseA
           setStage('dispensing');
           const noteVal = amount >= 2000 ? 2000 : 500;
           
-          // Stage 2: Sequential Dispensing with physics variance
+          // Stage 2: Sequential Dispensing
           const dispenseInterval = setInterval(() => {
               setActiveNotes(prev => {
                   if (prev.length >= 8) {
@@ -63,8 +60,8 @@ export function CashDispenseAnimation({ isOpen, onClose, amount }: CashDispenseA
                   return [...prev, { 
                       id: Date.now() + prev.length, 
                       value: noteVal,
-                      rotation: Math.random() * 6 - 3, // Slight random tilt
-                      offsetX: Math.random() * 10 - 5  // Slight random horizontal shift
+                      rotation: Math.random() * 4 - 2, 
+                      offsetY: Math.random() * 20 - 10 
                   }];
               });
           }, 450);
@@ -129,30 +126,29 @@ export function CashDispenseAnimation({ isOpen, onClose, amount }: CashDispenseA
                     {/* ATM Machine Visual Structure */}
                     <div className="relative w-full aspect-square bg-[#0a0b14] rounded-[4rem] border border-white/[0.05] shadow-[0_40px_100px_rgba(0,0,0,0.8),inset_0_2px_20px_rgba(255,255,255,0.02)] p-12 flex flex-col items-center justify-center overflow-hidden">
                         
-                        {/* Internal Depth Mask */}
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] pointer-events-none" />
 
-                        {/* 3D ATM Payout Slot */}
-                        <div className="relative w-full h-48 bg-[#020306] rounded-[2.5rem] border-[8px] border-[#16171f] shadow-[inset_0_10px_40px_rgba(0,0,0,1),0_5px_15px_rgba(0,0,0,0.5)] flex items-center justify-center overflow-visible">
+                        {/* 3D ATM Payout Slot - Vertical Orientation for Horizontal Sliding */}
+                        <div className="relative w-32 h-64 bg-[#020306] rounded-[2.5rem] border-[8px] border-[#16171f] shadow-[inset_0_10px_40px_rgba(0,0,0,1),0_5px_15px_rgba(0,0,0,0.5)] flex items-center justify-center">
                             
                             {/* The physical 'Gape' of the slot */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-12 bg-black rounded-xl border border-white/5 shadow-inner z-0" />
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-[85%] bg-black rounded-full border border-white/5 shadow-inner z-0" />
                             
                             {/* Scanning/UV Light Node */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] h-1 bg-primary/20 blur-[6px] rounded-full z-20 shadow-[0_0_25px_rgba(139,92,246,0.6)] animate-pulse" />
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-[92%] bg-primary/20 blur-[6px] rounded-full z-20 shadow-[0_0_25px_rgba(139,92,246,0.6)] animate-pulse" />
 
-                            {/* Sequential Banknote Render */}
+                            {/* Sequential Banknote Render - Sliding Horizontally */}
                             {activeNotes.map((note, index) => (
                                 <div 
                                     key={note.id}
-                                    className="absolute left-1/2 top-1/2 -translate-x-1/2 z-10 animate-cash-fly"
+                                    className="absolute left-1/2 top-1/2 -translate-y-1/2 z-10 animate-cash-slide-horizontal"
                                     style={{ 
                                         animationDelay: '0ms',
                                         zIndex: 10 + index 
                                     }}
                                 >
                                     <div 
-                                        style={{ transform: `rotate(${note.rotation}deg) translateX(${note.offsetX}px)` }}
+                                        style={{ transform: `rotate(${note.rotation}deg) translateY(${note.offsetY}px)` }}
                                         className={cn(
                                             "relative w-64 h-32 rounded-xl border-[4px] border-black/10 shadow-2xl flex flex-col p-4 overflow-hidden",
                                             note.value === 2000 
@@ -178,19 +174,16 @@ export function CashDispenseAnimation({ isOpen, onClose, amount }: CashDispenseA
                                             </div>
                                         </div>
 
-                                        {/* Realistic Security Thread */}
                                         <div className="absolute top-0 bottom-0 left-[25%] w-2.5 bg-black/10 border-x border-black/5 flex flex-col items-center justify-around py-1">
                                             {[1,2,3,4].map(i => <div key={i} className="w-full h-1 bg-white/10" />)}
                                         </div>
                                         
-                                        {/* Holographic Seal Circle */}
                                         <div className="absolute top-1/2 right-12 -translate-y-1/2 w-8 h-8 rounded-full bg-white/10 blur-[2px] border border-white/20" />
                                     </div>
                                 </div>
                             ))}
                         </div>
 
-                        {/* Activity Detail below slot */}
                         <div className="mt-12 flex items-center gap-3 bg-white/[0.03] px-5 py-2.5 rounded-full border border-white/[0.05]">
                             <ShieldCheck size={14} className="text-green-500" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Atomic Payout Protocol Active</span>
