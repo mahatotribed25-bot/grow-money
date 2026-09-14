@@ -38,6 +38,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 type LoanRequest = {
   id: string;
