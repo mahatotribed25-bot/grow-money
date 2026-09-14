@@ -26,6 +26,12 @@ import {
   CheckCircle2,
   ArrowUpRight,
   BellRing,
+  TrendingUp,
+  Users2,
+  ClipboardCheck,
+  FileStack,
+  Zap,
+  Smartphone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +58,7 @@ type WithdrawalRequest = BaseRequest & { name: string };
 type KycRequest = { id: string, name: string, kycSubmissionDate: Timestamp };
 type UpiRequest = BaseRequest & { userName: string };
 type CustomLoanRequest = BaseRequest & { userName: string, status: string };
+type TaskSubmission = BaseRequest & { status: string };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
@@ -70,6 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { data: pendingKycRequests } = useCollection<KycRequest>(isAdmin ? 'users' : null, { where: ['kycStatus', '==', 'Pending'] });
   const { data: pendingUpiRequests } = useCollection<UpiRequest>(isAdmin ? 'upiRequests' : null, { where: ['status', '==', 'pending'] });
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(isAdmin ? 'customLoanRequests' : null, { where: ['status', 'in', ['pending_admin_review', 'extension_pending']] });
+  const { data: pendingSubmissions } = useCollection<TaskSubmission>(isAdmin ? 'taskSubmissions' : null, { where: ['status', '==', 'pending'] });
 
   const notifications = useMemo(() => {
     if (!isAdmin) return [];
@@ -104,13 +112,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance Hub</AdminNavItem>
             <AdminNavItem icon={Users} href="/admin/users">Investors</AdminNavItem>
             
+            <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Product Forge</div>
+            <AdminNavItem icon={TrendingUp} href="/admin/investment-plans">Standard Plans</AdminNavItem>
+            <AdminNavItem icon={Users2} href="/admin/group-loans">Group Pools</AdminNavItem>
+            <AdminNavItem icon={Handshake} href="/admin/p2p-loans">P2P Marketplace</AdminNavItem>
+            
+            <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Market & Work</div>
+            <AdminNavItem icon={ClipboardCheck} href="/admin/tasks">Earn Tasks</AdminNavItem>
+            <AdminNavItem icon={FileStack} href="/admin/task-submissions" count={pendingSubmissions?.length}>Work Submissions</AdminNavItem>
+            <AdminNavItem icon={Zap} href="/admin/custom-loans" count={pendingCustomLoanRequests?.length}>Flexi Protocols</AdminNavItem>
+            
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Validation Nodes</div>
             <AdminNavItem icon={BellRing} href="/admin/reminders">Reminder Hub</AdminNavItem>
             <AdminNavItem icon={FileCheck} href="/admin/kyc-requests" count={pendingKycRequests?.length}>KYC Pipeline</AdminNavItem>
-            <AdminNavItem icon={Handshake} href="/admin/upi-requests" count={pendingUpiRequests?.length}>UPI Registry</AdminNavItem>
+            <AdminNavItem icon={Smartphone} href="/admin/upi-requests" count={pendingUpiRequests?.length}>UPI Registry</AdminNavItem>
             <AdminNavItem icon={Upload} href="/admin/deposits" count={pendingDeposits?.length}>Inflow Nodes</AdminNavItem>
             <AdminNavItem icon={Download} href="/admin/withdrawals" count={pendingWithdrawals?.length}>Outflow Nodes</AdminNavItem>
-            <AdminNavItem icon={FileText} href="/admin/custom-loans" count={pendingCustomLoanRequests?.length}>Flexi Protocols</AdminNavItem>
             
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Broadcast</div>
             <AdminNavItem icon={Megaphone} href="/admin/announcements">Protocol News</AdminNavItem>
