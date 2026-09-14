@@ -14,6 +14,7 @@ import {
     Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
 type CashDispenseAnimationProps = {
   isOpen: boolean;
