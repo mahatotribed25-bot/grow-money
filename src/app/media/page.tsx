@@ -72,8 +72,8 @@ export default function MediaHubPage() {
                 ) : validUrls.length > 0 ? (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
                         <div className="text-center space-y-2">
-                            <h2 className="text-3xl font-black tracking-tighter uppercase">{t.dashboard.training_center}</h2>
-                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-[3px]">Official Platform Tutorials & News</p>
+                            <h2 className="text-3xl font-black tracking-tighter uppercase">Platform Media</h2>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-[3px]">Official Video Tutorials</p>
                         </div>
 
                         <Card className="bg-card border-border rounded-[2.5rem] overflow-hidden shadow-2xl relative group">
@@ -87,7 +87,7 @@ export default function MediaHubPage() {
                                                         width="100%"
                                                         height="100%"
                                                         src={embedUrl}
-                                                        title={`Tutorial ${index + 1}`}
+                                                        title={`Module ${index + 1}`}
                                                         frameBorder="0"
                                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                                         allowFullScreen
@@ -122,28 +122,6 @@ export default function MediaHubPage() {
                                 )}
                             </CardContent>
                         </Card>
-
-                        <div className="grid gap-4">
-                             <div className="p-6 rounded-[1.5rem] bg-muted/30 border border-border flex items-center gap-5">
-                                <div className="h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
-                                    <PlayCircle size={24} />
-                                </div>
-                                <div className="space-y-0.5">
-                                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Currently Viewing</p>
-                                    <p className="text-sm font-bold">Training Module #{current + 1}</p>
-                                </div>
-                             </div>
-                             
-                             <div className="p-6 rounded-[1.5rem] bg-muted/30 border border-border flex items-center gap-5">
-                                <div className="h-12 w-12 rounded-2xl bg-accent/20 flex items-center justify-center text-accent">
-                                    <Trophy size={24} />
-                                </div>
-                                <div className="space-y-0.5">
-                                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Network News</p>
-                                    <p className="text-sm font-bold">Elite Strategies & Updates</p>
-                                </div>
-                             </div>
-                        </div>
                     </div>
                 ) : (
                     <div className="text-center py-20 space-y-4">

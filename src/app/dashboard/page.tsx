@@ -216,26 +216,6 @@ export default function Dashboard() {
         
         <WalletSummary userData={userData} adminSettings={adminSettings} loading={userDataLoading} t={t} />
 
-        <Link href="/media" className="block group">
-            <Card className="bg-gradient-to-br from-primary/20 via-primary/5 to-transparent border-primary/20 rounded-[1.5rem] p-5 shadow-xl transition-all hover:scale-[1.02] active:scale-95 relative overflow-hidden">
-                <div className="flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg border border-white/20">
-                            <PlayCircle size={24} />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-black text-primary uppercase tracking-[2px] mb-0.5">{t.dashboard.media_hub}</p>
-                            <h3 className="text-sm font-bold tracking-tight">{t.dashboard.training_center}</h3>
-                        </div>
-                    </div>
-                    <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
-                        <ArrowRight size={20} />
-                    </div>
-                </div>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[50px] -mr-16 -mt-16 rounded-full" />
-            </Card>
-        </Link>
-
         <div className="flex items-center justify-between">
             <h2 className="text-sm font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2">
                 <Activity size={14} className="text-primary" /> {t.dashboard.active_portfolios}
@@ -263,6 +243,7 @@ export default function Dashboard() {
                 <QuickActionButton icon={HandCoins} label={t.dashboard.standard_loan} href="/loans" color="text-orange-600" />
                 <QuickActionButton icon={FileText} label={t.dashboard.flexi_loan} href="/custom-loan" color="text-red-600" />
                 <QuickActionButton icon={Users} label={t.dashboard.syndicate} href="/group-investing" color="text-purple-600" />
+                <QuickActionButton icon={PlayCircle} label={t.dashboard.media_hub} href="/media" color="text-primary" />
             </div>
         </Card>
       </main>
