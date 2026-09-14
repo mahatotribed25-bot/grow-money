@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users, Phone, Zap, PlayCircle, Plus, Trash2, Sparkles } from 'lucide-react';
+import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users, Phone, Zap, PlayCircle, Plus, Trash2 } from 'lucide-react';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
@@ -26,13 +26,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 type AdminSettings = {
   adminUpi?: string;
@@ -70,7 +63,6 @@ type AdminSettings = {
     platinum: number;
   };
   homepageVideoUrls?: string[];
-  festiveTheme?: 'none' | 'diwali' | 'ganesh-puja' | 'makar-sankranti' | 'holi';
 };
 
 export default function SettingsPage() {
@@ -98,7 +90,6 @@ export default function SettingsPage() {
   const [profitStartDate, setProfitStartDate] = useState<Date | null>(null);
   const [p2pFee, setP2pFee] = useState(2);
   const [homepageVideoUrls, setHomepageVideoUrls] = useState<string[]>(['', '', '', '', '']);
-  const [festiveTheme, setFestiveTheme] = useState<AdminSettings['festiveTheme']>('none');
 
   // Spin Settings
   const [spinCost, setSpinCost] = useState(0);
@@ -139,7 +130,6 @@ export default function SettingsPage() {
       setMaxCustomLoanAmount(settings.maxCustomLoanAmount || 5000);
       setTotalCustomLoanLimit(settings.totalCustomLoanLimit || 0);
       setProfitStartDate(settings.profitCalculationStartDate?.toDate() || null);
-      setFestiveTheme(settings.festiveTheme || 'none');
       
       const savedUrls = settings.homepageVideoUrls || [];
       const paddedUrls = [...savedUrls, '', '', '', '', ''].slice(0, 5);
@@ -199,7 +189,6 @@ export default function SettingsPage() {
       vipTiers,
       vipWithdrawalGst: vipGst,
       homepageVideoUrls: homepageVideoUrls.filter(u => u.trim() !== ''),
-      festiveTheme: festiveTheme,
     };
 
     setDoc(settingsRef, settingsData, { merge: true })
@@ -444,36 +433,6 @@ export default function SettingsPage() {
                       </div>
                     </div>
                      <Button onClick={handleStopMaintenance} variant="destructive">Stop All Maintenance</Button>
-                </div>
-                <Separator />
-                
-                {/* Festive Theme Selector */}
-                <div className="space-y-4 rounded-lg border border-primary/20 p-4 bg-primary/5">
-                    <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> Festive Atmosphere Control</CardTitle>
-                    <CardDescription>
-                       Select a festival to update the user dashboard visuals automatically.
-                    </CardDescription>
-                    
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label htmlFor="festive-theme">Current Active Festival</Label>
-                            <Select value={festiveTheme} onValueChange={(v: any) => setFestiveTheme(v)}>
-                                <SelectTrigger id="festive-theme" className="bg-background">
-                                    <SelectValue placeholder="Select festival" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-popover border-border">
-                                    <SelectItem value="none">None (Standard Dark)</SelectItem>
-                                    <SelectItem value="diwali">Diwali (Fireworks)</SelectItem>
-                                    <SelectItem value="ganesh-puja">Ganesh Puja (Lord Ganesha)</SelectItem>
-                                    <SelectItem value="makar-sankranti">Makar Sankranti (Kites)</SelectItem>
-                                    <SelectItem value="holi">Holi (Gulal Colors)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest pt-2">
-                        Note: Visuals are only applied to User Dashboard components.
-                    </p>
                 </div>
                 <Separator />
 
