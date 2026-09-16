@@ -36,7 +36,8 @@ import {
   IdCard, 
   Smartphone,
   CheckCircle2,
-  ImageIcon
+  ImageIcon,
+  X
 } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp, orderBy } from 'firebase/firestore';
@@ -276,6 +277,9 @@ export default function UserDetailPage() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   
+  const [isReKycDialogOpen, setIsReKycDialogOpen] = useState(false);
+  const [reKycReason, setReKycReason] = useState('');
+
   const defaultPermissions: UserPermissions = {
     canManageDeposits: false,
     canManageWithdrawals: false,
@@ -563,6 +567,33 @@ export default function UserDetailPage() {
       });
   };
 
+  const handleRequestReKyc = () => {
+    if (!user) return;
+    const userRef = doc(firestore, 'users', userId);
+    const updateData = {
+        kycStatus: 'Not Submitted' as const,
+        kycRejectionReason: reKycReason || 'Administrative reset: Identity protocol re-verification required.',
+        kycVerifiedAt: deleteField(),
+        kycExpiryDate: deleteField(),
+    };
+
+    updateDoc(userRef, updateData)
+        .then(() => {
+            toast({ title: 'Identity Node Reset', description: 'User has been notified to re-verify.' });
+            setIsReKycDialogOpen(false);
+            setReKycReason('');
+            if (refetchUser) refetchUser();
+        })
+        .catch(error => {
+            const permissionError = new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: updateData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
+  };
+
   const handleConfirmRejection = () => {
     if (!rejectionReason) {
       toast({ title: 'Reason is required', variant: 'destructive' });
@@ -676,6 +707,16 @@ export default function UserDetailPage() {
                         </div>
                         {user.kycStatus === 'Verified' && <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500 border border-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.2)]"><ShieldCheck size={20}/></div>}
                    </div>
+                   {user.kycStatus === 'Verified' && (
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setIsReKycDialogOpen(true)}
+                            className="w-full border-amber-500/20 text-amber-500 hover:bg-amber-500/10 font-black text-[9px] uppercase h-8 rounded-lg mt-2"
+                        >
+                            <RefreshCcw size={12} className="mr-2" /> Request Re-Verification
+                        </Button>
+                    )}
               </CardContent>
           </Card>
       </div>
@@ -827,6 +868,63 @@ export default function UserDetailPage() {
                 </DialogFooter>
             </DialogContent>
        </Dialog>
+
+       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">Identity Rejection</DialogTitle>
+            <DialogDescription className="text-white/40 text-xs">
+              Provide a clear reason for denying this node's verification request.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="e.g. Identity blur or mismatched data..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="bg-white/5 border-white/10"
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost" className="text-white/40">Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" className="rounded-xl font-bold px-8" onClick={handleConfirmRejection}>Confirm Denial</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Re-KYC Dialog */}
+      <Dialog open={isReKycDialogOpen} onOpenChange={setIsReKycDialogOpen}>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]">
+            <DialogHeader>
+                <DialogTitle className="text-xl font-black uppercase tracking-tight">Identity Protocol Reset</DialogTitle>
+                <DialogDescription className="text-white/40 text-xs">
+                    This will invalidate the user's current verified status and require them to re-upload documents.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-6 space-y-4">
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-amber-500/60">Reason for Re-Verification</Label>
+                    <Textarea 
+                        placeholder="e.g. Identity documents expired or require higher resolution updates..."
+                        value={reKycReason}
+                        onChange={e => setReKycReason(e.target.value)}
+                        className="bg-white/5 border-white/10 h-32 rounded-xl"
+                    />
+                </div>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+                <DialogClose asChild><Button variant="ghost" className="text-white/40">Abort</Button></DialogClose>
+                <Button 
+                    onClick={handleRequestReKyc}
+                    className="rounded-xl font-bold bg-amber-600 hover:bg-amber-700 text-white px-8"
+                >
+                    Authorize Re-KYC Notice
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -24,7 +24,8 @@ import {
   Upload,
   ImageIcon,
   AlertTriangle,
-  Camera
+  Camera,
+  Info
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -348,7 +349,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-sm px-4 backdrop-blur-sm sm:px-6">
         <Link href="/dashboard"><Button variant="ghost" size="icon" className="hover:bg-accent"><ChevronLeft className="h-5 w-5" /></Button></Link>
         <h1 className="text-lg font-bold tracking-tight">{t.profile.title}</h1>
         <div className="flex gap-2 items-center">
@@ -484,6 +485,17 @@ export default function ProfilePage() {
                         <span>{kycProgress}%</span>
                     </div>
                     <Progress value={kycProgress} className="h-2" />
+                    
+                    {userData?.kycRejectionReason && (userData?.kycStatus === 'Not Submitted' || userData?.kycStatus === 'Rejected') && (
+                        <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex gap-3 items-start animate-in slide-in-from-top-2">
+                            <Info className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-black uppercase text-amber-500 tracking-widest">Protocol Notice</p>
+                                <p className="text-xs text-amber-200/60 leading-relaxed italic">"{userData.kycRejectionReason}"</p>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex items-center justify-between mt-2">
                         <div className="space-y-1">
                              <p className="text-sm font-bold">{t.profile.kyc_status}</p>
