@@ -25,7 +25,11 @@ import {
   ImageIcon,
   AlertTriangle,
   Camera,
-  Info
+  Info,
+  CheckCircle2,
+  Coins,
+  Banknote,
+  Stamp
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -688,44 +692,93 @@ export default function ProfilePage() {
             </DialogContent>
         </Dialog>
 
-        {/* Receipt Dialog */}
+        {/* Advanced Receipt Dialog */}
         {selectedReceipt && (
           <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
-            <DialogContent className="p-0 overflow-hidden rounded-[2rem] max-w-sm">
-              <header className="bg-primary p-6 text-center">
-                 <DialogTitle className="text-xl font-black tracking-tight uppercase text-primary-foreground">Protocol Receipt</DialogTitle>
-                 <DialogDescription className="text-[10px] font-black text-primary-foreground/50 uppercase tracking-[4px]">Verified Transaction</DialogDescription>
-              </header>
-              <div className="p-8 space-y-6">
-                 <div className="space-y-4">
-                    <ReceiptRow label="Status" value={selectedReceipt.tx.status.toUpperCase()} highlight={selectedReceipt.tx.status === 'approved'} />
-                    <ReceiptRow label="Protocol ID" value={selectedReceipt.tx.transactionId || selectedReceipt.tx.id.slice(-8).toUpperCase()} />
-                    <ReceiptRow label="Settled On" value={new Date(selectedReceipt.tx.createdAt.seconds * 1000).toLocaleString()} />
-                    
-                    <Separator />
-                    
-                    <ReceiptRow label="Asset Value" value={`₹${selectedReceipt.tx.amount.toFixed(2)}`} />
-                    
-                    {selectedReceipt.type === 'withdrawal' && (
-                      <>
-                        <ReceiptRow label="GST Protocol" value={`- ₹${(selectedReceipt.tx.gstAmount || 0).toFixed(2)}`} isNegative />
-                        {selectedReceipt.tx.totalDelayBonus ? (
-                          <ReceiptRow label="Delay Bonus" value={`+ ₹${selectedReceipt.tx.totalDelayBonus.toFixed(2)}`} isPositive />
-                        ) : null}
-                      </>
-                    )}
-                 </div>
-
-                 <div className="bg-muted rounded-3xl p-5 border border-border flex flex-col items-center gap-1">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase">Net Settlement</p>
-                    <p className="text-3xl font-black tracking-tighter">
-                      ₹{(selectedReceipt.tx.finalAmount ?? selectedReceipt.tx.amount).toFixed(2)}
-                    </p>
-                 </div>
+            <DialogContent className="p-0 overflow-hidden rounded-[2.5rem] max-w-sm border-none bg-transparent shadow-none">
+              
+              {/* Floating Cartoon Money Background Items */}
+              <div className="absolute inset-0 pointer-events-none z-0">
+                  <FloatingMoneyItem className="top-[10%] left-[-20px] delay-100" />
+                  <FloatingMoneyItem className="top-[60%] right-[-30px] delay-500 scale-125" />
+                  <FloatingCoinItem className="top-[5%] right-[-10px] delay-200" />
+                  <FloatingCoinItem className="bottom-[10%] left-[-20px] delay-700 scale-150" />
+                  <div className="absolute top-[-50px] left-1/2 -translate-x-1/2 w-40 h-40 bg-primary/20 blur-[60px] rounded-full animate-pulse" />
               </div>
-              <DialogFooter className="p-6 pt-0">
-                 <DialogClose asChild><Button className="w-full h-12 rounded-xl font-bold">Close Archive</Button></DialogClose>
-              </DialogFooter>
+
+              <div className="relative z-10 bg-[#0a0b14]/90 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-500">
+                <header className={cn(
+                    "p-8 text-center relative overflow-hidden",
+                    selectedReceipt.tx.status === 'approved' ? "bg-accent/10" : "bg-destructive/10"
+                )}>
+                    {/* Background Decorative Patterns */}
+                    <div className="absolute inset-0 opacity-10 bg-[url('https://picsum.photos/seed/pattern/400/200')] bg-repeat mix-blend-overlay" />
+                    
+                    <div className={cn(
+                        "h-20 w-20 rounded-3xl mx-auto flex items-center justify-center mb-4 border-4 transition-all duration-700 shadow-2xl relative z-10",
+                        selectedReceipt.tx.status === 'approved' 
+                            ? "bg-accent text-accent-foreground border-white/20 animate-bounce" 
+                            : "bg-destructive text-destructive-foreground border-white/20"
+                    )}>
+                        {selectedReceipt.tx.status === 'approved' ? <CheckCircle2 size={40} /> : <AlertTriangle size={40} />}
+                    </div>
+                    
+                    <DialogTitle className="text-2xl font-black tracking-tight uppercase text-white relative z-10">
+                        {selectedReceipt.type === 'deposit' ? 'Protocol Inflow' : 'Capital Outflow'}
+                    </DialogTitle>
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[4px] mt-1 relative z-10">
+                        Official {selectedReceipt.tx.status} Receipt
+                    </p>
+                </header>
+
+                <div className="p-8 space-y-6">
+                    <div className="space-y-4">
+                        <ReceiptRow label="Status" value={selectedReceipt.tx.status.toUpperCase()} highlight={selectedReceipt.tx.status === 'approved'} />
+                        <ReceiptRow label="Protocol ID" value={selectedReceipt.tx.transactionId || selectedReceipt.tx.id.slice(-8).toUpperCase()} isMono />
+                        <ReceiptRow label="Settled On" value={new Date(selectedReceipt.tx.createdAt.seconds * 1000).toLocaleString()} />
+                        
+                        <Separator className="bg-white/5" />
+                        
+                        <div className="flex justify-between items-center text-xs">
+                            <span className="text-white/40 font-bold uppercase tracking-widest">Asset Value</span>
+                            <span className="font-black text-white">₹{selectedReceipt.tx.amount.toLocaleString()}</span>
+                        </div>
+                        
+                        {selectedReceipt.type === 'withdrawal' && (
+                        <div className="space-y-3 pt-1">
+                            <ReceiptRow label="GST Protocol" value={`- ₹${(selectedReceipt.tx.gstAmount || 0).toFixed(2)}`} isNegative />
+                            {selectedReceipt.tx.totalDelayBonus ? (
+                            <ReceiptRow label="Delay Bonus" value={`+ ₹${selectedReceipt.tx.totalDelayBonus.toFixed(2)}`} isPositive />
+                            ) : null}
+                        </div>
+                        )}
+                    </div>
+
+                    <div className="relative group">
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-accent rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000" />
+                        <div className="relative bg-black/40 rounded-3xl p-6 border border-white/5 flex flex-col items-center gap-1 shadow-inner backdrop-blur-xl">
+                            <p className="text-[9px] font-black text-white/30 uppercase tracking-[2px]">Net Settlement Dispatched</p>
+                            <p className="text-4xl font-black tracking-tighter text-white">
+                                ₹{(selectedReceipt.tx.finalAmount ?? selectedReceipt.tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {selectedReceipt.tx.status === 'approved' && (
+                        <div className="flex items-center justify-center gap-2 pt-2 text-[9px] font-black text-accent uppercase tracking-widest animate-pulse">
+                            <ShieldCheck size={12} /> Ledger Integrity Verified
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-8 pt-0">
+                    <DialogClose asChild>
+                        <Button className="w-full h-14 rounded-2xl font-black bg-white text-black hover:bg-primary hover:text-white shadow-2xl transition-all duration-300">
+                            Acknowledge Archive
+                        </Button>
+                    </DialogClose>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
         )}
@@ -740,6 +793,26 @@ export default function ProfilePage() {
       </nav>
     </div>
   );
+}
+
+function FloatingMoneyItem({ className }: { className: string }) {
+    return (
+        <div className={cn("absolute animate-money-float-up opacity-0", className)}>
+            <div className="bg-green-500/20 border border-green-500/30 p-2 rounded-lg shadow-2xl backdrop-blur-sm transform -rotate-12 animate-side-wobble">
+                <Banknote size={32} className="text-green-400" />
+            </div>
+        </div>
+    );
+}
+
+function FloatingCoinItem({ className }: { className: string }) {
+    return (
+        <div className={cn("absolute animate-money-float-up opacity-0 delay-300", className)}>
+            <div className="bg-yellow-500/20 border border-yellow-500/30 p-2 rounded-full shadow-2xl backdrop-blur-sm animate-pulse">
+                <Coins size={24} className="text-yellow-400" />
+            </div>
+        </div>
+    );
 }
 
 function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
@@ -856,15 +929,16 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
   );
 }
 
-function ReceiptRow({ label, value, highlight = false, isNegative = false, isPositive = false }: { label: string, value: string, highlight?: boolean, isNegative?: boolean, isPositive?: boolean }) {
+function ReceiptRow({ label, value, highlight = false, isNegative = false, isPositive = false, isMono = false }: { label: string, value: string, highlight?: boolean, isNegative?: boolean, isPositive?: boolean, isMono?: boolean }) {
     return (
-        <div className="flex justify-between items-center text-xs">
-            <span className="text-muted-foreground font-bold uppercase">{label}</span>
+        <div className="flex justify-between items-center text-[11px]">
+            <span className="text-white/30 font-bold uppercase tracking-widest">{label}</span>
             <span className={cn(
-                "font-black",
-                highlight ? "text-primary" : "text-foreground",
-                isNegative && "text-destructive",
-                isPositive && "text-accent"
+                "font-black tracking-tight",
+                highlight ? "text-primary" : "text-white/80",
+                isNegative && "text-red-400",
+                isPositive && "text-green-400",
+                isMono && "font-mono text-[10px] tracking-widest bg-white/5 px-2 py-0.5 rounded"
             )}>
                 {value}
             </span>

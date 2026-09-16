@@ -144,3 +144,24 @@
 .animate-cash-slide-horizontal {
     animation: cash-slide-horizontal 3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* New Receipt Money Float Animation */
+@keyframes money-float-up {
+  0% { transform: translateY(100px) rotate(0deg) scale(0.5); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(-500px) rotate(360deg) scale(1.2); opacity: 0; }
+}
+
+.animate-money-float-up {
+  animation: money-float-up 4s ease-out infinite;
+}
+
+@keyframes side-wobble {
+  0%, 100% { transform: translateX(0) rotate(-5deg); }
+  50% { transform: translateX(15px) rotate(5deg); }
+}
+
+.animate-side-wobble {
+  animation: side-wobble 3s ease-in-out infinite;
+}
