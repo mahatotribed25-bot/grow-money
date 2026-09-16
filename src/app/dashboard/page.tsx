@@ -200,12 +200,12 @@ export default function Dashboard() {
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-xl px-4 backdrop-blur-sm sm:px-6">
         <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /><h1 className="text-xl font-bold tracking-tighter">Grow Money</h1></div>
         <Link href="/profile">
-          <Badge variant="outline" className="border-border bg-muted h-10 px-3 gap-2 rounded-full hover:bg-accent transition-all">
-            <Avatar className="h-7 w-7">
-              <AvatarImage src={userData?.photoURL} />
+          <Badge variant="outline" className="border-border bg-muted h-10 px-1.5 gap-2 rounded-full hover:bg-accent transition-all pl-1">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={userData?.photoURL} className="object-cover" />
               <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-black">{userData?.name?.charAt(0)}</AvatarFallback>
             </Avatar>
-            <span className="font-black text-xs tracking-tight">{userData?.name || 'User'}</span>
+            <span className="font-black text-xs tracking-tight pr-2">{userData?.name || 'User'}</span>
           </Badge>
         </Link>
       </header>

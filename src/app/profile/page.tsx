@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -24,7 +23,8 @@ import {
   Languages,
   Upload,
   ImageIcon,
-  AlertTriangle
+  AlertTriangle,
+  Camera
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import TrustScoreMeter from '@/components/TrustScoreMeter';
 import {
@@ -131,6 +131,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
   const { theme, language, setTheme, setLanguage, t } = useSettings();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: userData, refetch: refetchUser } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   const { data: deposits } = useCollection<Transaction>(user ? `deposits` : null, { where: ['userId', '==', user?.uid]});
@@ -154,6 +155,7 @@ export default function ProfilePage() {
   const [aadhaarImage, setAadhaarImage] = useState<string | null>(null);
 
   const [selectedReceipt, setSelectedReceipt] = useState<{ tx: Transaction, type: 'deposit' | 'withdrawal' } | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -223,6 +225,36 @@ export default function ProfilePage() {
     } catch (e) {
         toast({ title: "Error", description: "Submission failed.", variant: "destructive" });
     }
+  };
+
+  const handleProfilePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (file.size > 1 * 1024 * 1024) {
+        toast({ title: "File Too Large", description: "Profile photo must be less than 1MB.", variant: "destructive" });
+        return;
+    }
+
+    setIsUploadingPhoto(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+        const base64String = reader.result as string;
+        try {
+            const userRef = doc(firestore, 'users', user.uid);
+            await updateDoc(userRef, { photoURL: base64String });
+            if (auth.currentUser) {
+                await updateProfile(auth.currentUser, { photoURL: base64String });
+            }
+            toast({ title: "Photo Updated", description: "Your profile picture has been changed." });
+            if (refetchUser) refetchUser();
+        } catch (error) {
+            toast({ title: "Upload Failed", variant: "destructive" });
+        } finally {
+            setIsUploadingPhoto(false);
+        }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'pan' | 'aadhaar') => {
@@ -348,17 +380,39 @@ export default function ProfilePage() {
         <Card className="bg-card border-border shadow-lg rounded-3xl overflow-hidden relative group">
           <CardHeader className="relative z-10">
             <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="relative">
-                  <Avatar className="h-24 w-24 border-4 border-primary/20 rounded-[2rem] shadow-2xl">
-                    <AvatarImage src={userData?.photoURL} />
+              <div className="relative group/avatar">
+                  <Avatar className="h-24 w-24 border-4 border-primary/20 rounded-[2rem] shadow-2xl overflow-hidden">
+                    <AvatarImage src={userData?.photoURL} className="object-cover" />
                     <AvatarFallback className="bg-primary/10 text-primary text-3xl font-black">{userData?.name?.charAt(0)}</AvatarFallback>
+                    {isUploadingPhoto && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <Timer className="animate-spin text-white h-6 w-6" />
+                        </div>
+                    )}
                   </Avatar>
-                  <Button variant="outline" size="icon" className="absolute -bottom-1 -right-1 h-8 w-8 rounded-xl bg-background border-border" onClick={() => setIsEditProfileOpen(true)}>
-                    <Pencil size={12} />
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="absolute -bottom-1 -right-1 h-8 w-8 rounded-xl bg-background border-border shadow-xl hover:scale-110 transition-all"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Camera size={14} className="text-primary" />
                   </Button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleProfilePhotoChange} 
+                  />
               </div>
               <div className="text-center sm:text-left space-y-1">
-                <CardTitle className="text-2xl font-black tracking-tight">{userData?.name || t.profile.node}</CardTitle>
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                    <CardTitle className="text-2xl font-black tracking-tight">{userData?.name || t.profile.node}</CardTitle>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => setIsEditProfileOpen(true)}>
+                        <Pencil size={12} />
+                    </Button>
+                </div>
                 <CardDescription className="text-muted-foreground font-medium">{user?.email}</CardDescription>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-2">
                     <Badge className="bg-primary/20 border-primary/30 text-primary uppercase text-[9px] font-black tracking-widest px-3 py-1 rounded-lg">

@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -129,8 +128,8 @@ export default function UsersPage() {
                         <TableRow key={user.id} className="border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                         <TableCell className="pl-6 py-4">
                             <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9 border border-white/10 rounded-xl">
-                                    <AvatarImage src={user.photoURL} />
+                                <Avatar className="h-9 w-9 border border-white/10 rounded-xl overflow-hidden">
+                                    <AvatarImage src={user.photoURL} className="object-cover" />
                                     <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-black uppercase">
                                         {user.name?.charAt(0) || 'U'}
                                     </AvatarFallback>

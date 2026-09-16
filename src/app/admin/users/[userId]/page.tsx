@@ -458,6 +458,7 @@ export default function UserDetailPage() {
               lastCheckIn: deleteField(),
               panImage: deleteField(),
               aadhaarImage: deleteField(),
+              photoURL: deleteField()
           });
 
           docRefsToDelete.forEach(ref => transaction.delete(ref));
@@ -623,8 +624,8 @@ export default function UserDetailPage() {
           <Card className="lg:col-span-2 bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] overflow-hidden shadow-2xl">
             <CardHeader className="pb-8 pt-8">
               <div className="flex items-center gap-6">
-                  <Avatar className="h-24 w-24 border-4 border-primary/20 rounded-[2.5rem] shadow-2xl">
-                      <AvatarImage src={user.photoURL} />
+                  <Avatar className="h-24 w-24 border-4 border-primary/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
+                      <AvatarImage src={user.photoURL} className="object-cover" />
                       <AvatarFallback className="bg-primary/10 text-primary text-3xl font-black">
                           {user.name?.charAt(0) || 'U'}
                       </AvatarFallback>
