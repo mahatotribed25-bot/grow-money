@@ -20,7 +20,8 @@ import {
   HelpCircle,
   TrendingUp,
   Users,
-  PlayCircle
+  PlayCircle,
+  Copy
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -284,6 +285,12 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
   const [isOpen, setIsOpen] = useState(false);
   const qrUrl = amount ? `upi://pay?pa=${adminUpi}&pn=Grow%20Money&am=${amount}&cu=INR` : '';
 
+  const handleCopyToClipboard = (text?: string, label?: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    toast({ title: `${label} Copied!`, description: text });
+  };
+
   const handleSubmit = () => {
     if (!user || !amount || !tid) {
       toast({ title: "Validation Error", description: "Amount and Transaction ID are required.", variant: "destructive" });
@@ -330,7 +337,19 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
                     <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Amount (INR)</Label>
                     <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} className="h-14 rounded-xl text-xl font-black" />
                 </div>
+                
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Admin UPI ID</Label>
+                    <div className="bg-muted border border-border rounded-xl p-4 flex justify-between items-center group">
+                        <span className="font-mono text-sm font-bold truncate mr-2">{adminUpi || 'NOT SET'}</span>
+                        <Button variant="ghost" size="icon" onClick={() => handleCopyToClipboard(adminUpi, 'UPI ID')} className="h-8 w-8 hover:bg-background shrink-0">
+                            <Copy size={14} className="text-primary" />
+                        </Button>
+                    </div>
+                </div>
+
                 {qrUrl && <div className="bg-white p-4 rounded-3xl flex justify-center shadow-2xl animate-in zoom-in-95"><Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="QR" width={180} height={160} /></div>}
+                
                 <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Ref Transaction ID</Label>
                     <Input placeholder="Enter 12-digit ID" value={tid} onChange={e => setTid(e.target.value)} className="h-12 rounded-xl" />
