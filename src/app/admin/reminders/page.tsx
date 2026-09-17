@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
     Phone, 
     MessageSquare, 
+    Mail,
     BellRing, 
     Calendar, 
     AlertCircle, 
@@ -34,7 +35,7 @@ type EMI = {
 type Loan = {
   id: string;
   userId: string;
-  userName?: string; // We'll try to fetch these or fallback
+  userName?: string; 
   planName: string;
   loanAmount: number;
   totalPayable: number;
@@ -49,15 +50,14 @@ type UserData = {
     id: string;
     name: string;
     phoneNumber: string;
+    email: string;
 }
 
 export default function ReminderHubPage() {
     const { toast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     
-    // Fetch all loans across all users
     const { data: allLoans, loading: loansLoading } = useCollection<Loan>('loans', { subcollections: true });
-    // Fetch all users to map names and phone numbers
     const { data: users, loading: usersLoading } = useCollection<UserData>('users');
 
     const loading = loansLoading || usersLoading;
@@ -70,7 +70,6 @@ export default function ReminderHubPage() {
             .map(loan => {
                 const user = users.find(u => u.id === loan.userId);
                 
-                // Calculate installments info
                 const totalInstallments = loan.repaymentMethod === 'EMI' ? (loan.emis?.length || 0) : 1;
                 const paidInstallments = loan.repaymentMethod === 'EMI' 
                     ? (loan.emis?.filter(e => e.status === 'Paid').length || 0) 
@@ -86,6 +85,7 @@ export default function ReminderHubPage() {
                     ...loan,
                     userName: user?.name || 'Unknown Investor',
                     phoneNumber: user?.phoneNumber || '',
+                    userEmail: user?.email || '',
                     remainingInstallments: totalInstallments - paidInstallments,
                     totalInstallments,
                     isOverdue,
@@ -102,7 +102,7 @@ export default function ReminderHubPage() {
 
     const handleCall = (phoneNumber: string) => {
         if (!phoneNumber) {
-            toast({ title: "Phone Not Found", description: "This user has not linked a phone number.", variant: "destructive" });
+            toast({ title: "Phone Not Found", variant: "destructive" });
             return;
         }
         window.location.href = `tel:+91${phoneNumber}`;
@@ -110,7 +110,7 @@ export default function ReminderHubPage() {
 
     const handleSendReminder = (loan: any) => {
         if (!loan.phoneNumber) {
-            toast({ title: "Missing Node Link", description: "WhatsApp requires a linked phone node.", variant: "destructive" });
+            toast({ title: "Missing Contact", description: "WhatsApp requires a linked phone node.", variant: "destructive" });
             return;
         }
 
@@ -119,12 +119,41 @@ export default function ReminderHubPage() {
         
         let message = '';
         if (loan.isOverdue) {
-            message = `🚨 *URGENT REPAYMENT ALERT* 🚨\n\nDear *${loan.userName}*,\n\nYour loan for *${loan.planName}* is now *OVERDUE*.\n\n💰 *Total Due:* ₹${amount}\n⚠️ *Includes Penalty:* ₹${loan.penalty?.toFixed(2) || '0.00'}\n\nPlease settle this immediately to avoid account termination and trust score depletion.\n\n*Grow Money Admin Node* 💰`;
+            message = `🚨 *URGENT REPAYMENT ALERT* 🚨\n\nDear *${loan.userName}*,\n\nYour loan for *${loan.planName}* is now *OVERDUE*.\n\n💰 *Total Due:* ₹${amount}\n⚠️ *Includes Penalty:* ₹${loan.penalty?.toFixed(2) || '0.00'}\n\nPlease settle this immediately to avoid account termination.\n\n*Grow Money Team* 💰`;
         } else {
-            message = `🔔 *Repayment Reminder* 🔔\n\nHello *${loan.userName}*,\n\nThis is a friendly reminder for your upcoming installment for *${loan.planName}*.\n\n💰 *Amount:* ₹${amount}\n🗓️ *Due Date:* ${dateStr}\n\nMaintain your trust score by paying on time! \n\n*Grow Money Team* 💰`;
+            message = `🔔 *Repayment Reminder* 🔔\n\nHello *${loan.userName}*,\n\nFriendly reminder for your upcoming payment for *${loan.planName}*.\n\n💰 *Amount:* ₹${amount}\n🗓️ *Due Date:* ${dateStr}\n\n*Grow Money Team* 💰`;
         }
 
         window.open(`https://wa.me/91${loan.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+    };
+
+    const handleEmailReminder = (loan: any) => {
+        if (!loan.userEmail) {
+            toast({ title: "Email Not Found", variant: "destructive" });
+            return;
+        }
+
+        const dateStr = new Date(loan.nextDueDate.seconds * 1000).toLocaleDateString();
+        const amount = (loan.nextAmount + (loan.penalty || 0)).toFixed(2);
+        
+        const subject = loan.isOverdue ? `URGENT: Your Loan Payment is Overdue - Grow Money` : `Reminder: Upcoming Loan Payment - Grow Money`;
+        
+        let body = `Hello ${loan.userName},\n\n`;
+        if (loan.isOverdue) {
+            body += `This is an urgent notice regarding your loan for "${loan.planName}". Your payment is now OVERDUE.\n\n`;
+            body += `Pending Amount: INR ${amount}\n`;
+            if (loan.penalty > 0) body += `Late Penalty Included: INR ${loan.penalty.toFixed(2)}\n`;
+            body += `Original Due Date: ${dateStr}\n\n`;
+            body += `Please settle this immediately to maintain your trust score and avoid account restrictions.\n\n`;
+        } else {
+            body += `This is a friendly reminder for your upcoming loan installment for "${loan.planName}".\n\n`;
+            body += `Amount Due: INR ${amount}\n`;
+            body += `Payment Date: ${dateStr}\n\n`;
+            body += `Please ensure your wallet has sufficient balance or make a direct payment to avoid late fees.\n\n`;
+        }
+        body += `Regards,\nGrow Money Administration`;
+
+        window.location.href = `mailto:${loan.userEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     };
 
     return (
@@ -132,7 +161,7 @@ export default function ReminderHubPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h2 className="text-3xl font-black text-white tracking-tighter uppercase">Reminder Hub</h2>
-                    <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">Active Liability Oversight</p>
+                    <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">Repayment Oversight</p>
                 </div>
                 <div className="relative w-full md:w-72">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
@@ -146,10 +175,10 @@ export default function ReminderHubPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatusCard title="Overdue Nodes" value={reminderData.filter(l => l.isOverdue).length} icon={AlertCircle} color="text-red-500" />
-                <StatusCard title="Upcoming Payouts" value={reminderData.filter(l => !l.isOverdue).length} icon={Calendar} color="text-blue-400" />
-                <StatusCard title="Total Active Capital" value={`₹${reminderData.reduce((s, l) => s + l.loanAmount, 0).toLocaleString()}`} icon={Users} color="text-primary" />
-                <StatusCard title="Collection Integrity" value="94.2%" icon={CheckCircle2} color="text-green-400" />
+                <StatusCard title="Overdue" value={reminderData.filter(l => l.isOverdue).length} icon={AlertCircle} color="text-red-500" />
+                <StatusCard title="Upcoming" value={reminderData.filter(l => !l.isOverdue).length} icon={Calendar} color="text-blue-400" />
+                <StatusCard title="Total Capital" value={`₹${reminderData.reduce((s, l) => s + l.loanAmount, 0).toLocaleString()}`} icon={Users} color="text-primary" />
+                <StatusCard title="Integrity" value="94.2%" icon={CheckCircle2} color="text-green-400" />
             </div>
 
             <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
@@ -164,8 +193,8 @@ export default function ReminderHubPage() {
                             <TableHeader className="bg-white/[0.02]">
                                 <TableRow className="border-white/10">
                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/20 pl-8">Borrower</TableHead>
-                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/20">Asset & Value</TableHead>
-                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/20">Protocol Progress</TableHead>
+                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/20">Asset Details</TableHead>
+                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/20">Progress</TableHead>
                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/20">Deadline</TableHead>
                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/20">Status</TableHead>
                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/20 pr-8 text-right">Dispatch Alert</TableHead>
@@ -176,12 +205,12 @@ export default function ReminderHubPage() {
                                     <TableRow className="border-transparent">
                                         <TableCell colSpan={6} className="text-center py-20">
                                             <Timer className="animate-spin h-6 w-6 text-primary mx-auto mb-2" />
-                                            <p className="text-[10px] font-black uppercase text-white/20 tracking-widest">Accessing Ledger Nodes...</p>
+                                            <p className="text-[10px] font-black uppercase text-white/20 tracking-widest">Accessing Ledger...</p>
                                         </TableCell>
                                     </TableRow>
                                 ) : reminderData.length === 0 ? (
                                     <TableRow className="border-transparent">
-                                        <TableCell colSpan={6} className="text-center py-20 text-white/10 italic text-sm">No active liabilities detected in current window.</TableCell>
+                                        <TableCell colSpan={6} className="text-center py-20 text-white/10 italic text-sm">No active liabilities found.</TableCell>
                                     </TableRow>
                                 ) : (
                                     reminderData.map((loan) => (
@@ -195,7 +224,7 @@ export default function ReminderHubPage() {
                                                     </Avatar>
                                                     <div>
                                                         <p className="text-sm font-bold text-white/80">{loan.userName}</p>
-                                                        <p className="text-[9px] text-white/20 font-black uppercase tracking-widest">{loan.phoneNumber || 'NO PHONE LINK'}</p>
+                                                        <p className="text-[9px] text-white/20 font-black uppercase tracking-widest">{loan.phoneNumber || 'NO PHONE'}</p>
                                                     </div>
                                                 </div>
                                             </TableCell>
@@ -208,7 +237,7 @@ export default function ReminderHubPage() {
                                             <TableCell>
                                                 <div className="space-y-1.5">
                                                     <div className="flex justify-between items-center gap-4">
-                                                        <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">{loan.repaymentMethod} Protocol</span>
+                                                        <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">{loan.repaymentMethod}</span>
                                                         <span className="text-[9px] font-black text-primary uppercase">{loan.totalInstallments - loan.remainingInstallments}/{loan.totalInstallments}</span>
                                                     </div>
                                                     <div className="h-1 w-24 bg-white/5 rounded-full overflow-hidden">
@@ -239,7 +268,7 @@ export default function ReminderHubPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="pr-8 text-right">
-                                                <div className="flex justify-end gap-2">
+                                                <div className="flex justify-end gap-1.5">
                                                     <Button 
                                                         variant="ghost" 
                                                         size="icon" 
@@ -247,6 +276,14 @@ export default function ReminderHubPage() {
                                                         className="h-9 w-9 rounded-xl bg-white/[0.03] border border-white/5 text-white/40 hover:text-white hover:bg-white/10"
                                                     >
                                                         <Phone size={14} />
+                                                    </Button>
+                                                    <Button 
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleEmailReminder(loan)}
+                                                        className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:text-white hover:bg-blue-500"
+                                                    >
+                                                        <Mail size={14} />
                                                     </Button>
                                                     <Button 
                                                         onClick={() => handleSendReminder(loan)}
@@ -258,7 +295,7 @@ export default function ReminderHubPage() {
                                                         )}
                                                     >
                                                         <MessageSquare size={14} />
-                                                        {loan.isOverdue ? 'WARN NODE' : 'SEND ALERT'}
+                                                        {loan.isOverdue ? 'WARN' : 'SEND'}
                                                     </Button>
                                                 </div>
                                             </TableCell>
