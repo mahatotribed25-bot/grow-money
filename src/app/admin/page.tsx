@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -82,8 +81,8 @@ export default function AdminDashboard() {
         const wSum = allWithdrawals?.filter(w => w.status === 'approved' && isSameDay(w.createdAt.toDate(), day)).reduce((s, w) => s + w.amount, 0) || 0;
         return { 
             name: format(day, 'MMM d'), 
-            Inflow: dSum, 
-            Outflow: wSum 
+            Deposits: dSum, 
+            Withdrawals: wSum 
         };
     });
   }, [allDeposits, allWithdrawals]);
@@ -106,7 +105,7 @@ export default function AdminDashboard() {
   if (userIsLoading || usersLoading || depositsLoading || withdrawalsLoading) return (
       <div className="flex h-[80vh] flex-col items-center justify-center gap-4">
           <div className="h-12 w-12 rounded-2xl border-4 border-primary border-t-transparent animate-spin shadow-[0_0_20px_rgba(139,92,246,0.3)]" />
-          <p className="text-[10px] font-black uppercase tracking-[5px] text-white/20">Syncing Protocol Nodes</p>
+          <p className="text-[10px] font-black uppercase tracking-[5px] text-white/20">Loading Dashboard Data</p>
       </div>
   );
 
@@ -115,10 +114,10 @@ export default function AdminDashboard() {
       {/* Top Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Dashboard Overview</h1>
+            <h1 className="text-3xl font-black text-white tracking-tight">Admin Overview</h1>
             <div className="flex items-center gap-2 mt-1">
                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                 <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">Protocol System Operational</p>
+                 <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">Systems Online</p>
             </div>
         </div>
         <div className="flex items-center gap-3">
@@ -127,7 +126,7 @@ export default function AdminDashboard() {
                 <span className="text-xs font-black text-white/80">{format(new Date(), 'MMM dd, yyyy | HH:mm')}</span>
              </div>
              <Button variant="outline" className="bg-white/[0.03] border-white/10 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/5">
-                <RefreshCcw size={14} className="mr-2" /> Refresh Data
+                <RefreshCcw size={14} className="mr-2" /> Refresh
              </Button>
         </div>
       </div>
@@ -135,7 +134,7 @@ export default function AdminDashboard() {
       {/* Main Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <GlassMetricCard 
-            title="Active Investors" 
+            title="Total Investors" 
             value={users?.length || 0} 
             change="+12.4%" 
             trend="up"
@@ -144,7 +143,7 @@ export default function AdminDashboard() {
             chartData={[20, 35, 25, 45, 30, 55, 60]}
         />
         <GlassMetricCard 
-            title="Protocol Revenue" 
+            title="Total Deposits" 
             value={`₹${(stats?.totalDeposits || 0).toLocaleString()}`} 
             change="+8.7%" 
             trend="up"
@@ -154,16 +153,16 @@ export default function AdminDashboard() {
             chartData={[10, 20, 30, 25, 40, 35, 50]}
         />
         <GlassMetricCard 
-            title="Critical Alerts" 
+            title="Pending Actions" 
             value={stats?.pendingWithdrawals || 0} 
-            change="System Warnings" 
+            change="Action Needed" 
             trend="none"
             icon={AlertTriangle} 
             color="text-red-400"
-            subInfo={`${kycRequests?.length || 0} Pending KYC`}
+            subInfo={`${kycRequests?.length || 0} Pending Identity Checks`}
         />
         <GlassMetricCard 
-            title="Ledger Volume" 
+            title="Market Activity" 
             value="12.5M" 
             change="+19.1%" 
             trend="up"
@@ -179,17 +178,17 @@ export default function AdminDashboard() {
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] -mr-32 -mt-32 rounded-full" />
           <div className="flex items-center justify-between mb-10 relative z-10">
               <div>
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight">System Performance Node</h3>
-                  <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">Inflow vs Outflow analysis</p>
+                  <h3 className="text-lg font-black text-white uppercase tracking-tight">Platform Growth Analysis</h3>
+                  <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">Deposits vs Withdrawals</p>
               </div>
               <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
                       <div className="h-2 w-4 rounded-full bg-primary" />
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Inflow (₹)</span>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Deposits (₹)</span>
                   </div>
                   <div className="flex items-center gap-2">
                       <div className="h-2 w-4 rounded-full bg-blue-500" />
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Outflow (₹)</span>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Withdrawals (₹)</span>
                   </div>
               </div>
           </div>
@@ -198,11 +197,11 @@ export default function AdminDashboard() {
              <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={performanceData}>
                     <defs>
-                        <linearGradient id="colorInflow" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorDeposits" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.1}/>
                             <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
                         </linearGradient>
-                        <linearGradient id="colorOutflow" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorWithdrawals" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
                             <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                         </linearGradient>
@@ -228,20 +227,20 @@ export default function AdminDashboard() {
                     />
                     <Area 
                         type="monotone" 
-                        dataKey="Inflow" 
+                        dataKey="Deposits" 
                         stroke="#8b5cf6" 
                         strokeWidth={4}
                         fillOpacity={1} 
-                        fill="url(#colorInflow)" 
+                        fill="url(#colorDeposits)" 
                         animationDuration={2000}
                     />
                     <Area 
                         type="monotone" 
-                        dataKey="Outflow" 
+                        dataKey="Withdrawals" 
                         stroke="#3b82f6" 
                         strokeWidth={4}
                         fillOpacity={1} 
-                        fill="url(#colorOutflow)" 
+                        fill="url(#colorWithdrawals)" 
                         animationDuration={2500}
                     />
                 </AreaChart>
@@ -253,7 +252,7 @@ export default function AdminDashboard() {
             {/* Traffic Sources - Left */}
             <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] p-6 shadow-2xl">
                 <CardHeader className="p-0 mb-8">
-                    <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">Asset Channels</CardTitle>
+                    <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">Income Channels</CardTitle>
                 </CardHeader>
                 <div className="h-[280px] w-full relative">
                     <ResponsiveContainer width="100%" height="100%">
@@ -275,7 +274,7 @@ export default function AdminDashboard() {
                         </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Global</p>
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</p>
                         <p className="text-2xl font-black text-white tracking-tighter">100%</p>
                     </div>
                 </div>
@@ -293,7 +292,7 @@ export default function AdminDashboard() {
             {/* Top System Events - Middle */}
             <Card className="lg:col-span-1 bg-white/[0.02] border-white/5 rounded-[2rem] p-6 shadow-2xl">
                 <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">System Events</CardTitle>
+                    <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">Recent Activity</CardTitle>
                     <Link href="/admin/users" className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">View All</Link>
                 </CardHeader>
                 <div className="space-y-4">
@@ -324,8 +323,8 @@ export default function AdminDashboard() {
             {/* Geographic Traffic - Right */}
             <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] p-6 shadow-2xl overflow-hidden relative group">
                 <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">Geographic Nodes</CardTitle>
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Live Activity</span>
+                    <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">Member Locations</CardTitle>
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Live Heatmap</span>
                 </CardHeader>
                 
                 <div className="aspect-square relative flex items-center justify-center border border-white/5 rounded-[1.5rem] bg-black/40 shadow-inner">
@@ -337,7 +336,7 @@ export default function AdminDashboard() {
                     <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e]" />
-                            <span className="text-[10px] font-black text-white uppercase tracking-widest">Main Node: INDIA</span>
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest">Main Server: INDIA</span>
                         </div>
                         <Badge variant="outline" className="h-5 border-white/5 text-[8px] font-bold text-white/30 uppercase px-2">Operational</Badge>
                     </div>

@@ -163,7 +163,7 @@ export default function Dashboard() {
         const amountToClaim = diffDays * invData.dailyIncome;
         transaction.update(userRef, { walletBalance: (userDoc.data().walletBalance || 0) + amountToClaim, totalIncome: (userDoc.data().totalIncome || 0) + amountToClaim });
         transaction.update(invRef, { lastClaimDate: serverTimestamp() });
-        transaction.set(doc(collection(firestore, `users/${user.uid}/walletHistory`)), { amount: amountToClaim, type: 'credit', category: 'ROI Claim', description: `Daily ROI claim for ${investment.planName}`, createdAt: serverTimestamp() });
+        transaction.set(doc(collection(firestore, `users/${user.uid}/walletHistory`)), { amount: amountToClaim, type: 'credit', category: 'ROI Claim', description: `Daily profit claim for ${investment.planName}`, createdAt: serverTimestamp() });
     }).then(() => toast({ title: 'Profit Claimed!' })).catch(e => toast({ title: 'Claim Failed', description: e.message, variant: 'destructive' }));
   };
 
@@ -193,7 +193,7 @@ export default function Dashboard() {
             <AlertDialogTitle className="text-center text-2xl font-black tracking-tight">Welcome, {userData?.name} 💰</AlertDialogTitle>
             <AlertDialogDescription className="text-center font-bold uppercase tracking-widest text-[10px]">Your journey starts now!</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogAction onClick={() => setShowWelcomePopup(false)} className="w-full bg-primary text-primary-foreground font-black h-14 rounded-2xl shadow-xl">Authorize & Enter</AlertDialogAction>
+          <AlertDialogAction onClick={() => setShowWelcomePopup(false)} className="w-full bg-primary text-primary-foreground font-black h-14 rounded-2xl shadow-xl">Start Investing</AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
 
@@ -233,7 +233,7 @@ export default function Dashboard() {
 
         <div className="grid gap-4 sm:grid-cols-2">
             {activeInvestments?.map(inv => <ActivePlanCard key={inv.id} investment={inv} onClaimProfit={handleClaimProfit} onClaimMaturity={handleClaimMaturity} />)}
-            {activeInvestments?.length === 0 && <Card className="bg-muted/20 border-dashed border-border rounded-3xl py-12 text-center"><p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">No active nodes.</p></Card>}
+            {activeInvestments?.length === 0 && <Card className="bg-muted/20 border-dashed border-border rounded-3xl py-12 text-center"><p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">No active plans.</p></Card>}
         </div>
 
         <Card className="bg-card border-border rounded-3xl p-6 shadow-2xl">
@@ -293,7 +293,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
 
   const handleSubmit = () => {
     if (!user || !amount || !tid) {
-      toast({ title: "Validation Error", description: "Amount and Transaction ID are required.", variant: "destructive" });
+      toast({ title: "Error", description: "Amount and Transaction ID are required.", variant: "destructive" });
       return;
     }
     
@@ -309,7 +309,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
         createdAt: serverTimestamp() 
       })
       .then(() => { 
-        toast({ title: 'Protocol Initiated', description: 'Request sent to ledger.' }); 
+        toast({ title: 'Request Sent', description: 'Your deposit is being verified.' }); 
         setAmount(''); 
         setTid(''); 
         setIsSabrActive(false);
@@ -330,7 +330,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogContent className="rounded-[2rem]">
             <DialogHeader>
-              <DialogTitle className="text-xl font-black uppercase tracking-tight">Node Funding</DialogTitle>
+              <DialogTitle className="text-xl font-black uppercase tracking-tight">Add Money to Wallet</DialogTitle>
             </DialogHeader>
             <div className="space-y-6 py-4">
                 <div className="space-y-2">
@@ -351,10 +351,10 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
                 {qrUrl && <div className="bg-white p-4 rounded-3xl flex justify-center shadow-2xl animate-in zoom-in-95"><Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="QR" width={180} height={160} /></div>}
                 
                 <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Ref Transaction ID</Label>
-                    <Input placeholder="Enter 12-digit ID" value={tid} onChange={e => setTid(e.target.value)} className="h-12 rounded-xl" />
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Transaction Ref ID</Label>
+                    <Input placeholder="Enter 12-digit Ref ID" value={tid} onChange={e => setTid(e.target.value)} className="h-12 rounded-xl" />
                 </div>
-                <Button onClick={handleSubmit} className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-widest shadow-xl">Confirm Protocol</Button>
+                <Button onClick={handleSubmit} className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-widest shadow-xl">Submit Deposit</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -363,8 +363,8 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
       {isSabrActive && (
         <div className="fixed inset-0 z-[300] bg-background/80 backdrop-blur-2xl flex flex-col items-center justify-center animate-in fade-in duration-500 p-6 text-center">
             <div className="text-8xl mb-8 animate-bounce">⏳</div>
-            <h2 className="text-3xl font-black text-white tracking-tighter uppercase mb-2 animate-in slide-in-from-bottom-2 duration-700">Zara Sabr Karo</h2>
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest animate-pulse">Amount on its way, checking node integrity!</p>
+            <h2 className="text-3xl font-black text-white tracking-tighter uppercase mb-2 animate-in slide-in-from-bottom-2 duration-700">Please Wait</h2>
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest animate-pulse">Processing your payment, checking details!</p>
             
             <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-3">
                 <div className="flex gap-2">
@@ -391,22 +391,22 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
 
   const handleWithdraw = () => {
     if (!user || !amt || !userData?.upiId) {
-        toast({ title: "Node Incomplete", description: "Link UPI ID in profile to enable withdrawals.", variant: "destructive"});
+        toast({ title: "Account Incomplete", description: "Link your UPI ID in profile to withdraw.", variant: "destructive"});
         return;
     }
     const val = parseFloat(amt);
-    if (val < (adminSettings?.minWithdrawal || 100)) { toast({ title: "Protocol Violation", description: "Min ₹" + (adminSettings?.minWithdrawal || 100), variant: "destructive" }); return; }
+    if (val < (adminSettings?.minWithdrawal || 100)) { toast({ title: "Error", description: "Minimum withdrawal is ₹" + (adminSettings?.minWithdrawal || 100), variant: "destructive" }); return; }
 
     runTransaction(firestore, async (transaction) => {
         const userRef = doc(firestore, 'users', user.uid);
         const userDoc = await transaction.get(userRef);
-        if ((userDoc.data()?.walletBalance || 0) < val) throw new Error("Insufficient Ledger Balance");
+        if ((userDoc.data()?.walletBalance || 0) < val) throw new Error("Insufficient Balance");
         transaction.update(userRef, { walletBalance: (userDoc.data()?.walletBalance || 0) - val });
         transaction.set(doc(collection(firestore, 'withdrawals')), { userId: user.uid, name: user.displayName, amount: val, upiId: userData.upiId, status: 'pending', createdAt: serverTimestamp() });
     }).then(() => { 
         setIsDialogOpen(false); 
         setIsDispensing(true); 
-    }).catch(e => toast({ title: "Auth Failure", description: e.message, variant: "destructive" }));
+    }).catch(e => toast({ title: "Error", description: e.message, variant: "destructive" }));
   };
 
   return (
@@ -415,7 +415,7 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
             <DialogTrigger asChild><Button variant="outline" className="w-full h-14 rounded-2xl border-border bg-muted text-muted-foreground font-black uppercase tracking-widest text-xs hover:bg-accent hover:text-foreground transition-all"><Download size={16} className="mr-2" /> {t.dashboard.withdraw}</Button></DialogTrigger>
             <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-[2.5rem] shadow-2xl">
                 <header className="p-6 border-b border-border bg-muted/20 flex items-center justify-between">
-                    <DialogTitle className="text-lg font-black tracking-tight uppercase">Capital Dispatch</DialogTitle>
+                    <DialogTitle className="text-lg font-black tracking-tight uppercase">Withdraw Money</DialogTitle>
                     <HelpCircle className="text-muted-foreground h-5 w-5" />
                 </header>
                 <div className="p-6 space-y-8">
@@ -423,7 +423,7 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
                         <div className="flex items-center gap-4">
                             <div className="h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary shadow-lg border border-primary/20"><Wallet size={24}/></div>
                             <div>
-                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[2px]">Asset Balance</p>
+                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[2px]">Available Balance</p>
                                 <p className="text-xl font-black tracking-tighter">₹{(userData?.walletBalance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                             </div>
                         </div>
@@ -431,7 +431,7 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
                     </div>
 
                     <div className="space-y-4">
-                        <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] ml-1">Dispatch Amount</Label>
+                        <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] ml-1">Withdraw Amount</Label>
                         <div className="relative">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-muted-foreground">₹</span>
                             <Input 
@@ -460,7 +460,7 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
                     </div>
                     
                     <Button onClick={handleWithdraw} className="w-full h-16 rounded-[1.5rem] bg-primary text-primary-foreground font-black text-lg shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
-                        Authorize Dispatch
+                        Confirm Withdrawal
                     </Button>
                 </div>
             </DialogContent>
@@ -477,12 +477,12 @@ function ActivePlanCard({ investment, onClaimProfit, onClaimMaturity }: { invest
         <div className="flex justify-between items-start relative z-10">
             <div>
                 <p className="text-base font-bold tracking-tight">{investment.planName}</p>
-                <Badge className="bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest mt-1.5 h-4 border-primary/10">Active Node</Badge>
+                <Badge className="bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest mt-1.5 h-4 border-primary/10">Active</Badge>
             </div>
             <p className="text-sm font-black text-accent">+₹{investment.dailyIncome}/day</p>
         </div>
         <div className="relative z-10">
-            <SlideToClaim label={isMatured ? "Slide to Liquidate" : "Claim Daily Profit"} onComplete={() => isMatured ? onClaimMaturity(investment) : onClaimProfit(investment)} />
+            <SlideToClaim label={isMatured ? "Slide to Collect Money" : "Claim Daily Profit"} onComplete={() => isMatured ? onClaimMaturity(investment) : onClaimProfit(investment)} />
         </div>
     </Card>
   );

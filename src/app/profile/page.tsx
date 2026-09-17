@@ -206,7 +206,7 @@ export default function ProfilePage() {
 
   const handleUpdateUpi = async () => {
     if (!user || !editUpiId || !editUpiProvider) {
-        toast({ title: "Validation Error", description: "Please enter both UPI ID and Provider.", variant: "destructive" });
+        toast({ title: "Error", description: "Please enter both UPI ID and Provider.", variant: "destructive" });
         return;
     }
     
@@ -224,7 +224,7 @@ export default function ProfilePage() {
             createdAt: serverTimestamp()
         });
 
-        toast({ title: "Update Request Sent", description: "Details verified by admin protocol." });
+        toast({ title: "Request Sent", description: "Your details will be verified by our team." });
         setIsEditUpiOpen(false);
         if (refetchUser) refetchUser();
     } catch (e) {
@@ -237,7 +237,7 @@ export default function ProfilePage() {
     if (!file || !user) return;
 
     if (file.size > 1 * 1024 * 1024) {
-        toast({ title: "File Too Large", description: "Profile photo must be less than 1MB.", variant: "destructive" });
+        toast({ title: "File Too Large", description: "Photo must be less than 1MB.", variant: "destructive" });
         return;
     }
 
@@ -281,7 +281,7 @@ export default function ProfilePage() {
 
   const handleSubmitKyc = async () => {
     if (!user || !kycPan || !kycAadhaar || !kycPhone) {
-        toast({ title: "Missing Data", description: "Fill in all fields.", variant: "destructive" });
+        toast({ title: "Incomplete", description: "Please fill in all fields.", variant: "destructive" });
         return;
     }
 
@@ -302,7 +302,7 @@ export default function ProfilePage() {
             kycSubmissionDate: serverTimestamp()
         });
 
-        toast({ title: "KYC Submitted", description: "Under protocol review." });
+        toast({ title: "KYC Submitted", description: "Your documents are now being reviewed." });
         setIsKycOpen(false);
         if (refetchUser) refetchUser();
     } catch (e) {
@@ -312,7 +312,7 @@ export default function ProfilePage() {
 
   const exportToExcel = () => {
     if (!walletHistory || walletHistory.length === 0) {
-        toast({ title: "No Data", description: "No transaction history to export.", variant: "destructive" });
+        toast({ title: "No Data", description: "No history found to download.", variant: "destructive" });
         return;
     }
 
@@ -327,9 +327,9 @@ export default function ProfilePage() {
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
-    XLSX.writeFile(workbook, `Transactions_${user?.uid.slice(0, 5)}.xlsx`);
+    XLSX.writeFile(workbook, `History_${user?.uid.slice(0, 5)}.xlsx`);
     
-    toast({ title: "Export Successful", description: "Transaction ledger downloaded." });
+    toast({ title: "Success", description: "History downloaded successfully." });
   };
 
   const isKycExpired = useMemo(() => {
@@ -353,7 +353,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-sm px-4 backdrop-blur-sm sm:px-6">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-sm px-4 sm:px-6">
         <Link href="/dashboard"><Button variant="ghost" size="icon" className="hover:bg-accent"><ChevronLeft className="h-5 w-5" /></Button></Link>
         <h1 className="text-lg font-bold tracking-tight">{t.profile.title}</h1>
         <div className="flex gap-2 items-center">
@@ -383,8 +383,8 @@ export default function ProfilePage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 max-w-4xl mx-auto w-full">
         <Card className="bg-card border-border shadow-lg rounded-3xl overflow-hidden relative group">
-          <CardHeader className="relative z-10">
-            <div className="flex flex-col sm:flex-row items-center gap-6">
+          <CardHeader>
+            <div className="flex flex-col sm:row items-center gap-6">
               <div className="relative group/avatar">
                   <Avatar className="h-24 w-24 border-4 border-primary/20 rounded-[2rem] shadow-2xl overflow-hidden">
                     <AvatarImage src={userData?.photoURL} className="object-cover" />
@@ -413,7 +413,7 @@ export default function ProfilePage() {
               </div>
               <div className="text-center sm:text-left space-y-1">
                 <div className="flex items-center justify-center sm:justify-start gap-2">
-                    <CardTitle className="text-2xl font-black tracking-tight">{userData?.name || t.profile.node}</CardTitle>
+                    <CardTitle className="text-2xl font-black tracking-tight">{userData?.name || "User"}</CardTitle>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => setIsEditProfileOpen(true)}>
                         <Pencil size={12} />
                     </Button>
@@ -423,7 +423,7 @@ export default function ProfilePage() {
                     <Badge className="bg-primary/20 border-primary/30 text-primary uppercase text-[9px] font-black tracking-widest px-3 py-1 rounded-lg">
                         {userData?.vipLevel || 'Bronze'} Tier
                     </Badge>
-                    <Badge variant="outline" className="border-border text-muted-foreground text-[9px] font-black tracking-widest uppercase">NODE: {user?.uid.slice(-8).toUpperCase()}</Badge>
+                    <Badge variant="outline" className="border-border text-muted-foreground text-[9px] font-black tracking-widest uppercase">ID: {user?.uid.slice(-8).toUpperCase()}</Badge>
                 </div>
               </div>
             </div>
@@ -467,7 +467,7 @@ export default function ProfilePage() {
                             </div>
                         </div>
                     ) : (
-                        <p className="text-xs text-muted-foreground italic">No payment method linked</p>
+                        <p className="text-xs text-muted-foreground italic">No payment details linked</p>
                     )}
                 </CardContent>
             </Card>
@@ -479,13 +479,13 @@ export default function ProfilePage() {
                     </CardTitle>
                     {(userData?.kycStatus !== 'Verified' || isKycExpired) && (
                         <Button onClick={() => setIsKycOpen(true)} size="sm" className="h-8 px-4 rounded-xl font-black uppercase text-[9px]">
-                           {isKycExpired ? 'Re-Verify Node' : userData?.kycStatus === 'Rejected' ? 'Re-Submit' : 'Verify Node'}
+                           {isKycExpired ? 'Re-Verify Account' : userData?.kycStatus === 'Rejected' ? 'Fix Details' : 'Verify Identity'}
                         </Button>
                     )}
                 </div>
                 <div className="space-y-4">
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 px-1">
-                        <span>Verification Protocol</span>
+                        <span>Verification Progress</span>
                         <span>{kycProgress}%</span>
                     </div>
                     <Progress value={kycProgress} className="h-2" />
@@ -494,7 +494,7 @@ export default function ProfilePage() {
                         <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex gap-3 items-start animate-in slide-in-from-top-2">
                             <Info className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                             <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase text-amber-500 tracking-widest">Protocol Notice</p>
+                                <p className="text-[10px] font-black uppercase text-amber-500 tracking-widest">Notice from Admin</p>
                                 <p className="text-xs text-amber-200/60 leading-relaxed italic">"{userData.kycRejectionReason}"</p>
                             </div>
                         </div>
@@ -525,15 +525,10 @@ export default function ProfilePage() {
                                 <ShieldCheck size={20} />
                              </div>
                         )}
-                        {isKycExpired && (
-                             <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center text-destructive">
-                                <AlertTriangle size={20} />
-                             </div>
-                        )}
                     </div>
                     {isKycExpired && (
                         <p className="text-[10px] text-red-400 font-bold bg-red-500/5 p-3 rounded-xl border border-red-500/20 animate-pulse">
-                            ⚠️ Identity protocol has expired. Re-verification required to maintain node access.
+                            ⚠️ Identity verification has expired. Please re-verify to continue using our services.
                         </p>
                     )}
                 </div>
@@ -557,7 +552,7 @@ export default function ProfilePage() {
             <div className="mt-6">
                 <TabsContent value="history">
                     <HistoryTable 
-                        headers={['Protocol', 'Flow']} 
+                        headers={['Details', 'Amount']} 
                         items={walletHistory} 
                         renderRow={(e) => (
                             <TableRow key={e.id} className="border-border hover:bg-muted/30">
@@ -592,16 +587,16 @@ export default function ProfilePage() {
         <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
             <DialogContent className="rounded-[2.5rem]">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Update Node</DialogTitle>
-                    <DialogDescription>Modify your public identifier.</DialogDescription>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Edit Profile</DialogTitle>
+                    <DialogDescription>Update your display name.</DialogDescription>
                 </DialogHeader>
                 <div className="py-6 space-y-4">
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Display Name</Label>
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Full Name</Label>
                         <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-12 rounded-xl" />
                     </div>
                 </div>
-                <DialogFooter><Button onClick={handleUpdateName} className="w-full h-12 rounded-xl font-bold bg-primary">Commit Changes</Button></DialogFooter>
+                <DialogFooter><Button onClick={handleUpdateName} className="w-full h-12 rounded-xl font-bold bg-primary">Save Changes</Button></DialogFooter>
             </DialogContent>
         </Dialog>
 
@@ -609,15 +604,15 @@ export default function ProfilePage() {
         <Dialog open={isEditUpiOpen} onOpenChange={setIsEditUpiOpen}>
             <DialogContent className="rounded-[2.5rem]">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Payment Protocol</DialogTitle>
-                    <DialogDescription>Administrative validation required for updates.</DialogDescription>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Payment Account</DialogTitle>
+                    <DialogDescription>Add or update your UPI details for receiving payments.</DialogDescription>
                 </DialogHeader>
                 <div className="py-6 space-y-6">
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">UPI Provider</Label>
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Payment App</Label>
                         <Select value={editUpiProvider} onValueChange={(v: any) => setEditUpiProvider(v)}>
                             <SelectTrigger className="h-12 rounded-xl">
-                                <SelectValue placeholder="Select Method" />
+                                <SelectValue placeholder="Select App" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="PhonePe">PhonePe</SelectItem>
@@ -631,7 +626,7 @@ export default function ProfilePage() {
                         <Input value={editUpiId} onChange={e => setEditUpiId(e.target.value)} placeholder="username@bank" className="h-12 rounded-xl font-mono" />
                     </div>
                 </div>
-                <DialogFooter><Button onClick={handleUpdateUpi} className="w-full h-12 rounded-xl font-bold bg-primary">Finalize Protocol</Button></DialogFooter>
+                <DialogFooter><Button onClick={handleUpdateUpi} className="w-full h-12 rounded-xl font-bold bg-primary">Save Payment Details</Button></DialogFooter>
             </DialogContent>
         </Dialog>
 
@@ -639,8 +634,8 @@ export default function ProfilePage() {
         <Dialog open={isKycOpen} onOpenChange={setIsKycOpen}>
             <DialogContent className="rounded-[2.5rem] max-w-lg">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Identity Node</DialogTitle>
-                    <DialogDescription>Verified status required for premium asset access.</DialogDescription>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Verify Identity</DialogTitle>
+                    <DialogDescription>Submit your documents to unlock higher limits and benefits.</DialogDescription>
                 </DialogHeader>
                 <div className="py-6 space-y-4">
                     <div className="space-y-2">
@@ -650,7 +645,7 @@ export default function ProfilePage() {
 
                     <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">PAN Image</Label>
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">PAN Photo</Label>
                             <div className="relative h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/20">
                                 {panImage ? (
                                     <Image src={panImage} alt="PAN" fill className="object-cover" />
@@ -664,7 +659,7 @@ export default function ProfilePage() {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Aadhaar Image</Label>
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Aadhaar Photo</Label>
                             <div className="relative h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/20">
                                 {aadhaarImage ? (
                                     <Image src={aadhaarImage} alt="Aadhaar" fill className="object-cover" />
@@ -680,15 +675,15 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Aadhaar Node Number</Label>
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Aadhaar Number</Label>
                         <Input value={kycAadhaar} onChange={e => setKycAadhaar(e.target.value)} placeholder="1234 5678 9012" className="h-12 rounded-xl" />
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Contact Node</Label>
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Phone Number</Label>
                         <Input value={kycPhone} onChange={e => setKycPhone(e.target.value)} placeholder="9876543210" className="h-12 rounded-xl" />
                     </div>
                 </div>
-                <DialogFooter><Button onClick={handleSubmitKyc} className="w-full h-12 rounded-xl font-bold bg-primary">Commit Identity</Button></DialogFooter>
+                <DialogFooter><Button onClick={handleSubmitKyc} className="w-full h-12 rounded-xl font-bold bg-primary">Submit for Verification</Button></DialogFooter>
             </DialogContent>
         </Dialog>
 
@@ -724,7 +719,7 @@ export default function ProfilePage() {
                     </div>
                     
                     <DialogTitle className="text-2xl font-black tracking-tight uppercase text-white relative z-10">
-                        {selectedReceipt.type === 'deposit' ? 'Protocol Inflow' : 'Capital Outflow'}
+                        {selectedReceipt.type === 'deposit' ? 'Money Added' : 'Money Withdrawn'}
                     </DialogTitle>
                     <p className="text-[10px] font-black text-white/40 uppercase tracking-[4px] mt-1 relative z-10">
                         Official {selectedReceipt.tx.status} Receipt
@@ -734,21 +729,21 @@ export default function ProfilePage() {
                 <div className="p-8 space-y-6">
                     <div className="space-y-4">
                         <ReceiptRow label="Status" value={selectedReceipt.tx.status.toUpperCase()} highlight={selectedReceipt.tx.status === 'approved'} />
-                        <ReceiptRow label="Protocol ID" value={selectedReceipt.tx.transactionId || selectedReceipt.tx.id.slice(-8).toUpperCase()} isMono />
-                        <ReceiptRow label="Settled On" value={new Date(selectedReceipt.tx.createdAt.seconds * 1000).toLocaleString()} />
+                        <ReceiptRow label="Request ID" value={selectedReceipt.tx.transactionId || selectedReceipt.tx.id.slice(-8).toUpperCase()} isMono />
+                        <ReceiptRow label="Completed On" value={new Date(selectedReceipt.tx.createdAt.seconds * 1000).toLocaleString()} />
                         
                         <Separator className="bg-white/5" />
                         
                         <div className="flex justify-between items-center text-xs">
-                            <span className="text-white/40 font-bold uppercase tracking-widest">Asset Value</span>
+                            <span className="text-white/40 font-bold uppercase tracking-widest">Base Amount</span>
                             <span className="font-black text-white">₹{selectedReceipt.tx.amount.toLocaleString()}</span>
                         </div>
                         
                         {selectedReceipt.type === 'withdrawal' && (
                         <div className="space-y-3 pt-1">
-                            <ReceiptRow label="GST Protocol" value={`- ₹${(selectedReceipt.tx.gstAmount || 0).toFixed(2)}`} isNegative />
+                            <ReceiptRow label="Taxes/Fees" value={`- ₹${(selectedReceipt.tx.gstAmount || 0).toFixed(2)}`} isNegative />
                             {selectedReceipt.tx.totalDelayBonus ? (
-                            <ReceiptRow label="Delay Bonus" value={`+ ₹${selectedReceipt.tx.totalDelayBonus.toFixed(2)}`} isPositive />
+                            <ReceiptRow label="Extra Bonus" value={`+ ₹${selectedReceipt.tx.totalDelayBonus.toFixed(2)}`} isPositive />
                             ) : null}
                         </div>
                         )}
@@ -757,7 +752,7 @@ export default function ProfilePage() {
                     <div className="relative group">
                         <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-accent rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000" />
                         <div className="relative bg-black/40 rounded-3xl p-6 border border-white/5 flex flex-col items-center gap-1 shadow-inner backdrop-blur-xl">
-                            <p className="text-[9px] font-black text-white/30 uppercase tracking-[2px]">Net Settlement Dispatched</p>
+                            <p className="text-[9px] font-black text-white/30 uppercase tracking-[2px]">Net Amount Received</p>
                             <p className="text-4xl font-black tracking-tighter text-white">
                                 ₹{(selectedReceipt.tx.finalAmount ?? selectedReceipt.tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}
                             </p>
@@ -766,7 +761,7 @@ export default function ProfilePage() {
                     
                     {selectedReceipt.tx.status === 'approved' && (
                         <div className="flex items-center justify-center gap-2 pt-2 text-[9px] font-black text-accent uppercase tracking-widest animate-pulse">
-                            <ShieldCheck size={12} /> Ledger Integrity Verified
+                            <ShieldCheck size={12} /> Verified & Settled
                         </div>
                     )}
                 </div>
@@ -774,7 +769,7 @@ export default function ProfilePage() {
                 <div className="p-8 pt-0">
                     <DialogClose asChild>
                         <Button className="w-full h-14 rounded-2xl font-black bg-white text-black hover:bg-primary hover:text-white shadow-2xl transition-all duration-300">
-                            Acknowledge Archive
+                            Close Receipt
                         </Button>
                     </DialogClose>
                 </div>
@@ -826,7 +821,7 @@ function HistoryTable({ headers, items, renderRow }: { headers: string[], items:
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic">No nodes active.</TableCell></TableRow>}</TableBody>
+                    {items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic">No history found.</TableCell></TableRow>}</TableBody>
             </Table>
         </ScrollArea>
     </Card>
@@ -840,9 +835,9 @@ function TransactionTable({ transactions, type, onViewReceipt }: { transactions:
                 <Table>
                     <TableHeader className="bg-muted/50">
                         <TableRow className="border-border">
-                            <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] pl-6 py-4">Value</TableHead>
+                            <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] pl-6 py-4">Amount</TableHead>
                             <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] text-center">Status</TableHead>
-                            <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] text-right pr-6">Ref</TableHead>
+                            <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] text-right pr-6">View</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -868,7 +863,7 @@ function TransactionTable({ transactions, type, onViewReceipt }: { transactions:
                                     </Button>
                                 </TableCell>
                             </TableRow>
-                        )) : <TableRow><TableCell colSpan={3} className="text-center py-20 opacity-20 italic">No {type} node found.</TableCell></TableRow>}
+                        )) : <TableRow><TableCell colSpan={3} className="text-center py-20 opacity-20 italic">No {type}s found.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </ScrollArea>
@@ -883,8 +878,8 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                 <Table>
                     <TableHeader className="bg-muted/50">
                         <TableRow className="border-border">
-                          <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] pl-6 py-4">Consortium Plan</TableHead>
-                          <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] text-right pr-6">Credits</TableHead>
+                          <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] pl-6 py-4">Group Plan</TableHead>
+                          <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] text-right pr-6">Earnings</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -893,7 +888,7 @@ function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] 
                                 <TableCell className="pl-6 py-4 font-bold">{inv.planName}</TableCell>
                                 <TableCell className="text-right pr-6 text-accent font-bold">₹{inv.amountReceived.toFixed(2)}</TableCell>
                             </TableRow>
-                        )) : <TableRow><TableCell colSpan={2} className="text-center py-20 opacity-20 italic">No pool node active.</TableCell></TableRow>}
+                        )) : <TableRow><TableCell colSpan={2} className="text-center py-20 opacity-20 italic">No group plans active.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </ScrollArea>
@@ -911,16 +906,16 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
     if (parseFloat(amount) === request.confirmationAmount) {
       await updateDoc(doc(firestore, 'users', user!.uid), { upiStatus: 'Verified', upiId: request.upiId });
       await updateDoc(doc(firestore, 'upiRequests', request.id), { status: 'approved' });
-      toast({ title: 'Payment Node Verified!' });
+      toast({ title: 'Account Verified!' });
     } else {
-        toast({ title: 'Mismatch', description: "Checksum error.", variant: 'destructive' });
+        toast({ title: 'Mismatch', description: "The amount entered is incorrect.", variant: 'destructive' });
     }
   };
 
   return (
     <Card className="border-primary/40 bg-primary/5 p-6 rounded-[2rem]">
-        <CardTitle className="text-primary text-[10px] font-black uppercase tracking-[4px] mb-4">Protocol Challenge</CardTitle>
-        <p className="text-xs text-muted-foreground mb-6">Enter micro-transaction sum received to finalize node.</p>
+        <CardTitle className="text-primary text-[10px] font-black uppercase tracking-[4px] mb-4">Verification Check</CardTitle>
+        <p className="text-xs text-muted-foreground mb-6">Enter the small amount received in your account to complete verification.</p>
         <div className="flex gap-2">
             <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="h-14 rounded-2xl text-xl font-black" />
             <Button className="h-14 bg-primary px-8 rounded-2xl font-black text-primary-foreground" onClick={handleVerify}>Verify</Button>

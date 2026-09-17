@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -168,7 +167,7 @@ export default function WithdrawalsPage() {
 
   const handleActivateBonus = (withdrawal: WithdrawalRequest) => {
     if (!adminSettings?.delayBonusPerDay || adminSettings.delayBonusPerDay <= 0) {
-        toast({ title: 'Set Bonus Amount First', variant: "destructive"});
+        toast({ title: 'Error', description: 'Set bonus amount in settings first.', variant: "destructive"});
         return;
     }
     const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
@@ -265,7 +264,7 @@ export default function WithdrawalsPage() {
                 <TabsTrigger value="pending" className="text-[10px] font-black uppercase">Pending</TabsTrigger>
                 <TabsTrigger value="approved" className="text-[10px] font-black uppercase">Approved</TabsTrigger>
                 <TabsTrigger value="rejected" className="text-[10px] font-black uppercase">Rejected</TabsTrigger>
-                <TabsTrigger value="all" className="text-[10px] font-black uppercase">History</TabsTrigger>
+                <TabsTrigger value="all" className="text-[10px] font-black uppercase">Archive</TabsTrigger>
             </TabsList>
         </Tabs>
 
@@ -281,15 +280,15 @@ export default function WithdrawalsPage() {
               </TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Investor</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Payout</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Payment Addr</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">UPI ID</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Status</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pr-6 text-right">Dispatch</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pr-6 text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow className="border-transparent">
-                <TableCell colSpan={6} className="text-center py-20 text-white/20 font-black animate-pulse">SYNCING NODES...</TableCell>
+                <TableCell colSpan={6} className="text-center py-20 text-white/20 font-black animate-pulse">Loading Withdrawals...</TableCell>
               </TableRow>
             ) : filteredWithdrawals.length > 0 ? (
               filteredWithdrawals.map((withdrawal) => (
@@ -323,7 +322,7 @@ export default function WithdrawalsPage() {
                           {withdrawal.status}
                         </Badge>
                         {withdrawal.delayBonusActive && withdrawal.status === 'pending' && (
-                            <Badge variant="outline" className="border-blue-500/40 text-blue-400 bg-blue-500/5 text-[8px] h-4">BONUS NODE</Badge>
+                            <Badge variant="outline" className="border-blue-500/40 text-blue-400 bg-blue-500/5 text-[8px] h-4">BONUS ACTIVE</Badge>
                         )}
                     </div>
                   </TableCell>
@@ -364,7 +363,7 @@ export default function WithdrawalsPage() {
             ) : (
                 <TableRow className="border-transparent">
                     <TableCell colSpan={6} className="text-center py-20 text-white/10 italic text-sm">
-                        No {filterStatus} nodes detected.
+                        No {filterStatus} requests found.
                     </TableCell>
                 </TableRow>
             )}
@@ -375,8 +374,8 @@ export default function WithdrawalsPage() {
        <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
         <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
             <DialogHeader>
-                <DialogTitle className="text-center font-black uppercase tracking-tight">Fund Dispatch Node</DialogTitle>
-                <DialogDescription className="text-center text-white/40 text-xs">Execute manual transfer to investor node.</DialogDescription>
+                <DialogTitle className="text-center font-black uppercase tracking-tight">Process Withdrawal</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-xs">Send money to the user and confirm below.</DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-6">
                 <div className="flex flex-col items-center gap-4">
@@ -407,11 +406,11 @@ export default function WithdrawalsPage() {
 
                  <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
                     <a href={upiDeeplink}>
-                        <QrCode size={16} className="mr-2" /> Launch UPI Terminal
+                        <QrCode size={16} className="mr-2" /> Open UPI App
                     </a>
                 </Button>
                 <Button onClick={handleConfirmPaymentSent} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">
-                    <Check className="mr-2" /> I HAVE PAID (FINALIZE)
+                    <Check className="mr-2" /> Payment Confirmed
                 </Button>
             </div>
         </DialogContent>
@@ -419,4 +418,3 @@ export default function WithdrawalsPage() {
     </div>
   );
 }
-

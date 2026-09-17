@@ -135,14 +135,12 @@ function GoldCoin({ className }: { className?: string }) {
 
 /**
  * Animated Falling Cash emojis for background atmosphere.
- * Optimized to match the dense 'Money Rain' reference.
  */
 function FallingAtmosphere() {
   const [items, setItems] = useState<{ id: number; left: string; delay: string; duration: string; size: number; symbol: string }[]>([]);
 
   useEffect(() => {
     const symbols = ['💸', '💵', '💰', '💴', '💶'];
-    // Higher count for the dense effect seen in the user's reference image
     const newItems = Array.from({ length: 60 }).map((_, i) => ({
       id: i,
       left: `${Math.random() * 100}%`,
@@ -197,7 +195,6 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // Generate star background particles on client to avoid hydration errors
     const newParticles = Array.from({ length: 20 }).map(() => ({
       top: `${Math.random() * 100}%`,
       left: `${Math.random() * 100}%`,
@@ -236,8 +233,8 @@ export default function LoginPage() {
         setLoginStatus('error');
         toast({
             variant: "destructive",
-            title: "Authentication Failed",
-            description: "Invalid credentials. Please try again.",
+            title: "Login Failed",
+            description: "Invalid email or password. Please try again.",
         });
         setTimeout(() => setLoginStatus('idle'), 2000);
     }
@@ -252,15 +249,15 @@ export default function LoginPage() {
     try {
         await sendPasswordResetEmail(auth, resetEmail);
         toast({ 
-            title: "Reset Link Sent", 
-            description: `A recovery link has been dispatched to ${resetEmail}. Check your inbox/spam folder.` 
+            title: "Email Sent", 
+            description: `A reset link has been sent to ${resetEmail}.` 
         });
         setIsResetOpen(false);
         setResetEmail('');
     } catch (e: any) {
         let errorMsg = "Could not send reset link.";
         if (e.code === 'auth/user-not-found') errorMsg = "No account found with this email.";
-        toast({ title: "Recovery Failed", description: errorMsg, variant: "destructive" });
+        toast({ title: "Failed", description: errorMsg, variant: "destructive" });
     } finally {
         setResetLoading(false);
     }
@@ -299,15 +296,13 @@ export default function LoginPage() {
           </div>
           <GoldCoin className="absolute left-[5%] top-12 h-28 w-28 animate-bounce duration-[4000ms]" />
           <GoldCoin className="absolute right-[5%] top-24 h-24 w-24 animate-bounce duration-[3000ms] delay-700" />
-          <GoldCoin className="absolute left-[20%] top-56 h-14 w-14 animate-pulse duration-[2500ms] delay-100" />
-          <GoldCoin className="absolute right-[25%] top-10 h-16 w-16 animate-pulse duration-[5500ms] delay-500" />
       </div>
 
       <div className="relative z-10 w-full max-w-lg flex flex-col items-center space-y-8">
         <div className="w-full flex justify-between items-center px-4">
             <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl">
                 <div className="h-2.5 w-2.5 rounded-full bg-[#22c55e] shadow-[0_0_10px_#22c55e]" />
-                <span className="text-[11px] font-black text-white/90 uppercase tracking-[1px]">100% Secure</span>
+                <span className="text-[11px] font-black text-white/90 uppercase tracking-[1px]">Secure Login</span>
             </div>
             <a 
                 href="https://t.me/growmoney3" 
@@ -316,7 +311,7 @@ export default function LoginPage() {
                 className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl hover:bg-white/10 transition-colors group cursor-pointer"
             >
                 <Headset size={16} className="text-white/70 group-hover:text-primary transition-colors" />
-                <span className="text-[11px] font-black text-white/90 uppercase tracking-[1px]">24/7 Support</span>
+                <span className="text-[11px] font-black text-white/90 uppercase tracking-[1px]">Help & Support</span>
             </a>
         </div>
 
@@ -328,21 +323,21 @@ export default function LoginPage() {
               Grow <span className="text-[#22c55e]">Money</span>
               <span className="text-3xl">💰</span>
           </h1>
-          <p className="text-xs font-bold text-white/40 tracking-[3px] uppercase">Elite Investment Network</p>
+          <p className="text-xs font-bold text-white/40 tracking-[3px] uppercase">Smart Investment Hub</p>
         </div>
 
         <div className="grid grid-cols-3 gap-3 w-full px-2">
-            <StatsMiniCard icon={Users} value={5000} suffix="+" desc="Investors" color="text-purple-400" />
-            <StatsMiniCard icon={Wallet} value={12.45} prefix="₹" suffix="L+" desc="Paid Out" color="text-blue-400" decimals={2} />
-            <StatsMiniCard icon={TrendingUp} value={99.8} suffix="%" desc="Success" color="text-[#22c55e]" decimals={1} />
+            <StatsMiniCard icon={Users} value={5000} suffix="+" desc="Users" color="text-purple-400" />
+            <StatsMiniCard icon={Wallet} value={12.45} prefix="₹" suffix="L+" desc="Withdrawn" color="text-blue-400" decimals={2} />
+            <StatsMiniCard icon={TrendingUp} value={99.8} suffix="%" desc="Reliability" color="text-[#22c55e]" decimals={1} />
         </div>
 
         <div className="w-full max-w-md relative group px-2">
             <div className="absolute -inset-1 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-[2.5rem] blur-2xl opacity-50 group-hover:opacity-100 transition duration-500" />
             <div className="relative w-full bg-white/[0.04] backdrop-blur-[40px] border border-white/10 shadow-2xl rounded-[2rem] p-8 space-y-7">
                 <div className="text-center space-y-1">
-                    <h2 className="text-2xl font-black text-white tracking-tight">Secure Access Portal</h2>
-                    <p className="text-[11px] font-bold text-white/30 uppercase tracking-[2px]">Enter your credentials</p>
+                    <h2 className="text-2xl font-black text-white tracking-tight">Login to Dashboard</h2>
+                    <p className="text-[11px] font-bold text-white/30 uppercase tracking-[2px]">Enter your email and password</p>
                 </div>
 
                 <Form {...form}>
@@ -352,12 +347,12 @@ export default function LoginPage() {
                             name="email"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="text-white/50 text-[10px] font-black uppercase tracking-widest pl-1">Email Identifier</FormLabel>
+                                    <FormLabel className="text-white/50 text-[10px] font-black uppercase tracking-widest pl-1">Email Address</FormLabel>
                                     <FormControl>
                                         <div className="relative group">
                                             <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors" />
                                             <Input
-                                                placeholder="investor@tribed.world"
+                                                placeholder="example@email.com"
                                                 {...field}
                                                 className="pl-12 bg-white/5 border-white/10 rounded-xl h-14 focus:ring-primary focus:border-primary/50 text-white placeholder:text-white/10 text-base"
                                             />
@@ -372,7 +367,7 @@ export default function LoginPage() {
                             name="password"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="text-white/50 text-[10px] font-black uppercase tracking-widest pl-1">Security Key</FormLabel>
+                                    <FormLabel className="text-white/50 text-[10px] font-black uppercase tracking-widest pl-1">Password</FormLabel>
                                     <FormControl>
                                         <div className="relative group">
                                             <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors" />
@@ -401,14 +396,14 @@ export default function LoginPage() {
                         <div className="flex items-center justify-between px-1">
                             <div className="flex items-center space-x-2">
                                 <Checkbox id="remember" className="border-white/20 data-[state=checked]:bg-primary h-5 w-5 rounded-lg" />
-                                <label htmlFor="remember" className="text-xs font-bold text-white/40 cursor-pointer select-none">Stay Logged In</label>
+                                <label htmlFor="remember" className="text-xs font-bold text-white/40 cursor-pointer select-none">Remember Me</label>
                             </div>
                             <button 
                                 type="button" 
                                 onClick={() => setIsResetOpen(true)}
                                 className="text-xs font-bold text-primary hover:text-white transition-colors"
                             >
-                                Recover Account
+                                Forgot Password?
                             </button>
                         </div>
 
@@ -417,7 +412,7 @@ export default function LoginPage() {
                             className="w-full h-15 rounded-2xl text-lg font-black bg-primary text-white shadow-2xl shadow-primary/40 transition-all hover:scale-[1.02] active:scale-95 gap-3"
                             disabled={loginStatus === 'loading'}
                         >
-                            {loginStatus === 'loading' ? 'Authenticating...' : 'Authorize Login'}
+                            {loginStatus === 'loading' ? 'Checking...' : 'Login Now'}
                             <ChevronRight size={22} className={cn(loginStatus === 'loading' && "hidden")} />
                         </Button>
                     </form>
@@ -425,12 +420,12 @@ export default function LoginPage() {
 
                 <div className="flex flex-col items-center gap-5 pt-4">
                     <p className="text-xs font-bold text-white/30 tracking-tight">
-                        New to the platform?{" "}
-                        <Link href="/register" className="text-primary hover:text-white transition-colors underline underline-offset-4">Create Account</Link>
+                        New to Grow Money?{" "}
+                        <Link href="/register" className="text-primary hover:text-white transition-colors underline underline-offset-4">Register Here</Link>
                     </p>
                     <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                     <Link href="/admin/login" className="text-[10px] font-black uppercase tracking-[4px] text-white/20 hover:text-white transition-colors">
-                        Admin Terminal
+                        Admin Login
                     </Link>
                 </div>
             </div>
@@ -438,7 +433,7 @@ export default function LoginPage() {
 
         <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 flex items-center gap-4 backdrop-blur-xl shadow-2xl">
             <div className="h-2.5 w-2.5 rounded-full bg-[#22c55e] animate-ping shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-[2px] text-[#22c55e] shrink-0">Live Pulse</span>
+            <span className="text-[10px] font-black uppercase tracking-[2px] text-[#22c55e] shrink-0">Live Status</span>
             <div className="h-4 w-px bg-white/10 shrink-0" />
             <div className="flex-1 flex items-center gap-2.5 truncate overflow-hidden">
                 <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20">
@@ -452,10 +447,10 @@ export default function LoginPage() {
         </div>
 
         <div className="grid grid-cols-4 gap-2 w-full pt-4">
-            <FooterBadge icon={ShieldCheck} label="Bank-Grade" desc="Encryption" color="text-[#22c55e]" />
-            <FooterBadge icon={Zap} label="Instant" desc="Withdrawals" color="text-yellow-400" />
-            <FooterBadge icon={Users} label="Verified" desc="Community" color="text-purple-400" />
-            <FooterBadge icon={Headset} iconSize={20} label="Priority" desc="Support" color="text-blue-400" />
+            <FooterBadge icon={ShieldCheck} label="Safe" desc="Secure" color="text-[#22c55e]" />
+            <FooterBadge icon={Zap} label="Fast" desc="Payouts" color="text-yellow-400" />
+            <FooterBadge icon={Users} label="Trusted" desc="Community" color="text-purple-400" />
+            <FooterBadge icon={Headset} iconSize={20} label="Help" desc="Support" color="text-blue-400" />
         </div>
       </div>
 
@@ -465,9 +460,9 @@ export default function LoginPage() {
                 <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4 mx-auto">
                     <RefreshCcw className={cn("text-primary", resetLoading && "animate-spin")} />
                 </div>
-                <DialogTitle className="text-2xl font-black text-center tracking-tight">Account Recovery</DialogTitle>
+                <DialogTitle className="text-2xl font-black text-center tracking-tight">Reset Password</DialogTitle>
                 <DialogDescription className="text-white/40 text-center">
-                    Enter the email associated with your portfolio to receive a secure reset link.
+                    Enter your email to receive a password reset link.
                 </DialogDescription>
             </DialogHeader>
             <div className="py-6 space-y-4">
@@ -476,7 +471,7 @@ export default function LoginPage() {
                     <div className="relative group">
                         <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors" />
                         <Input
-                            placeholder="investor@tribed.world"
+                            placeholder="investor@example.com"
                             type="email"
                             value={resetEmail}
                             onChange={(e) => setResetEmail(e.target.value)}
@@ -491,10 +486,10 @@ export default function LoginPage() {
                     className="w-full h-14 rounded-xl font-black bg-primary text-white shadow-2xl shadow-primary/20"
                     disabled={resetLoading}
                 >
-                    {resetLoading ? "Processing..." : "Send Reset Link"}
+                    {resetLoading ? "Sending..." : "Send Reset Link"}
                 </Button>
                 <DialogClose asChild>
-                    <Button variant="ghost" className="w-full text-white/40 hover:text-white">Return to Login</Button>
+                    <Button variant="ghost" className="w-full text-white/40 hover:text-white">Back to Login</Button>
                 </DialogClose>
             </DialogFooter>
         </DialogContent>

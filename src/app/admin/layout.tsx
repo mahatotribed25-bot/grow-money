@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -99,7 +98,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => { if (!loading && pathname !== '/admin/login' && !isAdmin) router.push('/admin/login'); }, [isAdmin, loading, pathname, router]);
 
-  if (loading) return <div className="flex h-screen w-full flex-col items-center justify-center bg-[#020306]"><div className="h-10 w-10 animate-spin border-4 border-primary border-t-transparent rounded-full shadow-[0_0_20px_rgba(139,92,246,0.5)]" /><p className="mt-4 text-[10px] font-black uppercase tracking-[5px] text-white/20">Establishing Admin Connection</p></div>;
+  if (loading) return <div className="flex h-screen w-full flex-col items-center justify-center bg-[#020306]"><div className="h-10 w-10 animate-spin border-4 border-primary border-t-transparent rounded-full shadow-[0_0_20px_rgba(139,92,246,0.5)]" /><p className="mt-4 text-[10px] font-black uppercase tracking-[5px] text-white/20">Loading Admin Portal</p></div>;
   if (pathname === '/admin/login' || !isAdmin) return pathname === '/admin/login' ? <>{children}</> : null;
 
   const NavContent = () => (
@@ -112,41 +111,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <ScrollArea className="flex-1 px-4">
           <nav className="py-8 space-y-1.5">
-            <div className="text-[10px] font-black text-white/10 uppercase tracking-[4px] mb-4 px-4">Command Center</div>
-            <AdminNavItem icon={LayoutGrid} href="/admin">Dashboard</AdminNavItem>
+            <div className="text-[10px] font-black text-white/10 uppercase tracking-[4px] mb-4 px-4">Main Dashboard</div>
+            <AdminNavItem icon={LayoutGrid} href="/admin">Overview</AdminNavItem>
             <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance Hub</AdminNavItem>
             <AdminNavItem icon={Users} href="/admin/users">Investors</AdminNavItem>
             
-            <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Product Forge</div>
-            <AdminNavItem icon={TrendingUp} href="/admin/investment-plans">Investment Forge</AdminNavItem>
-            <AdminNavItem icon={Users2} href="/admin/group-loans">Group Pool Forge</AdminNavItem>
-            <AdminNavItem icon={Hammer} href="/admin/loan-plans">Standard Loan Forge</AdminNavItem>
+            <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Management</div>
+            <AdminNavItem icon={TrendingUp} href="/admin/investment-plans">Manage Plans</AdminNavItem>
+            <AdminNavItem icon={Users2} href="/admin/group-loans">Group Pools</AdminNavItem>
+            <AdminNavItem icon={Hammer} href="/admin/loan-plans">Loan Setup</AdminNavItem>
             
-            <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Market & Work</div>
+            <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Market & Tasks</div>
             <AdminNavItem icon={ClipboardCheck} href="/admin/tasks">Earn Tasks</AdminNavItem>
             <AdminNavItem icon={FileStack} href="/admin/task-submissions" count={pendingSubmissions?.length}>Work Submissions</AdminNavItem>
-            <AdminNavItem icon={Handshake} href="/admin/p2p-loans">P2P Marketplace</AdminNavItem>
-            <AdminNavItem icon={Zap} href="/admin/custom-loans" count={pendingCustomLoanRequests?.length}>Flexi Protocols</AdminNavItem>
+            <AdminNavItem icon={Handshake} href="/admin/p2p-loans">P2P Market</AdminNavItem>
+            <AdminNavItem icon={Zap} href="/admin/custom-loans" count={pendingCustomLoanRequests?.length}>Flexible Loans</AdminNavItem>
             
-            <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Validation Nodes</div>
-            <AdminNavItem icon={BellRing} href="/admin/reminders">Reminder Hub</AdminNavItem>
+            <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Pending Approvals</div>
+            <AdminNavItem icon={BellRing} href="/admin/reminders">Reminders</AdminNavItem>
             <AdminNavItem icon={Landmark} href="/admin/loans" count={pendingStandardLoans?.length}>Loan Requests</AdminNavItem>
-            <AdminNavItem icon={FileCheck} href="/admin/kyc-requests" count={pendingKycRequests?.length}>KYC Pipeline</AdminNavItem>
+            <AdminNavItem icon={FileCheck} href="/admin/kyc-requests" count={pendingKycRequests?.length}>KYC Checks</AdminNavItem>
             <AdminNavItem icon={Smartphone} href="/admin/upi-requests" count={pendingUpiRequests?.length}>UPI Registry</AdminNavItem>
-            <AdminNavItem icon={Upload} href="/admin/deposits" count={pendingDeposits?.length}>Inflow Nodes</AdminNavItem>
-            <AdminNavItem icon={Download} href="/admin/withdrawals" count={pendingWithdrawals?.length}>Outflow Nodes</AdminNavItem>
+            <AdminNavItem icon={Upload} href="/admin/deposits" count={pendingDeposits?.length}>Deposits</AdminNavItem>
+            <AdminNavItem icon={Download} href="/admin/withdrawals" count={pendingWithdrawals?.length}>Withdrawals</AdminNavItem>
             
-            <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Broadcast</div>
-            <AdminNavItem icon={Megaphone} href="/admin/announcements">Protocol News</AdminNavItem>
-            <AdminNavItem icon={Gift} href="/admin/coupons">Gift Nodes</AdminNavItem>
-            <AdminNavItem icon={MessageSquare} href="/admin/chat">Terminal Support</AdminNavItem>
-            <AdminNavItem icon={Settings} href="/admin/settings">System Config</AdminNavItem>
+            <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Communications</div>
+            <AdminNavItem icon={Megaphone} href="/admin/announcements">News & Updates</AdminNavItem>
+            <AdminNavItem icon={Gift} href="/admin/coupons">Gifts & Coupons</AdminNavItem>
+            <AdminNavItem icon={MessageSquare} href="/admin/chat">Support Chat</AdminNavItem>
+            <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
           </nav>
         </ScrollArea>
         <div className="p-6 border-t border-white/[0.03]">
             <Button variant="ghost" className="w-full justify-start rounded-2xl h-12 text-white/20 hover:text-red-400 hover:bg-red-400/5 transition-all" onClick={handleLogout}>
                 <LogOut className="mr-3 h-4 w-4" /> 
-                <span className="text-xs font-black uppercase tracking-widest">De-Authorize</span>
+                <span className="text-xs font-black uppercase tracking-widest">Logout</span>
             </Button>
         </div>
     </div>
@@ -178,14 +177,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
              </Sheet>
              <div className="relative w-full max-w-md hidden md:block group">
                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors" />
-                 <Input placeholder="Search Global Ledger..." className="bg-white/[0.03] border-white/5 h-12 w-full pl-12 rounded-2xl focus:ring-primary focus:bg-white/[0.05] text-xs font-black uppercase tracking-widest transition-all" />
+                 <Input placeholder="Search History..." className="bg-white/[0.03] border-white/5 h-12 w-full pl-12 rounded-2xl focus:ring-primary focus:bg-white/[0.05] text-xs font-black uppercase tracking-widest transition-all" />
              </div>
           </div>
 
           <div className="flex items-center gap-6">
              <div className="hidden sm:flex flex-col items-end">
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Active Node</p>
-                <p className="text-xs font-black text-white/80">Admin Terminal</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Status</p>
+                <p className="text-xs font-black text-white/80">Administrator</p>
              </div>
              
              <Popover>
@@ -199,7 +198,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </PopoverTrigger>
                 <PopoverContent className="w-96 bg-[#0a0b14] border-white/10 p-0 rounded-[2rem] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-200">
                     <div className="p-6 border-b border-white/[0.03] flex justify-between items-center bg-white/[0.02]">
-                        <h4 className="font-black text-[11px] uppercase tracking-[4px] text-primary">Protocol Alerts</h4>
+                        <h4 className="font-black text-[11px] uppercase tracking-[4px] text-primary">Alerts</h4>
                         <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px]">{notifications.length}</Badge>
                     </div>
                     <ScrollArea className="max-h-[400px]">
@@ -219,7 +218,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         ) : (
                             <div className="p-20 text-center flex flex-col items-center gap-3">
                                 <CheckCircle2 size={32} className="text-white/5" />
-                                <p className="text-[10px] font-black uppercase tracking-[3px] text-white/10">Ledger fully verified</p>
+                                <p className="text-[10px] font-black uppercase tracking-[3px] text-white/10">All items cleared</p>
                             </div>
                         )}
                     </ScrollArea>

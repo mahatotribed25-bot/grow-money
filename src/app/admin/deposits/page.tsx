@@ -212,13 +212,13 @@ export default function DepositsPage() {
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Reference ID</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Timestamp</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Status</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pr-6 text-right">Dispatch</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pr-6 text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow className="border-transparent">
-                <TableCell colSpan={7} className="text-center py-20 text-white/20 font-black animate-pulse">SYNCING NODES...</TableCell>
+                <TableCell colSpan={7} className="text-center py-20 text-white/20 font-black animate-pulse">Loading Deposits...</TableCell>
               </TableRow>
             ) : filteredDeposits.length > 0 ? (
               filteredDeposits.map((deposit) => (
@@ -283,7 +283,7 @@ export default function DepositsPage() {
             ) : (
                 <TableRow className="border-transparent">
                     <TableCell colSpan={7} className="text-center py-20 text-white/10 italic text-sm">
-                        No {filterStatus} nodes detected.
+                        No {filterStatus} requests found.
                     </TableCell>
                 </TableRow>
             )}
