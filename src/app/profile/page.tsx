@@ -29,7 +29,8 @@ import {
   CheckCircle2,
   Coins,
   Banknote,
-  Stamp
+  Stamp,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection } from '@/firebase';
-import { Timestamp, doc, updateDoc, collection, query, where, getDocs, orderBy, serverTimestamp, addDoc } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc, collection, query, where, getDocs, orderBy, serverTimestamp, addDoc, deleteField } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -161,20 +162,25 @@ export default function ProfilePage() {
 
   const [selectedReceipt, setSelectedReceipt] = useState<{ tx: Transaction, type: 'deposit' | 'withdrawal' } | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isSubmittingKyc, setIsSubmittingKyc] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     const fetchGroupInvestments = async () => {
         const allInvestments: GroupInvestment[] = [];
-        const plansSnapshot = await getDocs(collection(firestore, 'groupLoanPlans'));
-        for (const planDoc of plansSnapshot.docs) {
-            const iq = query(collection(firestore, `groupLoanPlans/${planDoc.id}/investments`), where('investorId', '==', user.uid));
-            const investmentSnapshot = await getDocs(iq);
-            investmentSnapshot.forEach(invDoc => {
-                allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
-            });
+        try {
+            const plansSnapshot = await getDocs(collection(firestore, 'groupLoanPlans'));
+            for (const planDoc of plansSnapshot.docs) {
+                const iq = query(collection(firestore, `groupLoanPlans/${planDoc.id}/investments`), where('investorId', '==', user.uid));
+                const investmentSnapshot = await getDocs(iq);
+                investmentSnapshot.forEach(invDoc => {
+                    allInvestments.push({ id: invDoc.id, ...invDoc.data() } as GroupInvestment);
+                });
+            }
+            setGroupInvestments(allInvestments);
+        } catch (e) {
+            console.error("Group fetch failed", e);
         }
-        setGroupInvestments(allInvestments);
     };
     fetchGroupInvestments();
   }, [user, firestore]);
@@ -197,11 +203,15 @@ export default function ProfilePage() {
   
   const handleUpdateName = async () => {
     if (!user || !auth.currentUser) return;
-    await updateProfile(auth.currentUser, { displayName: editName });
-    await updateDoc(doc(firestore, 'users', user.uid), { name: editName });
-    toast({ title: "Name Updated" });
-    setIsEditProfileOpen(false);
-    if (refetchUser) refetchUser();
+    try {
+        await updateProfile(auth.currentUser, { displayName: editName });
+        await updateDoc(doc(firestore, 'users', user.uid), { name: editName });
+        toast({ title: "Name Updated" });
+        setIsEditProfileOpen(false);
+        if (refetchUser) refetchUser();
+    } catch (e) {
+        toast({ title: "Error", description: "Failed to update name.", variant: "destructive" });
+    }
   };
 
   const handleUpdateUpi = async () => {
@@ -290,8 +300,11 @@ export default function ProfilePage() {
         return;
     }
 
+    setIsSubmittingKyc(true);
     try {
         const userRef = doc(firestore, 'users', user.uid);
+        
+        // We explicitly clear old rejection reasons and expiry dates if this is a re-verify
         await updateDoc(userRef, {
             panCard: kycPan.toUpperCase(),
             aadhaarNumber: kycAadhaar,
@@ -299,14 +312,18 @@ export default function ProfilePage() {
             panImage: panImage,
             aadhaarImage: aadhaarImage,
             kycStatus: 'Pending',
-            kycSubmissionDate: serverTimestamp()
+            kycSubmissionDate: serverTimestamp(),
+            kycRejectionReason: deleteField(),
+            kycExpiryDate: deleteField()
         });
 
         toast({ title: "KYC Submitted", description: "Your documents are now being reviewed." });
         setIsKycOpen(false);
         if (refetchUser) refetchUser();
     } catch (e) {
-        toast({ title: "Error", description: "Submission failed.", variant: "destructive" });
+        toast({ title: "Error", description: "Submission failed. Please try again.", variant: "destructive" });
+    } finally {
+        setIsSubmittingKyc(false);
     }
   };
 
@@ -490,7 +507,7 @@ export default function ProfilePage() {
                     </div>
                     <Progress value={kycProgress} className="h-2" />
                     
-                    {userData?.kycRejectionReason && (userData?.kycStatus === 'Not Submitted' || userData?.kycStatus === 'Rejected') && (
+                    {userData?.kycRejectionReason && (userData?.kycStatus === 'Not Submitted' || userData?.kycStatus === 'Rejected' || userData?.kycStatus === 'Pending') && (
                         <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex gap-3 items-start animate-in slide-in-from-top-2">
                             <Info className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                             <div className="space-y-1">
@@ -683,7 +700,16 @@ export default function ProfilePage() {
                         <Input value={kycPhone} onChange={e => setKycPhone(e.target.value)} placeholder="9876543210" className="h-12 rounded-xl" />
                     </div>
                 </div>
-                <DialogFooter><Button onClick={handleSubmitKyc} className="w-full h-12 rounded-xl font-bold bg-primary">Submit for Verification</Button></DialogFooter>
+                <DialogFooter>
+                    <Button onClick={handleSubmitKyc} disabled={isSubmittingKyc} className="w-full h-12 rounded-xl font-bold bg-primary shadow-xl shadow-primary/20">
+                        {isSubmittingKyc ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Submitting Identity...
+                            </>
+                        ) : 'Submit for Verification'}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
 
@@ -779,7 +805,7 @@ export default function ProfilePage() {
         )}
       </main>
 
-      <nav className="sticky bottom-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-sm h-16 flex items-center justify-around px-4">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-xl h-16 flex items-center justify-around px-4">
           <BottomNavItem icon={Home} label={t.nav.home} href="/dashboard" />
           <BottomNavItem icon={Briefcase} label={t.nav.plans} href="/plans" />
           <BottomNavItem icon={Trophy} label={t.nav.leaders} href="/leaderboard" />
