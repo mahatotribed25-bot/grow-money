@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -14,6 +13,9 @@ import {
   Upload,
   FileCheck,
   HandCoins,
+  IndianRupee,
+  ShieldCheck,
+  UserCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,8 +33,10 @@ import {
 import { useUser, useCollection, useDoc } from '@/firebase';
 import { useEffect, useMemo } from 'react';
 import type { Timestamp } from 'firebase/firestore';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
-const ADMIN_EMAIL = 'admin@tribed.world';
+const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
 type UserPermissions = {
     canManageDeposits?: boolean;
@@ -46,6 +50,7 @@ type UserData = {
     role?: 'user' | 'subadmin';
     email?: string;
     permissions?: UserPermissions;
+    name?: string;
 }
 
 type BaseRequest = {
@@ -72,7 +77,7 @@ export default function SubAdminLayout({
   
   const loading = userLoading || userDataLoading;
   const permissions = userData?.permissions;
-  const isAuthorized = userData && (userData.role === 'subadmin' || userData.email === ADMIN_EMAIL);
+  const isAuthorized = userData && (userData.role === 'subadmin' || (userData.email && ADMIN_EMAILS.includes(userData.email.toLowerCase())));
 
   const { data: pendingDeposits } = useCollection<DepositRequest>(
     isAuthorized && permissions?.canManageDeposits ? 'deposits' : null, 
@@ -88,7 +93,7 @@ export default function SubAdminLayout({
   );
    const { data: pendingKycRequests } = useCollection<KycRequest>(
     isAuthorized && permissions?.canManageKyc ? 'users' : null,
-    { where: ['kycStatus', '==', 'Pending'] } // Fixed: Capital P
+    { where: ['kycStatus', '==', 'Pending'] }
   );
   const { data: pendingCustomLoanRequests } = useCollection<CustomLoanRequest>(
     isAuthorized && permissions?.canManageCustomLoans ? 'customLoanRequests' : null,
@@ -118,171 +123,127 @@ export default function SubAdminLayout({
   const notificationCount = notifications.length;
 
   useEffect(() => {
-    if (loading) {
-      return; 
-    }
-
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    
-    if (!isAuthorized) {
-       router.push('/dashboard');
-    }
+    if (!loading && !user) router.push('/login');
+    if (!loading && user && !isAuthorized) router.push('/dashboard');
   }, [user, isAuthorized, loading, router]);
 
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen w-full items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (!isAuthorized) {
-    return (
-      <div className="flex min-h-screen w-full items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+  if (loading || !isAuthorized) {
+    return <div className="flex min-h-screen w-full items-center justify-center bg-background"><Timer className="animate-spin text-primary" /></div>;
   }
 
   const navLinks = [
-    { href: "/subadmin/custom-loans", icon: FileText, label: "Custom Loans", permission: permissions?.canManageCustomLoans },
-    { href: "/subadmin/kyc-requests", icon: FileCheck, label: "KYC Requests", permission: permissions?.canManageKyc },
-    { href: "/subadmin/loans", icon: HandCoins, label: "Loan Requests", permission: permissions?.canManagePlanLoans },
-    { href: "/subadmin/deposits", icon: Upload, label: "Deposits", permission: permissions?.canManageDeposits },
-    { href: "/subadmin/withdrawals", icon: Download, label: "Withdrawals", permission: permissions?.canManageWithdrawals },
-  ].filter(link => userData?.email === ADMIN_EMAIL || link.permission);
+    { href: "/subadmin/custom-loans", icon: FileText, label: "Custom Loans", permission: permissions?.canManageCustomLoans, count: pendingCustomLoanRequests?.length },
+    { href: "/subadmin/kyc-requests", icon: FileCheck, label: "KYC Requests", permission: permissions?.canManageKyc, count: pendingKycRequests?.length },
+    { href: "/subadmin/loans", icon: HandCoins, label: "Loan Requests", permission: permissions?.canManagePlanLoans, count: pendingLoanRequests?.length },
+    { href: "/subadmin/deposits", icon: Upload, label: "Deposits", permission: permissions?.canManageDeposits, count: pendingDeposits?.length },
+    { href: "/subadmin/withdrawals", icon: Download, label: "Withdrawals", permission: permissions?.canManageWithdrawals, count: pendingWithdrawals?.length },
+  ].filter(link => (userData?.email && ADMIN_EMAILS.includes(userData.email.toLowerCase())) || link.permission);
 
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <div className="hidden border-r bg-muted/40 md:block">
-        <div className="flex h-full max-h-screen flex-col gap-2">
-          <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-            <Link
-              href="/subadmin"
-              className="flex items-center gap-2 font-semibold"
-            >
-              <Briefcase className="h-6 w-6 text-primary" />
-              <span className="">Sub-Admin Panel</span>
-            </Link>
+    <div className="grid min-h-screen w-full md:grid-cols-[240px_1fr] lg:grid-cols-[280px_1fr] bg-background">
+      <aside className="hidden border-r border-white/5 bg-black/40 backdrop-blur-xl md:block">
+        <div className="flex h-full max-h-screen flex-col">
+          <div className="flex h-20 items-center px-6 gap-3 border-b border-white/5">
+            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary shadow-lg border border-primary/10">
+                <Briefcase size={22} />
+            </div>
+            <span className="font-black text-lg tracking-tighter uppercase text-white">Staff Node</span>
           </div>
-          <nav className="flex-1 grid items-start px-2 text-sm font-medium lg:px-4">
-             {navLinks.map(link => (
-                <AdminNavItem key={link.href} icon={link.icon} href={link.href}>
-                  {link.label}
-                </AdminNavItem>
-              ))}
-          </nav>
-          <div className="mt-auto p-4">
-            <Button size="sm" className="w-full" asChild>
-              <Link href="/dashboard">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Dashboard
-              </Link>
+          
+          <div className="flex-1 px-4 py-8 space-y-8 overflow-y-auto custom-scrollbar">
+            <nav className="space-y-1.5">
+                <div className="text-[10px] font-black text-white/10 uppercase tracking-[4px] mb-4 px-4">Authorized Modules</div>
+                {navLinks.map(link => (
+                    <AdminNavItem key={link.href} icon={link.icon} href={link.href} count={link.count}>
+                        {link.label}
+                    </AdminNavItem>
+                ))}
+            </nav>
+            
+            <nav className="space-y-1.5 pt-4">
+                <div className="text-[10px] font-black text-white/10 uppercase tracking-[4px] mb-4 px-4">My Dashboard</div>
+                <AdminNavItem icon={UserCircle} href="/profile">Personal Profile</AdminNavItem>
+            </nav>
+          </div>
+
+          <div className="p-6 border-t border-white/5">
+            <Button variant="outline" className="w-full h-12 rounded-2xl border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:bg-white/10" asChild>
+              <Link href="/dashboard"><ArrowLeft className="mr-3 h-4 w-4" /> User Portal</Link>
             </Button>
           </div>
         </div>
-      </div>
-      <div className="flex flex-col">
-        <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="shrink-0 md:hidden"
-              >
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle navigation menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="flex flex-col">
-              <SheetHeader>
-                <SheetTitle className="sr-only">Sub-Admin Menu</SheetTitle>
-              </SheetHeader>
-              <nav className="grid gap-2 text-lg font-medium">
-                <Link
-                  href="/subadmin"
-                  className="flex items-center gap-2 text-lg font-semibold mb-4"
-                >
-                  <Briefcase className="h-6 w-6 text-primary" />
-                  <span>Sub-Admin Panel</span>
-                </Link>
-                 {navLinks.map(link => (
-                    <AdminNavItem key={link.href} icon={link.icon} href={link.href}>
-                      {link.label}
-                    </AdminNavItem>
-                  ))}
-              </nav>
-              <div className="mt-auto">
-                <Button size="sm" className="w-full" asChild>
-                   <Link href="/dashboard">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Dashboard
-                  </Link>
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
-          <div className="w-full flex-1">
-            <h1 className="text-lg font-semibold capitalize">
-              {pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
-            </h1>
+      </aside>
+
+      <div className="flex flex-col min-w-0">
+        <header className="h-20 flex items-center justify-between px-8 border-b border-white/5 bg-black/20 backdrop-blur-xl sticky top-0 z-40">
+          <div className="flex items-center gap-4 flex-1">
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="md:hidden text-white/60">
+                        <Menu size={24} />
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="p-0 border-r border-white/5 bg-background w-[300px]">
+                    <div className="h-full flex flex-col">
+                        <div className="h-20 flex items-center px-8 border-b border-white/5"><span className="font-black text-lg uppercase">Staff Menu</span></div>
+                        <nav className="flex-1 py-8 px-4 space-y-1.5">
+                            {navLinks.map(link => (
+                                <AdminNavItem key={link.href} icon={link.icon} href={link.href} count={link.count}>{link.label}</AdminNavItem>
+                            ))}
+                            <div className="pt-8"><AdminNavItem icon={UserCircle} href="/profile">My Profile</AdminNavItem></div>
+                        </nav>
+                    </div>
+                </SheetContent>
+            </Sheet>
+            <div className="hidden sm:block">
+                <h1 className="text-xl font-black uppercase tracking-tight text-white/90">
+                    {pathname.split('/').pop()?.replace('-', ' ') || 'Overview'}
+                </h1>
+            </div>
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                {notificationCount > 0 && (
-                  <span className="absolute top-0 right-0 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80">
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium leading-none">Notifications</h4>
-                  <p className="text-sm text-muted-foreground">
-                    You have {notificationCount} new notifications.
-                  </p>
-                </div>
-                <div className="grid gap-2">
-                  {notificationCount > 0 ? (
-                    notifications.slice(0, 5).map((notification) => (
-                      <Link
-                        key={`${notification.type}-${notification.id}`}
-                        href={notification.link}
-                        className="flex items-start gap-4 p-2 -mx-2 rounded-lg hover:bg-accent"
-                      >
-                        <div className="grid gap-1">
-                          <p className="text-sm font-medium">
-                            New {notification.type} Request
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            From: {notification.name}
-                          </p>
-                        </div>
-                      </Link>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No new notifications.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+
+          <div className="flex items-center gap-6">
+            <div className="hidden lg:flex flex-col items-end">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Active Node</p>
+                <p className="text-xs font-black text-white/80">{userData?.name || 'Authorized Staff'}</p>
+            </div>
+            
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative h-12 w-12 rounded-2xl bg-white/5 border border-white/10">
+                        <Bell className="h-5 w-5 text-white/60" />
+                        {notificationCount > 0 && <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-primary animate-pulse" />}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 bg-[#0a0b14] border-white/10 p-0 rounded-3xl overflow-hidden shadow-2xl">
+                    <div className="p-5 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                        <h4 className="font-black text-[10px] uppercase tracking-widest">Pipeline Alerts</h4>
+                        <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px]">{notificationCount}</Badge>
+                    </div>
+                    <ScrollArea className="max-h-[350px]">
+                        {notificationCount > 0 ? (
+                            notifications.map(n => (
+                                <Link key={n.id} href={n.link} className="flex flex-col p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
+                                    <p className="text-[11px] font-black text-white/80 uppercase">New {n.type}</p>
+                                    <p className="text-[10px] text-white/20 font-bold mt-0.5">{n.name}</p>
+                                </Link>
+                            ))
+                        ) : <div className="p-10 text-center text-[10px] uppercase font-black text-white/10">All Nodes Clear</div>}
+                    </ScrollArea>
+                </PopoverContent>
+            </Popover>
+
+            <Avatar className="h-11 w-11 rounded-xl border border-white/10 p-0.5">
+                <AvatarImage src={user?.photoURL || undefined} className="rounded-[9px]" />
+                <AvatarFallback className="bg-white/5 text-primary text-xs font-black">{userData?.name?.charAt(0)}</AvatarFallback>
+            </Avatar>
+          </div>
         </header>
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+
+        <main className="flex-1 p-6 lg:p-8 custom-scrollbar relative">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/40 to-transparent" />
           {children}
         </main>
       </div>
@@ -290,29 +251,27 @@ export default function SubAdminLayout({
   );
 }
 
-function AdminNavItem({
-  href,
-  icon: Icon,
-  children,
-}: {
-  href: string;
-  icon: React.ElementType;
-  children: React.ReactNode;
-}) {
+function AdminNavItem({ href, icon: Icon, children, count }: { href: string; icon: any; children: React.ReactNode; count?: number }) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm ${
-        isActive
-          ? 'bg-primary text-primary-foreground'
-          : 'text-muted-foreground hover:bg-muted'
-      }`}
+      className={cn(
+        "flex items-center justify-between h-12 px-4 rounded-2xl transition-all group",
+        isActive 
+            ? "bg-primary/20 text-primary border border-primary/10 shadow-lg" 
+            : "text-white/40 hover:text-white hover:bg-white/5"
+      )}
     >
-      <Icon className="h-4 w-4" />
-      {children}
+      <div className="flex items-center gap-3">
+        <Icon size={18} className={cn("transition-transform group-hover:scale-110", isActive ? "text-primary" : "text-white/20")} />
+        <span className={cn("text-[11px] font-black uppercase tracking-widest", isActive ? "text-white" : "")}>{children}</span>
+      </div>
+      {count !== undefined && count > 0 && (
+          <Badge className="bg-primary/20 text-primary border-primary/20 text-[8px] font-black h-5 px-1.5 min-w-[20px] justify-center">{count}</Badge>
+      )}
     </Link>
   );
 }
