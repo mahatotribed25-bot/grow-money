@@ -10,16 +10,44 @@
         "email": { "type": "string", "format": "email" },
         "name": { "type": "string" },
         "role": { "type": "string", "enum": ["user", "subadmin"] },
+        "permissions": {
+            "type": "object",
+            "properties": {
+                "canManageDeposits": { "type": "boolean" },
+                "canManageWithdrawals": { "type": "boolean" },
+                "canManageKyc": { "type": "boolean" },
+                "canManagePlanLoans": { "type": "boolean" },
+                "canManageCustomLoans": { "type": "boolean" },
+                "canManageMarket": { "type": "boolean" }
+            }
+        },
         "walletBalance": { "type": "number" },
         "totalInvestment": { "type": "number" },
         "totalIncome": { "type": "number" },
         "status": { "type": "string", "enum": ["Active", "Blocked"] },
         "trustScore": { "type": "number" },
         "vipLevel": { "type": "string", "enum": ["Bronze", "Silver", "Gold", "Platinum"] },
-        "kycStatus": { "type": "string", "enum": ["Not Submitted", "Pending", "Verified", "Rejected"] },
-        "kycExpiryDate": { "type": "string", "format": "date-time" }
+        "kycStatus": { "type": "string", "enum": ["Not Submitted", "Pending", "Verified", "Rejected"] }
       },
       "required": ["uid", "email"]
+    },
+    "staffSalary": {
+        "title": "Staff Salary",
+        "description": "A record of salary payment to a staff member.",
+        "type": "object",
+        "properties": {
+            "staffId": { "type": "string" },
+            "staffName": { "type": "string" },
+            "month": { "type": "string" },
+            "year": { "type": "number" },
+            "baseSalary": { "type": "number" },
+            "bonus": { "type": "number" },
+            "deductions": { "type": "number" },
+            "netPaid": { "type": "number" },
+            "paidAt": { "type": "string", "format": "date-time" },
+            "paymentMethod": { "type": "string" },
+            "transactionId": { "type": "string" }
+        }
     },
     "investmentPlan": {
       "title": "Investment Plan",
@@ -30,20 +58,8 @@
         "price": { "type": "number" },
         "dailyIncome": { "type": "number" },
         "validity": { "type": "number" },
-        "status": { "type": "string", "enum": ["Available", "Coming Soon"] },
-        "stock": { "type": "number" }
+        "status": { "type": "string", "enum": ["Available", "Coming Soon"] }
       }
-    },
-    "customLoan": {
-        "title": "Custom Loan",
-        "description": "A flexible loan request from a user.",
-        "type": "object",
-        "properties": {
-            "userId": { "type": "string" },
-            "requestedAmount": { "type": "number" },
-            "status": { "type": "string" },
-            "totalRepayment": { "type": "number" }
-        }
     }
   },
   "auth": {
@@ -54,13 +70,9 @@
       "schema": { "$ref": "#/entities/user" },
       "description": "Stores user profile information."
     },
-    "/investmentPlans/{planId}": {
-      "schema": { "$ref": "#/entities/investmentPlan" },
-      "description": "Stores available investment products."
-    },
-    "/customLoanRequests/{requestId}": {
-        "schema": { "$ref": "#/entities/customLoan" },
-        "description": "Stores user flexi-loan applications."
+    "/staffSalaries/{salaryId}": {
+        "schema": { "$ref": "#/entities/staffSalary" },
+        "description": "Stores historical salary payment records."
     }
   }
 }

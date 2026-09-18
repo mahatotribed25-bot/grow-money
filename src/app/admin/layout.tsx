@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -33,7 +34,9 @@ import {
   Smartphone,
   ShieldCheck,
   Landmark,
-  Hammer
+  Hammer,
+  ShieldAlert,
+  Coins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -116,6 +119,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance Hub</AdminNavItem>
             <AdminNavItem icon={Users} href="/admin/users">Investors</AdminNavItem>
             
+            <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Administrative</div>
+            <AdminNavItem icon={ShieldAlert} href="/admin/staff">Staff Management</AdminNavItem>
+            <AdminNavItem icon={Coins} href="/admin/salaries">Payroll Hub</AdminNavItem>
+            
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Management</div>
             <AdminNavItem icon={TrendingUp} href="/admin/investment-plans">Manage Plans</AdminNavItem>
             <AdminNavItem icon={Users2} href="/admin/group-loans">Group Pools</AdminNavItem>
@@ -136,7 +143,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AdminNavItem icon={Download} href="/admin/withdrawals" count={pendingWithdrawals?.length}>Withdrawals</AdminNavItem>
             
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Communications</div>
-            <AdminNavItem icon={Megaphone} href="/admin/announcements">News & Updates</AdminNavItem>
+            <AdminNavItem icon={Megaphone} href="/admin/announcements">News & Updates</Megaphone>
             <AdminNavItem icon={Gift} href="/admin/coupons">Gifts & Coupons</AdminNavItem>
             <AdminNavItem icon={MessageSquare} href="/admin/chat">Support Chat</AdminNavItem>
             <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>

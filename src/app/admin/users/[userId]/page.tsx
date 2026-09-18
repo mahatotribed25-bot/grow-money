@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -37,7 +38,9 @@ import {
   Smartphone,
   CheckCircle2,
   ImageIcon,
-  X
+  X,
+  ShieldAlert,
+  Settings2
 } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp, orderBy } from 'firebase/firestore';
@@ -76,6 +79,7 @@ type UserPermissions = {
     canManageKyc?: boolean;
     canManagePlanLoans?: boolean;
     canManageCustomLoans?: boolean;
+    canManageMarket?: boolean;
 }
 
 type UserData = {
@@ -286,6 +290,7 @@ export default function UserDetailPage() {
     canManageKyc: false,
     canManagePlanLoans: false,
     canManageCustomLoans: false,
+    canManageMarket: false,
   };
   const [permissions, setPermissions] = useState<UserPermissions>(defaultPermissions);
 
@@ -721,6 +726,66 @@ export default function UserDetailPage() {
           </Card>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] shadow-2xl p-8">
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+                        <ShieldAlert size={20}/>
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Permissions Node</h3>
+                        <p className="text-[9px] font-bold text-white/20 uppercase tracking-[2px]">RBAC Access Control</p>
+                    </div>
+                </div>
+
+                <div className="space-y-5">
+                    <PermissionToggle id="kyc" label="Manage Identity (KYC)" checked={permissions.canManageKyc} onChange={v => handlePermissionChange('canManageKyc', v)} />
+                    <PermissionToggle id="deposits" label="Manage Deposits" checked={permissions.canManageDeposits} onChange={v => handlePermissionChange('canManageDeposits', v)} />
+                    <PermissionToggle id="withdrawals" label="Manage Payouts" checked={permissions.canManageWithdrawals} onChange={v => handlePermissionChange('canManageWithdrawals', v)} />
+                    <PermissionToggle id="loans" label="Standard Loan Control" checked={permissions.canManagePlanLoans} onChange={v => handlePermissionChange('canManagePlanLoans', v)} />
+                    <PermissionToggle id="custom" label="Flexible Loan Control" checked={permissions.canManageCustomLoans} onChange={v => handlePermissionChange('canManageCustomLoans', v)} />
+                    <PermissionToggle id="market" label="Market Management" checked={permissions.canManageMarket} onChange={v => handlePermissionChange('canManageMarket', v)} />
+                    
+                    <Button onClick={handleSavePermissions} className="w-full h-12 rounded-xl bg-primary text-white font-black uppercase tracking-widest text-[10px] mt-4 shadow-xl shadow-primary/20">
+                        Authorize Access Nodes
+                    </Button>
+                </div>
+           </Card>
+
+           <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] shadow-2xl p-8">
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+                        <Settings2 size={20}/>
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Account Status</h3>
+                        <p className="text-[9px] font-bold text-white/20 uppercase tracking-[2px]">System Integrity Node</p>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
+                        <div>
+                            <p className="text-xs font-bold text-white/60">Investor Role</p>
+                            <p className="text-sm font-black text-primary uppercase tracking-tighter">{user.role || 'User'}</p>
+                        </div>
+                        <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase px-2 h-5">Verified</Badge>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Maintenance Tools</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Button variant="outline" onClick={handlePasswordReset} className="h-11 rounded-xl border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:bg-white/10">Reset Key</Button>
+                            <Button variant="outline" onClick={handleToggleStatus} className={cn(
+                                "h-11 rounded-xl border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:bg-white/10",
+                                user.status === 'Blocked' ? "text-green-400" : "text-red-400"
+                            )}>{user.status === 'Blocked' ? 'Activate' : 'Suspend'}</Button>
+                        </div>
+                    </div>
+                </div>
+           </Card>
+      </div>
+
       <Tabs defaultValue="history" className="w-full">
         <TabsList className="bg-white/5 border-white/10 p-1.5 h-16 rounded-[1.5rem] w-full max-w-2xl mx-auto flex gap-2">
           <TabsTrigger value="history" className="flex-1 rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-white/10 data-[state=active]:text-primary">Ledger</TabsTrigger>
@@ -927,6 +992,15 @@ export default function UserDetailPage() {
       </Dialog>
     </div>
   );
+}
+
+function PermissionToggle({ id, label, checked, onChange }: { id: string, label: string, checked?: boolean, onChange: (v: boolean) => void }) {
+    return (
+        <div className="flex items-center justify-between group">
+            <Label htmlFor={id} className="text-[11px] font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-colors cursor-pointer">{label}</Label>
+            <Switch id={id} checked={checked} onCheckedChange={onChange} className="data-[state=checked]:bg-primary" />
+        </div>
+    );
 }
 
 function KycInfoRow({ label, value, icon: Icon, mono }: { label: string, value: string, icon: any, mono?: boolean }) {
