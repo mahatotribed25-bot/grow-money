@@ -30,7 +30,9 @@ import {
   Coins,
   Banknote,
   Stamp,
-  Loader2
+  Loader2,
+  ShieldAlert,
+  Settings2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -111,6 +113,15 @@ type GroupInvestment = {
     createdAt: Timestamp;
 }
 
+type UserPermissions = {
+    canManageDeposits?: boolean;
+    canManageWithdrawals?: boolean;
+    canManageKyc?: boolean;
+    canManagePlanLoans?: boolean;
+    canManageCustomLoans?: boolean;
+    canManageMarket?: boolean;
+}
+
 type UserData = {
   name?: string;
   photoURL?: string;
@@ -128,6 +139,8 @@ type UserData = {
   phoneNumber?: string;
   panImage?: string;
   aadhaarImage?: string;
+  role?: 'user' | 'subadmin';
+  permissions?: UserPermissions;
 };
 
 export default function ProfilePage() {
@@ -446,6 +459,42 @@ export default function ProfilePage() {
             </div>
           </CardHeader>
         </Card>
+
+        {userData?.role === 'subadmin' && (
+          <Card className="bg-primary/5 border border-primary/20 rounded-3xl p-6 shadow-2xl relative overflow-hidden group">
+             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <ShieldAlert size={80} className="text-primary" />
+             </div>
+             <CardHeader className="p-0 mb-6">
+                <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-primary">
+                    <ShieldCheck size={14} /> Administrative Node Active
+                </CardTitle>
+             </CardHeader>
+             <CardContent className="p-0 space-y-6">
+                <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Selected Role</p>
+                        <p className="text-xl font-black text-white tracking-tighter uppercase">Platform Sub-Admin</p>
+                    </div>
+                    <Button asChild size="sm" className="rounded-xl font-black uppercase text-[10px] bg-primary shadow-lg shadow-primary/20">
+                        <Link href="/subadmin">Staff Portal <ArrowRight size={12} className="ml-1.5" /></Link>
+                    </Button>
+                </div>
+                
+                <div className="space-y-3">
+                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest pl-1">Assigned Access Nodes</p>
+                    <div className="flex flex-wrap gap-2">
+                        {userData.permissions?.canManageKyc && <StaffPermissionBadge label="Identity Review" />}
+                        {userData.permissions?.canManageDeposits && <StaffPermissionBadge label="Deposit Control" />}
+                        {userData.permissions?.canManageWithdrawals && <StaffPermissionBadge label="Payout Management" />}
+                        {userData.permissions?.canManagePlanLoans && <StaffPermissionBadge label="Loan Authorization" />}
+                        {userData.permissions?.canManageCustomLoans && <StaffPermissionBadge label="Flexi Loan Logic" />}
+                        {userData.permissions?.canManageMarket && <StaffPermissionBadge label="Market Oversight" />}
+                    </div>
+                </div>
+             </CardContent>
+          </Card>
+        )}
 
         <TrustScoreMeter score={userData?.trustScore || 500} />
 
@@ -814,6 +863,14 @@ export default function ProfilePage() {
       </nav>
     </div>
   );
+}
+
+function StaffPermissionBadge({ label }: { label: string }) {
+    return (
+        <span className="px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-[8px] font-black text-primary uppercase tracking-widest">
+            {label}
+        </span>
+    );
 }
 
 function FloatingMoneyItem({ className }: { className: string }) {

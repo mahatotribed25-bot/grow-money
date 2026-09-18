@@ -21,7 +21,9 @@ import {
   TrendingUp,
   Users,
   PlayCircle,
-  Copy
+  Copy,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -73,6 +75,7 @@ type UserData = {
   photoURL?: string;
   email?: string;
   upiId?: string;
+  role?: string;
 };
 
 type AdminSettings = {
@@ -203,7 +206,7 @@ export default function Dashboard() {
           <Badge variant="outline" className="border-border bg-muted h-10 px-1.5 gap-2 rounded-full hover:bg-accent transition-all pl-1">
             <Avatar className="h-8 w-8">
               <AvatarImage src={userData?.photoURL} className="object-cover" />
-              <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-black">{userData?.name?.charAt(0)}</AvatarFallback>
+              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-black">{userData?.name?.charAt(0)}</AvatarFallback>
             </Avatar>
             <span className="font-black text-xs tracking-tight pr-2">{userData?.name || 'User'}</span>
           </Badge>
@@ -213,6 +216,25 @@ export default function Dashboard() {
       <ActivityPulse />
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        {userData?.role === 'subadmin' && (
+          <Card className="bg-primary/5 border border-primary/20 rounded-[1.5rem] p-4 animate-in slide-in-from-top-4 duration-700">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary shadow-[0_0_15px_rgba(139,92,246,0.3)]">
+                      <ShieldCheck size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-tight">Staff Access Active</h3>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">You have been selected for administrative duties.</p>
+                  </div>
+                </div>
+                <Button asChild size="sm" className="h-9 px-4 rounded-xl bg-primary text-primary-foreground font-black text-[10px] uppercase shadow-lg shadow-primary/20">
+                    <Link href="/subadmin">Staff Portal</Link>
+                </Button>
+             </div>
+          </Card>
+        )}
+
         <div className="rounded-3xl overflow-hidden shadow-2xl"><BannerCarousel /></div>
         
         <WalletSummary userData={userData} adminSettings={adminSettings} loading={userDataLoading} t={t} />
