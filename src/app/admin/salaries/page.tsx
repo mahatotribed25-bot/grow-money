@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCollection, useFirestore } from '@/firebase';
@@ -178,7 +177,9 @@ export default function SalaryManagementPage() {
                                         <TableCell>
                                             <div className="flex flex-col">
                                                 <span className="text-[10px] font-bold text-white/40">{log.paymentMethod}</span>
-                                                <span className="text-[8px] text-white/20 font-black">{new Date(log.paidAt.seconds * 1000).toLocaleDateString()}</span>
+                                                <span className="text-[8px] text-white/20 font-black">
+                                                    {log.paidAt ? new Date(log.paidAt.seconds * 1000).toLocaleDateString() : 'Processing...'}
+                                                </span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="pr-8 text-right">
