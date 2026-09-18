@@ -14,7 +14,14 @@ import { Button } from '@/components/ui/button';
 import { Check, X, Send, Loader2 } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, runTransaction, getDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { 
+  doc, 
+  updateDoc, 
+  writeBatch, 
+  collection, 
+  serverTimestamp, 
+  increment 
+} from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -68,64 +75,73 @@ export default function DepositsPage() {
     }
   };
 
-  const processDeposit = async (deposit: DepositRequest, newStatus: 'approved' | 'rejected') => {
-    const depositRef = doc(firestore, 'deposits', deposit.id);
-    const userRef = doc(firestore, 'users', deposit.userId);
-
-    if (newStatus === 'approved') {
-      await runTransaction(firestore, async (transaction) => {
-        const userDoc = await transaction.get(userRef);
-        if (!userDoc.exists()) throw 'User does not exist!';
-
-        const newBalance = (userDoc.data().walletBalance || 0) + deposit.amount;
-        transaction.update(userRef, { walletBalance: newBalance });
-        transaction.update(depositRef, { status: newStatus });
-
-        const historyRef = doc(collection(firestore, 'users', deposit.userId, 'walletHistory'));
-        transaction.set(historyRef, {
-            amount: deposit.amount,
-            type: 'credit',
-            category: 'Deposit',
-            description: `Approved recharge request ID: ${deposit.transactionId}`,
-            createdAt: serverTimestamp()
-        });
-      });
-    } else {
-      await updateDoc(depositRef, { status: newStatus });
-    }
-  };
-
   const handleBatchAction = async (newStatus: 'approved' | 'rejected') => {
     if (selectedIds.length === 0) return;
     
     setIsProcessing(true);
-    let successCount = 0;
-    let failCount = 0;
+    const batch = writeBatch(firestore);
+    let processedCount = 0;
 
     for (const id of selectedIds) {
       const deposit = filteredDeposits.find(d => d.id === id);
       if (deposit && deposit.status === 'pending') {
-        try {
-          await processDeposit(deposit, newStatus);
-          successCount++;
-        } catch (e) {
-          failCount++;
+        const depositRef = doc(firestore, 'deposits', deposit.id);
+        const userRef = doc(firestore, 'users', deposit.userId);
+
+        if (newStatus === 'approved') {
+          // Use atomic increment and batch update for efficiency
+          batch.update(userRef, { walletBalance: increment(deposit.amount) });
+          
+          const historyRef = doc(collection(firestore, 'users', deposit.userId, 'walletHistory'));
+          batch.set(historyRef, {
+              amount: deposit.amount,
+              type: 'credit',
+              category: 'Deposit',
+              description: `Approved recharge request ID: ${deposit.transactionId}`,
+              createdAt: serverTimestamp()
+          });
         }
+        
+        batch.update(depositRef, { status: newStatus });
+        processedCount++;
       }
     }
 
-    toast({
-      title: "Batch Action Complete",
-      description: `${successCount} requests ${newStatus}. ${failCount > 0 ? `${failCount} failed.` : ''}`,
-      variant: failCount > 0 ? "destructive" : "default"
-    });
+    try {
+      await batch.commit();
+      toast({
+        title: "Batch Action Complete",
+        description: `${processedCount} requests ${newStatus} successfully.`,
+      });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Batch Operation Failed", variant: "destructive" });
+    }
 
     setSelectedIds([]);
     setIsProcessing(false);
   };
 
   const handleUpdateStatus = (deposit: DepositRequest, newStatus: 'approved' | 'rejected') => {
-      processDeposit(deposit, newStatus)
+      const batch = writeBatch(firestore);
+      const depositRef = doc(firestore, 'deposits', deposit.id);
+      const userRef = doc(firestore, 'users', deposit.userId);
+
+      if (newStatus === 'approved') {
+          batch.update(userRef, { walletBalance: increment(deposit.amount) });
+          const historyRef = doc(collection(firestore, 'users', deposit.userId, 'walletHistory'));
+          batch.set(historyRef, {
+              amount: deposit.amount,
+              type: 'credit',
+              category: 'Deposit',
+              description: `Approved recharge request ID: ${deposit.transactionId}`,
+              createdAt: serverTimestamp()
+          });
+      }
+      
+      batch.update(depositRef, { status: newStatus });
+
+      batch.commit()
       .then(() => {
           toast({ title: `Deposit ${newStatus === 'approved' ? 'Approved' : 'Rejected'}` });
       })
@@ -137,24 +153,6 @@ export default function DepositsPage() {
           errorEmitter.emit('permission-error', permissionError);
       });
   };
-
-  const handleShareOnWhatsApp = async (deposit: DepositRequest) => {
-    try {
-        const userRef = doc(firestore, 'users', deposit.userId);
-        const userDoc = await getDoc(userRef);
-
-        if (userDoc.exists() && userDoc.data().phoneNumber) {
-            const phoneNumber = userDoc.data().phoneNumber;
-            const message = `✅ Deposit Successful! Dear ${deposit.name}, your deposit of ₹${deposit.amount.toFixed(2)} has been approved and added to your wallet. Thank you for choosing Grow Money!`;
-            const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
-        } else {
-            toast({ variant: 'destructive', title: 'Phone Number Not Found' });
-        }
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Error fetching phone' });
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -266,16 +264,6 @@ export default function DepositsPage() {
                           REJECT
                         </Button>
                       </div>
-                    )}
-                    {deposit.status === 'approved' && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-green-500/40 hover:text-green-500 h-8 font-black text-[9px] uppercase tracking-widest"
-                            onClick={() => handleShareOnWhatsApp(deposit)}
-                        >
-                            <Send className="h-3.5 w-3.5 mr-2" /> Notify
-                        </Button>
                     )}
                   </TableCell>
                 </TableRow>

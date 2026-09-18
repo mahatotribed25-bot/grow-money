@@ -14,7 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Check, X, HandCoins, Info, Copy, QrCode, Send, Loader2 } from 'lucide-react';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { 
+  doc, 
+  updateDoc, 
+  writeBatch, 
+  serverTimestamp, 
+  increment 
+} from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -99,60 +105,58 @@ export default function WithdrawalsPage() {
     }
   };
 
-  const rejectWithdrawal = async (withdrawal: WithdrawalRequest) => {
-    const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
-    const userRef = doc(firestore, 'users', withdrawal.userId);
-
-    await runTransaction(firestore, async (transaction) => {
-        const userDoc = await transaction.get(userRef);
-        if (!userDoc.exists()) throw 'User does not exist!';
-        const newBalance = (userDoc.data().walletBalance || 0) + withdrawal.amount;
-        transaction.update(userRef, { walletBalance: newBalance });
-        transaction.update(withdrawalRef, { status: 'rejected' });
-    });
-  };
-
-  const approveWithdrawal = async (withdrawal: WithdrawalRequest) => {
-    const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
-    await updateDoc(withdrawalRef, {
-        status: 'approved',
-        paidDate: serverTimestamp(),
-        finalAmount: withdrawal.finalAmount || withdrawal.amount
-    });
-  };
-
   const handleBatchAction = async (newStatus: 'approved' | 'rejected') => {
     if (selectedIds.length === 0) return;
     
     setIsProcessing(true);
-    let successCount = 0;
-    let failCount = 0;
+    const batch = writeBatch(firestore);
+    let processedCount = 0;
 
     for (const id of selectedIds) {
       const withdrawal = filteredWithdrawals.find(w => w.id === id);
       if (withdrawal && withdrawal.status === 'pending') {
-        try {
-          if (newStatus === 'approved') await approveWithdrawal(withdrawal);
-          else await rejectWithdrawal(withdrawal);
-          successCount++;
-        } catch (e) {
-          failCount++;
+        const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
+        const userRef = doc(firestore, 'users', withdrawal.userId);
+
+        if (newStatus === 'rejected') {
+          // Return money to user wallet on rejection using atomic increment
+          batch.update(userRef, { walletBalance: increment(withdrawal.amount) });
+          batch.update(withdrawalRef, { status: 'rejected' });
+        } else {
+          batch.update(withdrawalRef, {
+            status: 'approved',
+            paidDate: serverTimestamp(),
+            finalAmount: withdrawal.finalAmount || withdrawal.amount
+          });
         }
+        processedCount++;
       }
     }
 
-    toast({
-      title: "Batch Action Complete",
-      description: `${successCount} requests ${newStatus}. ${failCount > 0 ? `${failCount} failed.` : ''}`,
-      variant: failCount > 0 ? "destructive" : "default"
-    });
+    try {
+      await batch.commit();
+      toast({
+        title: "Batch Action Complete",
+        description: `${processedCount} requests ${newStatus} successfully.`,
+      });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Batch Operation Failed", variant: "destructive" });
+    }
 
     setSelectedIds([]);
     setIsProcessing(false);
   };
 
   const handleReject = (withdrawal: WithdrawalRequest) => {
-    rejectWithdrawal(withdrawal)
+    const batch = writeBatch(firestore);
+    const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
+    const userRef = doc(firestore, 'users', withdrawal.userId);
+
+    batch.update(userRef, { walletBalance: increment(withdrawal.amount) });
+    batch.update(withdrawalRef, { status: 'rejected' });
+
+    batch.commit()
     .then(() => {
         toast({ title: 'Withdrawal Rejected', variant: 'destructive' });
     })
