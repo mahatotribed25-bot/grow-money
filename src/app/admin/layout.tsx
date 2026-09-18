@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -115,7 +114,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <ScrollArea className="flex-1 px-4">
           <nav className="py-8 space-y-1.5">
             <div className="text-[10px] font-black text-white/10 uppercase tracking-[4px] mb-4 px-4">Main Dashboard</div>
-            <AdminNavItem icon={LayoutGrid} href="/admin">Overview</AdminNavItem>
+            <AdminNavItem icon={Home} href="/admin">Overview</AdminNavItem>
             <AdminNavItem icon={IndianRupee} href="/admin/finance">Finance Hub</AdminNavItem>
             <AdminNavItem icon={Users} href="/admin/users">Investors</AdminNavItem>
             
@@ -143,7 +142,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AdminNavItem icon={Download} href="/admin/withdrawals" count={pendingWithdrawals?.length}>Withdrawals</AdminNavItem>
             
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Communications</div>
-            <AdminNavItem icon={Megaphone} href="/admin/announcements">News & Updates</Megaphone>
+            <AdminNavItem icon={Megaphone} href="/admin/announcements">News & Updates</AdminNavItem>
             <AdminNavItem icon={Gift} href="/admin/coupons">Gifts & Coupons</AdminNavItem>
             <AdminNavItem icon={MessageSquare} href="/admin/chat">Support Chat</AdminNavItem>
             <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
