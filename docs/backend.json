@@ -27,9 +27,24 @@
         "status": { "type": "string", "enum": ["Active", "Blocked"] },
         "trustScore": { "type": "number" },
         "vipLevel": { "type": "string", "enum": ["Bronze", "Silver", "Gold", "Platinum"] },
-        "kycStatus": { "type": "string", "enum": ["Not Submitted", "Pending", "Verified", "Rejected"] }
+        "kycStatus": { "type": "string", "enum": ["Not Submitted", "Pending", "Verified", "Rejected"] },
+        "baseSalary": { "type": "number" }
       },
       "required": ["uid", "email"]
+    },
+    "attendance": {
+      "title": "Attendance",
+      "description": "Daily attendance log for staff members.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["present", "absent", "half-day", "holiday"] },
+        "reason": { "type": "string" },
+        "month": { "type": "string" },
+        "year": { "type": "number" }
+      }
     },
     "staffSalary": {
         "title": "Staff Salary",
@@ -48,18 +63,6 @@
             "paymentMethod": { "type": "string" },
             "transactionId": { "type": "string" }
         }
-    },
-    "investmentPlan": {
-      "title": "Investment Plan",
-      "description": "A wealth building plan offered by the platform.",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "price": { "type": "number" },
-        "dailyIncome": { "type": "number" },
-        "validity": { "type": "number" },
-        "status": { "type": "string", "enum": ["Available", "Coming Soon"] }
-      }
     }
   },
   "auth": {
@@ -69,6 +72,10 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/user" },
       "description": "Stores user profile information."
+    },
+    "/attendance/{id}": {
+      "schema": { "$ref": "#/entities/attendance" },
+      "description": "Daily logs for staff attendance."
     },
     "/staffSalaries/{salaryId}": {
         "schema": { "$ref": "#/entities/staffSalary" },

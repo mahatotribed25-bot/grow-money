@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -15,7 +16,8 @@ import {
   HandCoins,
   IndianRupee,
   ShieldCheck,
-  UserCircle
+  UserCircle,
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,6 +37,7 @@ import { useEffect, useMemo } from 'react';
 import type { Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Timer } from 'lucide-react';
 
 const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
@@ -136,6 +139,7 @@ export default function SubAdminLayout({
     { href: "/subadmin/custom-loans", icon: FileText, label: "Custom Loans", permission: permissions?.canManageCustomLoans, count: pendingCustomLoanRequests?.length },
     { href: "/subadmin/kyc-requests", icon: FileCheck, label: "KYC Requests", permission: permissions?.canManageKyc, count: pendingKycRequests?.length },
     { href: "/subadmin/loans", icon: HandCoins, label: "Loan Requests", permission: permissions?.canManagePlanLoans, count: pendingLoanRequests?.length },
+    { href: "/subadmin/attendance", icon: Calendar, label: "My Attendance", permission: true },
     { href: "/subadmin/deposits", icon: Upload, label: "Deposits", permission: permissions?.canManageDeposits, count: pendingDeposits?.length },
     { href: "/subadmin/withdrawals", icon: Download, label: "Withdrawals", permission: permissions?.canManageWithdrawals, count: pendingWithdrawals?.length },
   ].filter(link => (userData?.email && ADMIN_EMAILS.includes(userData.email.toLowerCase())) || link.permission);

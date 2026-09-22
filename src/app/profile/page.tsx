@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -35,7 +36,8 @@ import {
   Settings2,
   History as HistoryIcon,
   IndianRupee,
-  Receipt
+  Receipt,
+  Calendar
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -162,6 +164,13 @@ type SalaryRecord = {
     transactionId: string;
 }
 
+type AttendanceLog = {
+    userId: string;
+    month: string;
+    year: number;
+    status: string;
+}
+
 export default function ProfilePage() {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -177,6 +186,7 @@ export default function ProfilePage() {
   const { data: withdrawals } = useCollection<Transaction>(user ? `withdrawals` : null, { where: ['userId', '==', user?.uid]});
   const { data: upiRequests } = useCollection<UpiRequest>(user ? `upiRequests` : null, { where: ['userId', '==', user?.uid] });
   const { data: mySalaries } = useCollection<SalaryRecord>(user?.uid ? 'staffSalaries' : null, { where: ['staffId', '==', user?.uid] });
+  const { data: myAttendance } = useCollection<AttendanceLog>(user?.uid ? 'attendance' : null, { where: ['userId', '==', user?.uid] });
 
   const [groupInvestments, setGroupInvestments] = useState<GroupInvestment[]>([]);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -414,6 +424,18 @@ export default function ProfilePage() {
     return { monthly, total };
   }, [mySalaries]);
 
+  const attendanceSummary = useMemo(() => {
+    if (!myAttendance) return { present: 0, credit: 0 };
+    const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
+    const currentYear = new Date().getFullYear();
+    
+    const monthLogs = myAttendance.filter(l => l.month === currentMonth && l.year === currentYear);
+    const present = monthLogs.filter(l => l.status === 'present' || l.status === 'holiday').length;
+    const half = monthLogs.filter(l => l.status === 'half-day').length;
+    
+    return { present, credit: present + (half * 0.5) };
+  }, [myAttendance]);
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-sm px-4 sm:px-6">
@@ -622,30 +644,63 @@ export default function ProfilePage() {
                 <TabsContent value="withdrawals"><TransactionTable transactions={withdrawals} type="withdrawal" onViewReceipt={(tx) => setSelectedReceipt({ tx, type: 'withdrawal' })} /></TabsContent>
                 <TabsContent value="groups"><GroupInvestmentTable investments={groupInvestments} /></TabsContent>
                 <TabsContent value="salary">
-                    <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-lg">
-                        <ScrollArea className="h-80">
-                            <Table>
-                                <TableHeader className="bg-muted/50"><TableRow className="border-border"><TableHead className="text-[10px] font-black uppercase text-muted-foreground pl-6 py-4">Pay Period</TableHead><TableHead className="text-[10px] font-black uppercase text-muted-foreground text-center">Net Paid</TableHead><TableHead className="text-[10px] font-black uppercase text-muted-foreground text-right pr-6">Slip</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {mySalaries && mySalaries.length > 0 ? mySalaries.sort((a,b) => b.paidAt.seconds - a.paidAt.seconds).map(s => (
-                                        <TableRow key={s.id} className="border-border hover:bg-muted/30">
-                                            <TableCell className="pl-6 py-4"><p className="text-xs font-bold">{s.month} {s.year}</p><p className="text-[8px] text-muted-foreground uppercase font-black">{s.paymentMethod}</p></TableCell>
-                                            <TableCell className="text-center"><span className="text-sm font-black text-accent">₹{s.netPaid.toLocaleString()}</span></TableCell>
-                                            <TableCell className="text-right pr-6"><Button variant="ghost" size="icon" onClick={() => setSelectedSalarySlip(s)} className="h-9 w-9 rounded-xl hover:bg-accent/10 text-primary"><Receipt size={16}/></Button></TableCell>
-                                        </TableRow>
-                                    )) : <TableRow><TableCell colSpan={3} className="text-center py-20 opacity-20 italic">No salary records archived.</TableCell></TableRow>}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
-                    </Card>
+                    <div className="space-y-6">
+                        {userData?.role === 'subadmin' && (
+                            <Card className="bg-primary/5 border border-primary/20 rounded-3xl p-6 shadow-xl overflow-hidden group">
+                                <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
+                                    <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-primary">
+                                        <Calendar size={14} /> Monthly Efficiency
+                                    </CardTitle>
+                                    <Button asChild variant="ghost" size="sm" className="h-6 text-[8px] font-black uppercase tracking-widest hover:text-primary">
+                                        <Link href="/subadmin/attendance">View Full Log</Link>
+                                    </Button>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Credit Days</p>
+                                            <p className="text-2xl font-black text-white">{attendanceSummary.credit} <span className="text-xs text-white/40">/ {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()}</span></p>
+                                        </div>
+                                        <div className="space-y-1 text-right">
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Est. Base Payout</p>
+                                            <p className="text-2xl font-black text-accent">₹{((userData.baseSalary || 0) / new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() * attendanceSummary.credit).toFixed(0)}</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-lg">
+                            <ScrollArea className="h-80">
+                                <Table>
+                                    <TableHeader className="bg-muted/50"><TableRow className="border-border"><TableHead className="text-[10px] font-black uppercase text-muted-foreground pl-6 py-4">Pay Period</TableHead><TableHead className="text-[10px] font-black uppercase text-muted-foreground text-center">Net Paid</TableHead><TableHead className="text-[10px] font-black uppercase text-muted-foreground text-right pr-6">Slip</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {mySalaries && mySalaries.length > 0 ? mySalaries.sort((a,b) => b.paidAt.seconds - a.paidAt.seconds).map(s => (
+                                            <TableRow key={s.id} className="border-border hover:bg-muted/30">
+                                                <TableCell className="pl-6 py-4"><p className="text-xs font-bold">{s.month} {s.year}</p><p className="text-[8px] text-muted-foreground uppercase font-black">{s.paymentMethod}</p></TableCell>
+                                                <TableCell className="text-center"><span className="text-sm font-black text-accent">₹{s.netPaid.toLocaleString()}</span></TableCell>
+                                                <TableCell className="text-right pr-6"><Button variant="ghost" size="icon" onClick={() => setSelectedSalarySlip(s)} className="h-9 w-9 rounded-xl hover:bg-accent/10 text-primary"><Receipt size={16}/></Button></TableCell>
+                                            </TableRow>
+                                        )) : <TableRow><TableCell colSpan={3} className="text-center py-20 opacity-20 italic">No salary records archived.</TableCell></TableRow>}
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
+                        </Card>
+                    </div>
                 </TabsContent>
             </div>
         </Tabs>
 
         <Button onClick={handleLogout} className="w-full h-14 bg-muted border border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 text-muted-foreground rounded-2xl font-black uppercase tracking-[3px] text-xs transition-all"><LogOut size={16} className="mr-3" /> {t.profile.logout}</Button>
 
-        {/* Dialogs Omitted for brevity in this snippet as they were already correct */}
+        {/* Existing Dialogs */}
+        <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}><DialogContent className="rounded-[2.5rem]"><DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Edit Profile</DialogTitle><DialogDescription>Update your display name.</DialogDescription></DialogHeader><div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Full Name</Label><Input value={editName} onChange={e => setEditName(e.target.value)} className="h-12 rounded-xl" /></div></div><DialogFooter><Button onClick={handleUpdateName} className="w-full h-12 rounded-xl font-bold bg-primary">Save Changes</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isEditUpiOpen} onOpenChange={setIsEditUpiOpen}><DialogContent className="rounded-[2.5rem]"><DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Payment Account</DialogTitle><DialogDescription>Add or update your UPI details for receiving payments.</DialogDescription></DialogHeader><div className="py-6 space-y-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Payment App</Label><Select value={editUpiProvider} onValueChange={(v: any) => setEditUpiProvider(v)}><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select App" /></SelectTrigger><SelectContent><SelectItem value="PhonePe">PhonePe</SelectItem><SelectItem value="Google Pay">Google Pay</SelectItem><SelectItem value="Paytm">Paytm</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">UPI Address</Label><Input value={editUpiId} onChange={e => setEditUpiId(e.target.value)} placeholder="username@bank" className="h-12 rounded-xl font-mono" /></div></div><DialogFooter><Button onClick={handleUpdateUpi} className="w-full h-12 rounded-xl font-bold bg-primary">Save Payment Details</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isKycOpen} onOpenChange={setIsKycOpen}><DialogContent className="rounded-[2.5rem] max-w-lg"><DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Verify Identity</DialogTitle><DialogDescription>Submit your documents to unlock higher limits and benefits.</DialogDescription></DialogHeader><div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">PAN Card Number</Label><Input value={kycPan} onChange={e => setKycPan(e.target.value)} placeholder="ABCDE1234F" className="h-12 rounded-xl font-mono uppercase" /></div><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">PAN Photo</Label><div className="relative h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/20">{panImage ? <Image src={panImage} alt="PAN" fill className="object-cover" /> : <div className="flex flex-col items-center gap-1"><Upload size={16} className="text-muted-foreground" /><span className="text-[8px] font-black text-muted-foreground">UPLOAD</span></div>}<input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pan')} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Aadhaar Photo</Label><div className="relative h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/20">{aadhaarImage ? <Image src={aadhaarImage} alt="Aadhaar" fill className="object-cover" /> : <div className="flex flex-col items-center gap-1"><Upload size={16} className="text-muted-foreground" /><span className="text-[8px] font-black text-muted-foreground">UPLOAD</span></div>}<input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'aadhaar')} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Aadhaar Number</Label><Input value={kycAadhaar} onChange={e => setKycAadhaar(e.target.value)} placeholder="1234 5678 9012" className="h-12 rounded-xl" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Phone Number</Label><Input value={kycPhone} onChange={e => setKycPhone(e.target.value)} placeholder="9876543210" className="h-12 rounded-xl" /></div></div><DialogFooter><Button onClick={handleSubmitKyc} disabled={isSubmittingKyc} className="w-full h-12 rounded-xl font-bold bg-primary shadow-xl shadow-primary/20">{isSubmittingKyc ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting Identity...</> : 'Submit for Verification'}</Button></DialogFooter></DialogContent></Dialog>
         
+        {/* Receipt Dialog */}
+        {selectedReceipt && <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}><DialogContent className="p-0 overflow-hidden rounded-[2.5rem] max-w-sm border-none bg-transparent shadow-none"><div className="relative z-10 bg-[#0a0b14]/90 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-500"><header className={cn("p-8 text-center relative overflow-hidden", selectedReceipt.tx.status === 'approved' ? "bg-accent/10" : "bg-destructive/10")}><div className="absolute inset-0 opacity-10 bg-[url('https://picsum.photos/seed/pattern/400/200')] bg-repeat mix-blend-overlay" /><div className={cn("h-20 w-20 rounded-3xl mx-auto flex items-center justify-center mb-4 border-4 transition-all duration-700 shadow-2xl relative z-10", selectedReceipt.tx.status === 'approved' ? "bg-accent text-accent-foreground border-white/20 animate-bounce" : "bg-destructive text-destructive-foreground border-white/20")}>{selectedReceipt.tx.status === 'approved' ? <CheckCircle2 size={40} /> : <AlertTriangle size={40} />}</div><DialogTitle className="text-2xl font-black tracking-tight uppercase text-white relative z-10">{selectedReceipt.type === 'deposit' ? 'Money Added' : 'Money Withdrawn'}</DialogTitle><p className="text-[10px] font-black text-white/40 uppercase tracking-[4px] mt-1 relative z-10">Official {selectedReceipt.tx.status} Receipt</p></header><div className="p-8 space-y-6"><div className="space-y-4"><ReceiptRow label="Status" value={selectedReceipt.tx.status.toUpperCase()} highlight={selectedReceipt.tx.status === 'approved'} /><ReceiptRow label="Request ID" value={selectedReceipt.tx.transactionId || selectedReceipt.tx.id.slice(-8).toUpperCase()} isMono /><ReceiptRow label="Completed On" value={new Date(selectedReceipt.tx.createdAt.seconds * 1000).toLocaleString()} /><Separator className="bg-white/5" /><div className="flex justify-between items-center text-xs"><span className="text-white/40 font-bold uppercase tracking-widest">Base Amount</span><span className="font-black text-white">₹{selectedReceipt.tx.amount.toLocaleString()}</span></div>{selectedReceipt.type === 'withdrawal' && (<div className="space-y-3 pt-1"><ReceiptRow label="Taxes/Fees" value={`- ₹${(selectedReceipt.tx.gstAmount || 0).toFixed(2)}`} isNegative />{selectedReceipt.tx.totalDelayBonus ? (<ReceiptRow label="Extra Bonus" value={`+ ₹${selectedReceipt.tx.totalDelayBonus.toFixed(2)}`} isPositive />) : null}</div>)}</div><div className="relative group"><div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-accent rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000" /><div className="relative bg-black/40 rounded-3xl p-6 border border-white/5 flex flex-col items-center gap-1 shadow-inner backdrop-blur-xl"><p className="text-[9px] font-black text-white/30 uppercase tracking-[2px]">Net Amount Received</p><p className="text-4xl font-black tracking-tighter text-white">₹{(selectedReceipt.tx.finalAmount ?? selectedReceipt.tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</p></div></div>{selectedReceipt.tx.status === 'approved' && (<div className="flex items-center justify-center gap-2 pt-2 text-[9px] font-black text-accent uppercase tracking-widest animate-pulse"><ShieldCheck size={12} /> Verified & Settled</div>)}</div><div className="p-8 pt-0"><DialogClose asChild><Button className="w-full h-14 rounded-2xl font-black bg-white text-black hover:bg-primary hover:text-white shadow-2xl transition-all duration-300">Close Receipt</Button></DialogClose></div></div></DialogContent></Dialog>}
+
         {/* Salary Slip Dialog */}
         {selectedSalarySlip && (
             <Dialog open={!!selectedSalarySlip} onOpenChange={() => setSelectedSalarySlip(null)}>
@@ -661,7 +716,7 @@ export default function ProfilePage() {
                         <div className="p-8 space-y-6">
                             <div className="space-y-4">
                                 <ReceiptRow label="Personnel" value={selectedSalarySlip.staffName} />
-                                <ReceiptRow label="Base Pay" value={`₹${selectedSalarySlip.baseSalary}`} />
+                                <ReceiptRow label="Attendance Credit" value={`₹${(selectedSalarySlip as any).proRataBase?.toFixed(2) || '0.00'}`} />
                                 <ReceiptRow label="Bonus Node" value={`+ ₹${selectedSalarySlip.bonus}`} isPositive />
                                 <ReceiptRow label="Deductions" value={`- ₹${selectedSalarySlip.deductions}`} isNegative />
                                 <ReceiptRow label="Ref ID" value={selectedSalarySlip.transactionId} isMono />
@@ -678,12 +733,6 @@ export default function ProfilePage() {
                 </DialogContent>
             </Dialog>
         )}
-
-        {/* Existing Dialogs (Re-implemented for consistency) */}
-        <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}><DialogContent className="rounded-[2.5rem]"><DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Edit Profile</DialogTitle><DialogDescription>Update your display name.</DialogDescription></DialogHeader><div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Full Name</Label><Input value={editName} onChange={e => setEditName(e.target.value)} className="h-12 rounded-xl" /></div></div><DialogFooter><Button onClick={handleUpdateName} className="w-full h-12 rounded-xl font-bold bg-primary">Save Changes</Button></DialogFooter></DialogContent></Dialog>
-        <Dialog open={isEditUpiOpen} onOpenChange={setIsEditUpiOpen}><DialogContent className="rounded-[2.5rem]"><DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Payment Account</DialogTitle><DialogDescription>Add or update your UPI details for receiving payments.</DialogDescription></DialogHeader><div className="py-6 space-y-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Payment App</Label><Select value={editUpiProvider} onValueChange={(v: any) => setEditUpiProvider(v)}><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select App" /></SelectTrigger><SelectContent><SelectItem value="PhonePe">PhonePe</SelectItem><SelectItem value="Google Pay">Google Pay</SelectItem><SelectItem value="Paytm">Paytm</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">UPI Address</Label><Input value={editUpiId} onChange={e => setEditUpiId(e.target.value)} placeholder="username@bank" className="h-12 rounded-xl font-mono" /></div></div><DialogFooter><Button onClick={handleUpdateUpi} className="w-full h-12 rounded-xl font-bold bg-primary">Save Payment Details</Button></DialogFooter></DialogContent></Dialog>
-        <Dialog open={isKycOpen} onOpenChange={setIsKycOpen}><DialogContent className="rounded-[2.5rem] max-w-lg"><DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Verify Identity</DialogTitle><DialogDescription>Submit your documents to unlock higher limits and benefits.</DialogDescription></DialogHeader><div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">PAN Card Number</Label><Input value={kycPan} onChange={e => setKycPan(e.target.value)} placeholder="ABCDE1234F" className="h-12 rounded-xl font-mono uppercase" /></div><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">PAN Photo</Label><div className="relative h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/20">{panImage ? <Image src={panImage} alt="PAN" fill className="object-cover" /> : <div className="flex flex-col items-center gap-1"><Upload size={16} className="text-muted-foreground" /><span className="text-[8px] font-black text-muted-foreground">UPLOAD</span></div>}<input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pan')} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Aadhaar Photo</Label><div className="relative h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/20">{aadhaarImage ? <Image src={aadhaarImage} alt="Aadhaar" fill className="object-cover" /> : <div className="flex flex-col items-center gap-1"><Upload size={16} className="text-muted-foreground" /><span className="text-[8px] font-black text-muted-foreground">UPLOAD</span></div>}<input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'aadhaar')} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Aadhaar Number</Label><Input value={kycAadhaar} onChange={e => setKycAadhaar(e.target.value)} placeholder="1234 5678 9012" className="h-12 rounded-xl" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground pl-1">Phone Number</Label><Input value={kycPhone} onChange={e => setKycPhone(e.target.value)} placeholder="9876543210" className="h-12 rounded-xl" /></div></div><DialogFooter><Button onClick={handleSubmitKyc} disabled={isSubmittingKyc} className="w-full h-12 rounded-xl font-bold bg-primary shadow-xl shadow-primary/20">{isSubmittingKyc ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting Identity...</> : 'Submit for Verification'}</Button></DialogFooter></DialogContent></Dialog>
-        {selectedReceipt && <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}><DialogContent className="p-0 overflow-hidden rounded-[2.5rem] max-w-sm border-none bg-transparent shadow-none"><div className="relative z-10 bg-[#0a0b14]/90 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-500"><header className={cn("p-8 text-center relative overflow-hidden", selectedReceipt.tx.status === 'approved' ? "bg-accent/10" : "bg-destructive/10")}><div className="absolute inset-0 opacity-10 bg-[url('https://picsum.photos/seed/pattern/400/200')] bg-repeat mix-blend-overlay" /><div className={cn("h-20 w-20 rounded-3xl mx-auto flex items-center justify-center mb-4 border-4 transition-all duration-700 shadow-2xl relative z-10", selectedReceipt.tx.status === 'approved' ? "bg-accent text-accent-foreground border-white/20 animate-bounce" : "bg-destructive text-destructive-foreground border-white/20")}>{selectedReceipt.tx.status === 'approved' ? <CheckCircle2 size={40} /> : <AlertTriangle size={40} />}</div><DialogTitle className="text-2xl font-black tracking-tight uppercase text-white relative z-10">{selectedReceipt.type === 'deposit' ? 'Money Added' : 'Money Withdrawn'}</DialogTitle><p className="text-[10px] font-black text-white/40 uppercase tracking-[4px] mt-1 relative z-10">Official {selectedReceipt.tx.status} Receipt</p></header><div className="p-8 space-y-6"><div className="space-y-4"><ReceiptRow label="Status" value={selectedReceipt.tx.status.toUpperCase()} highlight={selectedReceipt.tx.status === 'approved'} /><ReceiptRow label="Request ID" value={selectedReceipt.tx.transactionId || selectedReceipt.tx.id.slice(-8).toUpperCase()} isMono /><ReceiptRow label="Completed On" value={new Date(selectedReceipt.tx.createdAt.seconds * 1000).toLocaleString()} /><Separator className="bg-white/5" /><div className="flex justify-between items-center text-xs"><span className="text-white/40 font-bold uppercase tracking-widest">Base Amount</span><span className="font-black text-white">₹{selectedReceipt.tx.amount.toLocaleString()}</span></div>{selectedReceipt.type === 'withdrawal' && (<div className="space-y-3 pt-1"><ReceiptRow label="Taxes/Fees" value={`- ₹${(selectedReceipt.tx.gstAmount || 0).toFixed(2)}`} isNegative />{selectedReceipt.tx.totalDelayBonus ? (<ReceiptRow label="Extra Bonus" value={`+ ₹${selectedReceipt.tx.totalDelayBonus.toFixed(2)}`} isPositive />) : null}</div>)}</div><div className="relative group"><div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-accent rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000" /><div className="relative bg-black/40 rounded-3xl p-6 border border-white/5 flex flex-col items-center gap-1 shadow-inner backdrop-blur-xl"><p className="text-[9px] font-black text-white/30 uppercase tracking-[2px]">Net Amount Received</p><p className="text-4xl font-black tracking-tighter text-white">₹{(selectedReceipt.tx.finalAmount ?? selectedReceipt.tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</p></div></div>{selectedReceipt.tx.status === 'approved' && (<div className="flex items-center justify-center gap-2 pt-2 text-[9px] font-black text-accent uppercase tracking-widest animate-pulse"><ShieldCheck size={12} /> Verified & Settled</div>)}</div><div className="p-8 pt-0"><DialogClose asChild><Button className="w-full h-14 rounded-2xl font-black bg-white text-black hover:bg-primary hover:text-white shadow-2xl transition-all duration-300">Close Receipt</Button></DialogClose></div></div></DialogContent></Dialog>}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-xl h-16 flex items-center justify-around px-4">

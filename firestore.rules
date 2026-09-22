@@ -1,9 +1,9 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -29,11 +29,9 @@ service cloud.firestore {
       return isAdmin() || isSubAdmin();
     }
 
-    // Rules for 'users'
     match /users/{userId} {
       allow create: if isOwner(userId);
       allow read: if isAuthenticated();
-      // Allow self-updates (for Profile/UPI update) and updates during transactions (like referral bonus or balance update)
       allow update: if isAuthenticated(); 
 
       match /investments/{id} {
@@ -50,49 +48,46 @@ service cloud.firestore {
         allow write: if isAuthenticated();
       }
     }
+    
+    match /attendance/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
 
-    // Investment Plans - Allow auth users to update stock during buy
     match /investmentPlans/{planId} {
       allow read: if isAuthenticated();
       allow update, write: if isAuthenticated(); 
     }
     
-    // Announcements
     match /announcements/{id} {
       allow read: if isAuthenticated();
       allow write: if isManager();
     }
 
-    // Deposits
     match /deposits/{id} {
       allow create: if isAuthenticated();
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
       allow update, delete: if isManager();
     }
 
-    // Withdrawals
     match /withdrawals/{id} {
       allow create: if isAuthenticated();
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
       allow update, delete: if isManager();
     }
 
-    // Global Settings - Allow profit syncing during buy
     match /settings/{id} {
       allow read: if isAuthenticated();
       allow update, write: if isAuthenticated(); 
     }
 
-    // Custom Loan Requests - Allow users to accept offers and notify payment
     match /customLoanRequests/{requestId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
       allow create: if isAuthenticated();
-      // Allow owners to update status for 'Accept Offer' and 'Settle'
       allow update: if isManager() || (isAuthenticated() && request.auth.uid == resource.data.userId);
       allow delete: if isManager();
     }
 
-    // UPI Requests
     match /upiRequests/{requestId} {
        allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
        allow create: if isAuthenticated();
@@ -100,7 +95,6 @@ service cloud.firestore {
        allow delete: if isManager();
     }
 
-    // Support Chat Sessions
     match /chats/{id} {
         allow read, write: if isAuthenticated() && (id == request.auth.uid || isManager());
         match /messages/{mid} {
@@ -108,7 +102,6 @@ service cloud.firestore {
         }
     }
 
-    // Group Loan Plans
     match /groupLoanPlans/{planId} {
       allow read: if isAuthenticated();
       allow update, write: if isAuthenticated();
@@ -119,7 +112,11 @@ service cloud.firestore {
       }
     }
 
-    // Collection Group Rule for investments
+    match /staffSalaries/{id} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+    }
+
     match /{path=**}/investments/{id} {
       allow read, list: if isAuthenticated();
     }

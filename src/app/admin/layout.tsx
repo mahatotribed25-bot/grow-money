@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -35,7 +36,8 @@ import {
   Landmark,
   Hammer,
   ShieldAlert,
-  Coins
+  Coins,
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -120,6 +122,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Administrative</div>
             <AdminNavItem icon={ShieldAlert} href="/admin/staff">Staff Management</AdminNavItem>
+            <AdminNavItem icon={Calendar} href="/admin/attendance">Attendance Record</AdminNavItem>
             <AdminNavItem icon={Coins} href="/admin/salaries">Payroll Hub</AdminNavItem>
             
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Management</div>
