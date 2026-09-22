@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import Link from 'next/link';
 
 type StaffMember = {
     id: string;
@@ -358,5 +360,3 @@ function SummaryCard({ title, value, icon: Icon, desc, color }: { title: string,
         </Card>
     );
 }
-
-import Link from 'next/link';
