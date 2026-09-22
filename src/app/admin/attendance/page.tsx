@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -34,13 +33,15 @@ import {
     DialogHeader, 
     DialogTitle, 
     DialogFooter, 
-    DialogClose 
+    DialogClose,
+    DialogDescription
 } from '@/components/ui/dialog';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, setDoc, deleteDoc, Timestamp, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type StaffMember = {
     id: string;
@@ -56,6 +57,8 @@ type AttendanceLog = {
     date: Timestamp;
     status: 'present' | 'absent' | 'half-day' | 'holiday';
     reason?: string;
+    month: string;
+    year: number;
 }
 
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -127,8 +130,9 @@ export default function AdminAttendancePage() {
         const present = monthLogs.filter(l => l.status === 'present').length;
         const halfDay = monthLogs.filter(l => l.status === 'half-day').length;
         const absent = monthLogs.filter(l => l.status === 'absent').length;
+        const holiday = monthLogs.filter(l => l.status === 'holiday').length;
 
-        return { present, halfDay, absent, totalCredit: present + (halfDay * 0.5) };
+        return { present, halfDay, absent, holiday, totalCredit: present + holiday + (halfDay * 0.5) };
     };
 
     const loading = staffLoading || logsLoading;
@@ -202,7 +206,7 @@ export default function AdminAttendancePage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <Badge className="bg-green-500/10 text-green-400 border-green-500/20 text-[10px] font-bold">{stats.present}</Badge>
+                                                <Badge className="bg-green-500/10 text-green-400 border-green-500/20 text-[10px] font-bold">{stats.present + stats.holiday}</Badge>
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[10px] font-bold">{stats.halfDay}</Badge>
@@ -251,7 +255,7 @@ export default function AdminAttendancePage() {
                                     </div>
                                 </div>
                             ))}
-                            {allLogs?.filter(l => l.status === 'absent').length === 0 && <p className="text-center py-10 text-[10px] uppercase font-black text-white/10">No recent absences</p>}
+                            {allLogs?.filter(l => l.status === 'absent' || l.status === 'half-day').length === 0 && <p className="text-center py-10 text-[10px] uppercase font-black text-white/10">No recent absences</p>}
                         </div>
                     </ScrollArea>
                 </Card>
