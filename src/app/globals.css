@@ -113,6 +113,15 @@
   animation: rgb-glow 3s ease-in-out infinite;
 }
 
+/* New Glowing Green Animation */
+@keyframes glow-green {
+  0%, 100% { filter: drop-shadow(0 0 2px #22c55e) brightness(1); }
+  50% { filter: drop-shadow(0 0 10px #22c55e) brightness(1.5); }
+}
+.animate-glow-green {
+  animation: glow-green 2s ease-in-out infinite;
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }

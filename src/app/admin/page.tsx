@@ -14,6 +14,7 @@ import {
   TrendingUp,
   AlertTriangle,
   ArrowUpRight,
+  ArrowDownRight,
   Search,
   Bell,
   RefreshCcw,
@@ -131,7 +132,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Main Metric Cards */}
+      {/* Main Metric Cards with Dynamic Arrow Indictors */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <GlassMetricCard 
             title="Total Investors" 
@@ -153,13 +154,13 @@ export default function AdminDashboard() {
             chartData={[10, 20, 30, 25, 40, 35, 50]}
         />
         <GlassMetricCard 
-            title="Pending Actions" 
-            value={stats?.pendingWithdrawals || 0} 
-            change="Action Needed" 
-            trend="none"
-            icon={AlertTriangle} 
-            color="text-red-400"
-            subInfo={`${kycRequests?.length || 0} Pending Identity Checks`}
+            title="Active Node Health" 
+            value="Stable" 
+            change="-2.1%" 
+            trend="down"
+            icon={Zap} 
+            color="text-amber-400"
+            subInfo="System Overhead: Low"
         />
         <GlassMetricCard 
             title="Market Activity" 
@@ -173,22 +174,22 @@ export default function AdminDashboard() {
         />
       </div>
 
-      {/* System Performance Main Chart */}
+      {/* System Performance Main Chart - Enhanced Visuals */}
       <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] -mr-32 -mt-32 rounded-full" />
           <div className="flex items-center justify-between mb-10 relative z-10">
               <div>
                   <h3 className="text-lg font-black text-white uppercase tracking-tight">Platform Growth Analysis</h3>
-                  <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">Deposits vs Withdrawals</p>
+                  <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">Dynamic Node performance Ledger</p>
               </div>
               <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
                       <div className="h-2 w-4 rounded-full bg-primary" />
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Deposits (₹)</span>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Revenue (₹)</span>
                   </div>
                   <div className="flex items-center gap-2">
                       <div className="h-2 w-4 rounded-full bg-blue-500" />
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Withdrawals (₹)</span>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Outflow (₹)</span>
                   </div>
               </div>
           </div>
@@ -198,11 +199,11 @@ export default function AdminDashboard() {
                 <AreaChart data={performanceData}>
                     <defs>
                         <linearGradient id="colorDeposits" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
                             <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
                         </linearGradient>
                         <linearGradient id="colorWithdrawals" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
                             <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                         </linearGradient>
                     </defs>
@@ -233,6 +234,7 @@ export default function AdminDashboard() {
                         fillOpacity={1} 
                         fill="url(#colorDeposits)" 
                         animationDuration={2000}
+                        activeDot={{ r: 8, stroke: '#8b5cf6', strokeWidth: 2, fill: '#fff' }}
                     />
                     <Area 
                         type="monotone" 
@@ -242,6 +244,7 @@ export default function AdminDashboard() {
                         fillOpacity={1} 
                         fill="url(#colorWithdrawals)" 
                         animationDuration={2500}
+                        activeDot={{ r: 8, stroke: '#3b82f6', strokeWidth: 2, fill: '#fff' }}
                     />
                 </AreaChart>
              </ResponsiveContainer>
@@ -479,14 +482,18 @@ function GlassMetricCard({
                     <div className="space-y-0.5">
                         <p className="text-3xl font-black text-white tracking-tighter">{value}</p>
                         <div className="flex items-center gap-1.5">
-                             {trend === 'up' && <ArrowUpRight size={12} className="text-green-400" />}
+                             {trend === 'up' ? (
+                                <ArrowUpRight size={14} className="text-green-400 animate-glow-green" />
+                             ) : trend === 'down' ? (
+                                <ArrowDownRight size={14} className="text-red-500" />
+                             ) : null}
                              <span className={cn(
                                  "text-[10px] font-black uppercase tracking-tight",
-                                 trend === 'up' ? "text-green-400" : trend === 'down' ? "text-red-400" : "text-white/20"
+                                 trend === 'up' ? "text-green-400" : trend === 'down' ? "text-red-500" : "text-white/20"
                              )}>
                                  {change}
                              </span>
-                             {trend === 'up' && <span className="text-[9px] font-bold text-white/10 uppercase">vs last month</span>}
+                             {trend !== 'none' && <span className="text-[9px] font-bold text-white/10 uppercase">vs last session</span>}
                         </div>
                     </div>
                 </div>
