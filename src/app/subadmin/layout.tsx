@@ -16,7 +16,8 @@ import {
   IndianRupee,
   ShieldCheck,
   UserCircle,
-  Calendar
+  Calendar,
+  Timer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,7 +37,6 @@ import { useEffect, useMemo } from 'react';
 import type { Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Timer } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -191,6 +191,9 @@ export default function SubAdminLayout({
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="p-0 border-r border-white/5 bg-background w-[300px]">
+                    <SheetHeader className="sr-only">
+                        <SheetTitle>Staff Portal Navigation</SheetTitle>
+                    </SheetHeader>
                     <div className="h-full flex flex-col">
                         <div className="h-20 flex items-center px-8 border-b border-white/5"><span className="font-black text-lg uppercase">Staff Menu</span></div>
                         <nav className="flex-1 py-8 px-4 space-y-1.5">
