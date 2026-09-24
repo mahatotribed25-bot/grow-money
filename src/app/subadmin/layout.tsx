@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Timer } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
@@ -150,7 +151,7 @@ export default function SubAdminLayout({
       <aside className="hidden border-r border-white/5 bg-black/40 backdrop-blur-xl md:block">
         <div className="flex h-full max-h-screen flex-col">
           <div className="flex h-20 items-center px-6 gap-3 border-b border-white/5">
-            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary shadow-lg border border-primary/10">
+            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary shadow-lg border border-primary/20">
                 <Briefcase size={22} />
             </div>
             <span className="font-black text-lg tracking-tighter uppercase text-white">Staff Node</span>
