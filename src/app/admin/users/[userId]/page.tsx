@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -41,7 +42,8 @@ import {
   ShieldAlert,
   Settings2,
   IndianRupee,
-  Save
+  Save,
+  Shield
 } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp, orderBy } from 'firebase/firestore';
@@ -251,6 +253,7 @@ export default function UserDetailPage() {
   const [isReKycDialogOpen, setIsReKycDialogOpen] = useState(false);
   const [reKycReason, setReKycReason] = useState('');
   const [baseSalary, setBaseSalary] = useState('');
+  const [isSavingPermissions, setIsSavingPermissions] = useState(false);
 
   const defaultPermissions: UserPermissions = {
     canManageDeposits: false,
@@ -287,31 +290,34 @@ export default function UserDetailPage() {
     setPermissions(prev => ({ ...prev, [permission]: value }));
   };
 
-  const handleSavePermissions = () => {
+  const handleSavePermissions = async () => {
+    if (!userId) return;
+    setIsSavingPermissions(true);
     const userRef = doc(firestore, 'users', userId);
     const hasAnyPermission = Object.values(permissions).some(p => p === true);
     const newRole = hasAnyPermission ? 'subadmin' : 'user';
 
-    updateDoc(userRef, {
-        permissions,
-        role: newRole,
-        baseSalary: parseFloat(baseSalary) || 0,
-    })
-    .then(() => {
+    try {
+        await updateDoc(userRef, {
+            permissions,
+            role: newRole,
+            baseSalary: parseFloat(baseSalary) || 0,
+        });
         toast({
-            title: 'Permissions Updated',
-            description: `${user?.name}'s role and permissions have been saved.`,
+            title: 'Staff Access Updated',
+            description: `${user?.name} has been updated to ${newRole.toUpperCase()}.`,
         });
         refetchUser();
-    })
-    .catch((error) => {
-         const permissionError = new FirestorePermissionError({
+    } catch (error) {
+        const permissionError = new FirestorePermissionError({
           path: userRef.path,
           operation: 'update',
           requestResourceData: { permissions, role: newRole },
         });
         errorEmitter.emit('permission-error', permissionError);
-    });
+    } finally {
+        setIsSavingPermissions(false);
+    }
   }
 
   const handleToggleStatus = () => {
@@ -413,7 +419,7 @@ export default function UserDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
            <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] shadow-2xl p-8">
-                <div className="flex items-center gap-3 mb-8"><div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary"><ShieldAlert size={20}/></div><div><h3 className="text-sm font-black text-white uppercase tracking-widest">Permissions Node</h3><p className="text-[9px] font-bold text-white/20 uppercase tracking-[2px]">RBAC Access Control</p></div></div>
+                <div className="flex items-center gap-3 mb-8"><div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary"><Shield size={20}/></div><div><h3 className="text-sm font-black text-white uppercase tracking-widest">Permissions Node</h3><p className="text-[9px] font-bold text-white/20 uppercase tracking-[2px]">RBAC Access Control</p></div></div>
                 <div className="space-y-5">
                     <PermissionToggle id="kyc" label="Manage Identity (KYC)" checked={permissions.canManageKyc} onChange={v => handlePermissionChange('canManageKyc', v)} />
                     <PermissionToggle id="deposits" label="Manage Deposits" checked={permissions.canManageDeposits} onChange={v => handlePermissionChange('canManageDeposits', v)} />
@@ -421,17 +427,25 @@ export default function UserDetailPage() {
                     <PermissionToggle id="loans" label="Standard Loan Control" checked={permissions.canManagePlanLoans} onChange={v => handlePermissionChange('canManagePlanLoans', v)} />
                     <PermissionToggle id="custom" label="Flexible Loan Control" checked={permissions.canManageCustomLoans} onChange={v => handlePermissionChange('canManageCustomLoans', v)} />
                     <PermissionToggle id="market" label="Market Management" checked={permissions.canManageMarket} onChange={v => handlePermissionChange('canManageMarket', v)} />
+                    
                     <Separator className="bg-white/5 my-4" />
+                    
                     <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Monthly Base Salary (INR)</Label>
-                        <div className="flex gap-2">
-                            <div className="relative flex-1">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 font-bold">₹</span>
-                                <Input type="number" value={baseSalary} onChange={e => setBaseSalary(e.target.value)} placeholder="0.00" className="pl-8 bg-white/5 border-white/10 rounded-xl font-bold" />
-                            </div>
-                            <Button onClick={handleSavePermissions} className="rounded-xl bg-primary px-4"><Save size={16}/></Button>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 font-bold text-sm">₹</span>
+                            <Input type="number" value={baseSalary} onChange={e => setBaseSalary(e.target.value)} placeholder="0.00" className="pl-8 h-12 bg-white/5 border-white/10 rounded-xl font-bold text-white" />
                         </div>
                     </div>
+
+                    <Button 
+                      onClick={handleSavePermissions} 
+                      disabled={isSavingPermissions}
+                      className="w-full h-14 rounded-2xl bg-primary text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all"
+                    >
+                        {isSavingPermissions ? <Timer className="animate-spin mr-2" size={16}/> : <ShieldCheck className="mr-2" size={16}/>}
+                        {isSavingPermissions ? 'Applying Changes...' : 'Update Access Control'}
+                    </Button>
                 </div>
            </Card>
 
@@ -455,7 +469,7 @@ export default function UserDetailPage() {
         </div>
       </Tabs>
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}><DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-4xl"><DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">KYC Node Preview</DialogTitle><DialogDescription className="text-white/40">Review uploaded documents for {user.name}.</DialogDescription></DialogHeader><div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6"><div className="space-y-3"><Label className="text-[10px] font-black uppercase tracking-widest text-primary/60">PAN CARD IMAGE</Label><div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-white/5">{user.panImage ? <Image src={user.panImage} alt="PAN" fill className="object-contain" /> : <div className="h-full w-full flex items-center justify-center text-white/10 italic text-xs">No PAN image linked</div>}</div></div><div className="space-y-3"><Label className="text-[10px] font-black uppercase tracking-widest text-accent/60">AADHAAR CARD IMAGE</Label><div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-white/5">{user.aadhaarImage ? <Image src={user.aadhaarImage} alt="Aadhaar" fill className="object-contain" /> : <div className="h-full w-full flex items-center justify-center text-white/10 italic text-xs">No Aadhaar image linked</div>}</div></div></div><DialogFooter><DialogClose asChild><Button variant="ghost">Close Preview</Button></DialogClose></DialogFooter></DialogContent></Dialog>
-      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}><DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]"><DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Identity Rejection</DialogTitle><DialogDescription className="text-white/40 text-xs">Provide a clear reason for denying this node's verification request.</DialogDescription></DialogHeader><div className="py-4"><Textarea placeholder="e.g. Identity blur or mismatched data..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} className="bg-white/5 border-white/10" /></div><DialogFooter><DialogClose asChild><Button variant="ghost" className="text-white/40">Cancel</Button></DialogClose><Button variant="destructive" className="rounded-xl font-bold px-8" onClick={() => { handleKycApproval('Rejected', rejectionReason); setIsRejectDialogOpen(false); }}>Confirm Denial</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}><DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]"><DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Identity Rejection</DialogTitle><DialogDescription className="text-white/40 text-xs">Provide a clear reason for denying this node's verification request.</DialogDescription></DialogHeader><div className="py-4"><Textarea placeholder="e.g. Identity blur or mismatched data..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} className="bg-white/5 border-white/10" /></div><DialogFooter><DialogClose asChild><Button variant="ghost" className="text-white/40">Cancel</Button></DialogClose><Button variant="destructive" className="rounded-xl font-bold px-8" onClick={() => { handleRequestReKyc(); setIsRejectDialogOpen(false); }}>Confirm Denial</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={isReKycDialogOpen} onOpenChange={setIsReKycDialogOpen}><DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]"><DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-tight">Identity Protocol Reset</DialogTitle><DialogDescription className="text-white/40 text-xs">This will invalidate the user's current verified status and require them to re-upload documents.</DialogDescription></DialogHeader><div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-amber-500/60">Reason for Re-Verification</Label><Textarea placeholder="e.g. Identity documents expired..." value={reKycReason} onChange={e => setReKycReason(e.target.value)} className="bg-white/5 border-white/10 h-32 rounded-xl" /></div></div><DialogFooter className="gap-2 sm:gap-0"><DialogClose asChild><Button variant="ghost" className="text-white/40">Abort</Button></DialogClose><Button onClick={handleRequestReKyc} className="rounded-xl font-bold bg-amber-600 hover:bg-amber-700 text-white px-8">Authorize Re-KYC Notice</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );

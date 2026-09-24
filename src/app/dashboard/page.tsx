@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Wallet,
@@ -76,6 +77,7 @@ type UserData = {
   email?: string;
   upiId?: string;
   role?: string;
+  permissions?: any;
 };
 
 type AdminSettings = {
@@ -186,6 +188,11 @@ export default function Dashboard() {
 
   const activeInvestments = investments?.filter((inv) => inv.status === 'Active' || inv.status === 'Stopped');
 
+  const isStaff = useMemo(() => {
+    if (!userData) return false;
+    return userData.role === 'subadmin' || (userData.permissions && Object.values(userData.permissions).some(v => v === true));
+  }, [userData]);
+
   if (userLoading || userDataLoading || investmentsLoading) return <div className="flex h-screen items-center justify-center"><Timer className="animate-spin text-primary" /></div>;
 
   return (
@@ -216,7 +223,7 @@ export default function Dashboard() {
       <ActivityPulse />
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-        {userData?.role === 'subadmin' && (
+        {isStaff && (
           <Card className="bg-primary/5 border border-primary/20 rounded-[1.5rem] p-4 animate-in slide-in-from-top-4 duration-700">
              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -350,7 +357,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
       <div className="w-full">
         <Button onClick={() => setIsOpen(true)} className="w-full h-14 rounded-2xl bg-foreground text-background font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl"><Upload size={16} className="mr-2" /> {t.dashboard.recharge}</Button>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogContent className="rounded-[2rem]">
+          <DialogContent className="rounded-[2.5rem]">
             <DialogHeader>
               <DialogTitle className="text-xl font-black uppercase tracking-tight">Add Money to Wallet</DialogTitle>
             </DialogHeader>

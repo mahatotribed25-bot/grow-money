@@ -37,7 +37,8 @@ import {
   History as HistoryIcon,
   IndianRupee,
   Receipt,
-  Calendar
+  Calendar,
+  Shield
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -409,6 +410,11 @@ export default function ProfilePage() {
     return 10;
   }, [userData, isKycExpired]);
 
+  const isStaff = useMemo(() => {
+    if (!userData) return false;
+    return userData.role === 'subadmin' || (userData.permissions && Object.values(userData.permissions).some(v => v === true));
+  }, [userData]);
+
   const awaitingConfirmationRequest = upiRequests?.find(req => req.status === 'awaiting_confirmation');
 
   const staffEarnings = useMemo(() => {
@@ -466,7 +472,7 @@ export default function ProfilePage() {
               <div className="relative group/avatar">
                   <Avatar className="h-24 w-24 border-4 border-primary/20 rounded-[2rem] shadow-2xl overflow-hidden">
                     <AvatarImage src={userData?.photoURL} className="object-cover" />
-                    <AvatarFallback className="bg-primary/10 text-primary text-3xl font-black">{userData?.name?.charAt(0)}</AvatarFallback>
+                    <AvatarFallback className="bg-primary/10 text-primary text-3xl font-black">{userData?.name?.charAt(0) || 'U'}</AvatarFallback>
                     {isUploadingPhoto && (
                         <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                             <Timer className="animate-spin text-white h-6 w-6" />
@@ -502,7 +508,7 @@ export default function ProfilePage() {
           </CardHeader>
         </Card>
 
-        {userData?.role === 'subadmin' && (
+        {isStaff && (
           <div className="space-y-6">
             <Card className="bg-primary/5 border border-primary/20 rounded-3xl p-6 shadow-2xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><ShieldAlert size={80} className="text-primary" /></div>
@@ -524,12 +530,12 @@ export default function ProfilePage() {
                     <div className="space-y-3">
                         <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest pl-1">Authorized Access Nodes</p>
                         <div className="flex flex-wrap gap-2">
-                            {userData.permissions?.canManageKyc && <StaffPermissionBadge label="Identity Review" />}
-                            {userData.permissions?.canManageDeposits && <StaffPermissionBadge label="Deposit Control" />}
-                            {userData.permissions?.canManageWithdrawals && <StaffPermissionBadge label="Payout Management" />}
-                            {userData.permissions?.canManagePlanLoans && <StaffPermissionBadge label="Loan Authorization" />}
-                            {userData.permissions?.canManageCustomLoans && <StaffPermissionBadge label="Flexi Loan Logic" />}
-                            {userData.permissions?.canManageMarket && <StaffPermissionBadge label="Market Oversight" />}
+                            {userData?.permissions?.canManageKyc && <StaffPermissionBadge label="Identity Review" />}
+                            {userData?.permissions?.canManageDeposits && <StaffPermissionBadge label="Deposit Control" />}
+                            {userData?.permissions?.canManageWithdrawals && <StaffPermissionBadge label="Payout Management" />}
+                            {userData?.permissions?.canManagePlanLoans && <StaffPermissionBadge label="Loan Authorization" />}
+                            {userData?.permissions?.canManageCustomLoans && <StaffPermissionBadge label="Flexi Loan Logic" />}
+                            {userData?.permissions?.canManageMarket && <StaffPermissionBadge label="Market Oversight" />}
                         </div>
                     </div>
                 </CardContent>
@@ -626,7 +632,7 @@ export default function ProfilePage() {
                     <TabsTrigger value="history" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">{t.profile.ledger}</TabsTrigger>
                     <TabsTrigger value="deposits" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">{t.profile.recharge}</TabsTrigger>
                     <TabsTrigger value="withdrawals" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">{t.profile.payout}</TabsTrigger>
-                    {userData?.role === 'subadmin' && <TabsTrigger value="salary" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">Salary</TabsTrigger>}
+                    {isStaff && <TabsTrigger value="salary" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">Salary</TabsTrigger>}
                     <TabsTrigger value="groups" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">{t.profile.pools}</TabsTrigger>
                 </TabsList>
                 <Button variant="outline" size="icon" onClick={exportToExcel} className="h-14 w-14 rounded-2xl border-border bg-card hover:bg-accent/10 text-accent shadow-lg shrink-0"><FileSpreadsheet size={20} /></Button>
@@ -645,7 +651,7 @@ export default function ProfilePage() {
                 <TabsContent value="groups"><GroupInvestmentTable investments={groupInvestments} /></TabsContent>
                 <TabsContent value="salary">
                     <div className="space-y-6">
-                        {userData?.role === 'subadmin' && (
+                        {isStaff && (
                             <Card className="bg-primary/5 border border-primary/20 rounded-3xl p-6 shadow-xl overflow-hidden group">
                                 <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
                                     <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-primary">
@@ -663,7 +669,7 @@ export default function ProfilePage() {
                                         </div>
                                         <div className="space-y-1 text-right">
                                             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Est. Base Payout</p>
-                                            <p className="text-2xl font-black text-accent">₹{((userData.baseSalary || 0) / new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() * attendanceSummary.credit).toFixed(0)}</p>
+                                            <p className="text-2xl font-black text-accent">₹{((userData?.baseSalary || 0) / new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() * attendanceSummary.credit).toFixed(0)}</p>
                                         </div>
                                     </div>
                                 </CardContent>
