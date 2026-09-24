@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -38,6 +37,7 @@ import type { Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Timer } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
