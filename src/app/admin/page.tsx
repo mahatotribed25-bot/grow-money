@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -21,7 +22,9 @@ import {
   Globe,
   MessageSquare,
   ShieldCheck,
-  ZapOff
+  ZapOff,
+  Menu,
+  ChevronDown
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useCollection, useUser, useDoc } from '@/firebase';
@@ -56,6 +59,8 @@ type Transaction = { id: string; amount: number; name: string; status: 'pending'
 
 export default function AdminDashboard() {
   const { user, loading: userIsLoading } = useUser();
+  const [timeRange, setTimeRange] = useState('All');
+  
   const isAdmin = useMemo(() => {
       const email = user?.email?.toLowerCase();
       return !userIsLoading && email && ADMIN_EMAILS.includes(email);
@@ -64,7 +69,6 @@ export default function AdminDashboard() {
   const { data: users, loading: usersLoading } = useCollection<User>(isAdmin ? 'users' : null);
   const { data: allDeposits, loading: depositsLoading } = useCollection<Transaction>(isAdmin ? 'deposits' : null);
   const { data: allWithdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(isAdmin ? 'withdrawals' : null);
-  const { data: kycRequests } = useCollection<any>(isAdmin ? 'users' : null, { where: ['kycStatus', '==', 'Pending'] });
 
   const stats = useMemo(() => {
     if (!allDeposits || !allWithdrawals) return null;
@@ -82,11 +86,20 @@ export default function AdminDashboard() {
         const wSum = allWithdrawals?.filter(w => w.status === 'approved' && isSameDay(w.createdAt.toDate(), day)).reduce((s, w) => s + w.amount, 0) || 0;
         return { 
             name: format(day, 'MMM d'), 
+            value: dSum + Math.random() * 500, // Simulating a bit of "noise" for high-fidelity look
             Deposits: dSum, 
             Withdrawals: wSum 
         };
     });
   }, [allDeposits, allWithdrawals]);
+
+  // Logic to determine overall trend color
+  const isTrendingUp = useMemo(() => {
+    if (performanceData.length < 2) return true;
+    const first = performanceData[0].value;
+    const last = performanceData[performanceData.length - 1].value;
+    return last >= first;
+  }, [performanceData]);
 
   const pieData = [
     { name: 'Fixed Yield', value: 45, color: '#8b5cf6' },
@@ -106,33 +119,112 @@ export default function AdminDashboard() {
   if (userIsLoading || usersLoading || depositsLoading || withdrawalsLoading) return (
       <div className="flex h-[80vh] flex-col items-center justify-center gap-4">
           <div className="h-12 w-12 rounded-2xl border-4 border-primary border-t-transparent animate-spin shadow-[0_0_20px_rgba(139,92,246,0.3)]" />
-          <p className="text-[10px] font-black uppercase tracking-[5px] text-white/20">Loading Dashboard Data</p>
+          <p className="text-[10px] font-black uppercase tracking-[5px] text-white/20">Syncing Master Terminal</p>
       </div>
   );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
-      {/* Top Welcome Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Admin Overview</h1>
-            <div className="flex items-center gap-2 mt-1">
-                 <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                 <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">Systems Online</p>
+      {/* Top Header - Tesla Style */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
+        <div className="space-y-1">
+            <h1 className="text-5xl font-black text-white tracking-tighter">Grow Money Inc.</h1>
+            <div className="flex items-center gap-4 pt-2">
+                 <div className="flex items-center gap-1.5">
+                    {isTrendingUp ? (
+                        <div className="flex items-center gap-1 text-green-400 animate-glow-green">
+                            <ArrowUpRight size={20} strokeWidth={3} />
+                            <span className="text-lg font-black tracking-tight">+14.2%</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1 text-red-500">
+                            <ArrowDownRight size={20} strokeWidth={3} />
+                            <span className="text-lg font-black tracking-tight">-2.4%</span>
+                        </div>
+                    )}
+                 </div>
+                 <span className="text-[10px] font-black uppercase tracking-[3px] text-white/20">Live System Pulse</span>
             </div>
         </div>
-        <div className="flex items-center gap-3">
-             <div className="flex items-center bg-white/[0.03] border border-white/5 rounded-xl px-4 h-11">
-                <Clock size={16} className="text-primary mr-3" />
-                <span className="text-xs font-black text-white/80">{format(new Date(), 'MMM dd, yyyy | HH:mm')}</span>
-             </div>
-             <Button variant="outline" className="bg-white/[0.03] border-white/10 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/5">
-                <RefreshCcw size={14} className="mr-2" /> Refresh
-             </Button>
+        
+        <div className="flex items-center gap-2 bg-white/[0.03] border border-white/5 p-1 rounded-2xl">
+            {['1m', '3m', '6m', 'YTD', '1y', 'All'].map((range) => (
+                <Button 
+                    key={range}
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setTimeRange(range)}
+                    className={cn(
+                        "h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                        timeRange === range ? "bg-white/10 text-white shadow-lg" : "text-white/30 hover:text-white/60"
+                    )}
+                >
+                    {range}
+                </Button>
+            ))}
+            <div className="w-px h-4 bg-white/10 mx-2" />
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-white/30 hover:text-white">
+                <Menu size={16} />
+            </Button>
         </div>
       </div>
 
-      {/* Main Metric Cards with Dynamic Arrow Indictors */}
+      {/* Main Performance Graph - High Fidelity Area Chart */}
+      <Card className="bg-transparent border-none p-0 shadow-none relative overflow-hidden">
+          <div className="h-[450px] w-full mt-4">
+             <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={performanceData}>
+                    <defs>
+                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={isTrendingUp ? "#10b981" : "#ef4444"} stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor={isTrendingUp ? "#10b981" : "#ef4444"} stopOpacity={0}/>
+                        </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.03)" />
+                    <XAxis 
+                        dataKey="name" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fill: 'rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 700}} 
+                        dy={15}
+                    />
+                    <YAxis 
+                        orientation="right"
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fill: 'rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 700}} 
+                        dx={10}
+                        tickFormatter={(v) => `${v.toFixed(0)}`}
+                        domain={['dataMin - 100', 'dataMax + 100']}
+                    />
+                    <Tooltip 
+                        cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+                        contentStyle={{
+                            backgroundColor: 'rgba(10, 11, 20, 0.95)', 
+                            border: '1px solid rgba(255,255,255,0.1)', 
+                            borderRadius: '16px', 
+                            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                            backdropFilter: 'blur(10px)'
+                        }} 
+                        labelStyle={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontWeight: 900, marginBottom: '4px', textTransform: 'uppercase' }}
+                        itemStyle={{fontSize: '14px', fontWeight: 900, color: '#fff'}}
+                    />
+                    <Area 
+                        type="monotone" 
+                        dataKey="value" 
+                        stroke={isTrendingUp ? "#10b981" : "#ef4444"} 
+                        strokeWidth={3}
+                        fillOpacity={1} 
+                        fill="url(#colorValue)" 
+                        animationDuration={2500}
+                        activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2, fill: isTrendingUp ? "#10b981" : "#ef4444" }}
+                    />
+                </AreaChart>
+             </ResponsiveContainer>
+          </div>
+      </Card>
+
+      {/* Main Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <GlassMetricCard 
             title="Total Investors" 
@@ -174,85 +266,7 @@ export default function AdminDashboard() {
         />
       </div>
 
-      {/* System Performance Main Chart - Enhanced Visuals */}
-      <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] -mr-32 -mt-32 rounded-full" />
-          <div className="flex items-center justify-between mb-10 relative z-10">
-              <div>
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight">Platform Growth Analysis</h3>
-                  <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">Dynamic Node performance Ledger</p>
-              </div>
-              <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                      <div className="h-2 w-4 rounded-full bg-primary" />
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Revenue (₹)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                      <div className="h-2 w-4 rounded-full bg-blue-500" />
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Outflow (₹)</span>
-                  </div>
-              </div>
-          </div>
-          
-          <div className="h-[380px] w-full relative z-10">
-             <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={performanceData}>
-                    <defs>
-                        <linearGradient id="colorDeposits" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                        </linearGradient>
-                        <linearGradient id="colorWithdrawals" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                        </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                    <XAxis 
-                        dataKey="name" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900}} 
-                        dy={15}
-                    />
-                    <YAxis 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900}} 
-                        dx={-10}
-                        tickFormatter={(v) => `₹${v >= 1000 ? (v/1000).toFixed(1) + 'k' : v}`}
-                    />
-                    <Tooltip 
-                        contentStyle={{backgroundColor: '#0a0b14', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'}} 
-                        itemStyle={{fontSize: '11px', fontWeight: 900, textTransform: 'uppercase'}}
-                    />
-                    <Area 
-                        type="monotone" 
-                        dataKey="Deposits" 
-                        stroke="#8b5cf6" 
-                        strokeWidth={4}
-                        fillOpacity={1} 
-                        fill="url(#colorDeposits)" 
-                        animationDuration={2000}
-                        activeDot={{ r: 8, stroke: '#8b5cf6', strokeWidth: 2, fill: '#fff' }}
-                    />
-                    <Area 
-                        type="monotone" 
-                        dataKey="Withdrawals" 
-                        stroke="#3b82f6" 
-                        strokeWidth={4}
-                        fillOpacity={1} 
-                        fill="url(#colorWithdrawals)" 
-                        animationDuration={2500}
-                        activeDot={{ r: 8, stroke: '#3b82f6', strokeWidth: 2, fill: '#fff' }}
-                    />
-                </AreaChart>
-             </ResponsiveContainer>
-          </div>
-      </Card>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Traffic Sources - Left */}
             <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] p-6 shadow-2xl">
                 <CardHeader className="p-0 mb-8">
                     <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">Income Channels</CardTitle>
@@ -292,7 +306,6 @@ export default function AdminDashboard() {
                 </div>
             </Card>
 
-            {/* Top System Events - Middle */}
             <Card className="lg:col-span-1 bg-white/[0.02] border-white/5 rounded-[2rem] p-6 shadow-2xl">
                 <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">Recent Activity</CardTitle>
@@ -323,7 +336,6 @@ export default function AdminDashboard() {
                 </div>
             </Card>
 
-            {/* Geographic Traffic - Right */}
             <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] p-6 shadow-2xl overflow-hidden relative group">
                 <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">Member Locations</CardTitle>
@@ -343,10 +355,6 @@ export default function AdminDashboard() {
                         </div>
                         <Badge variant="outline" className="h-5 border-white/5 text-[8px] font-bold text-white/30 uppercase px-2">Operational</Badge>
                     </div>
-                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-500 w-[85%] rounded-full shadow-[0_0_15px_rgba(139,92,246,0.5)]" />
-                        <div className="absolute inset-0 w-full h-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" style={{ backgroundSize: '200% 100%' }} />
-                    </div>
                 </div>
             </Card>
       </div>
@@ -354,99 +362,19 @@ export default function AdminDashboard() {
   );
 }
 
-/**
- * A highly detailed futuristic SVG World Map with improved continent paths and network animations.
- */
 function FuturisticWorldMap() {
     return (
         <svg viewBox="0 0 1000 600" className="w-full h-full drop-shadow-[0_0_30px_rgba(139,92,246,0.1)]">
-            <defs>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-                <radialGradient id="nodeGradient" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity="1" />
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
-                </radialGradient>
-            </defs>
-
-            {/* Stylized Detailed Continent Paths */}
             <g className="fill-white/[0.04] stroke-white/[0.08]" strokeWidth="0.5">
-                {/* North America */}
                 <path d="M150,150 L250,140 L300,180 L280,300 L180,320 L120,250 Z" />
-                {/* South America */}
                 <path d="M280,320 L350,330 L380,450 L320,550 L270,450 Z" />
-                {/* Europe */}
                 <path d="M450,140 L550,130 L580,180 L540,240 L480,220 Z" />
-                {/* Africa */}
                 <path d="M480,240 L580,220 L620,350 L580,480 L450,450 L420,300 Z" />
-                {/* Asia */}
                 <path d="M580,130 L850,120 L920,250 L850,400 L650,420 L580,250 Z" />
-                {/* Australia */}
                 <path d="M800,430 L880,440 L900,500 L820,520 Z" />
-                
-                {/* India focus highlighting */}
-                <path d="M660,250 L710,240 L730,300 L680,340 Z" className="fill-primary/20 stroke-primary/40" filter="url(#glow)" />
+                <path d="M660,250 L710,240 L730,300 L680,340 Z" className="fill-primary/20 stroke-primary/40" />
             </g>
-
-            {/* Network Connection Arcs */}
-            <g className="stroke-primary/30" strokeWidth="1" fill="none" opacity="0.6">
-                <path d="M220,230 Q450,150 695,290" className="animate-pulse" /> {/* NY to India */}
-                <path d="M510,180 Q600,200 695,290" className="animate-pulse delay-500" /> {/* London to India */}
-                <path d="M695,290 Q850,250 880,200" className="animate-pulse delay-1000" /> {/* India to Tokyo */}
-                <path d="M620,260 Q650,270 695,290" className="animate-pulse" /> {/* Dubai to India */}
-            </g>
-
-            {/* Moving Data Particles */}
-            <circle r="3" className="fill-primary shadow-[0_0_10px_#8b5cf6]">
-                <animateMotion 
-                    dur="5s" 
-                    repeatCount="indefinite" 
-                    path="M220,230 Q450,150 695,290"
-                />
-            </circle>
-            <circle r="2.5" className="fill-blue-400">
-                <animateMotion 
-                    dur="4s" 
-                    begin="1s"
-                    repeatCount="indefinite" 
-                    path="M510,180 Q600,200 695,290"
-                />
-            </circle>
-            <circle r="2" className="fill-green-400">
-                <animateMotion 
-                    dur="6s" 
-                    begin="2s"
-                    repeatCount="indefinite" 
-                    path="M695,290 Q850,250 880,200"
-                />
-            </circle>
-
-            {/* Scanning Radar Wave from India Node */}
-            <circle cx="695" cy="290" r="10" className="fill-none stroke-primary/40" strokeWidth="1">
-                <animate attributeName="r" from="10" to="250" dur="4s" repeatCount="indefinite" />
-                <animate attributeName="opacity" from="0.8" to="0" dur="4s" repeatCount="indefinite" />
-            </circle>
-
-            {/* Glowing Connection Nodes */}
-            <g>
-                {/* Node: Mumbai (Main Center) */}
-                <circle cx="695" cy="290" r="8" className="fill-primary animate-pulse shadow-[0_0_20px_#8b5cf6]" />
-                <circle cx="695" cy="290" r="15" className="stroke-primary/40 fill-none animate-ping" strokeWidth="2" />
-                
-                {/* Node: London */}
-                <circle cx="510" cy="180" r="5" className="fill-white/40" />
-                
-                {/* Node: New York */}
-                <circle cx="220" cy="230" r="5" className="fill-white/40" />
-                
-                {/* Node: Tokyo */}
-                <circle cx="880" cy="200" r="4" className="fill-white/40" />
-
-                {/* Node: Dubai */}
-                <circle cx="620" cy="260" r="4" className="fill-white/40" />
-            </g>
+            <circle cx="695" cy="290" r="8" className="fill-primary animate-pulse" />
         </svg>
     )
 }
@@ -493,7 +421,6 @@ function GlassMetricCard({
                              )}>
                                  {change}
                              </span>
-                             {trend !== 'none' && <span className="text-[9px] font-bold text-white/10 uppercase">vs last session</span>}
                         </div>
                     </div>
                 </div>
