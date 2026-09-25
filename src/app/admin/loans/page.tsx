@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, ShieldCheck, Copy, QrCode, Timer, Landmark, Smartphone } from 'lucide-react';
+import { Check, X, ShieldCheck, Copy, QrCode, Timer, Landmark, Smartphone, Info, ReceiptIndianRupee } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import {
   doc,
@@ -39,6 +39,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 type LoanRequest = {
   id: string;
@@ -132,6 +133,7 @@ export default function LoanRequestsPage() {
         planName: plan.name,
         loanAmount: plan.loanAmount,
         interest: plan.interest,
+        tax: plan.tax || 0,
         totalPayable: plan.totalRepayment,
         duration: plan.duration,
         durationType: plan.durationType,
@@ -236,6 +238,7 @@ export default function LoanRequestsPage() {
     toast({ title: `${label} Copied!`, description: text });
   };
   
+  const currentPlan = requestToProcess ? loanPlans?.find(p => p.id === requestToProcess.planId) : null;
   const upiDeeplink = requestToProcess && requestToProcess.userUpiId ? `upi://pay?pa=${requestToProcess.userUpiId}&pn=${encodeURIComponent(requestToProcess.userName)}&am=${requestToProcess.loanAmount.toFixed(2)}&cu=INR` : '';
 
 
@@ -251,7 +254,7 @@ export default function LoanRequestsPage() {
           <TableHeader className="bg-white/[0.02]">
             <TableRow className="border-white/5">
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 pl-6 py-5">Investor</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Asset Details</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Protocol Breakdown</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Principal</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Payment Address</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Status</TableHead>
@@ -267,53 +270,59 @@ export default function LoanRequestsPage() {
                 </TableCell>
               </TableRow>
             ) : loanRequests && loanRequests.length > 0 ? (
-              loanRequests.map((request) => (
-                <TableRow key={request.id} className="border-white/[0.03] hover:bg-white/[0.01]">
-                  <TableCell className="pl-6 py-4 font-bold text-white/90">{request.userName}</TableCell>
-                  <TableCell>
-                      <div className="flex flex-col">
-                          <span className="text-xs font-bold text-white/80">{request.planName}</span>
-                          <span className="text-[9px] text-white/20 uppercase font-black">{request.repaymentMethod} Node</span>
-                      </div>
-                  </TableCell>
-                  <TableCell className="font-black text-white">₹{(request.loanAmount || 0).toLocaleString()}</TableCell>
-                  <TableCell className="font-mono text-[10px] text-primary">{request.userUpiId || 'NO UPI'}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={cn(
-                        "text-[9px] font-black uppercase h-6 px-3",
-                        request.status === 'sent' ? "border-green-500/20 text-green-400 bg-green-500/5" :
-                        request.status === 'rejected' ? "border-red-500/20 text-red-500 bg-red-500/5" :
-                        "border-white/10 text-white/40"
-                    )}>
-                      {request.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="pr-6 text-right">
-                    <div className="flex justify-end gap-2">
-                       {request.status === 'pending' && (
-                           <>
-                             <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-green-600/10 text-green-500 border-green-500/20 hover:bg-green-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
-                                onClick={() => handleApproveClick(request)}
-                              >
-                                DISPATCH
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-red-600/10 text-red-500 border-red-500/20 hover:bg-red-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
-                                onClick={() => openRejectDialog(request)}
-                              >
-                                DENY
-                              </Button>
-                           </>
-                       )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+              loanRequests.map((request) => {
+                const plan = loanPlans?.find(p => p.id === request.planId);
+                return (
+                    <TableRow key={request.id} className="border-white/[0.03] hover:bg-white/[0.01]">
+                    <TableCell className="pl-6 py-4 font-bold text-white/90">{request.userName}</TableCell>
+                    <TableCell>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-white/80">{request.planName}</span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[9px] text-red-400/60 uppercase font-black">Int: ₹{plan?.interest}</span>
+                                <span className="text-[9px] text-blue-400/60 uppercase font-black">Tax: ₹{plan?.tax}</span>
+                            </div>
+                        </div>
+                    </TableCell>
+                    <TableCell className="font-black text-white">₹{(request.loanAmount || 0).toLocaleString()}</TableCell>
+                    <TableCell className="font-mono text-[10px] text-primary">{request.userUpiId || 'NO UPI'}</TableCell>
+                    <TableCell>
+                        <Badge variant="outline" className={cn(
+                            "text-[9px] font-black uppercase h-6 px-3",
+                            request.status === 'sent' ? "border-green-500/20 text-green-400 bg-green-500/5" :
+                            request.status === 'rejected' ? "border-red-500/20 text-red-500 bg-red-500/5" :
+                            "border-white/10 text-white/40"
+                        )}>
+                        {request.status}
+                        </Badge>
+                    </TableCell>
+                    <TableCell className="pr-6 text-right">
+                        <div className="flex justify-end gap-2">
+                        {request.status === 'pending' && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-green-600/10 text-green-500 border-green-500/20 hover:bg-green-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
+                                    onClick={() => handleApproveClick(request)}
+                                >
+                                    DISPATCH
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-red-600/10 text-red-500 border-red-500/20 hover:bg-red-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
+                                    onClick={() => openRejectDialog(request)}
+                                >
+                                    DENY
+                                </Button>
+                            </>
+                        )}
+                        </div>
+                    </TableCell>
+                    </TableRow>
+                )
+              })
             ) : (
                 <TableRow>
                     <TableCell colSpan={6} className="text-center py-20 text-white/10 italic">No loan requests in current window.</TableCell>
@@ -371,6 +380,31 @@ export default function LoanRequestsPage() {
                          <p className="text-3xl font-black text-green-400 tracking-tighter">₹{(requestToProcess?.loanAmount || 0).toLocaleString()}</p>
                     </div>
                 </div>
+
+                {currentPlan && (
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-3">
+                        <p className="text-[10px] font-black text-primary uppercase tracking-widest">Protocol Audit Breakdown</p>
+                        <div className="space-y-2">
+                             <div className="flex justify-between items-center text-[11px]">
+                                <span className="text-white/30 font-bold uppercase">Base Principal</span>
+                                <span className="text-white/80 font-black">₹{currentPlan.loanAmount.toLocaleString()}</span>
+                             </div>
+                             <div className="flex justify-between items-center text-[11px]">
+                                <span className="text-white/30 font-bold uppercase">Repayment Interest</span>
+                                <span className="text-red-400 font-black">+ ₹{currentPlan.interest.toLocaleString()}</span>
+                             </div>
+                             <div className="flex justify-between items-center text-[11px]">
+                                <span className="text-white/30 font-bold uppercase">Platform Service Tax</span>
+                                <span className="text-blue-400 font-black">+ ₹{(currentPlan.tax || 0).toLocaleString()}</span>
+                             </div>
+                             <Separator className="bg-white/10" />
+                             <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-black text-white/40 uppercase">Settlement Goal</span>
+                                <span className="text-base font-black text-white">₹{currentPlan.totalRepayment.toLocaleString()}</span>
+                             </div>
+                        </div>
+                    </div>
+                )}
                 
                 <div className="space-y-2 px-1">
                     <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Destination ID</Label>
@@ -396,3 +430,4 @@ export default function LoanRequestsPage() {
     </div>
   );
 }
+

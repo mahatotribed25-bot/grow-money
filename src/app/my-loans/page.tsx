@@ -22,7 +22,9 @@ import {
   Fingerprint,
   Activity,
   History as HistoryIcon,
-  Shield
+  Shield,
+  ReceiptIndianRupee,
+  FileBadge
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -61,6 +63,7 @@ type Loan = {
   loanAmount: number;
   totalPayable: number;
   interest?: number;
+  tax?: number;
   penalty?: number;
   startDate: Timestamp;
   dueDate: Timestamp;
@@ -265,14 +268,14 @@ export default function MyLoansPage() {
                                         <Badge variant="outline" className="h-5 text-[8px] font-black tracking-widest border-primary/20 text-primary">AUTHORIZED</Badge>
                                     </div>
                                     <div className="bg-white/[0.02] rounded-2xl p-4 border border-white/5 space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-2 gap-4 border-b border-white/5 pb-4">
                                             <div className="space-y-0.5">
                                                 <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Disbursed On</p>
                                                 <p className="text-xs font-bold text-white/60">{loan.startDate.toDate().toLocaleDateString()}</p>
                                             </div>
                                             <div className="space-y-0.5 text-right">
-                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Repayment Mode</p>
-                                                <p className="text-xs font-bold text-white/60">{loan.repaymentMethod} Node</p>
+                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Platform Tax</p>
+                                                <p className="text-xs font-bold text-blue-400">₹{(loan.tax || 0).toFixed(2)}</p>
                                             </div>
                                         </div>
                                         {loan.repaymentMethod === 'EMI' ? loan.emis?.map((emi, i) => (
@@ -287,10 +290,11 @@ export default function MyLoansPage() {
                                         )) : (
                                             <RepaymentRow 
                                                 date={loan.dueDate.toDate()} 
-                                                amount={loan.totalPayable} 
+                                                amount={loan.totalPayable + (loan.penalty || 0)} 
                                                 status={loan.status} 
+                                                subtext={loan.penalty ? `Includes ₹${loan.penalty.toFixed(2)} Late Penalty` : undefined}
                                                 isSelected={!!selectedItems.find(item => item.id === loan.id && item.emiIndex === undefined)}
-                                                onToggle={() => handleToggleSelect(loan, loan.totalPayable, false)}
+                                                onToggle={() => handleToggleSelect(loan, loan.totalPayable + (loan.penalty || 0), false)}
                                             />
                                         )}
                                     </div>
@@ -313,17 +317,17 @@ export default function MyLoansPage() {
                                                 <p className="text-xs font-bold text-white/60">{(loan.activatedAt || loan.createdAt).toDate().toLocaleDateString()}</p>
                                             </div>
                                             <div className="space-y-0.5 text-right">
-                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Risk Factor</p>
-                                                <p className="text-xs font-bold text-green-400">Low (Verified)</p>
+                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Penalty Node</p>
+                                                <p className={cn("text-xs font-bold", (loan.penalty || 0) > 0 ? "text-red-400" : "text-white/40")}>₹{(loan.penalty || 0).toFixed(2)}</p>
                                             </div>
                                         </div>
                                         <RepaymentRow 
                                             date={loan.dueDate?.toDate() || new Date()} 
-                                            amount={loan.totalRepayment || 0} 
+                                            amount={(loan.totalRepayment || 0) + (loan.penalty || 0)} 
                                             status={loan.status === 'active' ? 'Active' : loan.status} 
                                             subtext={`Principal: ₹${loan.requestedAmount} | Matching Int: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
                                             isSelected={!!selectedItems.find(item => item.id === loan.id)}
-                                            onToggle={() => handleToggleSelect(loan, loan.totalRepayment || 0, true)}
+                                            onToggle={() => handleToggleSelect(loan, (loan.totalRepayment || 0) + (loan.penalty || 0), true)}
                                         />
                                     </div>
                                 </div>
@@ -479,35 +483,27 @@ function RepaymentRow({ date, amount, status, isSelected, onToggle, subtext }: {
 function HistoryCard({ loan, isCustom }: { loan: any, isCustom?: boolean }) {
     const principal = isCustom ? (loan.requestedAmount || 0) : (loan.loanAmount || 0);
     const total = isCustom ? (loan.totalRepayment || 0) : (loan.totalPayable || 0);
-    const interest = total - principal;
+    const interest = isCustom ? (loan.interestAmount || 0) : (loan.interest || 0);
+    const tax = loan.tax || 0;
+    const penalty = loan.penalty || 0;
+    
     const startDate = (loan.startDate || loan.activatedAt || loan.createdAt)?.toDate() || new Date();
     const settledDate = (loan.repaidAt || loan.paidNotificationAt || loan.dueDate)?.toDate() || new Date();
 
     return (
         <Card className="bg-muted/10 border-border rounded-3xl p-6 group grayscale hover:grayscale-0 transition-all duration-500 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                <ShieldCheck size={100} className="text-accent" />
+                <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-accent -rotate-12">
+                    <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" />
+                    <text x="50%" y="45%" textAnchor="middle" fill="currentColor" fontSize="12" fontWeight="bold" className="uppercase">Verified</text>
+                    <text x="50%" y="65%" textAnchor="middle" fill="currentColor" fontSize="10" fontWeight="black" className="uppercase">Settled</text>
+                </svg>
             </div>
             
             <div className="flex items-center justify-between relative z-10 mb-6">
                 <div className="flex items-center gap-4">
                     <div className="h-12 w-12 rounded-2xl bg-accent/5 flex items-center justify-center border border-accent/10 shadow-inner">
-                        <svg 
-                          width="24" 
-                          height="24" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          className="text-accent -rotate-12"
-                        >
-                          <path d="M5 22h14" />
-                          <path d="M19.27 13.73A2.5 2.5 0 0 0 17.5 13h-11a2.5 2.5 0 0 0-1.77.73L2 17v2h20v-2l-2.73-3.27z" />
-                          <path d="M12 13V2" />
-                          <path d="M8 6l4-4 4 4" />
-                        </svg>
+                        <ReceiptIndianRupee size={24} className="text-accent" />
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
@@ -531,22 +527,28 @@ function HistoryCard({ loan, isCustom }: { loan: any, isCustom?: boolean }) {
                     <div className="flex justify-between pl-4 border-l border-white/5"><span>Completed</span><span className="text-white/60">{settledDate.toLocaleDateString()}</span></div>
                 </div>
                 
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-black/20 rounded-2xl p-3 text-center border border-white/5">
-                        <p className="text-[7px] font-black text-muted-foreground uppercase tracking-widest mb-1">Principal</p>
-                        <p className="text-xs font-bold text-white">₹{principal.toLocaleString()}</p>
-                    </div>
-                    <div className="bg-black/20 rounded-2xl p-3 text-center border border-white/5">
-                        <p className="text-[7px] font-black text-muted-foreground uppercase tracking-widest mb-1">Fee/Interest</p>
-                        <p className="text-xs font-bold text-primary/60">₹{interest.toFixed(2)}</p>
-                    </div>
-                    <div className="bg-accent/5 rounded-2xl p-3 text-center border border-accent/10">
-                        <p className="text-[7px] font-black text-accent/60 uppercase tracking-widest mb-1">Final Payout</p>
-                        <p className="text-xs font-black text-accent">₹{total.toFixed(2)}</p>
-                    </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <HistoryMetric label="Principal" value={principal} />
+                    <HistoryMetric label="Interest" value={interest} color="text-red-400" />
+                    <HistoryMetric label="Service Tax" value={tax} color="text-blue-400" />
+                    <HistoryMetric label="Penalty" value={penalty} color={penalty > 0 ? "text-orange-500" : "text-white/20"} />
+                </div>
+
+                <div className="bg-accent/5 rounded-2xl p-4 flex justify-between items-center border border-accent/10 mt-2">
+                    <span className="text-[10px] font-black text-accent/60 uppercase tracking-[3px]">Total Settlement Node</span>
+                    <span className="text-xl font-black text-accent tracking-tighter">₹{(total + penalty).toFixed(2)}</span>
                 </div>
             </div>
         </Card>
+    );
+}
+
+function HistoryMetric({ label, value, color = "text-white/60" }: { label: string, value: number, color?: string }) {
+    return (
+        <div className="bg-black/20 rounded-2xl p-3 text-center border border-white/5">
+            <p className="text-[7px] font-black text-muted-foreground uppercase tracking-widest mb-1">{label}</p>
+            <p className={cn("text-xs font-bold", color)}>₹{value.toLocaleString()}</p>
+        </div>
     );
 }
 
