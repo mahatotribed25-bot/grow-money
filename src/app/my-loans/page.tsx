@@ -492,7 +492,22 @@ function HistoryCard({ loan, isCustom }: { loan: any, isCustom?: boolean }) {
             <div className="flex items-center justify-between relative z-10 mb-6">
                 <div className="flex items-center gap-4">
                     <div className="h-12 w-12 rounded-2xl bg-accent/5 flex items-center justify-center border border-accent/10 shadow-inner">
-                        <Stamp size={24} className="text-accent -rotate-12" />
+                        <svg 
+                          width="24" 
+                          height="24" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          className="text-accent -rotate-12"
+                        >
+                          <path d="M5 22h14" />
+                          <path d="M19.27 13.73A2.5 2.5 0 0 0 17.5 13h-11a2.5 2.5 0 0 0-1.77.73L2 17v2h20v-2l-2.73-3.27z" />
+                          <path d="M12 13V2" />
+                          <path d="M8 6l4-4 4 4" />
+                        </svg>
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
