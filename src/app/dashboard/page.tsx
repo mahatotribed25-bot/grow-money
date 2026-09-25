@@ -188,9 +188,14 @@ export default function Dashboard() {
 
   const activeInvestments = investments?.filter((inv) => inv.status === 'Active' || inv.status === 'Stopped');
 
+  // Robust Staff Detection for live sync
   const isStaff = useMemo(() => {
     if (!userData) return false;
-    return userData.role === 'subadmin' || (userData.permissions && Object.values(userData.permissions).some(v => v === true));
+    const isSubAdmin = userData.role === 'subadmin';
+    const hasPermissions = userData.permissions && Object.values(userData.permissions).some(v => v === true);
+    const isSuperAdmin = userData.email && (userData.email.toLowerCase() === 'admin@tribed.world' || userData.email.toLowerCase() === 'admin@tribed.com');
+    
+    return isSubAdmin || hasPermissions || isSuperAdmin;
   }, [userData]);
 
   if (userLoading || userDataLoading || investmentsLoading) return <div className="flex h-screen items-center justify-center"><Timer className="animate-spin text-primary" /></div>;
@@ -224,18 +229,19 @@ export default function Dashboard() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         {isStaff && (
-          <Card className="bg-primary/5 border border-primary/20 rounded-[1.5rem] p-4 animate-in slide-in-from-top-4 duration-700">
-             <div className="flex items-center justify-between">
+          <Card className="bg-primary/5 border border-primary/20 rounded-[1.5rem] p-4 animate-in slide-in-from-top-4 duration-700 shadow-lg relative overflow-hidden group">
+             <div className="absolute inset-0 bg-primary/5 animate-pulse group-hover:bg-primary/10 transition-colors" />
+             <div className="flex items-center justify-between relative z-10">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary shadow-[0_0_15px_rgba(139,92,246,0.3)]">
+                  <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary shadow-[0_0_15px_rgba(139,92,246,0.3)] border border-primary/20">
                       <ShieldCheck size={22} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black uppercase tracking-tight">Staff Access Active</h3>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">You have been selected for administrative duties.</p>
+                    <h3 className="text-sm font-black uppercase tracking-tight text-white">Staff Access Active</h3>
+                    <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Administrative terminal is online.</p>
                   </div>
                 </div>
-                <Button asChild size="sm" className="h-9 px-4 rounded-xl bg-primary text-primary-foreground font-black text-[10px] uppercase shadow-lg shadow-primary/20">
+                <Button asChild size="sm" className="h-9 px-4 rounded-xl bg-primary text-primary-foreground font-black text-[10px] uppercase shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
                     <Link href="/subadmin">Staff Portal</Link>
                 </Button>
              </div>

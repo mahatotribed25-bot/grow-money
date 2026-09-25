@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -13,7 +14,6 @@ import {
   Upload,
   FileCheck,
   HandCoins,
-  IndianRupee,
   ShieldCheck,
   UserCircle,
   Calendar,
@@ -48,6 +48,7 @@ type UserPermissions = {
     canManageKyc?: boolean;
     canManagePlanLoans?: boolean;
     canManageCustomLoans?: boolean;
+    canManageMarket?: boolean;
 }
 
 type UserData = {
@@ -55,6 +56,7 @@ type UserData = {
     email?: string;
     permissions?: UserPermissions;
     name?: string;
+    photoURL?: string;
 }
 
 type BaseRequest = {
@@ -80,9 +82,20 @@ export default function SubAdminLayout({
   const { data: userData, loading: userDataLoading } = useDoc<UserData>(user ? `users/${user.uid}` : null);
   
   const loading = userLoading || userDataLoading;
-  const permissions = userData?.permissions;
-  const isAuthorized = userData && (userData.role === 'subadmin' || (userData.email && ADMIN_EMAILS.includes(userData.email.toLowerCase())));
+  
+  // Robust authorization check
+  const isAuthorized = useMemo(() => {
+    if (!userData) return false;
+    const isSuperAdmin = userData.email && ADMIN_EMAILS.includes(userData.email.toLowerCase());
+    const isSubAdmin = userData.role === 'subadmin';
+    const hasPermissions = userData.permissions && Object.values(userData.permissions).some(v => v === true);
+    
+    return isSuperAdmin || isSubAdmin || hasPermissions;
+  }, [userData]);
 
+  const permissions = userData?.permissions;
+
+  // Real-time notification counters for modules
   const { data: pendingDeposits } = useCollection<DepositRequest>(
     isAuthorized && permissions?.canManageDeposits ? 'deposits' : null, 
     { where: ['status', '==', 'pending'] }
@@ -110,6 +123,7 @@ export default function SubAdminLayout({
     
     const customLoanNotifs = pendingCustomLoanRequests?.map(c => ({
         ...c,
+        id: c.id,
         type: c.status === 'extension_pending' ? 'Loan Extension' : 'Custom Loan',
         link: '/subadmin/custom-loans',
         name: c.userName,
@@ -124,17 +138,29 @@ export default function SubAdminLayout({
     ].filter(n => n.createdAt).sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
   }, [isAuthorized, pendingDeposits, pendingWithdrawals, pendingLoanRequests, pendingKycRequests, pendingCustomLoanRequests]);
 
-  const notificationCount = notifications.length;
-
   useEffect(() => {
-    if (!loading && !user) router.push('/login');
-    if (!loading && user && !isAuthorized) router.push('/dashboard');
+    if (!loading) {
+        if (!user) {
+            router.push('/login');
+        } else if (!isAuthorized) {
+            router.push('/dashboard');
+        }
+    }
   }, [user, isAuthorized, loading, router]);
 
 
-  if (loading || !isAuthorized) {
-    return <div className="flex min-h-screen w-full items-center justify-center bg-background"><Timer className="animate-spin text-primary" /></div>;
+  if (loading) {
+    return (
+        <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#020306]">
+            <div className="h-10 w-10 animate-spin border-4 border-primary border-t-transparent rounded-full shadow-[0_0_20px_rgba(139,92,246,0.5)]" />
+            <p className="mt-4 text-[10px] font-black uppercase tracking-[5px] text-white/20">Syncing Staff Credentials</p>
+        </div>
+    );
   }
+
+  if (!isAuthorized) return null;
+
+  const isRootAdmin = userData?.email && ADMIN_EMAILS.includes(userData.email.toLowerCase());
 
   const navLinks = [
     { href: "/subadmin/custom-loans", icon: FileText, label: "Custom Loans", permission: permissions?.canManageCustomLoans, count: pendingCustomLoanRequests?.length },
@@ -143,7 +169,7 @@ export default function SubAdminLayout({
     { href: "/subadmin/attendance", icon: Calendar, label: "My Attendance", permission: true },
     { href: "/subadmin/deposits", icon: Upload, label: "Deposits", permission: permissions?.canManageDeposits, count: pendingDeposits?.length },
     { href: "/subadmin/withdrawals", icon: Download, label: "Withdrawals", permission: permissions?.canManageWithdrawals, count: pendingWithdrawals?.length },
-  ].filter(link => (userData?.email && ADMIN_EMAILS.includes(userData.email.toLowerCase())) || link.permission);
+  ].filter(link => isRootAdmin || link.permission);
 
 
   return (
@@ -165,6 +191,11 @@ export default function SubAdminLayout({
                         {link.label}
                     </AdminNavItem>
                 ))}
+                {navLinks.length === 0 && (
+                    <div className="px-4 py-6 text-center border border-dashed border-white/5 rounded-2xl">
+                        <p className="text-[9px] font-bold text-white/20 uppercase">No modules assigned</p>
+                    </div>
+                )}
             </nav>
             
             <nav className="space-y-1.5 pt-4">
@@ -222,16 +253,16 @@ export default function SubAdminLayout({
                 <PopoverTrigger asChild>
                     <Button variant="ghost" size="icon" className="relative h-12 w-12 rounded-2xl bg-white/5 border border-white/10">
                         <Bell className="h-5 w-5 text-white/60" />
-                        {notificationCount > 0 && <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-primary animate-pulse" />}
+                        {notifications.length > 0 && <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-primary animate-pulse" />}
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 bg-[#0a0b14] border-white/10 p-0 rounded-3xl overflow-hidden shadow-2xl">
                     <div className="p-5 border-b border-white/5 bg-white/5 flex justify-between items-center">
                         <h4 className="font-black text-[10px] uppercase tracking-widest">Pipeline Alerts</h4>
-                        <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px]">{notificationCount}</Badge>
+                        <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px]">{notifications.length}</Badge>
                     </div>
                     <ScrollArea className="max-h-[350px]">
-                        {notificationCount > 0 ? (
+                        {notifications.length > 0 ? (
                             notifications.map(n => (
                                 <Link key={n.id} href={n.link} className="flex flex-col p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
                                     <p className="text-[11px] font-black text-white/80 uppercase">New {n.type}</p>
@@ -244,7 +275,7 @@ export default function SubAdminLayout({
             </Popover>
 
             <Avatar className="h-11 w-11 rounded-xl border border-white/10 p-0.5">
-                <AvatarImage src={user?.photoURL || undefined} className="rounded-[9px]" />
+                <AvatarImage src={userData?.photoURL || undefined} className="rounded-[9px]" />
                 <AvatarFallback className="bg-white/5 text-primary text-xs font-black">{userData?.name?.charAt(0)}</AvatarFallback>
             </Avatar>
           </div>
