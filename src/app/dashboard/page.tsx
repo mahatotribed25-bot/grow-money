@@ -70,39 +70,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CashDispenseAnimation } from '@/components/dashboard/CashDispenseAnimation';
 import { useSettings } from '@/context/settings-context';
 import { createWorker } from 'tesseract.js';
-
-type UserData = {
-  id: string;
-  walletBalance: number;
-  totalInvestment: number;
-  totalIncome: number;
-  name?: string;
-  photoURL?: string;
-  email?: string;
-  upiId?: string;
-  role?: string;
-  permissions?: any;
-};
-
-type AdminSettings = {
-  adminUpi?: string;
-  minWithdrawal?: number;
-  homepageVideoUrls?: string[];
-};
-
-type Investment = {
-  id: string;
-  planId: string;
-  planName: string;
-  investedAmount: number;
-  returnAmount: number;
-  startDate: Timestamp;
-  maturityDate: Timestamp;
-  status: 'Active' | 'Matured' | 'Stopped';
-  dailyIncome: number;
-  lastClaimDate?: Timestamp;
-  finalReturn?: number;
-};
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 const SlideToClaim = ({ onComplete, disabled, label, lockedLabel }: { onComplete: () => void, disabled?: boolean, label: string, lockedLabel?: string }) => {
   const [sliderValue, setSliderValue] = useState(0);
@@ -646,7 +615,7 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
                         </div>
                     </div>
                     
-                    <Button onClick={handleWithdraw} className="w-full h-16 rounded-[1.5rem] bg-primary text-primary-foreground font-black text-lg shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
+                    <Button handleWithdraw={handleWithdraw} className="w-full h-16 rounded-[1.5rem] bg-primary text-primary-foreground font-black text-lg shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
                         Confirm Withdrawal
                     </Button>
                 </div>
