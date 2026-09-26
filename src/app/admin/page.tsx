@@ -80,20 +80,34 @@ export default function AdminDashboard() {
   }, [allDeposits, allWithdrawals]);
 
   const performanceData = useMemo(() => {
+    // Generate dates for the last 15 days
     const days = Array.from({ length: 15 }, (_, i) => startOfDay(subDays(new Date(), i))).reverse();
+    
     return days.map(day => {
-        const dSum = allDeposits?.filter(d => d.status === 'approved' && isSameDay(d.createdAt.toDate(), day)).reduce((s, d) => s + d.amount, 0) || 0;
-        const wSum = allWithdrawals?.filter(w => w.status === 'approved' && isSameDay(w.createdAt.toDate(), day)).reduce((s, w) => s + w.amount, 0) || 0;
+        const dSum = allDeposits?.filter(d => 
+            d.status === 'approved' && 
+            d.createdAt && 
+            isSameDay(d.createdAt.toDate(), day)
+        ).reduce((s, d) => s + d.amount, 0) || 0;
+
+        const wSum = allWithdrawals?.filter(w => 
+            w.status === 'approved' && 
+            w.createdAt && 
+            isSameDay(w.createdAt.toDate(), day)
+        ).reduce((s, w) => s + w.amount, 0) || 0;
+
+        // The "Value" represents the Net Protocol Volume for that day
         return { 
             name: format(day, 'MMM d'), 
-            value: dSum + Math.random() * 500, // Simulating a bit of "noise" for high-fidelity look
+            // We use a baseline of 100 to ensure the chart always has some visual height
+            value: (dSum - wSum) + 100, 
             Deposits: dSum, 
             Withdrawals: wSum 
         };
     });
   }, [allDeposits, allWithdrawals]);
 
-  // Logic to determine overall trend color
+  // Logic to determine overall trend color based on the 15-day window
   const isTrendingUp = useMemo(() => {
     if (performanceData.length < 2) return true;
     const first = performanceData[0].value;
@@ -125,7 +139,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
-      {/* Top Header - Tesla Style */}
+      {/* Top Header - Financial Hub Style */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
         <div className="space-y-1">
             <h1 className="text-5xl font-black text-white tracking-tighter">Grow Money Inc.</h1>
@@ -195,7 +209,7 @@ export default function AdminDashboard() {
                         tick={{fill: 'rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 700}} 
                         dx={10}
                         tickFormatter={(v) => `${v.toFixed(0)}`}
-                        domain={['dataMin - 100', 'dataMax + 100']}
+                        domain={['auto', 'auto']}
                     />
                     <Tooltip 
                         cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
@@ -212,6 +226,7 @@ export default function AdminDashboard() {
                     <Area 
                         type="monotone" 
                         dataKey="value" 
+                        name="Protocol Strength"
                         stroke={isTrendingUp ? "#10b981" : "#ef4444"} 
                         strokeWidth={3}
                         fillOpacity={1} 
