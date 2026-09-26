@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -38,6 +37,7 @@ import {
     DialogFooter,
     DialogClose,
 } from '@/components/ui/dialog';
+import { Card } from '@/components/ui/card';
 import Image from 'next/image';
 import { createWorker } from 'tesseract.js';
 import { ScrollArea } from '@/components/ui/scroll-area';
