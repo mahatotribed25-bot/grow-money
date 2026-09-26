@@ -196,8 +196,7 @@ export default function DepositsPage() {
           const utrMatch = text.match(/\b\d{12}\b/);
           const foundTid = utrMatch ? utrMatch[0] : 'Not Found';
 
-          // IMPROVED Match Amount Logic
-          // Look for Rupee symbol or large numbers near "paid" or "amount"
+          // STRICT Currency Amount Match: Look for numbers immediately following currency symbols
           const amountRegex = /(?:₹|INR|Rs\.?)\s*(\d+(?:[.,]\d{1,2})?)/i;
           const amountMatch = text.match(amountRegex);
           let foundAmount = 'Not Found';
@@ -205,11 +204,11 @@ export default function DepositsPage() {
           if (amountMatch) {
               foundAmount = amountMatch[1].replace(',', '');
           } else {
-              // Fallback: look for large numbers which are likely the main amount
-              const fallback = text.match(/\b\d{3,6}(?:\.\d{2})?\b/g);
-              if (fallback) {
-                  // Usually the largest or first matching large number is the amount
-                  foundAmount = fallback.sort((a,b) => parseFloat(b) - parseFloat(a))[0];
+              // Fallback: look for amount strings near common financial keywords
+              const fallbackRegex = /(?:Total|Paid|Amount)\D*(\d+(?:[.,]\d{1,2})?)/i;
+              const fallbackMatch = text.match(fallbackRegex);
+              if (fallbackMatch) {
+                  foundAmount = fallbackMatch[1].replace(',', '');
               }
           }
 

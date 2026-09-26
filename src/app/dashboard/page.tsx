@@ -359,28 +359,27 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
         setTid(utrMatch[0]);
       }
 
-      // Improved detection for Amount (searches for numbers after rupee symbol or large numbers near "paid")
+      // STRICT Amount Detection: Look specifically for digits immediately following a currency symbol
       const amountRegex = /(?:₹|INR|Rs\.?)\s*(\d+(?:[.,]\d{1,2})?)/i;
       const amountMatch = text.match(amountRegex);
       
       if (amountMatch) {
         const cleanedAmount = amountMatch[1].replace(',', '');
         setAmount(cleanedAmount);
-        toast({ title: "Smart Scan Complete", description: `Detected ₹${cleanedAmount}` });
+        toast({ title: "Smart Scan Complete", description: `Detected ₹${cleanedAmount} following symbol.` });
       } else {
-          // Fallback search for numbers over 100 if currency symbol missing
-          // We look for large numbers which are typically the transaction amount
-          const fallbackMatches = text.match(/\b\d{3,6}(?:\.\d{2})?\b/g);
-          if (fallbackMatches) {
-               // Usually the largest matching large number is the amount
-               const sorted = fallbackMatches.sort((a,b) => parseFloat(b) - parseFloat(a));
-               setAmount(sorted[0]);
-               toast({ title: "Scan Complete", description: `Detected ₹${sorted[0]}` });
+          // Fallback: look for large numbers typically associated with "Paid" or "Total"
+          const totalRegex = /(?:Total|Paid|Amount|Sum)\D*(\d+(?:[.,]\d{1,2})?)/i;
+          const totalMatch = text.match(totalRegex);
+          if (totalMatch) {
+               const cleanedAmount = totalMatch[1].replace(',', '');
+               setAmount(cleanedAmount);
+               toast({ title: "Context Scan Complete", description: `Detected ₹${cleanedAmount}` });
           }
       }
 
       if (!utrMatch && !amountMatch) {
-          toast({ title: "Scan Partially Successful", description: "Please double check the values manually.", variant: "secondary" });
+          toast({ title: "Scan Partially Successful", description: "Please verify and enter values manually.", variant: "secondary" });
       }
 
     } catch (err) {
