@@ -337,7 +337,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
 
   const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
 
     // Show preview
     const reader = new FileReader();
@@ -369,9 +369,10 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
         toast({ title: "Smart Scan Complete", description: `Detected ₹${cleanedAmount}` });
       } else {
           // Fallback search for numbers over 100 if currency symbol missing
+          // We look for large numbers which are typically the transaction amount
           const fallbackMatches = text.match(/\b\d{3,6}(?:\.\d{2})?\b/g);
           if (fallbackMatches) {
-               // Usually the largest or first matching large number is the amount
+               // Usually the largest matching large number is the amount
                const sorted = fallbackMatches.sort((a,b) => parseFloat(b) - parseFloat(a));
                setAmount(sorted[0]);
                toast({ title: "Scan Complete", description: `Detected ₹${sorted[0]}` });

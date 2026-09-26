@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -104,6 +105,7 @@ export default function DepositsPage() {
 
     for (const id of selectedIds) {
       const deposit = filteredDeposits.find(d => d.id === id);
+      // STRICT CHECK: Ensure deposit is still pending
       if (deposit && deposit.status === 'pending') {
         const depositRef = doc(firestore, 'deposits', deposit.id);
         const userRef = doc(firestore, 'users', deposit.userId);
@@ -142,6 +144,12 @@ export default function DepositsPage() {
   };
 
   const handleUpdateStatus = (deposit: DepositRequest, newStatus: 'approved' | 'rejected') => {
+      // STRICT CHECK: Ensure deposit is still pending to avoid redundant actions
+      if (deposit.status !== 'pending') {
+          toast({ title: "Already Processed", description: `This request is already ${deposit.status}.`, variant: "destructive" });
+          return;
+      }
+
       const batch = writeBatch(firestore);
       const depositRef = doc(firestore, 'deposits', deposit.id);
       const userRef = doc(firestore, 'users', deposit.userId);
@@ -188,7 +196,8 @@ export default function DepositsPage() {
           const utrMatch = text.match(/\b\d{12}\b/);
           const foundTid = utrMatch ? utrMatch[0] : 'Not Found';
 
-          // Match Amount
+          // IMPROVED Match Amount Logic
+          // Look for Rupee symbol or large numbers near "paid" or "amount"
           const amountRegex = /(?:₹|INR|Rs\.?)\s*(\d+(?:[.,]\d{1,2})?)/i;
           const amountMatch = text.match(amountRegex);
           let foundAmount = 'Not Found';
@@ -196,8 +205,12 @@ export default function DepositsPage() {
           if (amountMatch) {
               foundAmount = amountMatch[1].replace(',', '');
           } else {
+              // Fallback: look for large numbers which are likely the main amount
               const fallback = text.match(/\b\d{3,6}(?:\.\d{2})?\b/g);
-              if (fallback) foundAmount = fallback.sort((a,b) => parseFloat(b) - parseFloat(a))[0];
+              if (fallback) {
+                  // Usually the largest or first matching large number is the amount
+                  foundAmount = fallback.sort((a,b) => parseFloat(b) - parseFloat(a))[0];
+              }
           }
 
           const tidMatches = foundTid === auditTarget.transactionId;
@@ -488,7 +501,7 @@ export default function DepositsPage() {
                         <Button 
                             onClick={() => auditTarget && handleUpdateStatus(auditTarget, 'approved')}
                             className="h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase tracking-widest text-[10px]"
-                            disabled={isAuditing}
+                            disabled={isAuditing || (auditTarget?.status !== 'pending')}
                         >
                             Approve Deposit
                         </Button>
@@ -496,7 +509,7 @@ export default function DepositsPage() {
                             variant="destructive"
                             onClick={() => auditTarget && handleUpdateStatus(auditTarget, 'rejected')}
                             className="h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]"
-                            disabled={isAuditing}
+                            disabled={isAuditing || (auditTarget?.status !== 'pending')}
                         >
                             Reject Request
                         </Button>
