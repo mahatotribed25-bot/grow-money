@@ -27,7 +27,8 @@ import {
   ShieldAlert,
   Camera,
   ScanText,
-  Loader2
+  Loader2,
+  XCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -72,6 +73,38 @@ import { useSettings } from '@/context/settings-context';
 import { createWorker } from 'tesseract.js';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+
+type UserData = {
+  id: string;
+  name: string;
+  photoURL?: string;
+  walletBalance: number;
+  totalInvestment: number;
+  totalIncome: number;
+  upiId?: string;
+  role?: string;
+  permissions?: any;
+  email?: string;
+  trustScore?: number;
+};
+
+type Investment = {
+  id: string;
+  planName: string;
+  investedAmount: number;
+  returnAmount: number;
+  startDate: Timestamp;
+  maturityDate: Timestamp;
+  status: 'Active' | 'Matured' | 'Stopped';
+  dailyIncome: number;
+  lastClaimDate?: Timestamp;
+  finalReturn?: number;
+};
+
+type AdminSettings = {
+  adminUpi?: string;
+  minWithdrawal?: number;
+};
 
 const SlideToClaim = ({ onComplete, disabled, label, lockedLabel }: { onComplete: () => void, disabled?: boolean, label: string, lockedLabel?: string }) => {
   const [sliderValue, setSliderValue] = useState(0);
@@ -320,25 +353,33 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
       const { data: { text } } = await worker.recognize(file);
       await worker.terminate();
 
-      // Extract UTR/Transaction ID (Look for 12 digit numbers)
+      // Better detection for Transaction ID
       const utrMatch = text.match(/\b\d{12}\b/);
       if (utrMatch) {
         setTid(utrMatch[0]);
-        toast({ title: "UTR Extracted", description: `Found Transaction ID: ${utrMatch[0]}` });
       }
 
-      // Extract Amount (Look for currency symbols followed by numbers)
-      const amountMatch = text.match(/(?:₹|INR|Rs\.?)\s*(\d+(?:[.,]\d{1,2})?)/i) || 
-                          text.match(/(\d+(?:[.,]\d{1,2})?)\s*(?:₹|INR|Rs\.?)/i);
+      // Improved detection for Amount (searches for numbers after rupee symbol or large numbers near "paid")
+      const amountRegex = /(?:₹|INR|Rs\.?)\s*(\d+(?:[.,]\d{1,2})?)/i;
+      const amountMatch = text.match(amountRegex);
       
       if (amountMatch) {
         const cleanedAmount = amountMatch[1].replace(',', '');
         setAmount(cleanedAmount);
-        toast({ title: "Amount Detected", description: `Found payment of ₹${cleanedAmount}` });
+        toast({ title: "Smart Scan Complete", description: `Detected ₹${cleanedAmount}` });
+      } else {
+          // Fallback search for numbers over 100 if currency symbol missing
+          const fallbackMatches = text.match(/\b\d{3,6}(?:\.\d{2})?\b/g);
+          if (fallbackMatches) {
+               // Usually the largest or first matching large number is the amount
+               const sorted = fallbackMatches.sort((a,b) => parseFloat(b) - parseFloat(a));
+               setAmount(sorted[0]);
+               toast({ title: "Scan Complete", description: `Detected ₹${sorted[0]}` });
+          }
       }
 
       if (!utrMatch && !amountMatch) {
-          toast({ title: "Scan Incomplete", description: "Could not auto-detect details. Please enter manually.", variant: "secondary" });
+          toast({ title: "Scan Partially Successful", description: "Please double check the values manually.", variant: "secondary" });
       }
 
     } catch (err) {
@@ -365,7 +406,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
         transactionId: tid, 
         status: 'pending', 
         createdAt: serverTimestamp(),
-        screenshot: screenshotPreview // Optional: store screenshot base64
+        screenshot: screenshotPreview 
       })
       .then(() => { 
         toast({ title: 'Request Sent', description: 'Your deposit is being verified.' }); 
@@ -615,7 +656,7 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
                         </div>
                     </div>
                     
-                    <Button handleWithdraw={handleWithdraw} className="w-full h-16 rounded-[1.5rem] bg-primary text-primary-foreground font-black text-lg shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
+                    <Button onClick={handleWithdraw} className="w-full h-16 rounded-[1.5rem] bg-primary text-primary-foreground font-black text-lg shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
                         Confirm Withdrawal
                     </Button>
                 </div>
@@ -659,26 +700,5 @@ function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.Ele
         <Link href={href} className="flex flex-col items-center gap-2 p-5 bg-muted/30 border border-border rounded-2xl hover:bg-accent/10 hover:border-accent/30 transition-all group shadow-sm">
             <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", color)} /><span className="text-[9px] font-black uppercase text-muted-foreground tracking-[2px] group-hover:text-foreground transition-colors">{label}</span>
         </Link>
-    )
-}
-
-function XCircle(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <circle cx="12" cy="12" r="10" />
-            <path d="m15 9-6 6" />
-            <path d="m9 9 6 6" />
-        </svg>
     )
 }
