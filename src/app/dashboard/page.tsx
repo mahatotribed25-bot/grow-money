@@ -24,7 +24,10 @@ import {
   PlayCircle,
   Copy,
   ShieldCheck,
-  ShieldAlert
+  ShieldAlert,
+  Camera,
+  ScanText,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -50,7 +53,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   collection,
   addDoc,
@@ -66,6 +69,7 @@ import { ActivityPulse } from '@/components/dashboard/ActivityPulse';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CashDispenseAnimation } from '@/components/dashboard/CashDispenseAnimation';
 import { useSettings } from '@/context/settings-context';
+import { createWorker } from 'tesseract.js';
 
 type UserData = {
   id: string;
@@ -188,7 +192,6 @@ export default function Dashboard() {
 
   const activeInvestments = investments?.filter((inv) => inv.status === 'Active' || inv.status === 'Stopped');
 
-  // Robust Staff Detection for live sync
   const isStaff = useMemo(() => {
     if (!userData) return false;
     const isSubAdmin = userData.role === 'subadmin';
@@ -317,13 +320,64 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
   const [amount, setAmount] = useState('');
   const [tid, setTid] = useState('');
   const [isSabrActive, setIsSabrActive] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const qrUrl = amount ? `upi://pay?pa=${adminUpi}&pn=Grow%20Money&am=${amount}&cu=INR` : '';
 
   const handleCopyToClipboard = (text?: string, label?: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
     toast({ title: `${label} Copied!`, description: text });
+  };
+
+  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setScreenshotPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setIsScanning(true);
+
+    try {
+      const worker = await createWorker('eng');
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
+
+      // Extract UTR/Transaction ID (Look for 12 digit numbers)
+      const utrMatch = text.match(/\b\d{12}\b/);
+      if (utrMatch) {
+        setTid(utrMatch[0]);
+        toast({ title: "UTR Extracted", description: `Found Transaction ID: ${utrMatch[0]}` });
+      }
+
+      // Extract Amount (Look for currency symbols followed by numbers)
+      const amountMatch = text.match(/(?:₹|INR|Rs\.?)\s*(\d+(?:[.,]\d{1,2})?)/i) || 
+                          text.match(/(\d+(?:[.,]\d{1,2})?)\s*(?:₹|INR|Rs\.?)/i);
+      
+      if (amountMatch) {
+        const cleanedAmount = amountMatch[1].replace(',', '');
+        setAmount(cleanedAmount);
+        toast({ title: "Amount Detected", description: `Found payment of ₹${cleanedAmount}` });
+      }
+
+      if (!utrMatch && !amountMatch) {
+          toast({ title: "Scan Incomplete", description: "Could not auto-detect details. Please enter manually.", variant: "secondary" });
+      }
+
+    } catch (err) {
+      console.error("OCR Error:", err);
+      toast({ title: "Scan Failed", description: "Could not read screenshot. Please enter details manually.", variant: "destructive" });
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -341,12 +395,14 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
         amount: parseFloat(amount), 
         transactionId: tid, 
         status: 'pending', 
-        createdAt: serverTimestamp() 
+        createdAt: serverTimestamp(),
+        screenshot: screenshotPreview // Optional: store screenshot base64
       })
       .then(() => { 
         toast({ title: 'Request Sent', description: 'Your deposit is being verified.' }); 
         setAmount(''); 
         setTid(''); 
+        setScreenshotPreview(null);
         setIsSabrActive(false);
         setIsOpen(false); 
       })
@@ -363,50 +419,146 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
       <div className="w-full">
         <Button onClick={() => setIsOpen(true)} className="w-full h-14 rounded-2xl bg-foreground text-background font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl"><Upload size={16} className="mr-2" /> {t.dashboard.recharge}</Button>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogContent className="rounded-[2.5rem]">
+          <DialogContent className="rounded-[2.5rem] sm:max-w-md overflow-hidden">
             <DialogHeader>
-              <DialogTitle className="text-xl font-black uppercase tracking-tight">Add Money to Wallet</DialogTitle>
+              <DialogTitle className="text-xl font-black uppercase tracking-tight">Financial Inflow Terminal</DialogTitle>
             </DialogHeader>
-            <div className="space-y-6 py-4">
-                <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Amount (INR)</Label>
-                    <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} className="h-14 rounded-xl text-xl font-black" />
-                </div>
-                
-                <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Admin UPI ID</Label>
-                    <div className="bg-muted border border-border rounded-xl p-4 flex justify-between items-center group">
-                        <span className="font-mono text-sm font-bold truncate mr-2">{adminUpi || 'NOT SET'}</span>
-                        <Button variant="ghost" size="icon" onClick={() => handleCopyToClipboard(adminUpi, 'UPI ID')} className="h-8 w-8 hover:bg-background shrink-0">
-                            <Copy size={14} className="text-primary" />
-                        </Button>
+            
+            <ScrollArea className="max-h-[70vh] px-1">
+                <div className="space-y-6 py-4">
+                    <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 space-y-3">
+                         <div className="flex items-center justify-between">
+                             <p className="text-[10px] font-black uppercase tracking-[3px] text-primary">Gateway Node</p>
+                             <div className="flex items-center gap-1">
+                                 <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                                 <span className="text-[8px] font-bold text-green-500 uppercase">Secure</span>
+                             </div>
+                         </div>
+                         <div className="bg-muted/40 border border-border rounded-xl p-3 flex justify-between items-center group">
+                            <span className="font-mono text-sm font-bold truncate mr-2">{adminUpi || 'NOT SET'}</span>
+                            <Button variant="ghost" size="icon" onClick={() => handleCopyToClipboard(adminUpi, 'UPI ID')} className="h-8 w-8 hover:bg-background shrink-0">
+                                <Copy size={14} className="text-primary" />
+                            </Button>
+                        </div>
                     </div>
-                </div>
 
-                {qrUrl && <div className="bg-white p-4 rounded-3xl flex justify-center shadow-2xl animate-in zoom-in-95"><Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="QR" width={180} height={160} /></div>}
-                
-                <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Transaction Ref ID</Label>
-                    <Input placeholder="Enter 12-digit Ref ID" value={tid} onChange={e => setTid(e.target.value)} className="h-12 rounded-xl" />
+                    <div className="flex flex-col items-center gap-4 py-2">
+                        {qrUrl ? (
+                            <div className="bg-white p-4 rounded-3xl shadow-xl animate-in zoom-in-95 border-4 border-primary/10">
+                                <Image src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="QR" width={180} height={180} />
+                            </div>
+                        ) : (
+                            <div className="aspect-square w-44 rounded-3xl bg-muted border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground gap-2">
+                                <HelpCircle className="h-8 w-8 opacity-20" />
+                                <span className="text-[9px] font-black uppercase tracking-widest">Enter amount for QR</span>
+                            </div>
+                        )}
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase text-center max-w-[200px]">Scan with PhonePe, GooglePay or Paytm</p>
+                    </div>
+
+                    <Separator className="bg-border/10" />
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Smart Screenshot Scan</Label>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept="image/*" 
+                                onChange={handleScreenshotUpload} 
+                            />
+                            <Button 
+                                variant="outline" 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-full h-14 rounded-2xl border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary font-black uppercase tracking-widest text-[10px] gap-2 shadow-inner"
+                            >
+                                <Camera size={18} /> {screenshotPreview ? 'Change Screenshot' : 'Upload Payment Image'}
+                            </Button>
+                        </div>
+
+                        {screenshotPreview && (
+                            <div className="relative aspect-video rounded-2xl overflow-hidden border border-border shadow-lg animate-in fade-in zoom-in-95 group">
+                                <Image src={screenshotPreview} alt="Preview" fill className="object-contain bg-black/20" />
+                                {isScanning && (
+                                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+                                        <ScanText className="h-10 w-10 text-primary animate-bounce" />
+                                        <div className="flex flex-col items-center">
+                                            <p className="text-[10px] font-black text-white uppercase tracking-[4px] animate-pulse">Extracting Data</p>
+                                            <div className="h-1 w-24 bg-white/10 rounded-full mt-2 overflow-hidden">
+                                                <div className="h-full bg-primary animate-progress-indefinite w-full origin-left" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity" 
+                                    onClick={() => { setScreenshotPreview(null); setTid(''); setAmount(''); }}
+                                >
+                                    <XCircle size={16} />
+                                </Button>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Amount Paid</Label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₹</span>
+                                    <Input 
+                                        type="number" 
+                                        placeholder="0.00" 
+                                        value={amount} 
+                                        onChange={e => setAmount(e.target.value)} 
+                                        className="h-12 pl-8 rounded-xl font-black text-white" 
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1">Ref/UTR ID</Label>
+                                <Input 
+                                    placeholder="12-digit ID" 
+                                    value={tid} 
+                                    onChange={e => setTid(e.target.value)} 
+                                    className="h-12 rounded-xl font-mono text-sm uppercase" 
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <Button 
+                        onClick={handleSubmit} 
+                        className="w-full h-16 rounded-[1.5rem] bg-primary text-primary-foreground font-black uppercase tracking-[3px] shadow-[0_20px_40px_rgba(var(--primary),0.3)] hover:scale-[1.02] active:scale-95 transition-all"
+                    >
+                        Verify & Commit Inflow
+                    </Button>
                 </div>
-                <Button onClick={handleSubmit} className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-widest shadow-xl">Submit Deposit</Button>
-            </div>
+            </ScrollArea>
           </DialogContent>
         </Dialog>
       </div>
 
       {isSabrActive && (
-        <div className="fixed inset-0 z-[300] bg-background/80 backdrop-blur-2xl flex flex-col items-center justify-center animate-in fade-in duration-500 p-6 text-center">
-            <div className="text-8xl mb-8 animate-bounce">⏳</div>
-            <h2 className="text-3xl font-black text-white tracking-tighter uppercase mb-2 animate-in slide-in-from-bottom-2 duration-700">Please Wait</h2>
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest animate-pulse">Processing your payment, checking details!</p>
-            
-            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-3">
-                <div className="flex gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary animate-ping" />
-                  <div className="h-2 w-2 rounded-full bg-primary animate-ping delay-150" />
-                  <div className="h-2 w-2 rounded-full bg-primary animate-ping delay-300" />
+        <div className="fixed inset-0 z-[600] bg-background/90 backdrop-blur-3xl flex flex-col items-center justify-center animate-in fade-in duration-500 p-6 text-center">
+            <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full animate-pulse" />
+                <div className="h-24 w-24 rounded-3xl bg-primary/20 border border-primary/20 flex items-center justify-center mb-8 relative z-10 animate-bounce duration-[2000ms]">
+                    <ShieldCheck size={48} className="text-primary" />
                 </div>
+            </div>
+            <h2 className="text-3xl font-black text-white tracking-tighter uppercase mb-4 animate-in slide-in-from-bottom-2 duration-700">Auditing Request</h2>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-[5px] animate-pulse">Syncing with banking node...</p>
+            
+            <div className="mt-12 space-y-4 w-full max-w-xs">
+                 <div className="flex justify-between items-center px-1">
+                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Protocol Path</span>
+                    <span className="text-[9px] font-black text-primary uppercase tracking-widest">Verifying...</span>
+                 </div>
+                 <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary animate-progress-indefinite w-full origin-left" />
+                 </div>
             </div>
         </div>
       )}
@@ -538,5 +690,26 @@ function QuickActionButton({ icon: Icon, label, href, color }: { icon: React.Ele
         <Link href={href} className="flex flex-col items-center gap-2 p-5 bg-muted/30 border border-border rounded-2xl hover:bg-accent/10 hover:border-accent/30 transition-all group shadow-sm">
             <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", color)} /><span className="text-[9px] font-black uppercase text-muted-foreground tracking-[2px] group-hover:text-foreground transition-colors">{label}</span>
         </Link>
+    )
+}
+
+function XCircle(props: any) {
+    return (
+        <svg
+            {...props}
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <circle cx="12" cy="12" r="10" />
+            <path d="m15 9-6 6" />
+            <path d="m9 9 6 6" />
+        </svg>
     )
 }
