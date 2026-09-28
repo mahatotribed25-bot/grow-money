@@ -113,14 +113,15 @@ export default function PlansPage() {
         const planDoc = await transaction.get(planRef);
         const settingsDoc = await transaction.get(settingsRef);
 
-        if (!userDoc.exists()) throw new Error("User does not exist");
-        if (!planDoc.exists()) throw new Error("Plan does not exist");
+        if (!userDoc.exists()) throw new Error("User record missing from system.");
+        if (!planDoc.exists()) throw new Error("Target plan no longer available.");
 
         const currentStock = planDoc.data().stock;
         if (currentStock !== undefined && currentStock <= 0) {
-            throw new Error("Plan is out of stock.");
+            throw new Error("Target plan is now out of stock.");
         }
 
+        // 1. Decrement Stock
         if (currentStock !== undefined) {
             transaction.update(planRef, { stock: currentStock - 1 });
         }
@@ -133,6 +134,7 @@ export default function PlansPage() {
         const bonusAlreadyPaid = userDoc.data().referralBonusPaid || false;
         const referralBonusAmount = settingsDoc.exists() ? (settingsDoc.data().referralBonus || 0) : 0;
 
+        // 2. Handle Referral Bonus
         if (referredBy && !bonusAlreadyPaid && currentTotalInvestment === 0 && referralBonusAmount > 0) {
             const referrerRef = doc(firestore, 'users', referredBy);
             const referrerDoc = await transaction.get(referrerRef);
@@ -154,6 +156,7 @@ export default function PlansPage() {
             }
         }
 
+        // 3. VIP Level Logic
         let newVipLevel = userDoc.data().vipLevel || 'Bronze';
         if (adminSettings?.vipTiers) {
             if (newTotalInvestment >= adminSettings.vipTiers.platinum) {
@@ -165,13 +168,14 @@ export default function PlansPage() {
             }
         }
 
+        // 4. Update Self Wallet & Stats
         transaction.update(userRef, {
             walletBalance: newWalletBalance,
             totalInvestment: newTotalInvestment,
             vipLevel: newVipLevel,
         });
 
-        // Log the debit entry to wallet history
+        // 5. Log History for Self
         const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
         transaction.set(historyRef, {
             amount: planPrice,
@@ -181,6 +185,7 @@ export default function PlansPage() {
             createdAt: serverTimestamp()
         });
 
+        // 6. Update Platform Profit
         const adminProfitFromThisSale = plan.adminProfit || 0;
         if (adminProfitFromThisSale > 0) {
             const currentProfitBalance = settingsDoc.exists() ? (settingsDoc.data().adminProfitBalance || 0) : 0;
@@ -189,6 +194,7 @@ export default function PlansPage() {
             }, { merge: true });
         }
 
+        // 7. Create Investment Record
         const investmentRef = doc(collection(firestore, 'users', user.uid, 'investments'));
         const startDate = new Date();
         const maturityDate = addDays(startDate, plan.validity || 0);
@@ -215,14 +221,17 @@ export default function PlansPage() {
         });
     })
     .catch((error) => {
-        console.error("Investment Error Detail:", error);
+        console.error("Investment Transaction Failed:", error);
+        
+        // Emit formal error for UI listener
         const permissionError = new FirestorePermissionError({
-            path: `users/${user.uid} or investmentPlans/${plan.id}`,
+            path: `users/${user.uid} (or referrer) and investmentPlans/${plan.id}`,
             operation: 'write',
             requestResourceData: { planId: plan.id, action: 'invest' },
         });
         errorEmitter.emit('permission-error', permissionError);
         
+        // Provide user feedback
         if (error.message?.includes("out of stock")) {
            toast({ variant: 'destructive', title: 'Investment Failed', description: "This plan just went out of stock."});
         }
