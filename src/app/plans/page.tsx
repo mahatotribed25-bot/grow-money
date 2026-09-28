@@ -50,7 +50,7 @@ type UserData = {
     totalInvestment?: number;
     vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
     referralBonusPaid?: boolean;
-}
+};
 
 type AdminSettings = {
     referralBonus?: number;
@@ -59,6 +59,7 @@ type AdminSettings = {
         gold: number;
         platinum: number;
     }
+    adminProfitBalance?: number;
 }
 
 export default function PlansPage() {
@@ -69,7 +70,6 @@ export default function PlansPage() {
 
   const { data: plans, loading } = useCollection<InvestmentPlan>('investmentPlans');
   const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}`: null);
-  const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
   
   const { data: userCustomLoans } = useCollection<any>(
     user ? query(collection(firestore, 'customLoanRequests'), where('userId', '==', user.uid), where('status', 'in', ['active', 'extension_pending', 'payment_pending', 'pending_user_approval', 'approved_by_user'])) : null
@@ -132,7 +132,8 @@ export default function PlansPage() {
         
         const referredBy = userDoc.data().referredBy;
         const bonusAlreadyPaid = userDoc.data().referralBonusPaid || false;
-        const referralBonusAmount = settingsDoc.exists() ? (settingsDoc.data().referralBonus || 0) : 0;
+        const adminSettingsData = settingsDoc.exists() ? (settingsDoc.data() as AdminSettings) : null;
+        const referralBonusAmount = adminSettingsData?.referralBonus || 0;
 
         // 2. Handle Referral Bonus
         if (referredBy && !bonusAlreadyPaid && currentTotalInvestment === 0 && referralBonusAmount > 0) {
@@ -156,14 +157,14 @@ export default function PlansPage() {
             }
         }
 
-        // 3. VIP Level Logic
+        // 3. VIP Level Logic (Using data from transaction fetch)
         let newVipLevel = userDoc.data().vipLevel || 'Bronze';
-        if (adminSettings?.vipTiers) {
-            if (newTotalInvestment >= adminSettings.vipTiers.platinum) {
+        if (adminSettingsData?.vipTiers) {
+            if (newTotalInvestment >= adminSettingsData.vipTiers.platinum) {
                 newVipLevel = 'Platinum';
-            } else if (newTotalInvestment >= adminSettings.vipTiers.gold) {
+            } else if (newTotalInvestment >= adminSettingsData.vipTiers.gold) {
                 newVipLevel = 'Gold';
-            } else if (newTotalInvestment >= adminSettings.vipTiers.silver) {
+            } else if (newTotalInvestment >= adminSettingsData.vipTiers.silver) {
                 newVipLevel = 'Silver';
             }
         }
@@ -188,7 +189,7 @@ export default function PlansPage() {
         // 6. Update Platform Profit
         const adminProfitFromThisSale = plan.adminProfit || 0;
         if (adminProfitFromThisSale > 0) {
-            const currentProfitBalance = settingsDoc.exists() ? (settingsDoc.data().adminProfitBalance || 0) : 0;
+            const currentProfitBalance = adminSettingsData?.adminProfitBalance || 0;
             transaction.set(settingsRef, {
                 adminProfitBalance: currentProfitBalance + adminProfitFromThisSale
             }, { merge: true });
@@ -221,19 +222,19 @@ export default function PlansPage() {
         });
     })
     .catch((error) => {
-        console.error("Investment Transaction Failed:", error);
+        console.error("Investment Error Detail:", error);
         
-        // Emit formal error for UI listener
-        const permissionError = new FirestorePermissionError({
-            path: `users/${user.uid} (or referrer) and investmentPlans/${plan.id}`,
-            operation: 'write',
-            requestResourceData: { planId: plan.id, action: 'invest' },
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        
-        // Provide user feedback
-        if (error.message?.includes("out of stock")) {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: `users/${user.uid} (or referrer) and investmentPlans/${plan.id}`,
+                operation: 'write',
+                requestResourceData: { planId: plan.id, action: 'invest' },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } else if (error.message?.includes("out of stock")) {
            toast({ variant: 'destructive', title: 'Investment Failed', description: "This plan just went out of stock."});
+        } else {
+           toast({ variant: 'destructive', title: 'Transaction Error', description: error.message || "An unexpected error occurred during processing."});
         }
     });
   };
@@ -426,7 +427,7 @@ function BottomNavItem({
         active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
       )}
     >
-      <Icon className={cn("h-5 w-5")} />
+      <Icon className="h-5 w-5" />
       <span className="text-[10px] tracking-tight">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full blur-[2px]" />}
     </Link>

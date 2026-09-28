@@ -12,8 +12,10 @@ service cloud.firestore {
     // User collection and its subcollections (investments, history, loans)
     match /users/{userId} {
       allow read: if isSignedIn();
+      // Allow creation of own profile
       allow create: if isSignedIn() && request.auth.uid == userId;
       // Allow update for any authenticated user to facilitate referral bonuses and status updates
+      // The transaction requires being able to update the referrer's balance
       allow update: if isSignedIn();
 
       match /{allSubcollections=**} {
@@ -23,12 +25,14 @@ service cloud.firestore {
     
     // Investment plans - allowing write for stock updates during purchase
     match /investmentPlans/{planId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
     
     // Global settings - allowing write for admin profit balance updates
     match /settings/{id} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     // Announcements and news
@@ -39,16 +43,19 @@ service cloud.firestore {
 
     // Deposits and Withdrawals
     match /deposits/{id} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     match /withdrawals/{id} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     // Standard and Custom Loans
     match /loanRequests/{requestId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     match /loanPlans/{planId} {
@@ -57,16 +64,19 @@ service cloud.firestore {
     }
 
     match /customLoanRequests/{requestId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     match /upiRequests/{requestId} {
-       allow read, write: if isSignedIn();
+       allow read: if isSignedIn();
+       allow write: if isSignedIn();
     }
 
     // Group Loan Pools
     match /groupLoanPlans/{planId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
       
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn();
@@ -75,11 +85,13 @@ service cloud.firestore {
 
     // Staff and Payroll
     match /staffSalaries/{id} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
     }
 
     match /attendance/{id} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     // Tasks and Marketplace
@@ -89,44 +101,52 @@ service cloud.firestore {
     }
 
     match /taskSubmissions/{id} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
     }
 
     match /p2pLoanRequests/{id} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
         match /{allSubcollections=**} {
             allow read, write: if isSignedIn();
         }
     }
 
     match /p2pActiveLoans/{id} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
     }
 
     // Admin Ledger
     match /adminWithdrawals/{id} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
     }
 
     // Incentives
     match /coupons/{id} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
     }
 
     match /scratchCards/{id} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
     }
 
     // Support and Private Communication
     match /chats/{id} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
         match /{allSubcollections=**} {
             allow read, write: if isSignedIn();
         }
     }
 
     match /userChatSessions/{id} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
         match /{allSubcollections=**} {
             allow read, write: if isSignedIn();
         }
