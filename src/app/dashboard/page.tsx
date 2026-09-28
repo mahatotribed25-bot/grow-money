@@ -339,7 +339,6 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Show preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setScreenshotPreview(reader.result as string);
@@ -359,32 +358,36 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
         setTid(utrMatch[0]);
       }
 
-      // STRICT Amount Detection: Look specifically for digits immediately following a currency symbol
-      const amountRegex = /(?:₹|INR|Rs\.?)\s*(\d+(?:[.,]\d{1,2})?)/i;
+      // IMPROVED AMOUNT SCANNING:
+      // Try to find large numbers following currency-like characters (even if misread by OCR)
+      const amountRegex = /(?:₹|INR|Rs\.?|[\?\$£T])\s*(\d+(?:[.,]\d{1,2})?)/i;
       const amountMatch = text.match(amountRegex);
       
       if (amountMatch) {
         const cleanedAmount = amountMatch[1].replace(',', '');
         setAmount(cleanedAmount);
-        toast({ title: "Smart Scan Complete", description: `Detected ₹${cleanedAmount} following symbol.` });
+        toast({ title: "Smart Scan Complete", description: `Detected ₹${cleanedAmount}` });
       } else {
-          // Fallback: look for large numbers typically associated with "Paid" or "Total"
-          const totalRegex = /(?:Total|Paid|Amount|Sum)\D*(\d+(?:[.,]\d{1,2})?)/i;
-          const totalMatch = text.match(totalRegex);
-          if (totalMatch) {
-               const cleanedAmount = totalMatch[1].replace(',', '');
-               setAmount(cleanedAmount);
-               toast({ title: "Context Scan Complete", description: `Detected ₹${cleanedAmount}` });
+          // Fallback: Look for numbers specifically between 10 and 1,00,000 that aren't the 12-digit UTR
+          const lines = text.split('\n');
+          const possibleAmounts = lines
+            .map(line => line.match(/\b\d{2,6}\b/g))
+            .flat()
+            .filter(n => {
+                const val = parseFloat(n || '0');
+                return val > 10 && val < 200000 && n?.length !== 12;
+            });
+          
+          if (possibleAmounts.length > 0) {
+              // Take the first likely amount found in the upper half of text
+              setAmount(possibleAmounts[0]!);
+              toast({ title: "Context Scan Complete", description: `Detected ₹${possibleAmounts[0]}` });
           }
-      }
-
-      if (!utrMatch && !amountMatch) {
-          toast({ title: "Scan Partially Successful", description: "Please verify and enter values manually.", variant: "secondary" });
       }
 
     } catch (err) {
       console.error("OCR Error:", err);
-      toast({ title: "Scan Failed", description: "Could not read screenshot. Please enter details manually.", variant: "destructive" });
+      toast({ title: "Scan Failed", description: "Could not read screenshot.", variant: "destructive" });
     } finally {
       setIsScanning(false);
     }

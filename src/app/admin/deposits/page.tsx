@@ -196,19 +196,26 @@ export default function DepositsPage() {
           const utrMatch = text.match(/\b\d{12}\b/);
           const foundTid = utrMatch ? utrMatch[0] : 'Not Found';
 
-          // STRICT Currency Amount Match: Look for numbers immediately following currency symbols
-          const amountRegex = /(?:₹|INR|Rs\.?)\s*(\d+(?:[.,]\d{1,2})?)/i;
+          // IMPROVED AMOUNT SCANNING (Sync with User Dashboard):
+          const amountRegex = /(?:₹|INR|Rs\.?|[\?\$£T])\s*(\d+(?:[.,]\d{1,2})?)/i;
           const amountMatch = text.match(amountRegex);
           let foundAmount = 'Not Found';
           
           if (amountMatch) {
               foundAmount = amountMatch[1].replace(',', '');
           } else {
-              // Fallback: look for amount strings near common financial keywords
-              const fallbackRegex = /(?:Total|Paid|Amount)\D*(\d+(?:[.,]\d{1,2})?)/i;
-              const fallbackMatch = text.match(fallbackRegex);
-              if (fallbackMatch) {
-                  foundAmount = fallbackMatch[1].replace(',', '');
+              // Fallback: look for likely stand-alone amounts
+              const lines = text.split('\n');
+              const possibleAmounts = lines
+                .map(line => line.match(/\b\d{2,6}\b/g))
+                .flat()
+                .filter(n => {
+                    const val = parseFloat(n || '0');
+                    return val > 10 && val < 200000 && n?.length !== 12;
+                });
+              
+              if (possibleAmounts.length > 0) {
+                  foundAmount = possibleAmounts[0]!;
               }
           }
 
