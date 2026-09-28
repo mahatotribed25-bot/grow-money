@@ -108,8 +108,7 @@ export default function PlansPage() {
         const userRef = doc(firestore, 'users', user.uid);
         const planRef = doc(firestore, 'investmentPlans', plan.id);
         const settingsRef = doc(firestore, 'settings', 'admin');
-        const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
-
+        
         const userDoc = await transaction.get(userRef);
         const planDoc = await transaction.get(planRef);
         const settingsDoc = await transaction.get(settingsRef);
@@ -173,6 +172,7 @@ export default function PlansPage() {
         });
 
         // Log the debit entry to wallet history
+        const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
         transaction.set(historyRef, {
             amount: planPrice,
             type: 'debit',
@@ -215,7 +215,7 @@ export default function PlansPage() {
         });
     })
     .catch((error) => {
-        console.error("Investment Error:", error);
+        console.error("Investment Error Detail:", error);
         const permissionError = new FirestorePermissionError({
             path: `users/${user.uid} or investmentPlans/${plan.id}`,
             operation: 'write',
@@ -223,7 +223,7 @@ export default function PlansPage() {
         });
         errorEmitter.emit('permission-error', permissionError);
         
-        if (error.message.includes("out of stock")) {
+        if (error.message?.includes("out of stock")) {
            toast({ variant: 'destructive', title: 'Investment Failed', description: "This plan just went out of stock."});
         }
     });
