@@ -98,6 +98,7 @@ type Investment = {
   dailyIncome: number;
   lastClaimDate?: Timestamp;
   finalReturn?: number;
+  payoutFrequency?: 'daily' | 'monthly' | 'on_maturity';
 };
 
 type AdminSettings = {
@@ -158,22 +159,49 @@ export default function Dashboard() {
 
   const handleClaimProfit = (investment: Investment) => {
     if (!user) return;
+    
+    // Safety check for payout frequency
+    if (investment.payoutFrequency === 'on_maturity') {
+        toast({ title: "Ineligible", description: "This plan only pays out upon maturity.", variant: "destructive" });
+        return;
+    }
+
     runTransaction(firestore, async (transaction) => {
         const userRef = doc(firestore, 'users', user.uid);
         const invRef = doc(firestore, 'users', user.uid, 'investments', investment.id);
         const userDoc = await transaction.get(userRef);
         const invDoc = await transaction.get(invRef);
+        
         if (!userDoc.exists() || !invDoc.exists()) throw new Error("Sync failure.");
+        
         const invData = invDoc.data() as Investment;
         const now = new Date();
         const lastClaim = invData.lastClaimDate?.toDate() || invData.startDate.toDate();
         const diffTime = Math.abs(now.getTime() - lastClaim.getTime());
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        if (diffDays < 1) throw new Error("Not yet due for claim.");
+        
+        const requiredDays = invData.payoutFrequency === 'monthly' ? 30 : 1;
+
+        if (diffDays < requiredDays) {
+            throw new Error(`Wait ${requiredDays - diffDays} more days to claim.`);
+        }
+
         const amountToClaim = diffDays * invData.dailyIncome;
-        transaction.update(userRef, { walletBalance: (userDoc.data().walletBalance || 0) + amountToClaim, totalIncome: (userDoc.data().totalIncome || 0) + amountToClaim });
+        
+        transaction.update(userRef, { 
+            walletBalance: (userDoc.data().walletBalance || 0) + amountToClaim, 
+            totalIncome: (userDoc.data().totalIncome || 0) + amountToClaim 
+        });
+        
         transaction.update(invRef, { lastClaimDate: serverTimestamp() });
-        transaction.set(doc(collection(firestore, `users/${user.uid}/walletHistory`)), { amount: amountToClaim, type: 'credit', category: 'ROI Claim', description: `Daily profit claim for ${investment.planName}`, createdAt: serverTimestamp() });
+        
+        transaction.set(doc(collection(firestore, `users/${user.uid}/walletHistory`)), { 
+            amount: amountToClaim, 
+            type: 'credit', 
+            category: 'ROI Claim', 
+            description: `Accrued profit claim for ${investment.planName}`, 
+            createdAt: serverTimestamp() 
+        });
     }).then(() => toast({ title: 'Profit Claimed!' })).catch(e => toast({ title: 'Claim Failed', description: e.message, variant: 'destructive' }));
   };
 
@@ -216,7 +244,7 @@ export default function Dashboard() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-xl px-4 backdrop-blur-sm sm:px-6">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-xl px-4 sm:px-6">
         <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /><h1 className="text-xl font-bold tracking-tighter">Grow Money</h1></div>
         <Link href="/profile">
           <Badge variant="outline" className="border-border bg-muted h-10 px-1.5 gap-2 rounded-full hover:bg-accent transition-all pl-1">
@@ -351,7 +379,6 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
       const { data: { text } } = await worker.recognize(file);
       await worker.terminate();
 
-      // Better detection for Transaction ID
       const utrMatch = text.match(/\b\d{12}\b/);
       if (utrMatch) {
         setTid(utrMatch[0]);
@@ -645,6 +672,31 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
 
 function ActivePlanCard({ investment, onClaimProfit, onClaimMaturity }: { investment: Investment, onClaimProfit: (i: Investment) => void, onClaimMaturity: (i: Investment) => void }) {
   const isMatured = new Date() >= investment.maturityDate.toDate();
+  const payoutFreq = investment.payoutFrequency || 'on_maturity';
+
+  // Logic to determine if "Claim Profit" slider should be active
+  let canClaimProfit = false;
+  let profitLabel = "Claim Accrued Profit";
+  let lockedLabel = "Claim Locked";
+
+  const lastDate = investment.lastClaimDate?.toDate() || investment.startDate.toDate();
+  const diffTime = Math.abs(new Date().getTime() - lastDate.getTime());
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (payoutFreq === 'daily') {
+      canClaimProfit = diffDays >= 1;
+      profitLabel = "Claim Daily Profit";
+      lockedLabel = "Next Claim in 24h";
+  } else if (payoutFreq === 'monthly') {
+      canClaimProfit = diffDays >= 30;
+      profitLabel = "Claim Monthly Profit";
+      lockedLabel = `Next Claim: Day ${30 - diffDays}`;
+  } else if (payoutFreq === 'on_maturity') {
+      canClaimProfit = false; // Never claim intermediate profit
+      profitLabel = "Maturity Payout Only";
+      lockedLabel = "Payout on Maturity";
+  }
+
   return (
     <Card className="border-border bg-card rounded-3xl p-6 space-y-5 shadow-2xl relative overflow-hidden group">
         <div className="flex justify-between items-start relative z-10">
@@ -655,7 +707,16 @@ function ActivePlanCard({ investment, onClaimProfit, onClaimMaturity }: { invest
             <p className="text-sm font-black text-accent">+₹{investment.dailyIncome}/day</p>
         </div>
         <div className="relative z-10">
-            <SlideToClaim label={isMatured ? "Slide to Collect Money" : "Claim Daily Profit"} onComplete={() => isMatured ? onClaimMaturity(investment) : onClaimProfit(investment)} />
+            {isMatured ? (
+                <SlideToClaim label="Slide to Collect Money" onComplete={() => onClaimMaturity(investment)} />
+            ) : (
+                <SlideToClaim 
+                    label={profitLabel} 
+                    disabled={!canClaimProfit} 
+                    lockedLabel={lockedLabel}
+                    onComplete={() => onClaimProfit(investment)} 
+                />
+            )}
         </div>
     </Card>
   );
