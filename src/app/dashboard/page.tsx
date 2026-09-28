@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Wallet,
@@ -359,8 +358,8 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
       }
 
       // IMPROVED AMOUNT SCANNING:
-      // Try to find large numbers following currency-like characters (even if misread by OCR)
-      const amountRegex = /(?:₹|INR|Rs\.?|[\?\$£T])\s*(\d+(?:[.,]\d{1,2})?)/i;
+      // Targeting numerical value immediately after common Rupee symbol misinterpretations
+      const amountRegex = /(?:₹|INR|Rs\.?|[\?\$£TzZ7])\s*(\d+(?:[.,]\d{1,2})?)/i;
       const amountMatch = text.match(amountRegex);
       
       if (amountMatch) {
@@ -379,7 +378,6 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
             });
           
           if (possibleAmounts.length > 0) {
-              // Take the first likely amount found in the upper half of text
               setAmount(possibleAmounts[0]!);
               toast({ title: "Context Scan Complete", description: `Detected ₹${possibleAmounts[0]}` });
           }

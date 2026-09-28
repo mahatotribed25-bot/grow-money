@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -68,7 +67,6 @@ export default function DepositsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Audit UI States
   const [auditTarget, setAuditTarget] = useState<DepositRequest | null>(null);
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<{ amount: string, tid: string, matched: boolean } | null>(null);
@@ -105,7 +103,6 @@ export default function DepositsPage() {
 
     for (const id of selectedIds) {
       const deposit = filteredDeposits.find(d => d.id === id);
-      // STRICT CHECK: Ensure deposit is still pending
       if (deposit && deposit.status === 'pending') {
         const depositRef = doc(firestore, 'deposits', deposit.id);
         const userRef = doc(firestore, 'users', deposit.userId);
@@ -144,7 +141,6 @@ export default function DepositsPage() {
   };
 
   const handleUpdateStatus = (deposit: DepositRequest, newStatus: 'approved' | 'rejected') => {
-      // STRICT CHECK: Ensure deposit is still pending to avoid redundant actions
       if (deposit.status !== 'pending') {
           toast({ title: "Already Processed", description: `This request is already ${deposit.status}.`, variant: "destructive" });
           return;
@@ -192,19 +188,17 @@ export default function DepositsPage() {
           const { data: { text } } = await worker.recognize(auditTarget.screenshot);
           await worker.terminate();
 
-          // Match UTR (12 digits)
           const utrMatch = text.match(/\b\d{12}\b/);
           const foundTid = utrMatch ? utrMatch[0] : 'Not Found';
 
-          // IMPROVED AMOUNT SCANNING (Sync with User Dashboard):
-          const amountRegex = /(?:₹|INR|Rs\.?|[\?\$£T])\s*(\d+(?:[.,]\d{1,2})?)/i;
+          // SYNCED AMOUNT SCANNING: targeting characters immediately after Rupee symbol or misreadings
+          const amountRegex = /(?:₹|INR|Rs\.?|[\?\$£TzZ7])\s*(\d+(?:[.,]\d{1,2})?)/i;
           const amountMatch = text.match(amountRegex);
           let foundAmount = 'Not Found';
           
           if (amountMatch) {
               foundAmount = amountMatch[1].replace(',', '');
           } else {
-              // Fallback: look for likely stand-alone amounts
               const lines = text.split('\n');
               const possibleAmounts = lines
                 .map(line => line.match(/\b\d{2,6}\b/g))
@@ -379,7 +373,6 @@ export default function DepositsPage() {
         </Table>
       </div>
 
-      {/* AI Audit Dialog */}
       <Dialog open={!!auditTarget} onOpenChange={() => setAuditTarget(null)}>
         <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-4xl">
             <DialogHeader>
@@ -388,7 +381,6 @@ export default function DepositsPage() {
             </DialogHeader>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
-                {/* Proof Visual */}
                 <div className="space-y-4">
                     <p className="text-[10px] font-black uppercase tracking-[3px] text-primary/60">Digital Proof Image</p>
                     <div className="relative aspect-[9/16] max-h-[500px] w-full rounded-2xl overflow-hidden border border-white/10 bg-black/40 group">
@@ -411,7 +403,6 @@ export default function DepositsPage() {
                     </div>
                 </div>
 
-                {/* Audit Control & Results */}
                 <div className="space-y-8 flex flex-col">
                     <Card className="bg-white/5 border-white/10 p-6 rounded-3xl space-y-6">
                          <div className="space-y-4">
@@ -455,7 +446,7 @@ export default function DepositsPage() {
                                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                                      <div className="flex justify-between items-center">
                                          <span className="text-[10px] font-bold text-white/40 uppercase">OCR Detected Amount</span>
-                                         <span className={cn("text-lg font-black", auditResult.amount === auditTarget?.amount.toString() ? "text-green-400" : "text-red-400")}>
+                                         <span className={cn("text-lg font-black", parseFloat(auditResult.amount) === auditTarget?.amount ? "text-green-400" : "text-red-400")}>
                                              ₹{auditResult.amount}
                                          </span>
                                      </div>
