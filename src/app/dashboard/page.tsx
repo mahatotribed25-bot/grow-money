@@ -355,32 +355,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
       const utrMatch = text.match(/\b\d{12}\b/);
       if (utrMatch) {
         setTid(utrMatch[0]);
-      }
-
-      // IMPROVED AMOUNT SCANNING:
-      // Targeting numerical value immediately after common Rupee symbol misinterpretations
-      const amountRegex = /(?:₹|INR|Rs\.?|[\?\$£TzZ7])\s*(\d+(?:[.,]\d{1,2})?)/i;
-      const amountMatch = text.match(amountRegex);
-      
-      if (amountMatch) {
-        const cleanedAmount = amountMatch[1].replace(',', '');
-        setAmount(cleanedAmount);
-        toast({ title: "Smart Scan Complete", description: `Detected ₹${cleanedAmount}` });
-      } else {
-          // Fallback: Look for numbers specifically between 10 and 1,00,000 that aren't the 12-digit UTR
-          const lines = text.split('\n');
-          const possibleAmounts = lines
-            .map(line => line.match(/\b\d{2,6}\b/g))
-            .flat()
-            .filter(n => {
-                const val = parseFloat(n || '0');
-                return val > 10 && val < 200000 && n?.length !== 12;
-            });
-          
-          if (possibleAmounts.length > 0) {
-              setAmount(possibleAmounts[0]!);
-              toast({ title: "Context Scan Complete", description: `Detected ₹${possibleAmounts[0]}` });
-          }
+        toast({ title: "Smart Scan Complete", description: "Detected Transaction ID" });
       }
 
     } catch (err) {

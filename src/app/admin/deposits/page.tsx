@@ -69,7 +69,7 @@ export default function DepositsPage() {
   
   const [auditTarget, setAuditTarget] = useState<DepositRequest | null>(null);
   const [isAuditing, setIsAuditing] = useState(false);
-  const [auditResult, setAuditResult] = useState<{ amount: string, tid: string, matched: boolean } | null>(null);
+  const [auditResult, setAuditResult] = useState<{ tid: string, matched: boolean } | null>(null);
 
   const filteredDeposits = useMemo(() => {
     if (!deposits) return [];
@@ -191,41 +191,17 @@ export default function DepositsPage() {
           const utrMatch = text.match(/\b\d{12}\b/);
           const foundTid = utrMatch ? utrMatch[0] : 'Not Found';
 
-          // SYNCED AMOUNT SCANNING: targeting characters immediately after Rupee symbol or misreadings
-          const amountRegex = /(?:₹|INR|Rs\.?|[\?\$£TzZ7])\s*(\d+(?:[.,]\d{1,2})?)/i;
-          const amountMatch = text.match(amountRegex);
-          let foundAmount = 'Not Found';
-          
-          if (amountMatch) {
-              foundAmount = amountMatch[1].replace(',', '');
-          } else {
-              const lines = text.split('\n');
-              const possibleAmounts = lines
-                .map(line => line.match(/\b\d{2,6}\b/g))
-                .flat()
-                .filter(n => {
-                    const val = parseFloat(n || '0');
-                    return val > 10 && val < 200000 && n?.length !== 12;
-                });
-              
-              if (possibleAmounts.length > 0) {
-                  foundAmount = possibleAmounts[0]!;
-              }
-          }
-
           const tidMatches = foundTid === auditTarget.transactionId;
-          const amountMatches = parseFloat(foundAmount) === auditTarget.amount;
 
           setAuditResult({
-              amount: foundAmount,
               tid: foundTid,
-              matched: tidMatches && amountMatches
+              matched: tidMatches
           });
 
-          if (tidMatches && amountMatches) {
-              toast({ title: "AI Audit: Perfect Match", description: "Data verified from screenshot." });
+          if (tidMatches) {
+              toast({ title: "AI Audit: UTR Match", description: "Reference ID verified from screenshot." });
           } else {
-              toast({ title: "AI Audit: Discrepancy Found", description: "Verification data does not match perfectly.", variant: "destructive" });
+              toast({ title: "AI Audit: UTR Mismatch", description: "The Transaction ID in screenshot does not match the input.", variant: "destructive" });
           }
 
       } catch (e) {
@@ -445,12 +421,6 @@ export default function DepositsPage() {
                              ) : (
                                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                                      <div className="flex justify-between items-center">
-                                         <span className="text-[10px] font-bold text-white/40 uppercase">OCR Detected Amount</span>
-                                         <span className={cn("text-lg font-black", parseFloat(auditResult.amount) === auditTarget?.amount ? "text-green-400" : "text-red-400")}>
-                                             ₹{auditResult.amount}
-                                         </span>
-                                     </div>
-                                     <div className="flex justify-between items-center">
                                          <span className="text-[10px] font-bold text-white/40 uppercase">OCR Detected TID</span>
                                          <span className={cn("font-mono text-sm font-bold", auditResult.tid === auditTarget?.transactionId ? "text-green-400" : "text-red-400")}>
                                              {auditResult.tid}
@@ -477,7 +447,7 @@ export default function DepositsPage() {
                             </div>
                             <div>
                                 <p className="text-xs font-black text-green-400 uppercase tracking-tight">Data Integrity Verified</p>
-                                <p className="text-[10px] text-green-200/40 font-medium">All nodes match user reporting protocol.</p>
+                                <p className="text-[10px] text-green-200/40 font-medium">Reference ID matches user reporting protocol.</p>
                             </div>
                         </div>
                     )}
@@ -489,7 +459,7 @@ export default function DepositsPage() {
                             </div>
                             <div>
                                 <p className="text-xs font-black text-red-500 uppercase tracking-tight">Protocol Discrepancy</p>
-                                <p className="text-[10px] text-red-200/40 font-medium">User input does not match screenshot node data.</p>
+                                <p className="text-[10px] text-red-200/40 font-medium">Reference ID does not match screenshot node data.</p>
                             </div>
                         </div>
                     )}
