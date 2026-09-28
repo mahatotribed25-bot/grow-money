@@ -100,7 +100,7 @@ export default function PlansPage() {
     const planPrice = plan.price || 0;
 
     if (userData.walletBalance < planPrice) {
-        toast({ variant: 'destructive', title: 'Insufficient Balance', description: 'Please recharge your wallet to invest.' });
+        toast({ variant: 'destructive', title: 'Insufficient Balance', description: t.dashboard.insufficient_funds || 'Please recharge your wallet to invest.' });
         return;
     }
 
@@ -182,11 +182,11 @@ export default function PlansPage() {
         });
 
         const adminProfitFromThisSale = plan.adminProfit || 0;
-        if (adminProfitFromThisSale > 0 && settingsDoc.exists()) {
-            const currentProfitBalance = settingsDoc.data().adminProfitBalance || 0;
-            transaction.update(settingsRef, {
+        if (adminProfitFromThisSale > 0) {
+            const currentProfitBalance = settingsDoc.exists() ? (settingsDoc.data().adminProfitBalance || 0) : 0;
+            transaction.set(settingsRef, {
                 adminProfitBalance: currentProfitBalance + adminProfitFromThisSale
-            });
+            }, { merge: true });
         }
 
         const investmentRef = doc(collection(firestore, 'users', user.uid, 'investments'));
@@ -215,12 +215,14 @@ export default function PlansPage() {
         });
     })
     .catch((error) => {
+        console.error("Investment Error:", error);
         const permissionError = new FirestorePermissionError({
             path: `users/${user.uid} or investmentPlans/${plan.id}`,
             operation: 'write',
             requestResourceData: { planId: plan.id, action: 'invest' },
         });
         errorEmitter.emit('permission-error', permissionError);
+        
         if (error.message.includes("out of stock")) {
            toast({ variant: 'destructive', title: 'Investment Failed', description: "This plan just went out of stock."});
         }
@@ -232,7 +234,7 @@ export default function PlansPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-sm px-4 sm:px-6">
         <div className="flex items-center gap-2">
             <Link href="/dashboard">
             <Button variant="ghost" size="icon" className="hover:bg-accent">
@@ -412,7 +414,7 @@ function BottomNavItem({
       href={href}
       className={cn(
         "flex flex-col items-center justify-center gap-1 transition-all h-full relative",
-        active ? 'text-primary scale-110' : 'text-muted-foreground hover:text-foreground'
+        active ? 'text-primary scale-110' : 'text-white/40 hover:text-white/60'
       )}
     >
       <Icon className={cn("h-5 w-5")} />

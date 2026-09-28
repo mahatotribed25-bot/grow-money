@@ -51,12 +51,12 @@ service cloud.firestore {
     
     match /attendance/{id} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isManager();
     }
 
     match /investmentPlans/{planId} {
       allow read: if isAuthenticated();
-      allow update, write: if isAuthenticated(); 
+      allow write: if isAuthenticated(); 
     }
     
     match /announcements/{id} {
@@ -78,10 +78,17 @@ service cloud.firestore {
 
     match /settings/{id} {
       allow read: if isAuthenticated();
-      allow update, write: if isAuthenticated(); 
+      allow write: if isAuthenticated(); 
     }
 
     match /customLoanRequests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
+      allow create: if isAuthenticated();
+      allow update: if isManager() || (isAuthenticated() && request.auth.uid == resource.data.userId);
+      allow delete: if isManager();
+    }
+
+    match /loanRequests/{requestId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isManager());
       allow create: if isAuthenticated();
       allow update: if isManager() || (isAuthenticated() && request.auth.uid == resource.data.userId);
@@ -104,20 +111,78 @@ service cloud.firestore {
 
     match /groupLoanPlans/{planId} {
       allow read: if isAuthenticated();
-      allow update, write: if isAuthenticated();
+      allow write: if isManager();
       
       match /investments/{invId} {
         allow read: if isAuthenticated();
         allow write: if isAuthenticated();
       }
+      match /repayments/{repId} {
+        allow read: if isAuthenticated();
+        allow write: if isManager();
+      }
+      match /payouts/{payId} {
+        allow read: if isAuthenticated();
+        allow write: if isManager();
+      }
     }
 
     match /staffSalaries/{id} {
         allow read: if isAuthenticated();
-        allow write: if isAdmin();
+        allow write: if isManager();
+    }
+
+    match /taskSubmissions/{id} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+    }
+
+    match /tasks/{id} {
+        allow read: if isAuthenticated();
+        allow write: if isManager();
+    }
+
+    match /p2pLoanRequests/{id} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+        match /offers/{oid} {
+            allow read, write: if isAuthenticated();
+        }
+    }
+
+    match /p2pActiveLoans/{id} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+    }
+
+    match /adminWithdrawals/{id} {
+        allow read: if isManager();
+        allow write: if isManager();
+    }
+
+    match /coupons/{id} {
+        allow read: if isAuthenticated();
+        allow write: if isManager();
+    }
+
+    match /scratchCards/{id} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+    }
+
+    match /userChatSessions/{id} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+        match /messages/{mid} {
+            allow read, write: if isAuthenticated();
+        }
     }
 
     match /{path=**}/investments/{id} {
+      allow read, list: if isAuthenticated();
+    }
+    
+    match /{path=**}/walletHistory/{id} {
       allow read, list: if isAuthenticated();
     }
   }
