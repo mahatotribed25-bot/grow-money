@@ -109,6 +109,7 @@ export default function PlansPage() {
         const planRef = doc(firestore, 'investmentPlans', plan.id);
         const settingsRef = doc(firestore, 'settings', 'admin');
         
+        // --- 1. START READS ---
         const userDoc = await transaction.get(userRef);
         const planDoc = await transaction.get(planRef);
         const settingsDoc = await transaction.get(settingsRef);
@@ -116,49 +117,57 @@ export default function PlansPage() {
         if (!userDoc.exists()) throw new Error("User record missing from system.");
         if (!planDoc.exists()) throw new Error("Target plan no longer available.");
 
-        const currentStock = planDoc.data().stock;
+        const userDataInTx = userDoc.data() as UserData;
+        const planDataInTx = planDoc.data() as InvestmentPlan;
+        const referredBy = userDataInTx.referredBy;
+        const currentTotalInvestment = userDataInTx.totalInvestment || 0;
+        
+        const adminSettingsData = settingsDoc.exists() ? (settingsDoc.data() as AdminSettings) : null;
+        const referralBonusAmount = adminSettingsData?.referralBonus || 0;
+        const bonusAlreadyPaid = userDataInTx.referralBonusPaid || false;
+
+        // Fetch referrer doc if needed (MUST BE DONE BEFORE ANY WRITES)
+        let referrerDoc = null;
+        let referrerRef = null;
+        if (referredBy && !bonusAlreadyPaid && currentTotalInvestment === 0 && referralBonusAmount > 0) {
+            referrerRef = doc(firestore, 'users', referredBy);
+            referrerDoc = await transaction.get(referrerRef);
+        }
+        // --- END READS ---
+
+        // --- 2. START WRITES ---
+        const currentStock = planDataInTx.stock;
         if (currentStock !== undefined && currentStock <= 0) {
             throw new Error("Target plan is now out of stock.");
         }
 
-        // 1. Decrement Stock
+        // A. Decrement Stock
         if (currentStock !== undefined) {
             transaction.update(planRef, { stock: currentStock - 1 });
         }
 
-        const currentTotalInvestment = userDoc.data().totalInvestment || 0;
-        const newWalletBalance = (userDoc.data().walletBalance || 0) - planPrice;
+        const newWalletBalance = (userDataInTx.walletBalance || 0) - planPrice;
         const newTotalInvestment = currentTotalInvestment + planPrice;
-        
-        const referredBy = userDoc.data().referredBy;
-        const bonusAlreadyPaid = userDoc.data().referralBonusPaid || false;
-        const adminSettingsData = settingsDoc.exists() ? (settingsDoc.data() as AdminSettings) : null;
-        const referralBonusAmount = adminSettingsData?.referralBonus || 0;
 
-        // 2. Handle Referral Bonus
-        if (referredBy && !bonusAlreadyPaid && currentTotalInvestment === 0 && referralBonusAmount > 0) {
-            const referrerRef = doc(firestore, 'users', referredBy);
-            const referrerDoc = await transaction.get(referrerRef);
+        // B. Handle Referral Bonus
+        if (referrerDoc?.exists() && referrerRef) {
+            const referrerBalance = referrerDoc.data().walletBalance || 0;
+            transaction.update(referrerRef, { walletBalance: referrerBalance + referralBonusAmount });
             
-            if (referrerDoc.exists()) {
-                const referrerBalance = referrerDoc.data().walletBalance || 0;
-                transaction.update(referrerRef, { walletBalance: referrerBalance + referralBonusAmount });
-                
-                const referrerHistoryRef = doc(collection(firestore, 'users', referredBy, 'walletHistory'));
-                transaction.set(referrerHistoryRef, {
-                    amount: referralBonusAmount,
-                    type: 'credit',
-                    category: 'Referral Reward',
-                    description: `Bonus for ${userDoc.data().name || 'a friend'}'s first investment`,
-                    createdAt: serverTimestamp()
-                });
+            const referrerHistoryRef = doc(collection(firestore, 'users', referredBy!, 'walletHistory'));
+            transaction.set(referrerHistoryRef, {
+                amount: referralBonusAmount,
+                type: 'credit',
+                category: 'Referral Reward',
+                description: `Bonus for ${userDataInTx.name || 'a friend'}'s first investment`,
+                createdAt: serverTimestamp()
+            });
 
-                transaction.update(userRef, { referralBonusPaid: true });
-            }
+            transaction.update(userRef, { referralBonusPaid: true });
         }
 
-        // 3. VIP Level Logic (Using data from transaction fetch)
-        let newVipLevel = userDoc.data().vipLevel || 'Bronze';
+        // C. VIP Level Logic
+        let newVipLevel = userDataInTx.vipLevel || 'Bronze';
         if (adminSettingsData?.vipTiers) {
             if (newTotalInvestment >= adminSettingsData.vipTiers.platinum) {
                 newVipLevel = 'Platinum';
@@ -169,14 +178,14 @@ export default function PlansPage() {
             }
         }
 
-        // 4. Update Self Wallet & Stats
+        // D. Update Self Wallet & Stats
         transaction.update(userRef, {
             walletBalance: newWalletBalance,
             totalInvestment: newTotalInvestment,
             vipLevel: newVipLevel,
         });
 
-        // 5. Log History for Self
+        // E. Log History for Self
         const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
         transaction.set(historyRef, {
             amount: planPrice,
@@ -186,7 +195,7 @@ export default function PlansPage() {
             createdAt: serverTimestamp()
         });
 
-        // 6. Update Platform Profit
+        // F. Update Platform Profit
         const adminProfitFromThisSale = plan.adminProfit || 0;
         if (adminProfitFromThisSale > 0) {
             const currentProfitBalance = adminSettingsData?.adminProfitBalance || 0;
@@ -195,7 +204,7 @@ export default function PlansPage() {
             }, { merge: true });
         }
 
-        // 7. Create Investment Record
+        // G. Create Investment Record
         const investmentRef = doc(collection(firestore, 'users', user.uid, 'investments'));
         const startDate = new Date();
         const maturityDate = addDays(startDate, plan.validity || 0);
@@ -214,6 +223,7 @@ export default function PlansPage() {
             lastClaimDate: serverTimestamp(),
             status: 'Active'
         });
+        // --- END WRITES ---
     })
     .then(() => {
         toast({
@@ -223,19 +233,11 @@ export default function PlansPage() {
     })
     .catch((error) => {
         console.error("Investment Error Detail:", error);
-        
-        if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: `users/${user.uid} (or referrer) and investmentPlans/${plan.id}`,
-                operation: 'write',
-                requestResourceData: { planId: plan.id, action: 'invest' },
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        } else if (error.message?.includes("out of stock")) {
-           toast({ variant: 'destructive', title: 'Investment Failed', description: "This plan just went out of stock."});
-        } else {
-           toast({ variant: 'destructive', title: 'Transaction Error', description: error.message || "An unexpected error occurred during processing."});
-        }
+        toast({ 
+            variant: 'destructive', 
+            title: 'Transaction Error', 
+            description: error.message || "An unexpected error occurred during processing."
+        });
     });
   };
 
