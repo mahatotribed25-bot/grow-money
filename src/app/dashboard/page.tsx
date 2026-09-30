@@ -27,7 +27,9 @@ import {
   Camera,
   ScanText,
   Loader2,
-  XCircle
+  XCircle,
+  Users2,
+  Gift
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -85,6 +87,7 @@ type UserData = {
   permissions?: any;
   email?: string;
   trustScore?: number;
+  referralCode?: string;
 };
 
 type Investment = {
@@ -104,6 +107,7 @@ type Investment = {
 type AdminSettings = {
   adminUpi?: string;
   minWithdrawal?: number;
+  referralBonus?: number;
 };
 
 const SlideToClaim = ({ onComplete, disabled, label, lockedLabel }: { onComplete: () => void, disabled?: boolean, label: string, lockedLabel?: string }) => {
@@ -160,7 +164,6 @@ export default function Dashboard() {
   const handleClaimProfit = (investment: Investment) => {
     if (!user) return;
     
-    // Safety check for payout frequency
     if (investment.payoutFrequency === 'on_maturity') {
         toast({ title: "Ineligible", description: "This plan only pays out upon maturity.", variant: "destructive" });
         return;
@@ -226,7 +229,6 @@ export default function Dashboard() {
     const isSubAdmin = userData.role === 'subadmin';
     const hasPermissions = userData.permissions && Object.values(userData.permissions).some(v => v === true);
     const isSuperAdmin = userData.email && (userData.email.toLowerCase() === 'admin@tribed.world' || userData.email.toLowerCase() === 'admin@tribed.com');
-    
     return isSubAdmin || hasPermissions || isSuperAdmin;
   }, [userData]);
 
@@ -283,6 +285,33 @@ export default function Dashboard() {
         <div className="rounded-3xl overflow-hidden shadow-2xl"><BannerCarousel /></div>
         
         <WalletSummary userData={userData} adminSettings={adminSettings} loading={userDataLoading} t={t} />
+
+        {/* Refer & Earn Section */}
+        <Card className="bg-gradient-to-br from-primary/10 via-card to-card border-primary/20 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Gift size={80} className="text-primary rotate-12" /></div>
+            <div className="relative z-10 space-y-4">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+                        <Users2 size={20} />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-black uppercase tracking-tight text-white">Invite & Earn Credits</h3>
+                        <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Build your network, earn bonus on their first move.</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 h-12 flex items-center justify-between">
+                        <span className="font-mono font-black text-white tracking-[3px] text-sm uppercase">{userData?.referralCode || '------'}</span>
+                        <Button variant="ghost" size="icon" onClick={() => { if(userData?.referralCode) { navigator.clipboard.writeText(userData.referralCode); toast({ title: "Code Copied!" }); } }} className="h-8 w-8 text-primary">
+                            <Copy size={14} />
+                        </Button>
+                    </div>
+                    <Button asChild className="h-12 px-6 rounded-xl bg-primary text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20">
+                        <Link href="/team">My Team</Link>
+                    </Button>
+                </div>
+            </div>
+        </Card>
 
         <div className="flex items-center justify-between">
             <h2 className="text-sm font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2">
@@ -674,7 +703,6 @@ function ActivePlanCard({ investment, onClaimProfit, onClaimMaturity }: { invest
   const isMatured = new Date() >= investment.maturityDate.toDate();
   const payoutFreq = investment.payoutFrequency || 'on_maturity';
 
-  // Logic to determine if "Claim Profit" slider should be active
   let canClaimProfit = false;
   let profitLabel = "Claim Accrued Profit";
   let lockedLabel = "Claim Locked";
@@ -692,7 +720,7 @@ function ActivePlanCard({ investment, onClaimProfit, onClaimMaturity }: { invest
       profitLabel = "Claim Monthly Profit";
       lockedLabel = `Next Claim: Day ${30 - diffDays}`;
   } else if (payoutFreq === 'on_maturity') {
-      canClaimProfit = false; // Never claim intermediate profit
+      canClaimProfit = false;
       profitLabel = "Maturity Payout Only";
       lockedLabel = "Payout on Maturity";
   }

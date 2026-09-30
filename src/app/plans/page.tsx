@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -141,7 +140,6 @@ export default function PlansPage() {
             throw new Error("Target plan is now out of stock.");
         }
 
-        // A. Decrement Stock
         if (currentStock !== undefined) {
             transaction.update(planRef, { stock: currentStock - 1 });
         }
@@ -149,7 +147,6 @@ export default function PlansPage() {
         const newWalletBalance = (userDataInTx.walletBalance || 0) - planPrice;
         const newTotalInvestment = currentTotalInvestment + planPrice;
 
-        // B. Handle Referral Bonus
         if (referrerDoc?.exists() && referrerRef) {
             const referrerBalance = referrerDoc.data().walletBalance || 0;
             transaction.update(referrerRef, { walletBalance: referrerBalance + referralBonusAmount });
@@ -166,7 +163,6 @@ export default function PlansPage() {
             transaction.update(userRef, { referralBonusPaid: true });
         }
 
-        // C. VIP Level Logic
         let newVipLevel = userDataInTx.vipLevel || 'Bronze';
         if (adminSettingsData?.vipTiers) {
             if (newTotalInvestment >= adminSettingsData.vipTiers.platinum) {
@@ -178,14 +174,12 @@ export default function PlansPage() {
             }
         }
 
-        // D. Update Self Wallet & Stats
         transaction.update(userRef, {
             walletBalance: newWalletBalance,
             totalInvestment: newTotalInvestment,
             vipLevel: newVipLevel,
         });
 
-        // E. Log History for Self
         const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));
         transaction.set(historyRef, {
             amount: planPrice,
@@ -195,7 +189,6 @@ export default function PlansPage() {
             createdAt: serverTimestamp()
         });
 
-        // F. Update Platform Profit
         const adminProfitFromThisSale = plan.adminProfit || 0;
         if (adminProfitFromThisSale > 0) {
             const currentProfitBalance = adminSettingsData?.adminProfitBalance || 0;
@@ -204,7 +197,6 @@ export default function PlansPage() {
             }, { merge: true });
         }
 
-        // G. Create Investment Record
         const investmentRef = doc(collection(firestore, 'users', user.uid, 'investments'));
         const startDate = new Date();
         const maturityDate = addDays(startDate, plan.validity || 0);
@@ -223,7 +215,6 @@ export default function PlansPage() {
             lastClaimDate: serverTimestamp(),
             status: 'Active'
         });
-        // --- END WRITES ---
     })
     .then(() => {
         toast({
