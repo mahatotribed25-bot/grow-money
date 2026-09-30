@@ -1,5 +1,5 @@
 'use client';
-import { ChevronLeft, Home, User, Briefcase, HandCoins, Users, Trophy, Copy, Gift, ArrowUpRight, CheckCircle2, UserPlus, Info, Timer } from 'lucide-react';
+import { ChevronLeft, Home, User, Briefcase, HandCoins, Users, Trophy, Copy, Gift, ArrowUpRight, CheckCircle2, UserPlus, Info, Timer, Users2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
