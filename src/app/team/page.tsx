@@ -1,5 +1,5 @@
 'use client';
-import { ChevronLeft, Home, User, Briefcase, HandCoins, Users, Trophy, Copy, Gift, ArrowUpRight, CheckCircle2, UserPlus, Info } from 'lucide-react';
+import { ChevronLeft, Home, User, Briefcase, HandCoins, Users, Trophy, Copy, Gift, ArrowUpRight, CheckCircle2, UserPlus, Info, Timer } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
+import Image from 'next/image';
 
 type Referral = {
     id: string;
@@ -170,7 +172,6 @@ export default function TeamPage() {
         </div>
     );
 }
-
 
 function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href: string, active?: boolean }) {
   return (
