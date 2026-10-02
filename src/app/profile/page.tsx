@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -811,6 +812,10 @@ export default function ProfilePage() {
         {/* Full Screen Image Preview Modal */}
         <Dialog open={!!fullPreviewUrl} onOpenChange={() => setFullPreviewUrl(null)}>
             <DialogContent className="max-w-[95vw] h-[90vh] p-0 border-none bg-black/90 backdrop-blur-3xl overflow-hidden rounded-[2.5rem]">
+                 <DialogHeader className="sr-only">
+                    <DialogTitle>Image Preview</DialogTitle>
+                    <DialogDescription>Full screen view of the payment proof node.</DialogDescription>
+                 </DialogHeader>
                  <header className="absolute top-4 left-0 right-0 z-50 flex justify-between items-center px-6 pointer-events-none">
                     <Badge className="bg-primary/20 text-primary border-primary/20 font-black uppercase text-[10px] tracking-widest pointer-events-auto">Payment Proof Node</Badge>
                     <Button variant="ghost" size="icon" onClick={() => setFullPreviewUrl(null)} className="rounded-full bg-black/40 text-white hover:bg-white/10 h-10 w-10 pointer-events-auto">
