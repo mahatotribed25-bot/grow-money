@@ -169,6 +169,7 @@ type SalaryRecord = {
     paidAt: Timestamp;
     paymentMethod: string;
     transactionId: string;
+    proRataBase?: number;
 }
 
 type AttendanceLog = {
@@ -811,7 +812,7 @@ export default function ProfilePage() {
                         <div className="p-8 space-y-6">
                             <div className="space-y-4">
                                 <ReceiptRow label="Personnel" value={selectedSalarySlip.staffName} />
-                                <ReceiptRow label="Attendance Credit" value={`₹${(selectedSalarySlip as any).proRataBase?.toFixed(2) || '0.00'}`} />
+                                <ReceiptRow label="Attendance Credit" value={`₹${selectedSalarySlip.proRataBase?.toFixed(2) || '0.00'}`} />
                                 <ReceiptRow label="Bonus Node" value={`+ ₹${selectedSalarySlip.bonus}`} isPositive />
                                 <ReceiptRow label="Deductions" value={`- ₹${selectedSalarySlip.deductions}`} isNegative />
                                 <ReceiptRow label="Ref ID" value={selectedSalarySlip.transactionId} isMono />
@@ -841,25 +842,108 @@ export default function ProfilePage() {
   );
 }
 
-function StaffPermissionBadge({ label }: { label: string }) {
-    return <span className="px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-[8px] font-black text-primary uppercase tracking-widest">{label}</span>;
-}
-
 function HistoryTable({ headers, items, renderRow }: { headers: string[], items: any[] | null | undefined, renderRow: (item: any) => React.ReactNode }) {
   return (
-    <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-lg"><ScrollArea className="h-80"><Table><TableHeader className="bg-muted/50"><TableRow className="border-border">{headers.map(h => <TableHead key={h} className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] py-4">{h}</TableHead>)}</TableRow></TableHeader><TableBody>{items && items.length > 0 ? items.map(renderRow) : <TableRow><TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic">No history found.</TableCell></TableRow>}</TableBody></Table></ScrollArea></Card>
+    <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-lg">
+        <ScrollArea className="h-80">
+            <Table>
+                <TableHeader className="bg-muted/50">
+                    <TableRow className="border-border">
+                        {headers.map(h => (
+                            <TableHead key={h} className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] py-4">
+                                {h}
+                            </TableHead>
+                        ))}
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {items && items.length > 0 ? items.map(renderRow) : (
+                        <TableRow>
+                            <TableCell colSpan={headers.length} className="text-center py-20 opacity-20 italic">
+                                No history found.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </ScrollArea>
+    </Card>
   )
 }
 
 function TransactionTable({ transactions, type, onViewReceipt }: { transactions: Transaction[] | undefined | null, type: 'deposit' | 'withdrawal', onViewReceipt: (tx: Transaction) => void }) {
     return (
-        <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-lg"><ScrollArea className="h-80"><Table><TableHeader className="bg-muted/50"><TableRow className="border-border"><TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] pl-6 py-4">Amount</TableHead><TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] text-center">Status</TableHead><TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] text-right pr-6">View</TableHead></TableRow></TableHeader><TableBody>{transactions && transactions.length > 0 ? transactions.map(tx => (<TableRow key={tx.id} className="border-border hover:bg-muted/30"><TableCell className="pl-6 py-4"><p className="font-bold">₹{(tx.finalAmount ?? tx.amount).toFixed(2)}</p><p className="text-[9px] text-muted-foreground uppercase">{new Date(tx.createdAt.seconds * 1000).toLocaleDateString()}</p></TableCell><TableCell className="text-center"><Badge variant="outline" className={cn("text-[8px] uppercase font-black px-2 h-5", tx.status === 'approved' ? "border-accent/20 text-accent bg-accent/10" : tx.status === 'rejected' ? "border-destructive/20 text-destructive bg-destructive/10" : "border-border text-muted-foreground")}>{tx.status}</Badge></TableCell><TableCell className="text-right pr-6"><Button variant="ghost" size="icon" onClick={() => onViewReceipt(tx)} className="h-9 w-9 rounded-xl hover:bg-primary/20 text-primary"><Eye size={16} /></Button></TableCell></TableRow>)) : <TableRow><TableCell colSpan={3} className="text-center py-20 opacity-20 italic">No {type}s found.</TableCell></TableRow>}</TableBody></Table></ScrollArea></Card>
+        <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-lg">
+            <ScrollArea className="h-80">
+                <Table>
+                    <TableHeader className="bg-muted/50">
+                        <TableRow className="border-border">
+                            <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] pl-6 py-4">Amount</TableHead>
+                            <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] text-center">Status</TableHead>
+                            <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] text-right pr-6">View</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {transactions && transactions.length > 0 ? transactions.map(tx => (
+                            <TableRow key={tx.id} className="border-border hover:bg-muted/30">
+                                <TableCell className="pl-6 py-4">
+                                    <p className="font-bold">₹{(tx.finalAmount ?? tx.amount).toFixed(2)}</p>
+                                    <p className="text-[9px] text-muted-foreground uppercase">{new Date(tx.createdAt.seconds * 1000).toLocaleDateString()}</p>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <Badge variant="outline" className={cn(
+                                        "text-[8px] uppercase font-black px-2 h-5", 
+                                        tx.status === 'approved' ? "border-accent/20 text-accent bg-accent/10" : 
+                                        tx.status === 'rejected' ? "border-destructive/20 text-destructive bg-destructive/10" : 
+                                        "border-border text-muted-foreground"
+                                    )}>
+                                        {tx.status}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="text-right pr-6">
+                                    <Button variant="ghost" size="icon" onClick={() => onViewReceipt(tx)} className="h-9 w-9 rounded-xl hover:bg-primary/20 text-primary">
+                                        <Eye size={16} />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        )) : (
+                            <TableRow>
+                                <TableCell colSpan={3} className="text-center py-20 opacity-20 italic">No {type}s found.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </ScrollArea>
+        </Card>
     );
 }
 
 function GroupInvestmentTable({ investments }: { investments: GroupInvestment[] | undefined | null }) {
     return (
-        <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-lg"><ScrollArea className="h-80"><Table><TableHeader className="bg-muted/50"><TableRow className="border-border"><TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] pl-6 py-4">Group Plan</TableHead><TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] text-right pr-6">Earnings</TableHead></TableHeader><TableBody>{investments && investments.length > 0 ? investments.map(inv => (<TableRow key={inv.id} className="border-border hover:bg-muted/30"><TableCell className="pl-6 py-4 font-bold">{inv.planName}</TableCell><TableCell className="text-right pr-6 text-accent font-bold">₹{inv.amountReceived.toFixed(2)}</TableCell></TableRow>)) : <TableRow><TableCell colSpan={2} className="text-center py-20 opacity-20 italic">No group plans active.</TableCell></TableRow>}</TableBody></Table></ScrollArea></Card>
+        <Card className="bg-card border-border rounded-3xl overflow-hidden shadow-lg">
+            <ScrollArea className="h-80">
+                <Table>
+                    <TableHeader className="bg-muted/50">
+                        <TableRow className="border-border">
+                            <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] pl-6 py-4">Group Plan</TableHead>
+                            <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[3px] text-right pr-6">Earnings</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {investments && investments.length > 0 ? investments.map(inv => (
+                            <TableRow key={inv.id} className="border-border hover:bg-muted/30">
+                                <TableCell className="pl-6 py-4 font-bold">{inv.planName}</TableCell>
+                                <TableCell className="text-right pr-6 text-accent font-bold">₹{inv.amountReceived.toFixed(2)}</TableCell>
+                            </TableRow>
+                        )) : (
+                            <TableRow>
+                                <TableCell colSpan={2} className="text-center py-20 opacity-20 italic">No group plans active.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </ScrollArea>
+        </Card>
     );
 }
 
@@ -873,9 +957,31 @@ function AmountVerificationCard({ request }: { request: UpiRequest }) {
 }
 
 function ReceiptRow({ label, value, highlight = false, isNegative = false, isPositive = false, isMono = false }: { label: string, value: string, highlight?: boolean, isNegative?: boolean, isPositive?: boolean, isMono?: boolean }) {
-    return (<div className="flex justify-between items-center text-[11px]"><span className="text-white/30 font-bold uppercase tracking-widest">{label}</span><span className={cn("font-black tracking-tight", highlight ? "text-primary" : "text-white/80", isNegative && "text-red-400", isPositive && "text-green-400", isMono && "font-mono text-[10px] tracking-widest bg-white/5 px-2 py-0.5 rounded")}>{value}</span></div>);
+    return (
+        <div className="flex justify-between items-center text-[11px]">
+            <span className="text-white/30 font-bold uppercase tracking-widest">{label}</span>
+            <span className={cn(
+                "font-black tracking-tight", 
+                highlight ? "text-primary" : "text-white/80", 
+                isNegative && "text-red-400", 
+                isPositive && "text-green-400", 
+                isMono && "font-mono text-[10px] tracking-widest bg-white/5 px-2 py-0.5 rounded"
+            )}>
+                {value}
+            </span>
+        </div>
+    );
 }
 
 function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href?: string, active?: boolean }) {
-  return (<Link href={href || '#'} className={cn("flex flex-col items-center gap-1 transition-all h-full justify-center relative", active ? 'text-primary scale-110' : 'text-muted-foreground hover:text-foreground')}><Icon className={cn("h-5 w-5", active && "drop-shadow-lg")} /><span className="text-[9px] font-black uppercase tracking-tight">{label}</span>{active && <div className="absolute -bottom-1 h-1 w-6 bg-primary rounded-full blur-[2px]" />}</Link>);
+  return (
+    <Link href={href || '#'} className={cn(
+        "flex flex-col items-center gap-1 transition-all h-full justify-center relative", 
+        active ? 'text-primary scale-110' : 'text-muted-foreground hover:text-foreground'
+    )}>
+        <Icon className={cn("h-5 w-5", active && "drop-shadow-lg")} />
+        <span className="text-[9px] font-black uppercase tracking-tight">{label}</span>
+        {active && <div className="absolute -bottom-1 h-1 w-6 bg-primary rounded-full blur-[2px]" />}
+    </Link>
+  );
 }
