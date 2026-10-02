@@ -259,7 +259,7 @@ export default function ProfilePage() {
     try {
         await updateProfile(auth.currentUser, { displayName: editName });
         await updateDoc(doc(firestore, 'users', user.uid), { name: editName });
-        toast({ title: "Name Updated" });
+        toast({ title: t.profile.title });
         setIsEditProfileOpen(false);
         if (refetchUser) refetchUser();
     } catch (e) {
@@ -295,26 +295,49 @@ export default function ProfilePage() {
     }
   };
 
+  const compressImage = async (base64: string, maxDim = 1000): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.src = base64;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxDim) {
+            height *= maxDim / width;
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width *= maxDim / height;
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      };
+    });
+  };
+
   const handleProfilePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
-    if (file.size > 1 * 1024 * 1024) {
-        toast({ title: "File Too Large", description: "Photo must be less than 1MB.", variant: "destructive" });
-        return;
-    }
-
     setIsUploadingPhoto(true);
     const reader = new FileReader();
     reader.onloadend = async () => {
-        const base64String = reader.result as string;
+        const compressed = await compressImage(reader.result as string, 500);
         try {
             const userRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userRef, { photoURL: base64String });
+            await updateDoc(userRef, { photoURL: compressed });
             if (auth.currentUser) {
-                await updateProfile(auth.currentUser, { photoURL: base64String });
+                await updateProfile(auth.currentUser, { photoURL: compressed });
             }
-            toast({ title: "Photo Updated", description: "Your profile picture has been changed." });
+            toast({ title: "Photo Updated" });
             if (refetchUser) refetchUser();
         } catch (error) {
             toast({ title: "Upload Failed", variant: "destructive" });
@@ -329,15 +352,11 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-        toast({ title: "File Too Large", description: "Image must be less than 2MB.", variant: "destructive" });
-        return;
-    }
-
     const reader = new FileReader();
-    reader.onloadend = () => {
-        if (type === 'pan') setPanImage(reader.result as string);
-        else setAadhaarImage(reader.result as string);
+    reader.onloadend = async () => {
+        const compressed = await compressImage(reader.result as string, 1000);
+        if (type === 'pan') setPanImage(compressed);
+        else setAadhaarImage(compressed);
     };
     reader.readAsDataURL(file);
   };
@@ -371,7 +390,7 @@ export default function ProfilePage() {
         setIsKycOpen(false);
         if (refetchUser) refetchUser();
     } catch (e) {
-        toast({ title: "Error", description: "Submission failed. Please try again.", variant: "destructive" });
+        toast({ title: "Error", description: "Submission failed.", variant: "destructive" });
     } finally {
         setIsSubmittingKyc(false);
     }
@@ -419,17 +438,6 @@ export default function ProfilePage() {
   }, [userData]);
 
   const awaitingConfirmationRequest = upiRequests?.find(req => req.status === 'awaiting_confirmation');
-
-  const staffEarnings = useMemo(() => {
-    if (!mySalaries) return { monthly: 0, total: 0 };
-    const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
-    const currentYear = new Date().getFullYear();
-    const monthly = mySalaries
-        .filter(s => s.month === currentMonth && s.year === currentYear)
-        .reduce((sum, s) => sum + s.netPaid, 0);
-    const total = mySalaries.reduce((sum, s) => sum + s.netPaid, 0);
-    return { monthly, total };
-  }, [mySalaries]);
 
   const attendanceSummary = useMemo(() => {
     if (!myAttendance) return { present: 0, credit: 0, daysInMonth: 30 };

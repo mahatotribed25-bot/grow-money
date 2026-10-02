@@ -229,14 +229,41 @@ export default function WithdrawalsPage() {
   };
 
   const handlePayoutFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-          setPayoutScreenshot(reader.result as string);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const img = new window.Image();
+      img.src = reader.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const MAX_DIM = 1000;
+
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        // Compress to 60% quality JPEG
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+        setPayoutScreenshot(compressedBase64);
       };
-      reader.readAsDataURL(file);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleConfirmPaymentSent = () => {

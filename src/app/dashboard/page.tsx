@@ -397,29 +397,53 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setScreenshotPreview(reader.result as string);
+      const img = new window.Image();
+      img.src = reader.result as string;
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const MAX_DIM = 1000;
+
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+        setScreenshotPreview(compressedBase64);
+
+        setIsScanning(true);
+        try {
+          const worker = await createWorker('eng');
+          const { data: { text } } = await worker.recognize(compressedBase64);
+          await worker.terminate();
+
+          const utrMatch = text.match(/\b\d{12}\b/);
+          if (utrMatch) {
+            setTid(utrMatch[0]);
+            toast({ title: "Smart Scan Complete", description: "Detected Transaction ID" });
+          }
+        } catch (err) {
+          console.error("OCR Error:", err);
+          toast({ title: "Scan Failed", description: "Could not read screenshot.", variant: "destructive" });
+        } finally {
+          setIsScanning(false);
+        }
+      };
     };
     reader.readAsDataURL(file);
-
-    setIsScanning(true);
-
-    try {
-      const worker = await createWorker('eng');
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
-
-      const utrMatch = text.match(/\b\d{12}\b/);
-      if (utrMatch) {
-        setTid(utrMatch[0]);
-        toast({ title: "Smart Scan Complete", description: "Detected Transaction ID" });
-      }
-
-    } catch (err) {
-      console.error("OCR Error:", err);
-      toast({ title: "Scan Failed", description: "Could not read screenshot.", variant: "destructive" });
-    } finally {
-      setIsScanning(false);
-    }
   };
 
   const handleSubmit = () => {
