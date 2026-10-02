@@ -40,6 +40,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 type AdminSettings = {
   delayCompensationEnabled?: boolean;
@@ -372,36 +373,38 @@ export default function WithdrawalsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="pr-6 text-right">
-                    {withdrawal.status === 'pending' && (
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                           className="bg-green-600/10 text-green-500 border-green-500/20 hover:bg-green-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
-                          onClick={() => openApproveDialog(withdrawal)}
-                        >
-                          PROCESS
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                           className="bg-red-600/10 text-red-500 border-red-500/20 hover:bg-red-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
-                          onClick={() => handleReject(withdrawal)}
-                        >
-                          REJECT
-                        </Button>
-                         {adminSettings?.delayCompensationEnabled && !withdrawal.delayBonusActive && (
+                    <div className="flex justify-end gap-2">
+                        {withdrawal.status === 'pending' && (
+                          <>
                             <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-blue-600/10 text-blue-400 border-blue-400/20 hover:bg-blue-600 hover:text-white h-8 rounded-lg px-3 font-bold text-[9px]"
-                                onClick={() => handleActivateBonus(withdrawal)}
+                              variant="outline"
+                              size="sm"
+                               className="bg-green-600/10 text-green-500 border-green-500/20 hover:bg-green-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
+                              onClick={() => openApproveDialog(withdrawal)}
                             >
-                                <HandCoins className="h-3 w-3 mr-1" /> BONUS
+                              PROCESS
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                               className="bg-red-600/10 text-red-500 border-red-500/20 hover:bg-red-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
+                              onClick={() => handleReject(withdrawal)}
+                            >
+                              REJECT
+                            </Button>
+                             {adminSettings?.delayCompensationEnabled && !withdrawal.delayBonusActive && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-blue-600/10 text-blue-400 border-blue-400/20 hover:bg-blue-600 hover:text-white h-8 rounded-lg px-3 font-bold text-[9px]"
+                                    onClick={() => handleActivateBonus(withdrawal)}
+                                >
+                                    <HandCoins className="h-3 w-3 mr-1" /> BONUS
+                                </Button>
+                            )}
+                          </>
                         )}
-                      </div>
-                    )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -508,4 +511,3 @@ export default function WithdrawalsPage() {
     </div>
   );
 }
-
