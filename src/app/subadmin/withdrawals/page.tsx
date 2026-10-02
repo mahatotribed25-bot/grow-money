@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   Table,
   TableBody,
@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, HandCoins, Info, Copy, QrCode } from 'lucide-react';
-import { useCollection, useFirestore, useDoc } from '@/firebase';
+import { Check, X, HandCoins, Info, Copy, QrCode, Camera } from 'lucide-react';
+import { useCollection, useFirestore, useDoc, useUser } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -28,8 +28,10 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 type AdminSettings = {
@@ -53,6 +55,9 @@ type WithdrawalRequest = {
   delayBonusAmountPerDay?: number;
   delayBonusStartDate?: Timestamp;
   totalDelayBonus?: number;
+  payoutScreenshot?: string;
+  payoutTransactionId?: string;
+  reviewedBy?: string;
 };
 
 const formatDate = (timestamp: Timestamp) => {
@@ -61,6 +66,7 @@ const formatDate = (timestamp: Timestamp) => {
 };
 
 export default function WithdrawalsPage() {
+  const { user: currentAdmin } = useUser();
   const { data: withdrawals, loading } = useCollection<WithdrawalRequest>('withdrawals');
   const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
   const firestore = useFirestore();
@@ -70,6 +76,11 @@ export default function WithdrawalsPage() {
   const [requestToApprove, setRequestToApprove] = useState<WithdrawalRequest | null>(null);
   const [calculatedBonus, setCalculatedBonus] = useState(0);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+
+  // Payout Proof State
+  const [payoutScreenshot, setPayoutScreenshot] = useState<string | null>(null);
+  const [payoutTid, setPayoutTid] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredWithdrawals = useMemo(() => {
     if (!withdrawals) return [];
@@ -81,6 +92,7 @@ export default function WithdrawalsPage() {
   }, [withdrawals, filterStatus]);
 
   const handleReject = (withdrawal: WithdrawalRequest) => {
+    if (!currentAdmin) return;
     const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
     const userRef = doc(firestore, 'users', withdrawal.userId);
 
@@ -91,7 +103,11 @@ export default function WithdrawalsPage() {
         }
         const newBalance = (userDoc.data().walletBalance || 0) + withdrawal.amount;
         transaction.update(userRef, { walletBalance: newBalance });
-        transaction.update(withdrawalRef, { status: 'rejected' });
+        transaction.update(withdrawalRef, { 
+            status: 'rejected',
+            reviewedBy: currentAdmin.uid,
+            reviewedAt: serverTimestamp()
+        });
     })
     .then(() => {
         toast({
@@ -152,21 +168,38 @@ export default function WithdrawalsPage() {
     }
     setCalculatedBonus(bonus);
     setRequestToApprove(withdrawal);
+    setPayoutScreenshot(null);
+    setPayoutTid('');
     setIsPaymentDialogOpen(true);
   };
 
+  const handlePayoutFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+          setPayoutScreenshot(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+  };
+
   const handleConfirmPaymentSent = () => {
-    if (!requestToApprove) return;
+    if (!requestToApprove || !currentAdmin) return;
 
     const baseAmount = requestToApprove.finalAmount || requestToApprove.amount;
     const totalPayout = baseAmount + calculatedBonus;
     
     const withdrawalRef = doc(firestore, 'withdrawals', requestToApprove.id);
     const updateData = {
-        status: 'approved',
+        status: 'approved' as const,
         totalDelayBonus: calculatedBonus,
         finalAmount: totalPayout,
-        paidDate: serverTimestamp()
+        paidDate: serverTimestamp(),
+        reviewedBy: currentAdmin.uid,
+        reviewedAt: serverTimestamp(),
+        payoutScreenshot: payoutScreenshot || '',
+        payoutTransactionId: payoutTid || ''
     };
 
     updateDoc(withdrawalRef, updateData)
@@ -304,72 +337,93 @@ export default function WithdrawalsPage() {
       </div>
 
        <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg bg-[#030408] border-white/10 text-white rounded-[2rem]">
             <DialogHeader>
-                <DialogTitle>Process Withdrawal</DialogTitle>
-                <DialogDescription>
-                    Send payment to {requestToApprove?.name} and then confirm.
+                <DialogTitle className="text-center font-black uppercase tracking-tight">Process Payout Node</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-xs">
+                    Send payment and upload bank-verified proof.
                 </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-                <div className="flex flex-col items-center gap-2 p-4 rounded-md bg-muted">
-                    <p className="font-semibold">Scan QR Code to Pay</p>
-                     <div className="bg-white p-2 rounded-md">
-                        <Image
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiDeeplink)}`}
-                            alt="UPI QR Code"
-                            width={200}
-                            height={200}
-                        />
+            <ScrollArea className="max-h-[80vh] px-1">
+                <div className="space-y-6 py-6">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="bg-white p-3 rounded-2xl shadow-xl">
+                            <Image
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiDeeplink)}`}
+                                alt="UPI QR Code"
+                                width={200}
+                                height={200}
+                            />
+                        </div>
+                        <div className="text-center">
+                             <p className="text-[10px] font-black text-white/20 uppercase tracking-[3px]">Payout Value</p>
+                             <p className="text-3xl font-black text-green-400 tracking-tighter">₹{totalPayout.toFixed(2)}</p>
+                        </div>
                     </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                    <Label htmlFor="upiId" className="text-muted-foreground">UPI ID</Label>
-                    <div className="flex items-center gap-2">
-                        <span id="upiId" className="font-mono">{requestToApprove?.upiId}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(requestToApprove?.upiId || '', 'UPI ID')}>
-                            <Copy className="h-4 w-4" />
+                    
+                    <div className="space-y-2 px-1">
+                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Target Address (UPI)</Label>
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
+                            <span className="font-mono text-sm font-bold text-primary">{requestToApprove?.upiId}</span>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10" onClick={() => handleCopyToClipboard(requestToApprove?.upiId || '', 'UPI ID')}>
+                                <Copy size={14} />
+                            </Button>
+                        </div>
+                    </div>
+
+                    <Separator className="bg-white/5" />
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Payout Receipt Screenshot</Label>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept="image/*" 
+                                onChange={handlePayoutFileChange} 
+                            />
+                            <Button 
+                                variant="outline" 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-full h-14 rounded-2xl border-dashed border-primary/30 bg-primary/5 text-primary font-black uppercase text-[10px] gap-2"
+                            >
+                                <Camera size={18} /> {payoutScreenshot ? 'Change Receipt' : 'Upload Payment Receipt'}
+                            </Button>
+                            {payoutScreenshot && (
+                                <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black/40">
+                                    <Image src={payoutScreenshot} alt="Payout proof" fill className="object-contain" />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Official Transaction ID (UTR)</Label>
+                            <Input 
+                                placeholder="e.g. 4123..." 
+                                value={payoutTid} 
+                                onChange={e => setPayoutTid(e.target.value)}
+                                className="bg-white/5 border-white/10 h-12 rounded-xl font-mono text-sm uppercase"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                        <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
+                            <a href={upiDeeplink}>
+                                <QrCode size={16} className="mr-2" /> Launch UPI Gateway
+                            </a>
+                        </Button>
+                        <Button 
+                            onClick={handleConfirmPaymentSent} 
+                            disabled={!payoutTid}
+                            className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20"
+                        >
+                            <Check className="mr-2" /> {payoutTid ? 'AUTHORIZE SETTLEMENT' : 'Enter UTR to Authorize'}
                         </Button>
                     </div>
                 </div>
-
-                <div className="space-y-2 rounded-md border p-3">
-                    <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Withdrawal Amount:</span>
-                        <span className="font-semibold">₹{(requestToApprove?.finalAmount || requestToApprove?.amount || 0).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-green-400">
-                        <span className="text-muted-foreground">Delay Bonus:</span>
-                        <span className="font-semibold">+ ₹{calculatedBonus.toFixed(2)}</span>
-                    </div>
-                </div>
-                 
-                <div className="flex items-center justify-between text-lg font-bold">
-                    <Label htmlFor="totalAmount">Total to Pay</Label>
-                    <div className="flex items-center gap-2">
-                        <span id="totalAmount" className="font-mono">₹{totalPayout.toFixed(2)}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(totalPayout.toFixed(2), 'Amount')}>
-                            <Copy className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-
-                 <Button asChild className="w-full">
-                    <a href={upiDeeplink}>
-                        <QrCode className="mr-2" /> Pay with UPI App
-                    </a>
-                </Button>
-            </div>
-            <DialogFooter className="sm:justify-between">
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary">Cancel</Button>
-                </DialogClose>
-                <Button type="button" onClick={handleConfirmPaymentSent}>
-                    <Check className="mr-2" />
-                    Confirm Payment Sent
-                </Button>
-            </DialogFooter>
+            </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>

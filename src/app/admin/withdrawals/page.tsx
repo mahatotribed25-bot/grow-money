@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   Table,
   TableBody,
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, HandCoins, Info, Copy, QrCode, Send, Loader2 } from 'lucide-react';
+import { Check, X, HandCoins, Info, Copy, QrCode, Send, Loader2, Camera, ImageIcon } from 'lucide-react';
 import { useCollection, useFirestore, useDoc, useUser } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { 
@@ -34,10 +34,12 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type AdminSettings = {
   delayCompensationEnabled?: boolean;
@@ -62,6 +64,8 @@ type WithdrawalRequest = {
   totalDelayBonus?: number;
   paidDate?: Timestamp;
   reviewedBy?: string;
+  payoutScreenshot?: string;
+  payoutTransactionId?: string;
 };
 
 const formatDate = (timestamp: Timestamp) => {
@@ -83,6 +87,11 @@ export default function WithdrawalsPage() {
   
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Payout Proof State
+  const [payoutScreenshot, setPayoutScreenshot] = useState<string | null>(null);
+  const [payoutTid, setPayoutTid] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredWithdrawals = useMemo(() => {
     if (!withdrawals) return [];
@@ -213,7 +222,20 @@ export default function WithdrawalsPage() {
     }
     setCalculatedBonus(bonus);
     setRequestToApprove(withdrawal);
+    setPayoutScreenshot(null);
+    setPayoutTid('');
     setIsPaymentDialogOpen(true);
+  };
+
+  const handlePayoutFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+          setPayoutScreenshot(reader.result as string);
+      };
+      reader.readAsDataURL(file);
   };
 
   const handleConfirmPaymentSent = () => {
@@ -221,14 +243,18 @@ export default function WithdrawalsPage() {
     const baseAmount = requestToApprove.finalAmount || requestToApprove.amount;
     const totalPayout = baseAmount + calculatedBonus;
     
-    updateDoc(doc(firestore, 'withdrawals', requestToApprove.id), {
-        status: 'approved',
+    const updateData = {
+        status: 'approved' as const,
         totalDelayBonus: calculatedBonus,
         finalAmount: totalPayout,
         paidDate: serverTimestamp(),
         reviewedBy: currentAdmin.uid,
-        reviewedAt: serverTimestamp()
-    })
+        reviewedAt: serverTimestamp(),
+        payoutScreenshot: payoutScreenshot || '',
+        payoutTransactionId: payoutTid || ''
+    };
+
+    updateDoc(doc(firestore, 'withdrawals', requestToApprove.id), updateData)
     .then(() => {
         toast({ title: 'Withdrawal Approved' });
         setIsPaymentDialogOpen(false);
@@ -391,49 +417,95 @@ export default function WithdrawalsPage() {
       </div>
 
        <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-lg">
             <DialogHeader>
                 <DialogTitle className="text-center font-black uppercase tracking-tight">Process Withdrawal</DialogTitle>
-                <DialogDescription className="text-center text-white/40 text-xs">Send money to the user and confirm below.</DialogDescription>
+                <DialogDescription className="text-center text-white/40 text-xs">Send money to the user and upload proof below.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-6 py-6">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="bg-white p-3 rounded-2xl shadow-xl">
-                        <Image
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiDeeplink)}`}
-                            alt="UPI QR"
-                            width={180}
-                            height={180}
-                        />
+            <ScrollArea className="max-h-[80vh] px-1">
+                <div className="space-y-6 py-6">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="bg-white p-3 rounded-2xl shadow-xl">
+                            <Image
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiDeeplink)}`}
+                                alt="UPI QR"
+                                width={180}
+                                height={180}
+                            />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-[10px] font-black text-white/20 uppercase tracking-[3px]">Amount to Send</p>
+                            <p className="text-3xl font-black text-green-400 tracking-tighter">₹{totalPayout.toFixed(2)}</p>
+                            {calculatedBonus > 0 && <p className="text-[9px] font-bold text-blue-400 uppercase mt-1">+₹{calculatedBonus} Bonus Included</p>}
+                        </div>
                     </div>
-                    <div className="text-center">
-                        <p className="text-[10px] font-black text-white/20 uppercase tracking-[3px]">Amount to Send</p>
-                        <p className="text-3xl font-black text-green-400 tracking-tighter">₹{totalPayout.toFixed(2)}</p>
-                        {calculatedBonus > 0 && <p className="text-[9px] font-bold text-blue-400 uppercase mt-1">+₹{calculatedBonus} Bonus Included</p>}
+                    
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Destination ID</Label>
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
+                            <span className="font-mono text-sm font-bold text-primary">{requestToApprove?.upiId}</span>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10" onClick={() => handleCopyToClipboard(requestToApprove?.upiId || '', 'UPI ID')}>
+                                <Copy size={14} />
+                            </Button>
+                        </div>
                     </div>
-                </div>
-                
-                <div className="space-y-2 px-1">
-                    <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Destination ID</Label>
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
-                        <span className="font-mono text-sm font-bold text-primary">{requestToApprove?.upiId}</span>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10" onClick={() => handleCopyToClipboard(requestToApprove?.upiId || '', 'UPI ID')}>
-                            <Copy size={14} />
+
+                    <Separator className="bg-white/5" />
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Upload Payout Screenshot</Label>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept="image/*" 
+                                onChange={handlePayoutFileChange} 
+                            />
+                            <Button 
+                                variant="outline" 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-full h-14 rounded-2xl border-dashed border-primary/30 bg-primary/5 text-primary font-black uppercase text-[10px] gap-2"
+                            >
+                                <Camera size={18} /> {payoutScreenshot ? 'Change Proof Image' : 'Capture Payment Proof'}
+                            </Button>
+                            {payoutScreenshot && (
+                                <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black/40">
+                                    <Image src={payoutScreenshot} alt="Payout proof" fill className="object-contain" />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Actual Transaction ID (UTR)</Label>
+                            <Input 
+                                placeholder="Enter the ID from your payment app" 
+                                value={payoutTid} 
+                                onChange={e => setPayoutTid(e.target.value)}
+                                className="bg-white/5 border-white/10 h-12 rounded-xl font-mono text-sm uppercase"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                        <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
+                            <a href={upiDeeplink}>
+                                <QrCode size={16} className="mr-2" /> Open UPI App
+                            </a>
+                        </Button>
+                        <Button 
+                            onClick={handleConfirmPaymentSent} 
+                            disabled={!payoutTid}
+                            className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20"
+                        >
+                            <Check className="mr-2" /> {payoutTid ? 'Confirm & Notify User' : 'Enter UTR to Confirm'}
                         </Button>
                     </div>
                 </div>
-
-                 <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
-                    <a href={upiDeeplink}>
-                        <QrCode size={16} className="mr-2" /> Open UPI App
-                    </a>
-                </Button>
-                <Button onClick={handleConfirmPaymentSent} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">
-                    <Check className="mr-2" /> Payment Confirmed
-                </Button>
-            </div>
+            </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
+
