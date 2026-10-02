@@ -42,7 +42,8 @@ import {
   Calculator,
   Search,
   ExternalLink,
-  X
+  X,
+  FileText
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -213,6 +214,7 @@ export default function ProfilePage() {
   const [aadhaarImage, setAadhaarImage] = useState<string | null>(null);
 
   const [selectedReceipt, setSelectedReceipt] = useState<{ tx: Transaction, type: 'deposit' | 'withdrawal' } | null>(null);
+  const [fullPreviewUrl, setFullPreviewUrl] = useState<string | null>(null);
   const [selectedSalarySlip, setSelectedSalarySlip] = useState<SalaryRecord | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSubmittingKyc, setIsSubmittingKyc] = useState(false);
@@ -776,16 +778,16 @@ export default function ProfilePage() {
                                 </div>
 
                                 {selectedReceipt.type === 'withdrawal' && selectedReceipt.tx.payoutScreenshot && (
-                                    <div className="space-y-4">
-                                        <p className="text-[10px] font-black text-white/20 uppercase tracking-[4px] text-center">Payment Verification Proof</p>
-                                        <div className="relative aspect-[9/16] w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl group/proof">
-                                            <Image src={selectedReceipt.tx.payoutScreenshot} alt="Admin Payment Proof" fill className="object-cover" />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/proof:opacity-100 transition-opacity flex items-center justify-center">
-                                                <Button variant="outline" size="sm" asChild className="rounded-xl border-white/20 text-white font-black text-[10px] uppercase tracking-widest bg-black/20">
-                                                    <a href={selectedReceipt.tx.payoutScreenshot} target="_blank">View Full Screen <ExternalLink className="ml-2 h-3 w-3" /></a>
-                                                </Button>
-                                            </div>
-                                        </div>
+                                    <div className="pt-2">
+                                        <Button 
+                                            variant="outline" 
+                                            className="w-full h-14 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase text-[10px] tracking-widest gap-3 shadow-xl transition-all"
+                                            onClick={() => setFullPreviewUrl(selectedReceipt.tx.payoutScreenshot!)}
+                                        >
+                                            <ImageIcon size={18} className="text-primary" />
+                                            View Digital Payment Proof
+                                        </Button>
+                                        <p className="text-[8px] text-white/20 uppercase font-bold text-center mt-3 tracking-widest">Click to view official payout record</p>
                                     </div>
                                 )}
 
@@ -805,6 +807,33 @@ export default function ProfilePage() {
                 </DialogContent>
             </Dialog>
         )}
+
+        {/* Full Screen Image Preview Modal */}
+        <Dialog open={!!fullPreviewUrl} onOpenChange={() => setFullPreviewUrl(null)}>
+            <DialogContent className="max-w-[95vw] h-[90vh] p-0 border-none bg-black/90 backdrop-blur-3xl overflow-hidden rounded-[2.5rem]">
+                 <header className="absolute top-4 left-0 right-0 z-50 flex justify-between items-center px-6 pointer-events-none">
+                    <Badge className="bg-primary/20 text-primary border-primary/20 font-black uppercase text-[10px] tracking-widest pointer-events-auto">Payment Proof Node</Badge>
+                    <Button variant="ghost" size="icon" onClick={() => setFullPreviewUrl(null)} className="rounded-full bg-black/40 text-white hover:bg-white/10 h-10 w-10 pointer-events-auto">
+                        <X size={24} />
+                    </Button>
+                 </header>
+                 <div className="relative w-full h-full flex items-center justify-center p-4">
+                    {fullPreviewUrl && (
+                        <div className="relative w-full h-full max-w-2xl animate-in zoom-in-95 duration-500">
+                             <Image 
+                                src={fullPreviewUrl} 
+                                alt="Payment Proof" 
+                                fill 
+                                className="object-contain"
+                            />
+                        </div>
+                    )}
+                 </div>
+                 <footer className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[4px] whitespace-nowrap">Official Administrative Clearance Image</p>
+                 </footer>
+            </DialogContent>
+        </Dialog>
 
         {selectedSalarySlip && (
             <Dialog open={!!selectedSalarySlip} onOpenChange={() => setSelectedSalarySlip(null)}>
