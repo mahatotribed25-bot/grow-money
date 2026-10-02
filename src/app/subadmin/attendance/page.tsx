@@ -1,17 +1,17 @@
-
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useCollection, useUser } from '@/firebase';
+import { useCollection, useUser, useDoc } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, CheckCircle2, XCircle, Timer, Info, Calculator, User } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
-import { Timestamp, orderBy } from 'firebase/firestore';
+import { Calendar as CalendarIcon, CheckCircle2, XCircle, Timer, Info, Calculator, IndianRupee, TrendingUp, Landmark } from 'lucide-react';
+import { format } from 'date-fns';
+import { Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type AttendanceLog = {
     id: string;
@@ -24,6 +24,10 @@ type AttendanceLog = {
     year: number;
 }
 
+type UserData = {
+    baseSalary?: number;
+}
+
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export default function SubAdminAttendancePage() {
@@ -31,6 +35,7 @@ export default function SubAdminAttendancePage() {
     const [selectedMonth, setSelectedMonth] = useState(months[new Date().getMonth()]);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
+    const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}` : null);
     const { data: myLogs, loading } = useCollection<AttendanceLog>(
         user ? 'attendance' : null, 
         { where: ['userId', '==', user?.uid] }
@@ -57,51 +62,98 @@ export default function SubAdminAttendancePage() {
         return new Date(selectedYear, monthIndex + 1, 0).getDate();
     }, [selectedMonth, selectedYear]);
 
+    const salaryProjection = useMemo(() => {
+        const base = userData?.baseSalary || 0;
+        if (daysInMonth === 0) return 0;
+        return (base / daysInMonth) * stats.totalCredit;
+    }, [userData, daysInMonth, stats.totalCredit]);
+
     return (
         <div className="space-y-6 animate-in fade-in duration-700">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-black text-white tracking-tighter uppercase">My Work Log</h2>
-                    <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">Attendance Records</p>
+                    <h2 className="text-3xl font-black text-white tracking-tighter uppercase">Attendance Hub</h2>
+                    <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">Personnel Record Terminal</p>
                 </div>
                 <div className="flex gap-2">
-                    <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 flex items-center gap-3">
-                        <CalendarIcon size={14} className="text-primary" />
-                        <span className="text-xs font-bold text-white/70">{selectedMonth} {selectedYear}</span>
-                    </div>
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                        <SelectTrigger className="w-[160px] bg-white/5 border-white/10 rounded-xl h-11 text-xs font-bold uppercase">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#030408] border-white/10">
+                            {months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <StatCard title="Full Days" value={stats.present + stats.holiday} color="text-green-400" icon={CheckCircle2} />
-                <StatCard title="Half Days" value={stats.halfDay} color="text-blue-400" icon={Timer} />
-                <StatCard title="Absences" value={stats.absent} color="text-red-400" icon={XCircle} />
-                <StatCard title="Total Credit" value={`${stats.totalCredit} / ${daysInMonth}`} color="text-primary" icon={Calculator} />
+                <StatCard title="Full Nodes" value={stats.present + stats.holiday} color="text-green-400" icon={CheckCircle2} />
+                <StatCard title="Partial Nodes" value={stats.halfDay} color="text-blue-400" icon={Timer} />
+                <StatCard title="Offline" value={stats.absent} color="text-red-400" icon={XCircle} />
+                <StatCard title="Credit Days" value={stats.totalCredit} color="text-primary" icon={Calculator} />
             </div>
 
-            <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-5"><CalendarIcon size={120} className="text-white" /></div>
-                <CardHeader className="p-0 mb-8">
-                    <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">Efficiency Summary</CardTitle>
-                </CardHeader>
-                <div className="space-y-6 relative z-10">
-                    <div className="space-y-2">
-                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-white/20">
-                            <span>Month Completion</span>
-                            <span>{Math.round((stats.totalCredit / daysInMonth) * 100)}%</span>
-                        </div>
-                        <Progress value={(stats.totalCredit / daysInMonth) * 100} className="h-2" />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="lg:col-span-1 bg-primary/5 border border-primary/20 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                        <IndianRupee size={120} className="text-primary" />
                     </div>
-                    <p className="text-xs text-white/40 italic leading-relaxed">
-                        Note: Your final salary will be calculated based on the total credit days shown above. Holiday credits are included in the payout calculation.
-                    </p>
-                </div>
-            </Card>
+                    <CardHeader className="p-0 mb-6">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-[3px] text-primary">Salary Projection</CardTitle>
+                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Based on {selectedMonth} performance</p>
+                    </CardHeader>
+                    <div className="space-y-6 relative z-10">
+                        <div>
+                            <p className="text-4xl font-black text-white tracking-tighter">₹{salaryProjection.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            <p className="text-[9px] font-bold text-white/40 uppercase mt-1">Estimated Payout Node</p>
+                        </div>
+                        <Separator className="bg-primary/20" />
+                        <div className="space-y-3">
+                            <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
+                                <span className="text-white/30">Contract Base</span>
+                                <span className="text-white/60">₹{(userData?.baseSalary || 0).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
+                                <span className="text-white/30">Efficiency</span>
+                                <span className="text-primary">{Math.round((stats.totalCredit / daysInMonth) * 100)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card className="lg:col-span-2 bg-white/[0.02] border-white/5 rounded-[2rem] p-8 shadow-2xl flex flex-col justify-center">
+                    <CardHeader className="p-0 mb-8">
+                        <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40">Work Protocol Progress</CardTitle>
+                    </CardHeader>
+                    <div className="space-y-8">
+                        <div className="space-y-3">
+                            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-white/20">
+                                <span>Cycle Completion</span>
+                                <span>{stats.totalCredit} / {daysInMonth} Days</span>
+                            </div>
+                            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                                <Progress value={(stats.totalCredit / daysInMonth) * 100} className="h-full" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="p-4 rounded-2xl bg-green-500/5 border border-green-500/10 flex items-center gap-4">
+                                <div className="h-10 w-10 rounded-xl bg-green-500/20 flex items-center justify-center text-green-500"><TrendingUp size={20}/></div>
+                                <div><p className="text-[9px] font-black text-white/20 uppercase tracking-widest">Payable Credit</p><p className="text-lg font-black text-white">{stats.totalCredit} Days</p></div>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex items-center gap-4">
+                                <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400"><Landmark size={20}/></div>
+                                <div><p className="text-[9px] font-black text-white/20 uppercase tracking-widest">Status</p><p className="text-lg font-black text-white uppercase tracking-tighter">Verified</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+            </div>
 
             <Card className="bg-white/[0.02] border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
                 <CardHeader className="bg-white/[0.01] border-b border-white/[0.05] p-6">
                     <CardTitle className="text-sm font-black uppercase tracking-[3px] text-white/40 flex items-center gap-2">
-                        <Info size={16} className="text-primary" /> Log History
+                        <Info size={16} className="text-primary" /> Log Entry Archive: {selectedMonth}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -109,17 +161,18 @@ export default function SubAdminAttendancePage() {
                         <TableHeader className="bg-white/[0.02]">
                             <TableRow className="border-white/10">
                                 <TableHead className="text-[10px] font-black uppercase text-white/20 pl-8 py-5">Work Date</TableHead>
-                                <TableHead className="text-[10px] font-black uppercase text-white/20">System Status</TableHead>
-                                <TableHead className="text-[10px] font-black uppercase text-white/20 pr-8 text-right">Admin Notes</TableHead>
+                                <TableHead className="text-[10px] font-black uppercase text-white/20">Protocol Status</TableHead>
+                                <TableHead className="text-[10px] font-black uppercase text-white/20">Credit Value</TableHead>
+                                <TableHead className="text-[10px] font-black uppercase text-white/20 pr-8 text-right">System Note</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow><TableCell colSpan={3} className="text-center py-20 opacity-20 italic">Loading Registry...</TableCell></TableRow>
-                            ) : myLogs?.length === 0 ? (
-                                <TableRow><TableCell colSpan={3} className="text-center py-20 text-white/10 italic">No attendance logs found for your account.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={4} className="text-center py-20 opacity-20 italic">Loading Registry...</TableCell></TableRow>
+                            ) : myLogs?.filter(l => l.month === selectedMonth && l.year === selectedYear).length === 0 ? (
+                                <TableRow><TableCell colSpan={4} className="text-center py-20 text-white/10 italic text-sm">No log nodes detected for {selectedMonth}.</TableCell></TableRow>
                             ) : (
-                                myLogs?.sort((a,b) => b.date.seconds - a.date.seconds).map(log => (
+                                myLogs?.filter(l => l.month === selectedMonth && l.year === selectedYear).sort((a,b) => b.date.seconds - a.date.seconds).map(log => (
                                     <TableRow key={log.id} className="border-white/[0.03] hover:bg-white/[0.01]">
                                         <TableCell className="pl-8 py-5">
                                             <p className="text-sm font-bold text-white/80">{format(log.date.toDate(), 'MMMM dd, yyyy')}</p>
@@ -134,8 +187,13 @@ export default function SubAdminAttendancePage() {
                                                 {log.status}
                                             </Badge>
                                         </TableCell>
+                                        <TableCell>
+                                            <span className="text-xs font-black text-white/60">
+                                                {log.status === 'present' || log.status === 'holiday' ? '1.0' : log.status === 'half-day' ? '0.5' : '0.0'} Node
+                                            </span>
+                                        </TableCell>
                                         <TableCell className="pr-8 text-right">
-                                            <p className="text-[10px] text-white/30 italic">{log.reason || '-'}</p>
+                                            <p className="text-[10px] text-white/30 italic">{log.reason || 'Verified Automated Log'}</p>
                                         </TableCell>
                                     </TableRow>
                                 ))

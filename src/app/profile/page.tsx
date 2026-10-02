@@ -38,7 +38,8 @@ import {
   Receipt,
   Calendar,
   Shield,
-  Users2
+  Users2,
+  Calculator
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -288,8 +289,8 @@ export default function ProfilePage() {
     }
   };
 
-  const handleProfilePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleProfilePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file || !user) return;
 
     if (file.size > 1 * 1024 * 1024) {
@@ -425,14 +426,20 @@ export default function ProfilePage() {
   }, [mySalaries]);
 
   const attendanceSummary = useMemo(() => {
-    if (!myAttendance) return { present: 0, credit: 0 };
+    if (!myAttendance) return { present: 0, credit: 0, daysInMonth: 30 };
     const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
     const currentYear = new Date().getFullYear();
+    const daysInCurrentMonth = new Date(currentYear, new Date().getMonth() + 1, 0).getDate();
     const monthLogs = myAttendance.filter(l => l.month === currentMonth && l.year === currentYear);
     const present = monthLogs.filter(l => l.status === 'present' || l.status === 'holiday').length;
     const half = monthLogs.filter(l => l.status === 'half-day').length;
-    return { present, credit: present + (half * 0.5) };
+    return { present, credit: present + (half * 0.5), daysInMonth: daysInCurrentMonth };
   }, [myAttendance]);
+
+  const estimatedCurrentMonthPay = useMemo(() => {
+      const base = userData?.baseSalary || 0;
+      return (base / attendanceSummary.daysInMonth) * attendanceSummary.credit;
+  }, [userData, attendanceSummary]);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
@@ -460,7 +467,7 @@ export default function ProfilePage() {
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 max-w-4xl mx-auto w-full">
         <Card className="bg-card border-border shadow-lg rounded-3xl overflow-hidden relative group">
           <CardHeader>
-            <div className="flex flex-col sm:row items-center gap-6">
+            <div className="flex flex-col sm:flex-row items-center gap-6">
               <div className="relative group/avatar">
                   <Avatar className="h-24 w-24 border-4 border-primary/20 rounded-[2rem] shadow-2xl overflow-hidden">
                     <AvatarImage src={userData?.photoURL} className="object-cover" />
@@ -512,46 +519,38 @@ export default function ProfilePage() {
                 <CardContent className="p-0 space-y-6">
                     <div className="flex items-center justify-between">
                         <div className="space-y-1">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Selected Role</p>
-                            <p className="text-xl font-black text-white tracking-tighter uppercase">Platform Staff Member</p>
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Active Personnel Module</p>
+                            <p className="text-xl font-black text-white tracking-tighter uppercase">Platform Sub-Admin</p>
                         </div>
                         <Button asChild size="sm" className="rounded-xl font-black uppercase text-[10px] bg-primary shadow-lg shadow-primary/20">
                             <Link href="/subadmin">Staff Portal <ArrowRight size={12} className="ml-1.5" /></Link>
                         </Button>
-                    </div>
-                    <div className="space-y-3">
-                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest pl-1">Authorized Access Nodes</p>
-                        <div className="flex flex-wrap gap-2">
-                            {userData?.permissions?.canManageKyc && <StaffPermissionBadge label="Identity Review" />}
-                            {userData?.permissions?.canManageDeposits && <StaffPermissionBadge label="Deposit Control" />}
-                            {userData?.permissions?.canManageWithdrawals && <StaffPermissionBadge label="Payout Management" />}
-                            {userData?.permissions?.canManagePlanLoans && <StaffPermissionBadge label="Loan Authorization" />}
-                            {userData?.permissions?.canManageCustomLoans && <StaffPermissionBadge label="Flexi Loan Logic" />}
-                            {userData?.permissions?.canManageMarket && <StaffPermissionBadge label="Market Oversight" />}
-                        </div>
                     </div>
                 </CardContent>
             </Card>
 
             <Card className="bg-accent/5 border border-accent/20 rounded-3xl p-6 shadow-2xl overflow-hidden group">
                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Coins size={80} className="text-accent" /></div>
-                 <CardHeader className="p-0 mb-4">
+                 <CardHeader className="p-0 mb-4 flex flex-row items-center justify-between">
                     <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-accent">
-                        <IndianRupee size={14} /> Personnel Remuneration
+                        <IndianRupee size={14} /> Remuneration Terminal
                     </CardTitle>
+                    <Button asChild variant="ghost" size="sm" className="h-6 text-[8px] font-black uppercase tracking-widest hover:text-accent">
+                        <Link href="/subadmin/attendance">View Full Log</Link>
+                    </Button>
                  </CardHeader>
                  <CardContent className="p-0">
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                         <div className="space-y-1">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Monthly Net</p>
-                            <p className="text-xl font-black text-white">₹{staffEarnings.monthly.toLocaleString()}</p>
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Est. Current Pay</p>
+                            <p className="text-xl font-black text-white">₹{estimatedCurrentMonthPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Lifetime Staff Pay</p>
-                            <p className="text-xl font-black text-accent">₹{staffEarnings.total.toLocaleString()}</p>
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Attendance Credit</p>
+                            <p className="text-xl font-black text-accent">{attendanceSummary.credit} <span className="text-xs text-white/20">/ {attendanceSummary.daysInMonth}</span></p>
                         </div>
                          <div className="space-y-1">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Contract Base</p>
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Base Salary</p>
                             <p className="text-xl font-black text-white/60">₹{(userData?.baseSalary || 0).toLocaleString()}</p>
                         </div>
                     </div>
@@ -616,15 +615,6 @@ export default function ProfilePage() {
                 <div className="space-y-4">
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 px-1"><span>Verification Progress</span><span>{kycProgress}%</span></div>
                     <Progress value={kycProgress} className="h-2" />
-                    {userData?.kycRejectionReason && (userData?.kycStatus === 'Not Submitted' || userData?.kycStatus === 'Rejected' || userData?.kycStatus === 'Pending') && (
-                        <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex gap-3 items-start animate-in slide-in-from-top-2">
-                            <Info className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase text-amber-500 tracking-widest">Notice from Admin</p>
-                                <p className="text-xs text-amber-200/60 leading-relaxed italic">"{userData.kycRejectionReason}"</p>
-                            </div>
-                        </div>
-                    )}
                     <div className="flex items-center justify-between mt-2">
                         <div className="space-y-1">
                              <p className="text-sm font-bold">{t.profile.kyc_status}</p>
@@ -670,22 +660,27 @@ export default function ProfilePage() {
                             <Card className="bg-primary/5 border border-primary/20 rounded-3xl p-6 shadow-xl overflow-hidden group">
                                 <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
                                     <CardTitle className="text-[10px] font-black flex items-center gap-2 uppercase tracking-[3px] text-primary">
-                                        <Calendar size={14} /> Monthly Efficiency
+                                        <Calendar size={14} /> Monthly Performance Node
                                     </CardTitle>
-                                    <Button asChild variant="ghost" size="sm" className="h-6 text-[8px] font-black uppercase tracking-widest hover:text-primary">
-                                        <Link href="/subadmin/attendance">View Full Log</Link>
-                                    </Button>
+                                    <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
                                 </CardHeader>
                                 <CardContent className="p-0">
                                     <div className="grid grid-cols-2 gap-6">
                                         <div className="space-y-1">
-                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Credit Days</p>
-                                            <p className="text-2xl font-black text-white">{attendanceSummary.credit} <span className="text-xs text-white/40">/ {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()}</span></p>
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Credit Cycle</p>
+                                            <p className="text-2xl font-black text-white">{attendanceSummary.credit} <span className="text-xs text-white/40">/ {attendanceSummary.daysInMonth}</span></p>
                                         </div>
                                         <div className="space-y-1 text-right">
-                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Est. Base Payout</p>
-                                            <p className="text-2xl font-black text-accent">₹{((userData?.baseSalary || 0) / new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() * attendanceSummary.credit).toFixed(0)}</p>
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Est. Next Pay</p>
+                                            <p className="text-2xl font-black text-accent">₹{estimatedCurrentMonthPay.toLocaleString(undefined, { minimumFractionDigits: 0 })}</p>
                                         </div>
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-white/5">
+                                        <div className="flex justify-between items-center text-[10px] font-black uppercase text-white/20 mb-2">
+                                            <span>Target Completion</span>
+                                            <span>{Math.round((attendanceSummary.credit / attendanceSummary.daysInMonth) * 100)}%</span>
+                                        </div>
+                                        <Progress value={(attendanceSummary.credit / attendanceSummary.daysInMonth) * 100} className="h-1.5" />
                                     </div>
                                 </CardContent>
                             </Card>
