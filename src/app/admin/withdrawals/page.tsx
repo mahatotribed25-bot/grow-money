@@ -12,7 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Check, X, HandCoins, Info, Copy, QrCode, Send, Loader2 } from 'lucide-react';
-import { useCollection, useFirestore, useDoc } from '@/firebase';
+import { useCollection, useFirestore, useDoc, useUser } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { 
   doc, 
@@ -61,6 +61,7 @@ type WithdrawalRequest = {
   delayBonusStartDate?: Timestamp;
   totalDelayBonus?: number;
   paidDate?: Timestamp;
+  reviewedBy?: string;
 };
 
 const formatDate = (timestamp: Timestamp) => {
@@ -69,6 +70,7 @@ const formatDate = (timestamp: Timestamp) => {
 };
 
 export default function WithdrawalsPage() {
+  const { user: currentAdmin } = useUser();
   const { data: withdrawals, loading } = useCollection<WithdrawalRequest>('withdrawals');
   const { data: adminSettings } = useDoc<AdminSettings>('settings/admin');
   const firestore = useFirestore();
@@ -106,7 +108,7 @@ export default function WithdrawalsPage() {
   };
 
   const handleBatchAction = async (newStatus: 'approved' | 'rejected') => {
-    if (selectedIds.length === 0) return;
+    if (selectedIds.length === 0 || !currentAdmin) return;
     
     setIsProcessing(true);
     const batch = writeBatch(firestore);
@@ -121,12 +123,18 @@ export default function WithdrawalsPage() {
         if (newStatus === 'rejected') {
           // Return money to user wallet on rejection using atomic increment
           batch.update(userRef, { walletBalance: increment(withdrawal.amount) });
-          batch.update(withdrawalRef, { status: 'rejected' });
+          batch.update(withdrawalRef, { 
+              status: 'rejected',
+              reviewedBy: currentAdmin.uid,
+              reviewedAt: serverTimestamp()
+          });
         } else {
           batch.update(withdrawalRef, {
             status: 'approved',
             paidDate: serverTimestamp(),
-            finalAmount: withdrawal.finalAmount || withdrawal.amount
+            finalAmount: withdrawal.finalAmount || withdrawal.amount,
+            reviewedBy: currentAdmin.uid,
+            reviewedAt: serverTimestamp()
           });
         }
         processedCount++;
@@ -149,12 +157,17 @@ export default function WithdrawalsPage() {
   };
 
   const handleReject = (withdrawal: WithdrawalRequest) => {
+    if(!currentAdmin) return;
     const batch = writeBatch(firestore);
     const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
     const userRef = doc(firestore, 'users', withdrawal.userId);
 
     batch.update(userRef, { walletBalance: increment(withdrawal.amount) });
-    batch.update(withdrawalRef, { status: 'rejected' });
+    batch.update(withdrawalRef, { 
+        status: 'rejected',
+        reviewedBy: currentAdmin.uid,
+        reviewedAt: serverTimestamp()
+    });
 
     batch.commit()
     .then(() => {
@@ -204,7 +217,7 @@ export default function WithdrawalsPage() {
   };
 
   const handleConfirmPaymentSent = () => {
-    if (!requestToApprove) return;
+    if (!requestToApprove || !currentAdmin) return;
     const baseAmount = requestToApprove.finalAmount || requestToApprove.amount;
     const totalPayout = baseAmount + calculatedBonus;
     
@@ -212,7 +225,9 @@ export default function WithdrawalsPage() {
         status: 'approved',
         totalDelayBonus: calculatedBonus,
         finalAmount: totalPayout,
-        paidDate: serverTimestamp()
+        paidDate: serverTimestamp(),
+        reviewedBy: currentAdmin.uid,
+        reviewedAt: serverTimestamp()
     })
     .then(() => {
         toast({ title: 'Withdrawal Approved' });

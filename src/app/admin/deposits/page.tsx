@@ -12,7 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Check, X, Send, Loader2, Eye, ScanText, ShieldCheck, AlertCircle } from 'lucide-react';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useUser } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { 
   doc, 
@@ -52,6 +52,7 @@ type DepositRequest = {
   createdAt: Timestamp;
   status: 'pending' | 'approved' | 'rejected';
   screenshot?: string;
+  reviewedBy?: string;
 };
 
 const formatDate = (timestamp: Timestamp) => {
@@ -60,6 +61,7 @@ const formatDate = (timestamp: Timestamp) => {
 };
 
 export default function DepositsPage() {
+  const { user: currentAdmin } = useUser();
   const { data: deposits, loading } = useCollection<DepositRequest>('deposits');
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -95,7 +97,7 @@ export default function DepositsPage() {
   };
 
   const handleBatchAction = async (newStatus: 'approved' | 'rejected') => {
-    if (selectedIds.length === 0) return;
+    if (selectedIds.length === 0 || !currentAdmin) return;
     
     setIsProcessing(true);
     const batch = writeBatch(firestore);
@@ -120,7 +122,11 @@ export default function DepositsPage() {
           });
         }
         
-        batch.update(depositRef, { status: newStatus });
+        batch.update(depositRef, { 
+            status: newStatus, 
+            reviewedBy: currentAdmin.uid,
+            reviewedAt: serverTimestamp()
+        });
         processedCount++;
       }
     }
@@ -141,8 +147,8 @@ export default function DepositsPage() {
   };
 
   const handleUpdateStatus = (deposit: DepositRequest, newStatus: 'approved' | 'rejected') => {
-      if (deposit.status !== 'pending') {
-          toast({ title: "Already Processed", description: `This request is already ${deposit.status}.`, variant: "destructive" });
+      if (deposit.status !== 'pending' || !currentAdmin) {
+          toast({ title: "Action Restricted", variant: "destructive" });
           return;
       }
 
@@ -162,7 +168,11 @@ export default function DepositsPage() {
           });
       }
       
-      batch.update(depositRef, { status: newStatus });
+      batch.update(depositRef, { 
+          status: newStatus,
+          reviewedBy: currentAdmin.uid,
+          reviewedAt: serverTimestamp()
+      });
 
       batch.commit()
       .then(() => {
