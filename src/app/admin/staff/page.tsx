@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, User, Search, Eye, ShieldAlert, Timer, Settings2, BarChart3, Activity, HandCoins, CheckSquare } from 'lucide-react';
+import { ShieldCheck, User, Search, Eye, ShieldAlert, Timer, Settings2, BarChart3, Activity, HandCoins, CheckSquare, CalendarDays } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
@@ -169,6 +169,7 @@ export default function StaffManagementPage() {
                                                     {staff.permissions?.canManageWithdrawals && <PermissionBadge label="PAYOUTS" />}
                                                     {staff.permissions?.canManagePlanLoans && <PermissionBadge label="LOANS" />}
                                                     {staff.permissions?.canManageCustomLoans && <PermissionBadge label="FLEXI" />}
+                                                    {staff.permissions?.canManageMarket && <PermissionBadge label="MARKET" />}
                                                     {getActivePermissionsCount(staff.permissions) === 0 && (
                                                         <span className="text-[8px] font-bold text-white/10 uppercase tracking-widest">Standard Access</span>
                                                     )}
