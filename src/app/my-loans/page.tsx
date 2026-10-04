@@ -51,6 +51,13 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import Image from 'next/image';
 import { useSettings } from '@/context/settings-context';
 
@@ -92,6 +99,7 @@ type CustomLoanRequest = {
   createdAt: Timestamp;
   activatedAt?: Timestamp;
   dueDate?: Timestamp;
+  extensionRequestedDays?: number;
 };
 
 const TimeRemaining = ({ targetDate }: { targetDate: Date }) => {
@@ -189,7 +197,7 @@ export default function MyLoansPage() {
         toast({ title: "Extension Requested", description: "The admin will review your extension request." });
         setExtTargetId(null);
     } catch (e) {
-        toast({ title: "Error", variant: "destructive" });
+        toast({ title: "Error", description: "Failed to request extension.", variant: "destructive" });
     }
   };
 
@@ -382,7 +390,7 @@ export default function MyLoansPage() {
                                                     date={loan.dueDate?.toDate() || new Date()} 
                                                     amount={(loan.totalRepayment || 0) + (loan.penalty || 0)} 
                                                     status={loan.status === 'active' ? 'Active' : loan.status} 
-                                                    subtext={`Principal: ₹${loan.requestedAmount} | Matching Int: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
+                                                    subtext={`Principal: ₹{loan.requestedAmount} | Matching Int: ₹{loan.interestAmount?.toFixed(2) || '0.00'}`}
                                                     isSelected={!!selectedItems.find(item => item.id === loan.id)}
                                                     onToggle={() => handleToggleSelect(loan, (loan.totalRepayment || 0) + (loan.penalty || 0), true)}
                                                 />
@@ -524,7 +532,7 @@ export default function MyLoansPage() {
         </Dialog>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-xl h-16 flex items-center justify-around px-4">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-sm h-16 flex items-center justify-around px-4">
           <BottomNavItem icon={Home} label={t.nav.home} href="/dashboard" />
           <BottomNavItem icon={Briefcase} label={t.nav.plans} href="/plans" />
           <BottomNavItem icon={Trophy} label={t.nav.leaders} href="/leaderboard" />
