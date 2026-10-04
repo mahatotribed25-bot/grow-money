@@ -24,7 +24,9 @@ import {
     MessageSquare, 
     Mail, 
     BellRing,
-    ExternalLink
+    ExternalLink,
+    PartyPopper,
+    HeartHandshake
 } from 'lucide-react';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import {
@@ -110,6 +112,7 @@ export default function CustomLoansPage() {
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
+  const [isCompletionNotificationOpen, setIsCompletionNotificationOpen] = useState(false);
   
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected' | 'payment_pending' | 'extension_pending'>('pending_admin_review');
 
@@ -150,7 +153,6 @@ export default function CustomLoansPage() {
 
   const openPaymentDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
-    // Fetch user details for notification
     try {
         const userRef = doc(firestore, 'users', request.userId);
         const userDoc = await getDoc(userRef);
@@ -208,7 +210,7 @@ export default function CustomLoansPage() {
     .then(() => {
         toast({ title: 'Loan Activated' });
         setIsPaymentDialogOpen(false);
-        setIsNotificationDialogOpen(true); // Open notification options
+        setIsNotificationDialogOpen(true);
     })
     .catch((e: any) => {
         toast({ title: 'Activation Failed', description: e.message, variant: 'destructive' });
@@ -235,6 +237,14 @@ export default function CustomLoansPage() {
   };
   
   const handleMarkAsCompleted = async (request: CustomLoanRequest) => {
+    setRequestToUpdate(request);
+    // Fetch user details for notification
+    try {
+        const userRef = doc(firestore, 'users', request.userId);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists()) setUserKycData({ id: userDoc.id, ...userDoc.data() } as UserData);
+    } catch(e) { console.error(e); }
+
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
     const settingsRef = doc(firestore, 'settings', 'admin');
     
@@ -246,10 +256,30 @@ export default function CustomLoansPage() {
     })
     .then(() => {
         toast({ title: 'Loan Completed' });
+        setIsCompletionNotificationOpen(true);
     })
     .catch((e) => {
         toast({ title: 'Error marking completed', variant: 'destructive'});
     });
+  };
+
+  const handleWhatsAppCompletionNotify = (request: CustomLoanRequest, user: UserData | null) => {
+      if (!user?.phoneNumber) {
+          toast({ title: "Phone number missing", variant: "destructive" });
+          return;
+      }
+      const message = `✅ *Grow Money: Loan Settled* ✅\n\nHello *${request.userName}*,\n\nWe are pleased to inform you that your loan has been successfully completed.\n\n*आपका लोन सफलतापूर्वक समाप्त हो गया है। प्लेटफॉर्म से लोन लेने के लिए आपका बहुत-बहुत धन्यवाद!* 🙏\n\nWe look forward to serving you again! 💰\n\n*Grow Money Team*`;
+      window.open(`https://wa.me/91${user.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleEmailCompletionNotify = (request: CustomLoanRequest, user: UserData | null) => {
+    if (!user?.email) {
+        toast({ title: "Email address missing", variant: "destructive" });
+        return;
+    }
+    const subject = `Loan Successfully Settled - Grow Money`;
+    const body = `Hello ${request.userName},\n\nThis is to confirm that your loan has been successfully settled and completed in our records.\n\nThank you for choosing Grow Money for your financial needs. We appreciate your timely repayments.\n\nआपका लोन सफलतापूर्वक समाप्त हो गया है। प्लेटफॉर्म से लोन लेने के लिए आपका बहुत-बहुत धन्यवाद!\n\nRegards,\nGrow Money Administration`;
+    window.location.href = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const handleCopyToClipboard = (text?: string, label?: string) => {
@@ -360,7 +390,7 @@ export default function CustomLoansPage() {
                     </div>
                     <Separator className="bg-primary/20" />
                     <div className="flex justify-between items-center text-white">
-                        <span className="text-[10px] font-black uppercase tracking-widest">Settlement Node</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">Settlement Goal</span>
                         <span className="text-2xl font-black tracking-tighter">₹{calculatedInterestInfo.totalRepayment.toFixed(2)}</span>
                     </div>
                 </Card>
@@ -417,7 +447,7 @@ export default function CustomLoansPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Notification Modal */}
+      {/* Notification Modal (Approval) */}
       <Dialog open={isNotificationDialogOpen} onOpenChange={setIsNotificationDialogOpen}>
         <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
             <DialogHeader>
@@ -452,6 +482,46 @@ export default function CustomLoansPage() {
             <DialogFooter>
                 <DialogClose asChild>
                     <Button variant="ghost" className="w-full text-white/20 text-[10px] font-black uppercase hover:text-white">Skip for now</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Completion Notification Modal */}
+      <Dialog open={isCompletionNotificationOpen} onOpenChange={setIsCompletionNotificationOpen}>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
+            <DialogHeader>
+                <div className="mx-auto h-12 w-12 rounded-xl bg-accent/20 flex items-center justify-center text-accent mb-4">
+                    <HeartHandshake size={24} />
+                </div>
+                <DialogTitle className="text-center font-black uppercase tracking-tight">Settlement Verified</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-[10px] uppercase tracking-widest">Express gratitude for using the protocol</DialogDescription>
+            </DialogHeader>
+            <div className="py-6 space-y-4">
+                <div className="bg-white/5 border border-white/5 rounded-2xl p-5 space-y-2">
+                    <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">Protocol Gratitude</p>
+                    <p className="text-xs text-white/60 leading-relaxed italic">"आपका लोन सफलतापूर्वक समाप्त हो गया है। प्लेटफॉर्म से लोन लेने के लिए आपका बहुत-बहुत धन्यवाद!"</p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                    <Button 
+                        onClick={() => requestToUpdate && handleWhatsAppCompletionNotify(requestToUpdate, userKycData)}
+                        className="h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl shadow-green-600/10"
+                    >
+                        <MessageSquare size={18} /> Send Thanks (WhatsApp)
+                    </Button>
+                    <Button 
+                        onClick={() => requestToUpdate && handleEmailCompletionNotify(requestToUpdate, userKycData)}
+                        variant="outline"
+                        className="h-14 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl"
+                    >
+                        <Mail size={18} className="text-primary" /> Send Official Notice
+                    </Button>
+                </div>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button variant="ghost" className="w-full text-white/20 text-[10px] font-black uppercase hover:text-white">Skip Gratitude</Button>
                 </DialogClose>
             </DialogFooter>
         </DialogContent>
