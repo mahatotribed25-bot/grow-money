@@ -26,7 +26,8 @@ import {
   ReceiptIndianRupee,
   FileBadge,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Lock
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -342,7 +343,12 @@ export default function MyLoansPage() {
                                 </div>
                              ))}
 
-                             {activeCustomLoans.map(loan => (
+                             {activeCustomLoans.map(loan => {
+                                const now = new Date();
+                                const isDue = loan.dueDate && now >= loan.dueDate.toDate();
+                                const isRepaymentVisible = isDue || ['payment_pending', 'extension_pending'].includes(loan.status);
+
+                                return (
                                 <div key={loan.id} className="space-y-3">
                                     <div className="flex justify-between items-end px-2">
                                         <div className="space-y-0.5">
@@ -386,14 +392,28 @@ export default function MyLoansPage() {
                                                         <p className={cn("text-xs font-bold", (loan.penalty || 0) > 0 ? "text-red-400" : "text-white/40")}>₹{(loan.penalty || 0).toFixed(2)}</p>
                                                     </div>
                                                 </div>
-                                                <RepaymentRow 
-                                                    date={loan.dueDate?.toDate() || new Date()} 
-                                                    amount={(loan.totalRepayment || 0) + (loan.penalty || 0)} 
-                                                    status={loan.status === 'active' ? 'Active' : loan.status} 
-                                                    subtext={`Principal: ₹{loan.requestedAmount} | Matching Int: ₹{loan.interestAmount?.toFixed(2) || '0.00'}`}
-                                                    isSelected={!!selectedItems.find(item => item.id === loan.id)}
-                                                    onToggle={() => handleToggleSelect(loan, (loan.totalRepayment || 0) + (loan.penalty || 0), true)}
-                                                />
+
+                                                {isRepaymentVisible ? (
+                                                    <RepaymentRow 
+                                                        date={loan.dueDate?.toDate() || new Date()} 
+                                                        amount={(loan.totalRepayment || 0) + (loan.penalty || 0)} 
+                                                        status={loan.status === 'active' ? 'Active' : loan.status} 
+                                                        subtext={`Principal: ₹${loan.requestedAmount} | Matching Int: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
+                                                        isSelected={!!selectedItems.find(item => item.id === loan.id)}
+                                                        onToggle={() => handleToggleSelect(loan, (loan.totalRepayment || 0) + (loan.penalty || 0), true)}
+                                                    />
+                                                ) : (
+                                                    <div className="p-5 rounded-2xl bg-white/5 border border-white/5 flex flex-col items-center justify-center text-center gap-3 py-8">
+                                                        <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center text-white/20">
+                                                            <Lock size={20} />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <p className="text-[10px] font-black uppercase tracking-[3px] text-white/40">Settlement Node Locked</p>
+                                                            <p className="text-[8px] font-bold text-white/10 uppercase tracking-widest">Repayment option will activate on maturity</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 {loan.status === 'active' && (
                                                     <Button variant="ghost" onClick={() => setExtTargetId(loan.id)} className="w-full text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 h-8 gap-2">
                                                         <Zap size={12}/> Request Term Extension
@@ -403,7 +423,7 @@ export default function MyLoansPage() {
                                         )}
                                     </div>
                                 </div>
-                             ))}
+                             )})}
                         </div>
                     </div>
                 </CardContent>
@@ -489,7 +509,7 @@ export default function MyLoansPage() {
                     <ScrollArea className="max-h-24 pr-4">
                         <div className="space-y-3">
                             {selectedItems.map((item, i) => (
-                                <div key={i} className="flex justify-between text-[10px] font-bold text-white/40 uppercase tracking-widest border-l-2 border-primary/20 pl-3">
+                                <div className="flex justify-between text-[10px] font-bold text-white/40 uppercase tracking-widest border-l-2 border-primary/20 pl-3">
                                     <span>{item.loanName}</span>
                                     <span className="text-white">₹{item.amount.toFixed(2)}</span>
                                 </div>
