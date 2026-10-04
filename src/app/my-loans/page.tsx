@@ -24,14 +24,16 @@ import {
   History as HistoryIcon,
   Shield,
   ReceiptIndianRupee,
-  FileBadge
+  FileBadge,
+  Zap,
+  ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
-import { collection, Timestamp, where, query, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, Timestamp, where, query, doc, serverTimestamp, writeBatch, updateDoc } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useMemo } from 'react';
@@ -48,6 +50,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import { useSettings } from '@/context/settings-context';
 
@@ -84,6 +87,7 @@ type CustomLoanRequest = {
   status: 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected_by_user' | 'rejected_by_admin' | 'payment_pending' | 'extension_pending';
   totalRepayment?: number;
   interestAmount?: number;
+  interestRate?: number;
   penalty?: number;
   createdAt: Timestamp;
   activatedAt?: Timestamp;
@@ -112,7 +116,7 @@ const TimeRemaining = ({ targetDate }: { targetDate: Date }) => {
     }, [targetDate]);
 
     return (
-        <span className="font-mono font-black text-foreground/80 tabular-nums">
+        <span className="font-mono font-black text-foreground/80 tabular-nums text-xs">
             {timeLeft.d}D {timeLeft.h}H {timeLeft.m}M {timeLeft.s}S
         </span>
     );
@@ -130,6 +134,8 @@ export default function MyLoansPage() {
 
   const [selectedItems, setSelectedItems] = useState<{ id: string; emiIndex?: number; amount: number; isCustom: boolean; loanName: string }[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [extensionDays, setExtensionDays] = useState('7');
+  const [extTargetId, setExtTargetId] = useState<string | null>(null);
 
   const loading = loansLoading || settingsLoading || customLoansLoading;
   
@@ -157,6 +163,33 @@ export default function MyLoansPage() {
             isCustom, 
             loanName: isCustom ? 'Flexi Protocol' : (loan as Loan).planName 
         }]);
+    }
+  };
+
+  const handleAcceptOffer = async (requestId: string) => {
+    try {
+        await updateDoc(doc(firestore, 'customLoanRequests', requestId), {
+            status: 'approved_by_user',
+            userAcceptedAt: serverTimestamp()
+        });
+        toast({ title: "Offer Accepted", description: "Funds will be dispatched by the admin shortly." });
+    } catch (e) {
+        toast({ title: "Error", description: "Failed to accept offer.", variant: "destructive" });
+    }
+  };
+
+  const handleRequestExtension = async () => {
+    if (!extTargetId) return;
+    try {
+        await updateDoc(doc(firestore, 'customLoanRequests', extTargetId), {
+            status: 'extension_pending',
+            extensionRequestedDays: parseInt(extensionDays),
+            extensionRequestedAt: serverTimestamp()
+        });
+        toast({ title: "Extension Requested", description: "The admin will review your extension request." });
+        setExtTargetId(null);
+    } catch (e) {
+        toast({ title: "Error", variant: "destructive" });
     }
   };
 
@@ -265,7 +298,7 @@ export default function MyLoansPage() {
                                             <p className="text-[10px] font-black text-white uppercase tracking-widest">{loan.planName}</p>
                                             <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Protocol ID: #{loan.id.slice(-8).toUpperCase()}</p>
                                         </div>
-                                        <Badge variant="outline" className="h-5 text-[8px] font-black tracking-widest border-primary/20 text-primary">AUTHORIZED</Badge>
+                                        <Badge variant="outline" className="h-5 text-[8px] font-black tracking-widest border-primary/20 text-primary uppercase">{loan.status}</Badge>
                                     </div>
                                     <div className="bg-white/[0.02] rounded-2xl p-4 border border-white/5 space-y-4">
                                         <div className="grid grid-cols-2 gap-4 border-b border-white/5 pb-4">
@@ -308,27 +341,58 @@ export default function MyLoansPage() {
                                             <p className="text-[10px] font-black text-accent uppercase tracking-widest">Flexi Protocol Node</p>
                                             <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">ID: #{loan.id.slice(-8).toUpperCase()}</p>
                                         </div>
-                                        <Badge variant="outline" className="h-5 text-[8px] font-black tracking-widest border-accent/20 text-accent uppercase">{loan.status}</Badge>
+                                        <Badge variant="outline" className={cn(
+                                            "h-5 text-[8px] font-black tracking-widest uppercase border-accent/20 text-accent",
+                                            loan.status === 'pending_user_approval' && "text-blue-400 border-blue-400/20"
+                                        )}>
+                                            {loan.status.replace(/_/g, ' ')}
+                                        </Badge>
                                     </div>
                                     <div className="bg-white/[0.02] rounded-2xl p-4 border border-white/5 space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                             <div className="space-y-0.5">
-                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Protocol Start</p>
-                                                <p className="text-xs font-bold text-white/60">{(loan.activatedAt || loan.createdAt).toDate().toLocaleDateString()}</p>
+                                        {loan.status === 'pending_user_approval' ? (
+                                            <div className="space-y-4">
+                                                <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl space-y-3">
+                                                    <p className="text-[10px] font-black uppercase text-blue-400 tracking-widest">Admin Offer Received</p>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <p className="text-[8px] font-bold text-white/20 uppercase">Interest Node</p>
+                                                            <p className="text-sm font-black text-white">{loan.interestRate?.toFixed(2)}% (₹{loan.interestAmount})</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-[8px] font-bold text-white/20 uppercase">Total Settlement</p>
+                                                            <p className="text-sm font-black text-green-400">₹{loan.totalRepayment?.toFixed(2)}</p>
+                                                        </div>
+                                                    </div>
+                                                    <Button onClick={() => handleAcceptOffer(loan.id)} className="w-full bg-blue-600 text-white font-black uppercase text-[10px] h-10 rounded-lg">Accept & Activate Offer</Button>
+                                                </div>
                                             </div>
-                                            <div className="space-y-0.5 text-right">
-                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Penalty Node</p>
-                                                <p className={cn("text-xs font-bold", (loan.penalty || 0) > 0 ? "text-red-400" : "text-white/40")}>₹{(loan.penalty || 0).toFixed(2)}</p>
-                                            </div>
-                                        </div>
-                                        <RepaymentRow 
-                                            date={loan.dueDate?.toDate() || new Date()} 
-                                            amount={(loan.totalRepayment || 0) + (loan.penalty || 0)} 
-                                            status={loan.status === 'active' ? 'Active' : loan.status} 
-                                            subtext={`Principal: ₹${loan.requestedAmount} | Matching Int: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
-                                            isSelected={!!selectedItems.find(item => item.id === loan.id)}
-                                            onToggle={() => handleToggleSelect(loan, (loan.totalRepayment || 0) + (loan.penalty || 0), true)}
-                                        />
+                                        ) : (
+                                            <>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="space-y-0.5">
+                                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Protocol Start</p>
+                                                        <p className="text-xs font-bold text-white/60">{(loan.activatedAt || loan.createdAt).toDate().toLocaleDateString()}</p>
+                                                    </div>
+                                                    <div className="space-y-0.5 text-right">
+                                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Penalty Node</p>
+                                                        <p className={cn("text-xs font-bold", (loan.penalty || 0) > 0 ? "text-red-400" : "text-white/40")}>₹{(loan.penalty || 0).toFixed(2)}</p>
+                                                    </div>
+                                                </div>
+                                                <RepaymentRow 
+                                                    date={loan.dueDate?.toDate() || new Date()} 
+                                                    amount={(loan.totalRepayment || 0) + (loan.penalty || 0)} 
+                                                    status={loan.status === 'active' ? 'Active' : loan.status} 
+                                                    subtext={`Principal: ₹${loan.requestedAmount} | Matching Int: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
+                                                    isSelected={!!selectedItems.find(item => item.id === loan.id)}
+                                                    onToggle={() => handleToggleSelect(loan, (loan.totalRepayment || 0) + (loan.penalty || 0), true)}
+                                                />
+                                                {loan.status === 'active' && (
+                                                    <Button variant="ghost" onClick={() => setExtTargetId(loan.id)} className="w-full text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 h-8 gap-2">
+                                                        <Zap size={12}/> Request Term Extension
+                                                    </Button>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                              ))}
@@ -367,6 +431,38 @@ export default function MyLoansPage() {
                 )}
             </div>
         </div>
+
+        {/* Extension Dialog */}
+        <Dialog open={!!extTargetId} onOpenChange={() => setExtTargetId(null)}>
+            <DialogContent className="bg-[#030408] border-white/10 text-white rounded-3xl">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Term Extension Request</DialogTitle>
+                    <DialogDescription className="text-white/40">Request more time to settle your loan. A small administrative fee will be applied.</DialogDescription>
+                </DialogHeader>
+                <div className="py-6 space-y-4">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-white/20 tracking-widest pl-1">Extra Days Node</Label>
+                        <Select value={extensionDays} onValueChange={setExtensionDays}>
+                            <SelectTrigger className="bg-white/5 border-white/10 h-12 rounded-xl">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#030408] border-white/10">
+                                <SelectItem value="3">3 Days Extension</SelectItem>
+                                <SelectItem value="7">7 Days Extension</SelectItem>
+                                <SelectItem value="15">15 Days Extension</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex items-start gap-3">
+                        <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={16} />
+                        <p className="text-[10px] text-amber-200/40 leading-relaxed font-bold uppercase tracking-tight">Your request will be reviewed by an administrator within 24 hours.</p>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleRequestExtension} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-xl">SUBMIT EXTENSION NODES</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
             <DialogContent className="rounded-[2.5rem] max-w-sm bg-[#030408]/90 backdrop-blur-2xl border-white/10 text-white">
