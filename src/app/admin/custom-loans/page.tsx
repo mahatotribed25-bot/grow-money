@@ -12,7 +12,20 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Check, X, Send, Landmark, Timer, QrCode, Copy, ShieldCheck } from 'lucide-react';
+import { 
+    Check, 
+    X, 
+    Send, 
+    Landmark, 
+    Timer, 
+    QrCode, 
+    Copy, 
+    ShieldCheck, 
+    MessageSquare, 
+    Mail, 
+    BellRing,
+    ExternalLink
+} from 'lucide-react';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import {
   doc,
@@ -71,6 +84,7 @@ type UserData = {
   panCard?: string;
   aadhaarNumber?: string;
   phoneNumber?: string;
+  email?: string;
   kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
 };
 
@@ -95,6 +109,8 @@ export default function CustomLoansPage() {
   const [userKycData, setUserKycData] = useState<UserData | null>(null);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
+  
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected' | 'payment_pending' | 'extension_pending'>('pending_admin_review');
 
   const [calculatedInterestInfo, setCalculatedInterestInfo] = useState<{
@@ -132,8 +148,14 @@ export default function CustomLoansPage() {
     setIsApproveDialogOpen(true);
   };
 
-  const openPaymentDialog = (request: CustomLoanRequest) => {
+  const openPaymentDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
+    // Fetch user details for notification
+    try {
+        const userRef = doc(firestore, 'users', request.userId);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists()) setUserKycData({ id: userDoc.id, ...userDoc.data() } as UserData);
+    } catch(e) { console.error(e); }
     setIsPaymentDialogOpen(true);
   };
 
@@ -186,11 +208,30 @@ export default function CustomLoansPage() {
     .then(() => {
         toast({ title: 'Loan Activated' });
         setIsPaymentDialogOpen(false);
-        setRequestToUpdate(null);
+        setIsNotificationDialogOpen(true); // Open notification options
     })
     .catch((e: any) => {
         toast({ title: 'Activation Failed', description: e.message, variant: 'destructive' });
     });
+  };
+
+  const handleWhatsAppNotify = (request: CustomLoanRequest, user: UserData | null) => {
+      if (!user?.phoneNumber) {
+          toast({ title: "Phone number missing", variant: "destructive" });
+          return;
+      }
+      const message = `🚀 *Grow Money: Flexible Loan Approval* 🚀\n\nHello *${request.userName}*,\n\nWe are pleased to inform you that your *Flexible Loan* of *₹${request.requestedAmount.toLocaleString()}* has been approved!\n\n💰 The funds have been successfully dispatched to your account.\n🗓️ Tenure: ${request.requestedDuration} Days\n\nYou can track your loan status and repayment schedule in the *My Loans* section of the app.\n\nThank you for choosing *Grow Money*! 🙏`;
+      window.open(`https://wa.me/91${user.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleEmailNotify = (request: CustomLoanRequest, user: UserData | null) => {
+    if (!user?.email) {
+        toast({ title: "Email address missing", variant: "destructive" });
+        return;
+    }
+    const subject = `Flexible Loan Approved - Grow Money`;
+    const body = `Hello ${request.userName},\n\nYour Flexible Loan request for INR ${request.requestedAmount.toLocaleString()} has been approved.\n\nThe amount has been credited to your specified account.\n\nLoan Details:\n- Amount: INR ${request.requestedAmount}\n- Duration: ${request.requestedDuration} Days\n- Repayment: INR ${request.totalRepayment?.toFixed(2)}\n\nPlease login to your dashboard for more details.\n\nRegards,\nGrow Money Team`;
+    window.location.href = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
   
   const handleMarkAsCompleted = async (request: CustomLoanRequest) => {
@@ -232,7 +273,7 @@ export default function CustomLoansPage() {
             </TabsList>
         </Tabs>
 
-      <div className="rounded-2xl border border-white/5 bg-white/[0.02] overflow-hidden">
+      <div className="rounded-2xl border border-white/5 bg-white/[0.02] overflow-hidden shadow-xl">
         <Table>
           <TableHeader className="bg-white/[0.03]">
             <TableRow className="border-white/5">
@@ -248,7 +289,10 @@ export default function CustomLoansPage() {
                 <TableRow><TableCell colSpan={5} className="text-center py-20 animate-pulse text-white/20 font-black">SYNCING LEDGER...</TableCell></TableRow>
             ) : filteredRequests.map((request) => (
                 <TableRow key={request.id} className="border-white/5 hover:bg-white/[0.02]">
-                  <TableCell className="font-bold py-4">{request.userName}</TableCell>
+                  <TableCell className="font-bold py-4">
+                      {request.userName}
+                      <p className="text-[8px] text-white/20 uppercase font-black tracking-widest">{formatDate(request.createdAt)}</p>
+                  </TableCell>
                   <TableCell>
                       <div className="flex flex-col">
                           <span className="font-black text-white">₹{request.requestedAmount.toLocaleString()}</span>
@@ -270,8 +314,16 @@ export default function CustomLoansPage() {
                         {request.status === 'approved_by_user' && (
                             <Button size="sm" onClick={() => openPaymentDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-green-600">DISPATCH FUNDS</Button>
                         )}
-                        {(request.status === 'active' || request.status === 'payment_pending') && (
-                            <Button size="sm" onClick={() => handleMarkAsCompleted(request)} variant="outline" className="h-8 rounded-lg font-black text-[10px] border-white/10 hover:bg-white/5">SETTLE NODE</Button>
+                        {request.status === 'active' && (
+                            <div className="flex gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => openPaymentDialog(request)} title="Notification Controls" className="h-8 w-8 text-primary hover:bg-primary/10">
+                                    <BellRing size={14} />
+                                </Button>
+                                <Button size="sm" onClick={() => handleMarkAsCompleted(request)} variant="outline" className="h-8 rounded-lg font-black text-[10px] border-white/10 hover:bg-white/5">SETTLE</Button>
+                            </div>
+                        )}
+                        {request.status === 'payment_pending' && (
+                            <Button size="sm" onClick={() => handleMarkAsCompleted(request)} variant="outline" className="h-8 rounded-lg font-black text-[10px] border-white/10 hover:bg-white/5">CONFIRM RECEIPT</Button>
                         )}
                     </div>
                   </TableCell>
@@ -280,6 +332,7 @@ export default function CustomLoansPage() {
           </TableBody></Table>
       </div>
 
+      {/* Analysis Modal */}
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
         <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]">
           <DialogHeader>
@@ -292,6 +345,7 @@ export default function CustomLoansPage() {
                     <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">ID Verification</p>
                     <p className="text-sm font-bold">PAN: {userKycData.panCard || 'PENDING'}</p>
                     <p className="text-sm font-bold">PHONE: {userKycData.phoneNumber}</p>
+                    <p className="text-xs text-white/40">EMAIL: {userKycData.email}</p>
                 </div>
               )}
               {calculatedInterestInfo && (
@@ -316,6 +370,7 @@ export default function CustomLoansPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Dispatch Modal */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
         <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
             <DialogHeader>
@@ -361,6 +416,46 @@ export default function CustomLoansPage() {
             </div>
         </DialogContent>
       </Dialog>
+
+      {/* Notification Modal */}
+      <Dialog open={isNotificationDialogOpen} onOpenChange={setIsNotificationDialogOpen}>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
+            <DialogHeader>
+                <div className="mx-auto h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary mb-4">
+                    <BellRing size={24} />
+                </div>
+                <DialogTitle className="text-center font-black uppercase tracking-tight">Broadcast Approval</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-[10px] uppercase tracking-widest">Alert borrower of successful funding</DialogDescription>
+            </DialogHeader>
+            <div className="py-6 space-y-4">
+                <div className="bg-white/5 border border-white/5 rounded-2xl p-5 space-y-2">
+                    <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">Protocol Message</p>
+                    <p className="text-xs text-white/60 leading-relaxed italic">"Your flexible loan has been approved and funds dispatched to your account."</p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                    <Button 
+                        onClick={() => requestToUpdate && handleWhatsAppNotify(requestToUpdate, userKycData)}
+                        className="h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl shadow-green-600/10"
+                    >
+                        <MessageSquare size={18} /> Notify via WhatsApp
+                    </Button>
+                    <Button 
+                        onClick={() => requestToUpdate && handleEmailNotify(requestToUpdate, userKycData)}
+                        variant="outline"
+                        className="h-14 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl"
+                    >
+                        <Mail size={18} className="text-primary" /> Notify via Email ID
+                    </Button>
+                </div>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button variant="ghost" className="w-full text-white/20 text-[10px] font-black uppercase hover:text-white">Skip for now</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -372,6 +467,7 @@ const getStatusBadge = (status: string) => {
       case 'approved_by_user': return <Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary uppercase">Ready to Fund</Badge>;
       case 'active': return <Badge variant="outline" className="text-[8px] font-black border-green-500/20 text-green-400 uppercase">Running</Badge>;
       case 'payment_pending': return <Badge variant="outline" className="text-[8px] font-black border-white/10 text-white/40 uppercase">Awaiting Verification</Badge>;
+      case 'extension_pending': return <Badge variant="outline" className="text-[8px] font-black border-amber-500/20 text-amber-500 uppercase">Extension Requested</Badge>;
       case 'completed': return <Badge variant="outline" className="text-[8px] font-black border-white/5 text-white/20 uppercase">Settled</Badge>;
       default: return <Badge className="text-[8px] uppercase">{status}</Badge>;
     }
