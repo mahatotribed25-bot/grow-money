@@ -22,14 +22,11 @@ import {
     Copy, 
     ShieldCheck, 
     MessageSquare, 
-    Mail, 
     BellRing,
-    ExternalLink,
-    PartyPopper,
     HeartHandshake,
     AlertCircle,
-    Activity,
-    ShieldAlert
+    ShieldAlert,
+    TrendingUp
 } from 'lucide-react';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import {
@@ -52,7 +49,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { addDays } from 'date-fns';
@@ -88,12 +84,9 @@ type CustomLoanRequest = {
 type UserData = {
   id: string;
   name: string;
-  panCard?: string;
-  aadhaarNumber?: string;
   phoneNumber?: string;
-  email?: string;
   trustScore?: number;
-  kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
+  kycStatus?: string;
 };
 
 type AdminSettings = {
@@ -120,15 +113,11 @@ export default function CustomLoansPage() {
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [isCompletionNotificationOpen, setIsCompletionNotificationOpen] = useState(false);
   
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected' | 'payment_pending' | 'extension_pending'>('pending_admin_review');
+  // Editable offer fields
+  const [editInterestRate, setEditInterestRate] = useState('');
+  const [editTotalRepayment, setEditTotalRepayment] = useState('');
 
-  const [calculatedInterestInfo, setCalculatedInterestInfo] = useState<{
-    dailyInterest: number;
-    totalInterest: number;
-    totalRepayment: number;
-    interestRate: number;
-    ratePer1k: number;
-  } | null>(null);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected' | 'payment_pending' | 'extension_pending'>('pending_admin_review');
 
   const loading = requestsLoading || settingsLoading;
 
@@ -143,51 +132,54 @@ export default function CustomLoansPage() {
   const openApproveDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
     
-    // Tiered Interest Logic: Low Amount (<5k) = 5/1k, High Amount (>=5k) = 8/1k
-    const interestPer1000 = request.requestedAmount < 5000 ? 5 : 8;
-    const dailyInterest = (request.requestedAmount / 1000) * interestPer1000;
+    // Auto-calculate suggested terms
+    const ratePer1k = request.requestedAmount < 5000 ? 5 : 8;
+    const dailyInterest = (request.requestedAmount / 1000) * ratePer1k;
     const totalInterest = dailyInterest * request.requestedDuration;
     const totalRepayment = request.requestedAmount + totalInterest;
     const interestRate = (totalInterest / request.requestedAmount) * 100;
 
-    setCalculatedInterestInfo({ dailyInterest, totalInterest, totalRepayment, interestRate, ratePer1k: interestPer1000 });
+    setEditInterestRate(interestRate.toFixed(2));
+    setEditTotalRepayment(totalRepayment.toFixed(2));
     
     try {
-        const userRef = doc(firestore, 'users', request.userId);
-        const userDoc = await getDoc(userRef);
+        const userDoc = await getDoc(doc(firestore, 'users', request.userId));
         if (userDoc.exists()) setUserKycData({ id: userDoc.id, ...userDoc.data() } as UserData);
-    } catch(e) { console.error(e); }
+    } catch(e) {}
     setIsApproveDialogOpen(true);
   };
 
   const openPaymentDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
     try {
-        const userRef = doc(firestore, 'users', request.userId);
-        const userDoc = await getDoc(userRef);
+        const userDoc = await getDoc(doc(firestore, 'users', request.userId));
         if (userDoc.exists()) setUserKycData({ id: userDoc.id, ...userDoc.data() } as UserData);
-    } catch(e) { console.error(e); }
+    } catch(e) {}
     setIsPaymentDialogOpen(true);
   };
 
-  const handleApprove = () => {
-    if (!requestToUpdate || !calculatedInterestInfo) return;
+  const handleSendOffer = () => {
+    if (!requestToUpdate) return;
     const requestRef = doc(firestore, 'customLoanRequests', requestToUpdate.id);
+    
+    const rate = parseFloat(editInterestRate);
+    const repayment = parseFloat(editTotalRepayment);
+    const intAmount = repayment - requestToUpdate.requestedAmount;
+
     const updateData = {
         status: 'pending_user_approval' as const,
-        interestRate: calculatedInterestInfo.interestRate,
-        interestAmount: calculatedInterestInfo.totalInterest,
-        totalRepayment: calculatedInterestInfo.totalRepayment,
+        interestRate: rate,
+        interestAmount: intAmount,
+        totalRepayment: repayment,
         adminApprovedAt: serverTimestamp(),
     };
     
-    // Non-blocking update
     updateDoc(requestRef, updateData)
         .then(() => {
-            toast({ title: 'Offer Sent' });
+            toast({ title: 'Offer Sent to User' });
             setIsApproveDialogOpen(false);
         })
-        .catch(async (e) => {
+        .catch(async () => {
             const permissionError = new FirestorePermissionError({
                 path: requestRef.path,
                 operation: 'update',
@@ -203,12 +195,14 @@ export default function CustomLoansPage() {
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
     const settingsRef = doc(firestore, 'settings', 'admin');
     
-    // Use transaction for consistency on usage limits
     runTransaction(firestore, async (transaction) => {
         const settingsDoc = await transaction.get(settingsRef);
-        const totalLimit = settingsDoc.data()?.totalCustomLoanLimit || 0;
         const currentUsage = settingsDoc.data()?.currentCustomLoanUsage || 0;
-        if (totalLimit > 0 && currentUsage + request.requestedAmount > totalLimit) throw new Error("Platform limit exceeded");
+        const totalLimit = settingsDoc.data()?.totalCustomLoanLimit || 0;
+
+        if (totalLimit > 0 && currentUsage + request.requestedAmount > totalLimit) {
+            throw new Error("Platform fund limit reached!");
+        }
 
         const dueDate = addDays(new Date(), request.requestedDuration);
         transaction.update(requestRef, { 
@@ -224,27 +218,11 @@ export default function CustomLoansPage() {
         setIsNotificationDialogOpen(true);
     })
     .catch((e: any) => {
-        toast({ title: 'Activation Failed', description: e.message, variant: 'destructive' });
+        toast({ title: 'Error', description: e.message, variant: 'destructive' });
     });
   };
 
-  const handleWhatsAppNotify = (request: CustomLoanRequest, user: UserData | null) => {
-      if (!user?.phoneNumber) {
-          toast({ title: "Phone number missing", variant: "destructive" });
-          return;
-      }
-      const message = `🚀 *Grow Money: Flexible Loan Approval* 🚀\n\nHello *${request.userName}*,\n\nWe are pleased to inform you that your *Flexible Loan* of *₹${request.requestedAmount.toLocaleString()}* has been approved!\n\n💰 The funds have been successfully dispatched to your account.\n🗓️ Tenure: ${request.requestedDuration} Days\n\nYou can track your loan status and repayment schedule in the *My Loans* section of the app.\n\nThank you for choosing *Grow Money*! 🙏`;
-      window.open(`https://wa.me/91${user.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
-  };
-
   const handleMarkAsCompleted = async (request: CustomLoanRequest) => {
-    setRequestToUpdate(request);
-    try {
-        const userRef = doc(firestore, 'users', request.userId);
-        const userDoc = await getDoc(userRef);
-        if (userDoc.exists()) setUserKycData({ id: userDoc.id, ...userDoc.data() } as UserData);
-    } catch(e) { console.error(e); }
-
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
     const settingsRef = doc(firestore, 'settings', 'admin');
     
@@ -258,38 +236,32 @@ export default function CustomLoansPage() {
         toast({ title: 'Loan Completed' });
         setIsCompletionNotificationOpen(true);
     })
-    .catch((e) => {
-        toast({ title: 'Error marking completed', variant: 'destructive'});
-    });
+    .catch(() => toast({ title: 'Error settling loan', variant: 'destructive'}));
   };
 
-  const handleWhatsAppCompletionNotify = (request: CustomLoanRequest, user: UserData | null) => {
-      if (!user?.phoneNumber) {
-          toast({ title: "Phone number missing", variant: "destructive" });
-          return;
-      }
-      const message = `✅ *Grow Money: Loan Settled* ✅\n\nHello *${request.userName}*,\n\nWe are pleased to inform you that your loan has been successfully completed.\n\n*आपका लोन सफलतापूर्वक समाप्त हो गया है। प्लेटफॉर्म से लोन लेने के लिए आपका बहुत-बहुत धन्यवाद!* 🙏\n\nWe look forward to serving you again! 💰\n\n*Grow Money Team*`;
+  const handleWhatsAppNotify = (request: CustomLoanRequest, user: UserData | null) => {
+      if (!user?.phoneNumber) return;
+      const message = `Hello *${request.userName}*, your Loan of *₹${request.requestedAmount}* is approved and money has been sent. Thank you!`;
       window.open(`https://wa.me/91${user.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
-  };
-
-  const handleCopyToClipboard = (text?: string, label?: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    toast({ title: `${label} Copied!` });
   };
 
   const upiDeeplink = requestToUpdate?.upiId ? `upi://pay?pa=${requestToUpdate.upiId}&pn=${encodeURIComponent(requestToUpdate.userName)}&am=${requestToUpdate.requestedAmount.toFixed(2)}&cu=INR` : '';
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center"><h2 className="text-2xl font-bold">Custom Loans Registry</h2></div>
+      <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">Flexible Loans</h2>
+            <p className="text-xs text-white/40">Review and manage custom loan applications.</p>
+          </div>
+      </div>
        <Tabs value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
             <TabsList className="bg-white/5 border-white/10 p-1 rounded-xl h-11 flex-wrap">
-                <TabsTrigger value="pending_admin_review" className="text-[10px] font-black uppercase">Analysis</TabsTrigger>
-                <TabsTrigger value="approved_by_user" className="text-[10px] font-black uppercase">Dispatch Funds</TabsTrigger>
-                <TabsTrigger value="active" className="text-[10px] font-black uppercase">Active Nodes</TabsTrigger>
+                <TabsTrigger value="pending_admin_review" className="text-[10px] font-black uppercase">New Requests</TabsTrigger>
+                <TabsTrigger value="approved_by_user" className="text-[10px] font-black uppercase">Ready to Pay</TabsTrigger>
+                <TabsTrigger value="active" className="text-[10px] font-black uppercase">Active Loans</TabsTrigger>
                 <TabsTrigger value="payment_pending" className="text-[10px] font-black uppercase">Verify Receipt</TabsTrigger>
-                <TabsTrigger value="all" className="text-[10px] font-black uppercase">History</TabsTrigger>
+                <TabsTrigger value="all" className="text-[10px] font-black uppercase">All History</TabsTrigger>
             </TabsList>
         </Tabs>
 
@@ -297,50 +269,45 @@ export default function CustomLoansPage() {
         <Table>
           <TableHeader className="bg-white/[0.03]">
             <TableRow className="border-white/5">
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Borrower</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Capital</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Node Info</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30">Status</TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-white/30 text-right pr-6">Action</TableHead>
+                <TableHead className="text-[10px] font-black uppercase text-white/30 pl-6">Borrower</TableHead>
+                <TableHead className="text-[10px] font-black uppercase text-white/30">Amount</TableHead>
+                <TableHead className="text-[10px] font-black uppercase text-white/30">Interest / Fee</TableHead>
+                <TableHead className="text-[10px] font-black uppercase text-white/30">Status</TableHead>
+                <TableHead className="text-[10px] font-black uppercase text-white/30 text-right pr-6">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-20 animate-pulse text-white/20 font-black">SYNCING LEDGER...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-20 text-white/20 font-black">Syncing...</TableCell></TableRow>
             ) : filteredRequests.map((request) => (
                 <TableRow key={request.id} className="border-white/5 hover:bg-white/[0.02]">
-                  <TableCell className="font-bold py-4">
+                  <TableCell className="font-bold py-4 pl-6">
                       {request.userName}
                       <p className="text-[8px] text-white/20 uppercase font-black tracking-widest">{formatDate(request.createdAt)}</p>
                   </TableCell>
                   <TableCell>
                       <div className="flex flex-col">
                           <span className="font-black text-white">₹{request.requestedAmount.toLocaleString()}</span>
-                          <span className="text-[10px] text-white/40 font-bold">{request.requestedDuration} Days Term</span>
+                          <span className="text-[10px] text-white/40 font-bold">{request.requestedDuration} Days</span>
                       </div>
                   </TableCell>
                   <TableCell>
-                      <div className="flex flex-col text-[10px] font-bold text-white/30">
-                          <span>ROI: {request.interestRate?.toFixed(2)}%</span>
-                          <span>DUE: {request.dueDate ? request.dueDate.toDate().toLocaleDateString() : 'TBD'}</span>
+                      <div className="flex flex-col text-[10px] font-bold">
+                          <span className="text-red-400">ROI: ₹{request.interestAmount?.toFixed(2) || '---'}</span>
+                          <span className="text-white/20">Final: ₹{request.totalRepayment?.toFixed(2) || '---'}</span>
                       </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(request.status)}</TableCell>
                   <TableCell className="text-right pr-6">
                     <div className="flex justify-end gap-2">
                         {request.status === 'pending_admin_review' && (
-                            <Button size="sm" type="button" onClick={() => openApproveDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-primary">ANALYZE & OFFER</Button>
+                            <Button size="sm" type="button" onClick={() => openApproveDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-primary">REVIEW & OFFER</Button>
                         )}
                         {request.status === 'approved_by_user' && (
-                            <Button size="sm" type="button" onClick={() => openPaymentDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-green-600">DISPATCH FUNDS</Button>
-                        )}
-                        {request.status === 'active' && (
-                            <Button variant="ghost" type="button" size="icon" onClick={() => openPaymentDialog(request)} className="h-8 w-8 text-primary hover:bg-primary/10">
-                                <BellRing size={14} />
-                            </Button>
+                            <Button size="sm" type="button" onClick={() => openPaymentDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-green-600">SEND MONEY</Button>
                         )}
                         {(request.status === 'payment_pending' || request.status === 'active') && (
-                            <Button size="sm" type="button" onClick={() => handleMarkAsCompleted(request)} variant="outline" className="h-8 rounded-lg font-black text-[10px] border-white/10 hover:bg-white/5">CONFIRM RECEIPT</Button>
+                            <Button size="sm" type="button" onClick={() => handleMarkAsCompleted(request)} variant="outline" className="h-8 rounded-lg font-black text-[10px] border-white/10 hover:bg-white/5">CONFIRM SETTLEMENT</Button>
                         )}
                     </div>
                   </TableCell>
@@ -349,74 +316,55 @@ export default function CustomLoansPage() {
           </TableBody></Table>
       </div>
 
-      {/* Analysis Modal */}
+      {/* Review Dialog */}
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
         <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]">
           <DialogHeader>
-              <DialogTitle className="text-xl font-black uppercase tracking-tight">Protocol Analysis</DialogTitle>
-              <DialogDescription className="text-xs text-white/40">Review node risk and tiered interest mapping.</DialogDescription>
+              <DialogTitle className="text-xl font-black uppercase">Loan Review</DialogTitle>
+              <DialogDescription className="text-xs text-white/40">Set the custom interest and repayment amount below.</DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-4">
               {userKycData && (
-                <div className="p-5 rounded-2xl bg-white/5 border border-white/5 space-y-4">
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary"><ShieldAlert size={20}/></div>
-                        <div>
-                            <p className="text-[9px] font-black uppercase text-white/20 tracking-widest">Borrower Trust Node</p>
-                            <p className="text-sm font-bold text-white">Score: {userKycData.trustScore || 500}</p>
-                        </div>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex justify-between items-center">
+                    <div>
+                        <p className="text-[9px] font-black uppercase text-white/20">User Trust Score</p>
+                        <p className="text-sm font-bold">{userKycData.trustScore || 500} / 900</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-widest">
-                        <div className="p-3 rounded-xl bg-white/5 flex flex-col gap-1">
-                            <span className="text-white/20">Risk Level</span>
-                            <span className={cn(
-                                (userKycData.trustScore || 500) > 700 ? "text-green-400" : (userKycData.trustScore || 500) < 500 ? "text-red-400" : "text-amber-400"
-                            )}>
-                                {(userKycData.trustScore || 500) > 700 ? "LOW" : (userKycData.trustScore || 500) < 500 ? "HIGH" : "MEDIUM"}
-                            </span>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white/5 flex flex-col gap-1">
-                            <span className="text-white/20">Identity</span>
-                            <span className="text-white/60">{userKycData.kycStatus === 'Verified' ? "VERIFIED" : "PENDING"}</span>
-                        </div>
-                    </div>
+                    <Badge variant="outline" className="text-[8px] uppercase">{userKycData.kycStatus}</Badge>
                 </div>
               )}
-              {calculatedInterestInfo && (
-                <Card className="bg-primary/10 border-primary/20 rounded-2xl p-6 space-y-4">
-                    <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase text-primary/60">Asset Capital</span>
-                        <span className="text-xl font-black">₹{requestToUpdate?.requestedAmount}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-red-400">
-                        <div className="flex flex-col">
-                             <span className="text-[10px] font-black uppercase">Tiered Interest Node</span>
-                             <span className="text-[8px] font-bold opacity-50">(@ ₹{calculatedInterestInfo.ratePer1k}/1k Daily)</span>
-                        </div>
-                        <span className="text-xl font-black">₹{calculatedInterestInfo.totalInterest.toFixed(2)}</span>
-                    </div>
-                    <Separator className="bg-primary/20" />
-                    <div className="flex justify-between items-center text-white">
-                        <span className="text-[10px] font-black uppercase tracking-widest">Settlement Target</span>
-                        <span className="text-2xl font-black tracking-tighter">₹{calculatedInterestInfo.totalRepayment.toFixed(2)}</span>
-                    </div>
-                </Card>
-              )}
+              
+              <div className="space-y-4">
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-4 shadow-inner">
+                      <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-black uppercase text-white/30">Principal Amount</span>
+                          <span className="text-lg font-black">₹{requestToUpdate?.requestedAmount}</span>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-white/40">Interest Rate (%)</Label>
+                        <Input type="number" value={editInterestRate} onChange={e => setEditInterestRate(e.target.value)} className="bg-white/5 border-white/10 h-11 font-bold text-red-400" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-white/40">Final Repayment (₹)</Label>
+                        <Input type="number" value={editTotalRepayment} onChange={e => setEditTotalRepayment(e.target.value)} className="bg-white/5 border-white/10 h-11 font-black text-green-400" />
+                      </div>
+                  </div>
+              </div>
           </div>
-          <DialogFooter><Button onClick={handleApprove} type="button" className="w-full h-12 rounded-xl font-black bg-primary">AUTHORIZE OFFER DISPATCH</Button></DialogFooter>
+          <DialogFooter><Button onClick={handleSendOffer} type="button" className="w-full h-12 rounded-xl font-black bg-primary">SEND OFFER TO USER</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dispatch Modal */}
+      {/* Payment Dispatch Dialog */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
         <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
             <DialogHeader>
-                <DialogTitle className="text-center font-black uppercase tracking-tight">Fund Dispatch Node</DialogTitle>
-                <DialogDescription className="text-center text-white/40 text-xs">Execute manual IMPS/UPI transfer.</DialogDescription>
+                <DialogTitle className="text-center font-black uppercase">Send Funds</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-xs">Send exact amount to user's UPI.</DialogDescription>
             </DialogHeader>
-            <div className="py-8 space-y-8">
+            <div className="py-8 space-y-6">
                 <div className="flex flex-col items-center gap-4">
-                    <div className="bg-white p-3 rounded-2xl shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+                    <div className="bg-white p-3 rounded-2xl">
                         <Image
                             src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiDeeplink)}`}
                             alt="UPI QR"
@@ -425,86 +373,36 @@ export default function CustomLoansPage() {
                         />
                     </div>
                     <div className="text-center">
-                        <p className="text-[10px] font-black text-white/20 uppercase tracking-[3px]">Capital for Dispatch</p>
-                        <p className="text-3xl font-black text-green-400 tracking-tighter">₹{requestToUpdate?.requestedAmount.toFixed(2)}</p>
+                        <p className="text-[10px] font-black text-white/20 uppercase">Pay User Now</p>
+                        <p className="text-3xl font-black text-green-400">₹{requestToUpdate?.requestedAmount.toFixed(2)}</p>
                     </div>
                 </div>
 
                 <div className="space-y-3">
-                    <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Borrower Payment Addr</Label>
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
+                    <Label className="text-[10px] font-black text-white/20 uppercase pl-1">Target UPI ID</Label>
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center">
                         <span className="font-mono text-sm font-bold text-white/80">{requestToUpdate?.upiId || 'NO UPI ID'}</span>
-                        <Button variant="ghost" type="button" size="icon" onClick={() => handleCopyToClipboard(requestToUpdate?.upiId, 'UPI ID')} className="h-8 w-8 hover:bg-white/10">
-                            <Copy size={14} className="text-primary" />
-                        </Button>
+                        <Button variant="ghost" type="button" size="icon" onClick={() => navigator.clipboard.writeText(requestToUpdate?.upiId || '')} className="h-8 w-8"><Copy size={14}/></Button>
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                    <Button asChild type="button" className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
-                        <a href={upiDeeplink}>
-                            <QrCode size={16} className="mr-2" /> Open Mobile Gateway
-                        </a>
-                    </Button>
-                    <Button onClick={handleMarkAsSent} type="button" className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">
-                        <ShieldCheck size={18} className="mr-2" /> I HAVE PAID (ACTIVATE NODE)
-                    </Button>
-                </div>
+                <Button onClick={handleMarkAsSent} type="button" className="w-full h-14 rounded-2xl bg-primary text-white font-black">I HAVE PAID (START LOAN)</Button>
             </div>
         </DialogContent>
       </Dialog>
 
-      {/* Notification Modal (Approval) */}
+      {/* Offer Sent Notification */}
       <Dialog open={isNotificationDialogOpen} onOpenChange={setIsNotificationDialogOpen}>
-        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-2xl max-w-sm">
             <DialogHeader>
-                <div className="mx-auto h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary mb-4">
-                    <BellRing size={24} />
-                </div>
-                <DialogTitle className="text-center font-black uppercase tracking-tight text-xl">Approval Notice</DialogTitle>
-                <DialogDescription className="text-center text-white/40 text-[10px] uppercase tracking-widest">Broadcast success to borrower node</DialogDescription>
+                <DialogTitle className="text-center font-black uppercase">Success!</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-xs">Notify the user about the payment.</DialogDescription>
             </DialogHeader>
-            <div className="py-6 space-y-4">
-                <Button 
-                    type="button"
-                    onClick={() => requestToUpdate && handleWhatsAppNotify(requestToUpdate, userKycData)}
-                    className="h-14 w-full rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase text-[10px] tracking-widest gap-2"
-                >
-                    <MessageSquare size={18} /> Notify via WhatsApp
+            <div className="py-6">
+                <Button onClick={() => handleWhatsAppNotify(requestToUpdate!, userKycData)} className="w-full h-14 rounded-xl bg-green-600 font-bold uppercase gap-2">
+                    <MessageSquare size={18} /> Notify on WhatsApp
                 </Button>
             </div>
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button variant="ghost" type="button" className="w-full text-white/20 text-[10px] font-black uppercase hover:text-white">Skip Alert</Button>
-                </DialogClose>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Completion Notification Modal */}
-      <Dialog open={isCompletionNotificationOpen} onOpenChange={setIsCompletionNotificationOpen}>
-        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
-            <DialogHeader>
-                <div className="mx-auto h-12 w-12 rounded-xl bg-accent/20 flex items-center justify-center text-accent mb-4">
-                    <HeartHandshake size={24} />
-                </div>
-                <DialogTitle className="text-center font-black uppercase tracking-tight text-xl">Settled Node</DialogTitle>
-                <DialogDescription className="text-center text-white/40 text-[10px] uppercase tracking-widest">Express protocol gratitude</DialogDescription>
-            </DialogHeader>
-            <div className="py-6 space-y-4">
-                <Button 
-                    type="button"
-                    onClick={() => requestToUpdate && handleWhatsAppCompletionNotify(requestToUpdate, userKycData)}
-                    className="h-14 w-full rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase text-[10px] tracking-widest gap-2"
-                >
-                    <MessageSquare size={18} /> Send Thanks (WhatsApp)
-                </Button>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button variant="ghost" type="button" className="w-full text-white/20 text-[10px] font-black uppercase hover:text-white">Close Archive</Button>
-                </DialogClose>
-            </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -517,8 +415,7 @@ const getStatusBadge = (status: string) => {
       case 'pending_user_approval': return <Badge variant="outline" className="text-[8px] font-black border-blue-500/20 text-blue-400 uppercase">Offer Sent</Badge>;
       case 'approved_by_user': return <Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary uppercase">Ready to Fund</Badge>;
       case 'active': return <Badge variant="outline" className="text-[8px] font-black border-green-500/20 text-green-400 uppercase">Running</Badge>;
-      case 'payment_pending': return <Badge variant="outline" className="text-[8px] font-black border-amber-500/30 text-amber-400 bg-amber-500/5 animate-pulse uppercase">Verification Req.</Badge>;
-      case 'extension_pending': return <Badge variant="outline" className="text-[8px] font-black border-amber-500/20 text-amber-500 uppercase">Extension Requested</Badge>;
+      case 'payment_pending': return <Badge variant="outline" className="text-[8px] font-black border-amber-500/30 text-amber-400 uppercase">Verification</Badge>;
       case 'completed': return <Badge variant="outline" className="text-[8px] font-black border-white/5 text-white/20 uppercase">Settled</Badge>;
       default: return <Badge className="text-[8px] uppercase">{status}</Badge>;
     }
