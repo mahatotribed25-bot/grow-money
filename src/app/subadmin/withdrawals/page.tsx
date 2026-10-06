@@ -138,11 +138,12 @@ export default function WithdrawalsPage() {
         delayBonusAmountPerDay: adminSettings.delayBonusPerDay,
         delayBonusStartDate: serverTimestamp()
     };
+    // Non-blocking update
     updateDoc(withdrawalRef, updateData)
     .then(() => {
         toast({ title: 'Bonus Activated', description: `Daily bonus of ₹${adminSettings.delayBonusPerDay} is now active for ${withdrawal.name}.` });
     })
-    .catch(error => {
+    .catch(async () => {
         const permissionError = new FirestorePermissionError({
           path: withdrawalRef.path,
           operation: 'update',
@@ -229,13 +230,14 @@ export default function WithdrawalsPage() {
         payoutTransactionId: payoutTid || ''
     };
 
+    // Non-blocking update
     updateDoc(withdrawalRef, updateData)
     .then(() => {
         toast({ title: 'Withdrawal Approved', description: `Withdrawal for ${requestToApprove.name} has been marked as paid.` });
         setIsPaymentDialogOpen(false);
         setRequestToApprove(null);
     })
-    .catch(error => {
+    .catch(async () => {
         const permissionError = new FirestorePermissionError({
           path: withdrawalRef.path,
           operation: 'update',
@@ -324,6 +326,7 @@ export default function WithdrawalsPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          type="button"
                            className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
                           onClick={() => openApproveDialog(withdrawal)}
                         >
@@ -332,6 +335,7 @@ export default function WithdrawalsPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          type="button"
                            className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
                           onClick={() => handleReject(withdrawal)}
                         >
@@ -341,6 +345,7 @@ export default function WithdrawalsPage() {
                             <Button
                                 variant="outline"
                                 size="sm"
+                                type="button"
                                 className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
                                 onClick={() => handleActivateBonus(withdrawal)}
                             >
@@ -392,7 +397,7 @@ export default function WithdrawalsPage() {
                         <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Target Address (UPI)</Label>
                         <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
                             <span className="font-mono text-sm font-bold text-primary">{requestToApprove?.upiId}</span>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10" onClick={() => handleCopyToClipboard(requestToApprove?.upiId || '', 'UPI ID')}>
+                            <Button variant="ghost" size="icon" type="button" className="h-8 w-8 hover:bg-white/10" onClick={() => handleCopyToClipboard(requestToApprove?.upiId || '', 'UPI ID')}>
                                 <Copy size={14} />
                             </Button>
                         </div>
@@ -405,14 +410,15 @@ export default function WithdrawalsPage() {
                             <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Payout Receipt Screenshot</Label>
                             <input 
                                 type="file" 
-                                ref={fileInputRef} 
+                                id="subadmin-payout-upload"
                                 className="hidden" 
                                 accept="image/*" 
                                 onChange={handlePayoutFileChange} 
                             />
                             <Button 
                                 variant="outline" 
-                                onClick={() => fileInputRef.current?.click()}
+                                type="button"
+                                onClick={() => document.getElementById('subadmin-payout-upload')?.click()}
                                 className="w-full h-14 rounded-2xl border-dashed border-primary/30 bg-primary/5 text-primary font-black uppercase text-[10px] gap-2"
                             >
                                 <Camera size={18} /> {payoutScreenshot ? 'Change Receipt' : 'Upload Payment Receipt'}
@@ -436,12 +442,13 @@ export default function WithdrawalsPage() {
                     </div>
 
                     <div className="space-y-3 pt-2">
-                        <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
+                        <Button asChild type="button" className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
                             <a href={upiDeeplink}>
                                 <QrCode size={16} className="mr-2" /> Launch UPI Gateway
                             </a>
                         </Button>
                         <Button 
+                            type="button"
                             onClick={handleConfirmPaymentSent} 
                             disabled={!payoutTid}
                             className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20"

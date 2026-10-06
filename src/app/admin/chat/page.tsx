@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
@@ -17,6 +16,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type Chat = {
     id: string;
@@ -55,15 +56,23 @@ export default function AdminChatPage() {
         }
     }, [messages]);
 
-    const handleSelectChat = async (chat: Chat) => {
+    const handleSelectChat = (chat: Chat) => {
         setSelectedChat(chat);
         if (chat.unreadByAdmin) {
             const chatRef = doc(firestore, 'chats', chat.id);
-            await updateDoc(chatRef, { unreadByAdmin: false });
+            // Non-blocking update
+            updateDoc(chatRef, { unreadByAdmin: false }).catch(async (e) => {
+                const permissionError = new FirestorePermissionError({
+                    path: chatRef.path,
+                    operation: 'update',
+                    requestResourceData: { unreadByAdmin: false }
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
         }
     }
     
-    const handleSendMessage = async () => {
+    const handleSendMessage = () => {
         if (!selectedChat || !message.trim()) return;
 
         const messagesCol = collection(firestore, `chats/${selectedChat.id}/messages`);
@@ -83,13 +92,27 @@ export default function AdminChatPage() {
             unreadByAdmin: false,
         };
 
-        try {
-            await addDoc(messagesCol, messageData);
-            await setDoc(chatDoc, chatData, { merge: true });
-            setMessage('');
-        } catch (e) {
-            // Error is handled by global emitter if permissions fail
-        }
+        const currentMsg = message;
+        setMessage('');
+
+        // Non-blocking writes
+        addDoc(messagesCol, messageData).catch(async () => {
+            const permissionError = new FirestorePermissionError({
+                path: messagesCol.path,
+                operation: 'create',
+                requestResourceData: messageData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
+
+        setDoc(chatDoc, chatData, { merge: true }).catch(async () => {
+            const permissionError = new FirestorePermissionError({
+                path: chatDoc.path,
+                operation: 'update',
+                requestResourceData: chatData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
     }
 
     const handleClearChat = async () => {
@@ -246,7 +269,7 @@ export default function AdminChatPage() {
                                     onChange={(e) => setMessage(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                                 />
-                                <Button size="icon" className="h-11 w-11 shrink-0 shadow-lg" onClick={handleSendMessage} disabled={!message.trim()}>
+                                <Button size="icon" type="button" className="h-11 w-11 shrink-0 shadow-lg" onClick={handleSendMessage} disabled={!message.trim()}>
                                     <Send className="h-5 w-5" />
                                 </Button>
                             </div>

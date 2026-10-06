@@ -174,6 +174,7 @@ export default function DepositsPage() {
           reviewedAt: serverTimestamp()
       });
 
+      // Execute batch commit (Non-blocking but batches must be awaited to handle UI state)
       batch.commit()
       .then(() => {
           toast({ title: `Deposit ${newStatus === 'approved' ? 'Approved' : 'Rejected'}` });
@@ -231,6 +232,7 @@ export default function DepositsPage() {
              <div className="flex gap-2">
                 <Button 
                     size="sm" 
+                    type="button"
                     onClick={() => handleBatchAction('approved')} 
                     disabled={isProcessing}
                     className="bg-green-600 hover:bg-green-700 h-8 rounded-lg font-bold text-[10px]"
@@ -240,6 +242,7 @@ export default function DepositsPage() {
                 </Button>
                 <Button 
                     size="sm" 
+                    type="button"
                     variant="destructive" 
                     onClick={() => handleBatchAction('rejected')} 
                     disabled={isProcessing}
@@ -317,6 +320,7 @@ export default function DepositsPage() {
                         {deposit.screenshot && (
                             <Button 
                                 variant="ghost" 
+                                type="button"
                                 size="icon" 
                                 className="h-8 w-8 text-primary/40 hover:text-primary hover:bg-primary/10"
                                 onClick={() => { setAuditTarget(deposit); setAuditResult(null); }}
@@ -329,6 +333,7 @@ export default function DepositsPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  type="button"
                                   className="bg-green-600/10 text-green-500 border-green-500/20 hover:bg-green-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
                                   onClick={() => handleUpdateStatus(deposit, 'approved')}
                                 >
@@ -337,6 +342,7 @@ export default function DepositsPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  type="button"
                                   className="bg-red-600/10 text-red-500 border-red-500/20 hover:bg-red-600 hover:text-white h-8 rounded-lg px-4 font-bold text-[10px]"
                                   onClick={() => handleUpdateStatus(deposit, 'rejected')}
                                 >
@@ -443,6 +449,7 @@ export default function DepositsPage() {
                          <Button 
                             onClick={runAIAudit} 
                             disabled={isAuditing}
+                            type="button"
                             className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs hover:scale-[1.02] transition-all shadow-xl"
                         >
                             {isAuditing ? <Loader2 className="animate-spin mr-2" /> : <ScanText className="mr-2" />}
@@ -477,6 +484,7 @@ export default function DepositsPage() {
                     <div className="mt-auto grid grid-cols-2 gap-3">
                         <Button 
                             onClick={() => auditTarget && handleUpdateStatus(auditTarget, 'approved')}
+                            type="button"
                             className="h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase tracking-widest text-[10px]"
                             disabled={isAuditing || (auditTarget?.status !== 'pending')}
                         >
@@ -484,6 +492,7 @@ export default function DepositsPage() {
                         </Button>
                         <Button 
                             variant="destructive"
+                            type="button"
                             onClick={() => auditTarget && handleUpdateStatus(auditTarget, 'rejected')}
                             className="h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]"
                             disabled={isAuditing || (auditTarget?.status !== 'pending')}

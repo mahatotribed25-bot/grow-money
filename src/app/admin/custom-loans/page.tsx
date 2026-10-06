@@ -59,6 +59,7 @@ import { addDays } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 type CustomLoanRequest = {
   id: string;
@@ -180,6 +181,7 @@ export default function CustomLoansPage() {
         adminApprovedAt: serverTimestamp(),
     };
     
+    // Non-blocking update
     updateDoc(requestRef, updateData)
         .then(() => {
             toast({ title: 'Offer Sent' });
@@ -195,12 +197,13 @@ export default function CustomLoansPage() {
         });
   };
 
-  const handleMarkAsSent = async () => {
+  const handleMarkAsSent = () => {
     if (!requestToUpdate) return;
     const request = requestToUpdate;
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
     const settingsRef = doc(firestore, 'settings', 'admin');
     
+    // Use transaction for consistency on usage limits
     runTransaction(firestore, async (transaction) => {
         const settingsDoc = await transaction.get(settingsRef);
         const totalLimit = settingsDoc.data()?.totalCustomLoanLimit || 0;
@@ -326,18 +329,18 @@ export default function CustomLoansPage() {
                   <TableCell className="text-right pr-6">
                     <div className="flex justify-end gap-2">
                         {request.status === 'pending_admin_review' && (
-                            <Button size="sm" onClick={() => openApproveDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-primary">ANALYZE & OFFER</Button>
+                            <Button size="sm" type="button" onClick={() => openApproveDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-primary">ANALYZE & OFFER</Button>
                         )}
                         {request.status === 'approved_by_user' && (
-                            <Button size="sm" onClick={() => openPaymentDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-green-600">DISPATCH FUNDS</Button>
+                            <Button size="sm" type="button" onClick={() => openPaymentDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-green-600">DISPATCH FUNDS</Button>
                         )}
                         {request.status === 'active' && (
-                            <Button variant="ghost" size="icon" onClick={() => openPaymentDialog(request)} className="h-8 w-8 text-primary hover:bg-primary/10">
+                            <Button variant="ghost" type="button" size="icon" onClick={() => openPaymentDialog(request)} className="h-8 w-8 text-primary hover:bg-primary/10">
                                 <BellRing size={14} />
                             </Button>
                         )}
                         {(request.status === 'payment_pending' || request.status === 'active') && (
-                            <Button size="sm" onClick={() => handleMarkAsCompleted(request)} variant="outline" className="h-8 rounded-lg font-black text-[10px] border-white/10 hover:bg-white/5">CONFIRM RECEIPT</Button>
+                            <Button size="sm" type="button" onClick={() => handleMarkAsCompleted(request)} variant="outline" className="h-8 rounded-lg font-black text-[10px] border-white/10 hover:bg-white/5">CONFIRM RECEIPT</Button>
                         )}
                     </div>
                   </TableCell>
@@ -400,7 +403,7 @@ export default function CustomLoansPage() {
                 </Card>
               )}
           </div>
-          <DialogFooter><Button onClick={handleApprove} className="w-full h-12 rounded-xl font-black bg-primary">AUTHORIZE OFFER DISPATCH</Button></DialogFooter>
+          <DialogFooter><Button onClick={handleApprove} type="button" className="w-full h-12 rounded-xl font-black bg-primary">AUTHORIZE OFFER DISPATCH</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -431,19 +434,19 @@ export default function CustomLoansPage() {
                     <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Borrower Payment Addr</Label>
                     <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center group">
                         <span className="font-mono text-sm font-bold text-white/80">{requestToUpdate?.upiId || 'NO UPI ID'}</span>
-                        <Button variant="ghost" size="icon" onClick={() => handleCopyToClipboard(requestToUpdate?.upiId, 'UPI ID')} className="h-8 w-8 hover:bg-white/10">
+                        <Button variant="ghost" type="button" size="icon" onClick={() => handleCopyToClipboard(requestToUpdate?.upiId, 'UPI ID')} className="h-8 w-8 hover:bg-white/10">
                             <Copy size={14} className="text-primary" />
                         </Button>
                     </div>
                 </div>
 
                 <div className="space-y-3">
-                    <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
+                    <Button asChild type="button" className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
                         <a href={upiDeeplink}>
                             <QrCode size={16} className="mr-2" /> Open Mobile Gateway
                         </a>
                     </Button>
-                    <Button onClick={handleMarkAsSent} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">
+                    <Button onClick={handleMarkAsSent} type="button" className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">
                         <ShieldCheck size={18} className="mr-2" /> I HAVE PAID (ACTIVATE NODE)
                     </Button>
                 </div>
@@ -463,6 +466,7 @@ export default function CustomLoansPage() {
             </DialogHeader>
             <div className="py-6 space-y-4">
                 <Button 
+                    type="button"
                     onClick={() => requestToUpdate && handleWhatsAppNotify(requestToUpdate, userKycData)}
                     className="h-14 w-full rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase text-[10px] tracking-widest gap-2"
                 >
@@ -471,7 +475,7 @@ export default function CustomLoansPage() {
             </div>
             <DialogFooter>
                 <DialogClose asChild>
-                    <Button variant="ghost" className="w-full text-white/20 text-[10px] font-black uppercase hover:text-white">Skip Alert</Button>
+                    <Button variant="ghost" type="button" className="w-full text-white/20 text-[10px] font-black uppercase hover:text-white">Skip Alert</Button>
                 </DialogClose>
             </DialogFooter>
         </DialogContent>
@@ -489,6 +493,7 @@ export default function CustomLoansPage() {
             </DialogHeader>
             <div className="py-6 space-y-4">
                 <Button 
+                    type="button"
                     onClick={() => requestToUpdate && handleWhatsAppCompletionNotify(requestToUpdate, userKycData)}
                     className="h-14 w-full rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase text-[10px] tracking-widest gap-2"
                 >
@@ -497,7 +502,7 @@ export default function CustomLoansPage() {
             </div>
             <DialogFooter>
                 <DialogClose asChild>
-                    <Button variant="ghost" className="w-full text-white/20 text-[10px] font-black uppercase hover:text-white">Close Archive</Button>
+                    <Button variant="ghost" type="button" className="w-full text-white/20 text-[10px] font-black uppercase hover:text-white">Close Archive</Button>
                 </DialogClose>
             </DialogFooter>
         </DialogContent>
