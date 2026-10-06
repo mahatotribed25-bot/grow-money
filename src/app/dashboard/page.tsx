@@ -434,7 +434,7 @@ function DepositButton({ adminUpi, t }: { adminUpi?: string, t: any }) {
           const utrMatch = text.match(/\b\d{12}\b/);
           if (utrMatch) {
             setTid(utrMatch[0]);
-            toast({ title: "Smart Scan Complete", description: "Detected Transaction ID" });
+            toast({ title: t.dashboard.scan_success || "Smart Scan Complete", description: "Detected Transaction ID" });
           }
         } catch (err) {
           console.error("OCR Error:", err);
@@ -643,6 +643,15 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
 
   const amounts = [500, 1000, 2000, 5000];
 
+  const calculatedInfo = useMemo(() => {
+    const val = parseFloat(amt);
+    if (isNaN(val) || val <= 0) return null;
+    const feePercent = adminSettings?.withdrawalGstPercentage || 0;
+    const feeAmount = (val * feePercent) / 100;
+    const finalAmount = val - feeAmount;
+    return { feePercent, feeAmount, finalAmount };
+  }, [amt, adminSettings]);
+
   const handleWithdraw = () => {
     if (!user || !amt || !userData?.upiId) {
         toast({ title: "Account Incomplete", description: "Link your UPI ID in profile to withdraw.", variant: "destructive"});
@@ -651,9 +660,8 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
     const val = parseFloat(amt);
     if (val < (adminSettings?.minWithdrawal || 100)) { toast({ title: "Error", description: "Minimum withdrawal is ₹" + (adminSettings?.minWithdrawal || 100), variant: "destructive" }); return; }
 
-    const feePercent = adminSettings?.withdrawalGstPercentage || 0;
-    const feeAmount = (val * feePercent) / 100;
-    const finalAmount = val - feeAmount;
+    const feeAmount = calculatedInfo?.feeAmount || 0;
+    const finalAmount = calculatedInfo?.finalAmount || val;
 
     runTransaction(firestore, async (transaction) => {
         const userRef = doc(firestore, 'users', user.uid);
@@ -725,8 +733,29 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
                             ))}
                         </div>
                     </div>
+
+                    {calculatedInfo && (
+                        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 space-y-4 animate-in fade-in zoom-in-95">
+                            <p className="text-[10px] font-black text-primary uppercase tracking-[3px]">Transaction Preview</p>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-xs font-bold text-white/40">
+                                    <span className="uppercase">Request Amount</span>
+                                    <span>₹{parseFloat(amt).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-bold text-red-400">
+                                    <span className="uppercase">Platform Fee ({calculatedInfo.feePercent}%)</span>
+                                    <span>- ₹{calculatedInfo.feeAmount.toFixed(2)}</span>
+                                </div>
+                                <Separator className="bg-primary/10" />
+                                <div className="flex justify-between items-center pt-1">
+                                    <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Final Settlement</span>
+                                    <span className="text-lg font-black text-white">₹{calculatedInfo.finalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     
-                    <Button onClick={handleWithdraw} className="w-full h-16 rounded-[1.5rem] bg-primary text-primary-foreground font-black text-lg shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
+                    <Button onClick={handleWithdraw} disabled={!amt || parseFloat(amt) <= 0} className="w-full h-16 rounded-[1.5rem] bg-primary text-primary-foreground font-black text-lg shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
                         Confirm Withdrawal
                     </Button>
                 </div>
@@ -790,7 +819,10 @@ function ActivePlanCard({ investment, onClaimProfit, onClaimMaturity }: { invest
 
 function BottomNavItem({ icon: Icon, label, href, active = false }: { icon: React.ElementType, label: string, href: string, active?: boolean }) {
   return (
-    <Link href={href} className={cn("flex flex-col items-center gap-1 transition-all h-full justify-center relative", active ? 'text-primary scale-110' : 'text-muted-foreground hover:text-foreground')}>
+    <Link href={href} className={cn(
+        "flex flex-col items-center gap-1 transition-all h-full justify-center relative", 
+        active ? 'text-primary scale-110' : 'text-muted-foreground hover:text-foreground'
+    )}>
       <Icon className={cn("h-5 w-5")} />
       <span className="text-[9px] font-black uppercase tracking-tight">{label}</span>
       {active && <div className="absolute -bottom-1 h-1 w-6 bg-primary rounded-full blur-[2px]" />}
