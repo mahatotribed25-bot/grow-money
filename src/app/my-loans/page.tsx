@@ -30,7 +30,8 @@ import {
   Camera,
   ImageIcon,
   X,
-  XCircle
+  XCircle,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -152,6 +153,7 @@ export default function MyLoansPage() {
 
   const [selectedItems, setSelectedItems] = useState<{ id: string; emiIndex?: number; amount: number; isCustom: boolean; loanName: string }[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [extensionDays, setExtensionDays] = useState('7');
   const [extTargetId, setExtTargetId] = useState<string | null>(null);
   
@@ -257,7 +259,12 @@ export default function MyLoansPage() {
 
   const handleBatchMarkAsPaid = async () => {
     if (!user || selectedItems.length === 0) return;
+    if (!paymentTid || !paymentScreenshot) {
+      toast({ title: "Verification Error", description: "Please provide both the Transaction ID and Screenshot.", variant: "destructive" });
+      return;
+    }
     
+    setIsProcessing(true);
     const batch = writeBatch(firestore);
     
     selectedItems.forEach(item => {
@@ -275,9 +282,17 @@ export default function MyLoansPage() {
             if (originalLoan && originalLoan.emis && item.emiIndex !== undefined) {
                 const updatedEmis = [...originalLoan.emis];
                 updatedEmis[item.emiIndex].status = 'Payment Pending';
-                batch.update(loanRef, { emis: updatedEmis });
+                batch.update(loanRef, { 
+                  emis: updatedEmis,
+                  lastUserPaymentTid: paymentTid,
+                  lastUserPaymentScreenshot: paymentScreenshot
+                });
             } else {
-                batch.update(loanRef, { status: 'Payment Pending' });
+                batch.update(loanRef, { 
+                  status: 'Payment Pending',
+                  lastUserPaymentTid: paymentTid,
+                  lastUserPaymentScreenshot: paymentScreenshot
+                });
             }
         }
     });
@@ -291,6 +306,8 @@ export default function MyLoansPage() {
         setPaymentTid('');
     } catch (e: any) {
         toast({ title: 'Update Failed', variant: 'destructive' });
+    } finally {
+        setIsProcessing(false);
     }
   };
 
@@ -575,8 +592,22 @@ export default function MyLoansPage() {
                             <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-xl">
                                 <a href={upiDeeplink}><QrCode size={18} className="mr-2" /> Open UPI Gateway</a>
                             </Button>
-                            <Button onClick={handleBatchMarkAsPaid} disabled={!paymentTid || !paymentScreenshot} className="w-full h-16 rounded-[1.5rem] bg-primary text-white font-black shadow-2xl">
-                                <ShieldCheck size={22} className="mr-2" /> I HAVE PAID
+                            <Button 
+                              onClick={handleBatchMarkAsPaid} 
+                              disabled={!paymentTid || !paymentScreenshot || isProcessing} 
+                              className="w-full h-16 rounded-[1.5rem] bg-primary text-white font-black shadow-2xl transition-all"
+                            >
+                                {isProcessing ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                    Processing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <ShieldCheck size={22} className="mr-2" /> 
+                                    I HAVE PAID
+                                  </>
+                                )}
                             </Button>
                         </div>
                     </div>
