@@ -60,6 +60,7 @@ import {
 } from "@/components/ui/select";
 import Image from 'next/image';
 import { useSettings } from '@/context/settings-context';
+import { differenceInDays } from 'date-fns';
 
 type EMI = {
   emiAmount: number;
@@ -85,6 +86,8 @@ type Loan = {
 type AdminSettings = {
     adminUpi?: string;
     customLoanUpi?: string;
+    loanPenalty?: number;
+    customLoanPenalty?: number;
 }
 
 type CustomLoanRequest = {
@@ -146,11 +149,45 @@ export default function MyLoansPage() {
   const [extTargetId, setExtTargetId] = useState<string | null>(null);
 
   const loading = loansLoading || settingsLoading || customLoansLoading;
+
+  // Process Standard Loans with Penalties
+  const processedStandardLoans = useMemo(() => {
+    if (!allLoans) return [];
+    return allLoans.map(loan => {
+        if (loan.status !== 'Completed' && loan.dueDate && adminSettings?.loanPenalty) {
+            const now = new Date();
+            const due = loan.dueDate.toDate();
+            if (now > due) {
+                const daysLate = differenceInDays(now, due);
+                const accruedPenalty = daysLate * adminSettings.loanPenalty;
+                return { ...loan, penalty: accruedPenalty };
+            }
+        }
+        return loan;
+    });
+  }, [allLoans, adminSettings]);
   
-  const sortedLoans = useMemo(() => allLoans?.sort((a,b) => b.startDate.seconds - a.startDate.seconds) || [], [allLoans]);
+  const sortedLoans = useMemo(() => processedStandardLoans.sort((a,b) => b.startDate.seconds - a.startDate.seconds), [processedStandardLoans]);
   const activeStandardLoans = sortedLoans.filter(l => l.status !== 'Completed');
   
-  const sortedCustomLoans = useMemo(() => customLoans?.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds) || [], [customLoans]);
+  // Process Custom Loans with Penalties
+  const processedCustomLoans = useMemo(() => {
+    if (!customLoans) return [];
+    return customLoans.map(loan => {
+        if (loan.status === 'active' && loan.dueDate && adminSettings?.customLoanPenalty) {
+            const now = new Date();
+            const due = loan.dueDate.toDate();
+            if (now > due) {
+                const daysLate = differenceInDays(now, due);
+                const accruedPenalty = daysLate * adminSettings.customLoanPenalty;
+                return { ...loan, penalty: accruedPenalty };
+            }
+        }
+        return loan;
+    });
+  }, [customLoans, adminSettings]);
+
+  const sortedCustomLoans = useMemo(() => processedCustomLoans.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds), [processedCustomLoans]);
   const activeCustomLoans = sortedCustomLoans.filter(l => ['active', 'payment_pending', 'extension_pending', 'pending_user_approval', 'approved_by_user'].includes(l.status));
 
   const totalSelectedAmount = useMemo(() => {
@@ -180,9 +217,9 @@ export default function MyLoansPage() {
             status: 'approved_by_user',
             userAcceptedAt: serverTimestamp()
         });
-        toast({ title: "Offer Accepted", description: "Funds will be dispatched by the admin shortly." });
+        toast({ title: "Offer Accepted", description: "Funds will be dispatched soon." });
     } catch (e) {
-        toast({ title: "Error", description: "Failed to accept offer.", variant: "destructive" });
+        toast({ title: "Error", variant: "destructive" });
     }
   };
 
@@ -194,10 +231,10 @@ export default function MyLoansPage() {
             extensionRequestedDays: parseInt(extensionDays),
             extensionRequestedAt: serverTimestamp()
         });
-        toast({ title: "Extension Requested", description: "The admin will review your extension request." });
+        toast({ title: "Extension Requested", description: "The admin will review your request shortly." });
         setExtTargetId(null);
     } catch (e) {
-        toast({ title: "Error", description: "Failed to request extension.", variant: "destructive" });
+        toast({ title: "Error", variant: "destructive" });
     }
   };
 
@@ -212,7 +249,7 @@ export default function MyLoansPage() {
         if (item.isCustom) {
             batch.update(loanRef, { status: 'payment_pending', paidNotificationAt: serverTimestamp() });
         } else {
-            const originalLoan = allLoans?.find(l => l.id === item.id);
+            const originalLoan = processedStandardLoans.find(l => l.id === item.id);
             if (originalLoan && originalLoan.emis && item.emiIndex !== undefined) {
                 const updatedEmis = [...originalLoan.emis];
                 updatedEmis[item.emiIndex].status = 'Payment Pending';
@@ -315,8 +352,8 @@ export default function MyLoansPage() {
                                                 <p className="text-xs font-bold text-white/60">{loan.startDate.toDate().toLocaleDateString()}</p>
                                             </div>
                                             <div className="space-y-0.5 text-right">
-                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Platform Tax</p>
-                                                <p className="text-xs font-bold text-blue-400">₹{(loan.tax || 0).toFixed(2)}</p>
+                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Late Penalty</p>
+                                                <p className={cn("text-xs font-bold", (loan.penalty || 0) > 0 ? "text-red-400" : "text-white/40")}>₹{(loan.penalty || 0).toFixed(2)}</p>
                                             </div>
                                         </div>
                                         {loan.repaymentMethod === 'EMI' ? loan.emis?.map((emi, i) => (
@@ -345,7 +382,6 @@ export default function MyLoansPage() {
                              {activeCustomLoans.map(loan => {
                                 const now = new Date();
                                 const isDue = loan.dueDate && now >= loan.dueDate.toDate();
-                                // Early repayment is now always enabled for active loans, with a notice.
                                 const isRepaymentVisible = ['active', 'payment_pending', 'extension_pending'].includes(loan.status);
 
                                 return (
@@ -396,7 +432,7 @@ export default function MyLoansPage() {
                                                 {!isDue && loan.status === 'active' && (
                                                     <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-center gap-3">
                                                         <AlertCircle size={14} className="text-primary" />
-                                                        <p className="text-[9px] font-black uppercase text-primary/80 tracking-widest">Early payment allowed. Note: Full interest applies.</p>
+                                                        <p className="text-[9px] font-black uppercase text-primary/80 tracking-widest">Early payment allowed. Full interest applies.</p>
                                                     </div>
                                                 )}
 
@@ -405,7 +441,7 @@ export default function MyLoansPage() {
                                                         date={loan.dueDate?.toDate() || new Date()} 
                                                         amount={(loan.totalRepayment || 0) + (loan.penalty || 0)} 
                                                         status={loan.status === 'active' ? 'Active' : loan.status} 
-                                                        subtext={`Principal: ₹${loan.requestedAmount} | Matching Int: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
+                                                        subtext={loan.penalty ? `Includes ₹${loan.penalty.toFixed(2)} Late Penalty` : `Principal: ₹${loan.requestedAmount} | Matching Int: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
                                                         isSelected={!!selectedItems.find(item => item.id === loan.id)}
                                                         onToggle={() => handleToggleSelect(loan, (loan.totalRepayment || 0) + (loan.penalty || 0), true)}
                                                     />

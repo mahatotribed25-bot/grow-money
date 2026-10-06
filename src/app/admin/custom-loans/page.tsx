@@ -27,7 +27,8 @@ import {
     AlertCircle,
     ShieldAlert,
     TrendingUp,
-    Mail
+    Mail,
+    ReceiptIndianRupee
 } from 'lucide-react';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import {
@@ -52,7 +53,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { addDays } from 'date-fns';
+import { addDays, differenceInDays } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
@@ -97,6 +98,7 @@ type AdminSettings = {
     customLoanThreshold?: number;
     totalCustomLoanLimit?: number;
     currentCustomLoanUsage?: number;
+    customLoanPenalty?: number;
 }
 
 const formatDate = (timestamp?: Timestamp) => {
@@ -116,10 +118,12 @@ export default function CustomLoansPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [isCompletionNotificationOpen, setIsCompletionNotificationOpen] = useState(false);
+  const [isExtensionDialogOpen, setIsExtensionDialogOpen] = useState(false);
   
   // Editable offer fields
   const [editInterestRate, setEditInterestRate] = useState('');
   const [editTotalRepayment, setEditTotalRepayment] = useState('');
+  const [extensionFee, setExtensionFee] = useState('');
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected' | 'payment_pending' | 'extension_pending'>('pending_admin_review');
 
@@ -128,15 +132,29 @@ export default function CustomLoansPage() {
   const filteredRequests = useMemo(() => {
     if (!requests) return [];
     const sorted = [...requests].sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-    if (filterStatus === 'all') return sorted;
-    if (filterStatus === 'rejected') return sorted.filter(r => r.status === 'rejected_by_admin' || r.status === 'rejected_by_user');
-    return sorted.filter((r) => r.status === filterStatus);
-  }, [requests, filterStatus]);
+    
+    // Calculate Penalties On-The-Fly
+    const processed = sorted.map(r => {
+        if (r.status === 'active' && r.dueDate && adminSettings?.customLoanPenalty) {
+            const now = new Date();
+            const due = r.dueDate.toDate();
+            if (now > due) {
+                const daysLate = differenceInDays(now, due);
+                const accruedPenalty = daysLate * adminSettings.customLoanPenalty;
+                return { ...r, penalty: accruedPenalty };
+            }
+        }
+        return r;
+    });
+
+    if (filterStatus === 'all') return processed;
+    if (filterStatus === 'rejected') return processed.filter(r => r.status === 'rejected_by_admin' || r.status === 'rejected_by_user');
+    return processed.filter((r) => r.status === filterStatus);
+  }, [requests, filterStatus, adminSettings]);
 
   const openApproveDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
     
-    // Auto-calculate suggested terms based on new admin settings
     const threshold = adminSettings?.customLoanThreshold ?? 5000;
     const lowRate = adminSettings?.customLoanInterestLow ?? 5;
     const highRate = adminSettings?.customLoanInterestHigh ?? 8;
@@ -155,6 +173,40 @@ export default function CustomLoansPage() {
         if (userDoc.exists()) setUserKycData({ id: userDoc.id, ...userDoc.data() } as UserData);
     } catch(e) {}
     setIsApproveDialogOpen(true);
+  };
+
+  const openExtensionDialog = (request: CustomLoanRequest) => {
+      setRequestToUpdate(request);
+      setExtensionFee('');
+      setIsExtensionDialogOpen(true);
+  };
+
+  const handleApproveExtension = async () => {
+    if (!requestToUpdate || !requestToUpdate.dueDate) return;
+    const fee = parseFloat(extensionFee) || 0;
+    const extraDays = requestToUpdate.extensionRequestedDays || 0;
+
+    const requestRef = doc(firestore, 'customLoanRequests', requestToUpdate.id);
+    const newDueDate = addDays(requestToUpdate.dueDate.toDate(), extraDays);
+    const newTotalRepayment = (requestToUpdate.totalRepayment || 0) + fee;
+
+    const updateData = {
+      status: 'active' as const,
+      dueDate: Timestamp.fromDate(newDueDate),
+      totalRepayment: newTotalRepayment,
+      extensionApprovedAt: serverTimestamp(),
+      lastExtensionFee: fee,
+      lastExtensionDays: extraDays
+    };
+
+    try {
+      await updateDoc(requestRef, updateData);
+      toast({ title: "Extension Approved", description: `Loan extended by ${extraDays} days.` });
+      setIsExtensionDialogOpen(false);
+      setRequestToUpdate(null);
+    } catch (e) {
+      toast({ title: "Update Failed", variant: "destructive" });
+    }
   };
 
   const openPaymentDialog = async (request: CustomLoanRequest) => {
@@ -188,12 +240,11 @@ export default function CustomLoansPage() {
             setIsApproveDialogOpen(false);
         })
         .catch(async () => {
-            const permissionError = new FirestorePermissionError({
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: requestRef.path,
                 operation: 'update',
                 requestResourceData: updateData
-            });
-            errorEmitter.emit('permission-error', permissionError);
+            }));
         });
   };
 
@@ -301,6 +352,7 @@ export default function CustomLoansPage() {
                 <TabsTrigger value="pending_admin_review" className="text-[10px] font-black uppercase">New Requests</TabsTrigger>
                 <TabsTrigger value="approved_by_user" className="text-[10px] font-black uppercase">Ready to Pay</TabsTrigger>
                 <TabsTrigger value="active" className="text-[10px] font-black uppercase">Active Loans</TabsTrigger>
+                <TabsTrigger value="extension_pending" className="text-[10px] font-black uppercase">Extensions</TabsTrigger>
                 <TabsTrigger value="payment_pending" className="text-[10px] font-black uppercase">Verify Receipt</TabsTrigger>
                 <TabsTrigger value="all" className="text-[10px] font-black uppercase">All History</TabsTrigger>
             </TabsList>
@@ -312,7 +364,7 @@ export default function CustomLoansPage() {
             <TableRow className="border-white/5">
                 <TableHead className="text-[10px] font-black uppercase text-white/30 pl-6">Borrower</TableHead>
                 <TableHead className="text-[10px] font-black uppercase text-white/30">Amount</TableHead>
-                <TableHead className="text-[10px] font-black uppercase text-white/30">Interest / Fee</TableHead>
+                <TableHead className="text-[10px] font-black uppercase text-white/30">Total Repayment</TableHead>
                 <TableHead className="text-[10px] font-black uppercase text-white/30">Status</TableHead>
                 <TableHead className="text-[10px] font-black uppercase text-white/30 text-right pr-6">Action</TableHead>
             </TableRow>
@@ -333,44 +385,23 @@ export default function CustomLoansPage() {
                       </div>
                   </TableCell>
                   <TableCell>
-                      <div className="flex flex-col text-[10px] font-bold">
-                          <span className="text-red-400">ROI: ₹{request.interestAmount?.toFixed(2) || '---'}</span>
-                          <span className="text-white/20">Final: ₹{request.totalRepayment?.toFixed(2) || '---'}</span>
+                      <div className="flex flex-col">
+                          <span className="font-black text-white">₹{((request.totalRepayment || 0) + (request.penalty || 0)).toFixed(2)}</span>
+                          {request.penalty ? (
+                              <span className="text-[8px] text-red-500 font-bold uppercase tracking-tighter">Penalty: ₹{request.penalty.toFixed(2)}</span>
+                          ) : (
+                              <span className="text-[8px] text-white/20 font-bold uppercase tracking-widest">No Penalty</span>
+                          )}
                       </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(request.status)}</TableCell>
                   <TableCell className="text-right pr-6">
                     <div className="flex justify-end items-center gap-2">
-                        {/* Persistent Notification Buttons for history/tracking */}
-                        {['active', 'completed', 'payment_pending', 'extension_pending'].includes(request.status) && (
-                            <div className="flex items-center gap-1.5 mr-2">
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8 rounded-lg bg-green-500/5 text-green-500 hover:bg-green-500/20"
-                                    onClick={async () => {
-                                        const userSnap = await getDoc(doc(firestore, 'users', request.userId));
-                                        handleWhatsAppNotify(request, userSnap.exists() ? userSnap.data() as UserData : null, request.status === 'completed' ? 'completion' : 'approval');
-                                    }}
-                                >
-                                    <MessageSquare size={14} />
-                                </Button>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8 rounded-lg bg-blue-500/5 text-blue-500 hover:bg-blue-500/20"
-                                    onClick={async () => {
-                                        const userSnap = await getDoc(doc(firestore, 'users', request.userId));
-                                        handleEmailNotify(request, userSnap.exists() ? userSnap.data() as UserData : null, request.status === 'completed' ? 'completion' : 'approval');
-                                    }}
-                                >
-                                    <Mail size={14} />
-                                </Button>
-                            </div>
-                        )}
-
                         {request.status === 'pending_admin_review' && (
                             <Button size="sm" type="button" onClick={() => openApproveDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-primary">REVIEW & OFFER</Button>
+                        )}
+                        {request.status === 'extension_pending' && (
+                            <Button size="sm" type="button" onClick={() => openExtensionDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-amber-600">REVIEW EXTENSION</Button>
                         )}
                         {request.status === 'approved_by_user' && (
                             <Button size="sm" type="button" onClick={() => openPaymentDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-green-600">SEND MONEY</Button>
@@ -421,6 +452,36 @@ export default function CustomLoansPage() {
               </div>
           </div>
           <DialogFooter><Button onClick={handleSendOffer} type="button" className="w-full h-12 rounded-xl font-black bg-primary">SEND OFFER TO USER</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Extension Approval Dialog */}
+      <Dialog open={isExtensionDialogOpen} onOpenChange={setIsExtensionDialogOpen}>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem]">
+            <DialogHeader>
+                <DialogTitle className="text-xl font-black uppercase">Approve Extension</DialogTitle>
+                <DialogDescription className="text-xs text-white/40">Set the additional fee for this term extension.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                    <div className="flex justify-between">
+                        <span className="text-[10px] uppercase font-bold text-white/40">Extra Days</span>
+                        <span className="text-sm font-black text-primary">{requestToUpdate?.extensionRequestedDays} Days</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-[10px] uppercase font-bold text-white/40">Current Due</span>
+                        <span className="text-sm font-black text-white">{formatDate(requestToUpdate?.dueDate)}</span>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-white/40">Extension Fee (₹)</Label>
+                    <Input type="number" placeholder="e.g. 200" value={extensionFee} onChange={e => setExtensionFee(e.target.value)} className="bg-white/5 border-white/10 h-12 rounded-xl font-bold text-green-400" />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button onClick={handleApproveExtension} className="w-full h-14 rounded-2xl bg-primary text-white font-black">AUTHORIZE EXTENSION</Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -516,6 +577,7 @@ const getStatusBadge = (status: string) => {
       case 'pending_user_approval': return <Badge variant="outline" className="text-[8px] font-black border-blue-500/20 text-blue-400 uppercase">Offer Sent</Badge>;
       case 'approved_by_user': return <Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary uppercase">Ready to Fund</Badge>;
       case 'active': return <Badge variant="outline" className="text-[8px] font-black border-green-500/20 text-green-400 uppercase">Running</Badge>;
+      case 'extension_pending': return <Badge variant="outline" className="text-[8px] font-black border-amber-500/30 text-amber-500 uppercase">Extension Req</Badge>;
       case 'payment_pending': return <Badge variant="outline" className="text-[8px] font-black border-amber-500/30 text-amber-400 uppercase">Verification</Badge>;
       case 'completed': return <Badge variant="outline" className="text-[8px] font-black border-white/5 text-white/20 uppercase">Settled</Badge>;
       default: return <Badge className="text-[8px] uppercase">{status}</Badge>;
