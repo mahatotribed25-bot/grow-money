@@ -287,33 +287,6 @@ export default function Dashboard() {
         
         <WalletSummary userData={userData} adminSettings={adminSettings} loading={userDataLoading} t={t} />
 
-        {/* Refer & Earn Section */}
-        <Card className="bg-gradient-to-br from-primary/10 via-card to-card border-primary/20 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Gift size={80} className="text-primary rotate-12" /></div>
-            <div className="relative z-10 space-y-4">
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
-                        <Users2 size={20} />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-black uppercase tracking-tight text-white">Invite & Earn Credits</h3>
-                        <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Build your network, earn bonus on their first move.</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 h-12 flex items-center justify-between">
-                        <span className="font-mono font-black text-white tracking-[3px] text-sm uppercase">{userData?.referralCode || '------'}</span>
-                        <Button variant="ghost" size="icon" onClick={() => { if(userData?.referralCode) { navigator.clipboard.writeText(userData.referralCode); toast({ title: "Code Copied!" }); } }} className="h-8 w-8 text-primary">
-                            <Copy size={14} />
-                        </Button>
-                    </div>
-                    <Button asChild className="h-12 px-6 rounded-xl bg-primary text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20">
-                        <Link href="/team">My Team</Link>
-                    </Button>
-                </div>
-            </div>
-        </Card>
-
         <div className="flex items-center justify-between">
             <h2 className="text-sm font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2">
                 <Activity size={14} className="text-primary" /> {t.dashboard.active_portfolios}
@@ -688,7 +661,7 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
     <>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild><Button variant="outline" className="w-full h-14 rounded-2xl border-border bg-muted text-muted-foreground font-black uppercase tracking-widest text-xs hover:bg-accent hover:text-foreground transition-all"><Download size={16} className="mr-2" /> {t.dashboard.withdraw}</Button></DialogTrigger>
-            <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-[2.5rem] shadow-2xl">
+            <DialogContent className="sm:max-md p-0 overflow-hidden rounded-[2.5rem] shadow-2xl">
                 <header className="p-6 border-b border-border bg-muted/20 flex items-center justify-between">
                     <DialogTitle className="text-lg font-black tracking-tight uppercase">Withdraw Money</DialogTitle>
                     <HelpCircle className="text-muted-foreground h-5 w-5" />
