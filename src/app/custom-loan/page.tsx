@@ -12,6 +12,8 @@ import {
   AlertCircle,
   Zap,
   CheckCircle2,
+  Loader2,
+  Trophy,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
