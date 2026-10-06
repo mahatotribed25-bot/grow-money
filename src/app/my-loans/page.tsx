@@ -345,7 +345,8 @@ export default function MyLoansPage() {
                              {activeCustomLoans.map(loan => {
                                 const now = new Date();
                                 const isDue = loan.dueDate && now >= loan.dueDate.toDate();
-                                const isRepaymentVisible = isDue || ['payment_pending', 'extension_pending'].includes(loan.status);
+                                // Early repayment is now always enabled for active loans, with a notice.
+                                const isRepaymentVisible = ['active', 'payment_pending', 'extension_pending'].includes(loan.status);
 
                                 return (
                                 <div key={loan.id} className="space-y-3">
@@ -391,6 +392,13 @@ export default function MyLoansPage() {
                                                         <p className={cn("text-xs font-bold", (loan.penalty || 0) > 0 ? "text-red-400" : "text-white/40")}>₹{(loan.penalty || 0).toFixed(2)}</p>
                                                     </div>
                                                 </div>
+
+                                                {!isDue && loan.status === 'active' && (
+                                                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-center gap-3">
+                                                        <AlertCircle size={14} className="text-primary" />
+                                                        <p className="text-[9px] font-black uppercase text-primary/80 tracking-widest">Early payment allowed. Note: Full interest applies.</p>
+                                                    </div>
+                                                )}
 
                                                 {isRepaymentVisible ? (
                                                     <RepaymentRow 
