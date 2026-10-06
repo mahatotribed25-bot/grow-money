@@ -38,6 +38,7 @@ type AdminSettings = {
   delayCompensationEnabled?: boolean;
   delayBonusPerDay?: number;
   maxBonusDays?: number;
+  adminProfitBalance?: number;
 };
 
 type WithdrawalRequest = {
@@ -138,7 +139,7 @@ export default function WithdrawalsPage() {
         delayBonusAmountPerDay: adminSettings.delayBonusPerDay,
         delayBonusStartDate: serverTimestamp()
     };
-    // Non-blocking update
+    
     updateDoc(withdrawalRef, updateData)
     .then(() => {
         toast({ title: 'Bonus Activated', description: `Daily bonus of ₹${adminSettings.delayBonusPerDay} is now active for ${withdrawal.name}.` });
@@ -204,7 +205,6 @@ export default function WithdrawalsPage() {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        // Compress to 60% quality JPEG
         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
         setPayoutScreenshot(compressedBase64);
       };
@@ -218,20 +218,27 @@ export default function WithdrawalsPage() {
     const baseAmount = requestToApprove.finalAmount || requestToApprove.amount;
     const totalPayout = baseAmount + calculatedBonus;
     
-    const withdrawalRef = doc(firestore, 'withdrawals', requestToApprove.id);
-    const updateData = {
-        status: 'approved' as const,
-        totalDelayBonus: calculatedBonus,
-        finalAmount: totalPayout,
-        paidDate: serverTimestamp(),
-        reviewedBy: currentAdmin.uid,
-        reviewedAt: serverTimestamp(),
-        payoutScreenshot: payoutScreenshot || '',
-        payoutTransactionId: payoutTid || ''
-    };
+    runTransaction(firestore, async (transaction) => {
+        const withdrawalRef = doc(firestore, 'withdrawals', requestToApprove.id);
+        const settingsRef = doc(firestore, 'settings', 'admin');
+        const settingsDoc = await transaction.get(settingsRef);
 
-    // Non-blocking update
-    updateDoc(withdrawalRef, updateData)
+        transaction.update(withdrawalRef, {
+            status: 'approved',
+            totalDelayBonus: calculatedBonus,
+            finalAmount: totalPayout,
+            paidDate: serverTimestamp(),
+            reviewedBy: currentAdmin.uid,
+            reviewedAt: serverTimestamp(),
+            payoutScreenshot: payoutScreenshot || '',
+            payoutTransactionId: payoutTid || ''
+        });
+
+        if (requestToApprove.gstAmount) {
+            const currentProfit = settingsDoc.data()?.adminProfitBalance || 0;
+            transaction.update(settingsRef, { adminProfitBalance: currentProfit + requestToApprove.gstAmount });
+        }
+    })
     .then(() => {
         toast({ title: 'Withdrawal Approved', description: `Withdrawal for ${requestToApprove.name} has been marked as paid.` });
         setIsPaymentDialogOpen(false);
@@ -239,9 +246,8 @@ export default function WithdrawalsPage() {
     })
     .catch(async () => {
         const permissionError = new FirestorePermissionError({
-          path: withdrawalRef.path,
-          operation: 'update',
-          requestResourceData: updateData,
+          path: `withdrawals/${requestToApprove.id} or settings/admin`,
+          operation: 'write',
         });
         errorEmitter.emit('permission-error', permissionError);
     });
@@ -299,7 +305,7 @@ export default function WithdrawalsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="font-bold">₹{(withdrawal.finalAmount || withdrawal.amount).toFixed(2)}</div>
-                    <div className="text-xs text-destructive"> (inc. ₹{(withdrawal.gstAmount || 0).toFixed(2)} GST)</div>
+                    <div className="text-xs text-destructive"> (inc. ₹{(withdrawal.gstAmount || 0).toFixed(2)} Fee)</div>
                   </TableCell>
                   <TableCell>{withdrawal.upiId}</TableCell>
                   <TableCell>
@@ -406,29 +412,27 @@ export default function WithdrawalsPage() {
                     <Separator className="bg-white/5" />
 
                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Payout Receipt Screenshot</Label>
-                            <input 
-                                type="file" 
-                                id="subadmin-payout-upload"
-                                className="hidden" 
-                                accept="image/*" 
-                                onChange={handlePayoutFileChange} 
-                            />
-                            <Button 
-                                variant="outline" 
-                                type="button"
-                                onClick={() => document.getElementById('subadmin-payout-upload')?.click()}
-                                className="w-full h-14 rounded-2xl border-dashed border-primary/30 bg-primary/5 text-primary font-black uppercase text-[10px] gap-2"
-                            >
-                                <Camera size={18} /> {payoutScreenshot ? 'Change Receipt' : 'Upload Payment Receipt'}
-                            </Button>
-                            {payoutScreenshot && (
-                                <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black/40">
-                                    <Image src={payoutScreenshot} alt="Payout proof" fill className="object-contain" />
-                                </div>
-                            )}
-                        </div>
+                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Payout Receipt Screenshot</Label>
+                        <input 
+                            type="file" 
+                            id="subadmin-payout-upload"
+                            className="hidden" 
+                            accept="image/*" 
+                            onChange={handlePayoutFileChange} 
+                        />
+                        <Button 
+                            variant="outline" 
+                            type="button"
+                            onClick={() => document.getElementById('subadmin-payout-upload')?.click()}
+                            className="w-full h-14 rounded-2xl border-dashed border-primary/30 bg-primary/5 text-primary font-black uppercase text-[10px] gap-2"
+                        >
+                            <Camera size={18} /> {payoutScreenshot ? 'Change Receipt' : 'Upload Payment Receipt'}
+                        </Button>
+                        {payoutScreenshot && (
+                            <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black/40">
+                                <Image src={payoutScreenshot} alt="Payout proof" fill className="object-contain" />
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Official Transaction ID (UTR)</Label>

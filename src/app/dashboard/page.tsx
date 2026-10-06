@@ -108,6 +108,7 @@ type AdminSettings = {
   adminUpi?: string;
   minWithdrawal?: number;
   referralBonus?: number;
+  withdrawalGstPercentage?: number;
 };
 
 const SlideToClaim = ({ onComplete, disabled, label, lockedLabel }: { onComplete: () => void, disabled?: boolean, label: string, lockedLabel?: string }) => {
@@ -650,12 +651,25 @@ function WithdrawButton({ adminSettings, userData, t }: { adminSettings?: AdminS
     const val = parseFloat(amt);
     if (val < (adminSettings?.minWithdrawal || 100)) { toast({ title: "Error", description: "Minimum withdrawal is ₹" + (adminSettings?.minWithdrawal || 100), variant: "destructive" }); return; }
 
+    const feePercent = adminSettings?.withdrawalGstPercentage || 0;
+    const feeAmount = (val * feePercent) / 100;
+    const finalAmount = val - feeAmount;
+
     runTransaction(firestore, async (transaction) => {
         const userRef = doc(firestore, 'users', user.uid);
         const userDoc = await transaction.get(userRef);
         if ((userDoc.data()?.walletBalance || 0) < val) throw new Error("Insufficient Balance");
         transaction.update(userRef, { walletBalance: (userDoc.data()?.walletBalance || 0) - val });
-        transaction.set(doc(collection(firestore, 'withdrawals')), { userId: user.uid, name: user.displayName, amount: val, upiId: userData.upiId, status: 'pending', createdAt: serverTimestamp() });
+        transaction.set(doc(collection(firestore, 'withdrawals')), { 
+            userId: user.uid, 
+            name: user.displayName, 
+            amount: val, 
+            gstAmount: feeAmount,
+            finalAmount: finalAmount,
+            upiId: userData.upiId, 
+            status: 'pending', 
+            createdAt: serverTimestamp() 
+        });
     }).then(() => { 
         setIsDialogOpen(false); 
         setIsDispensing(true); 

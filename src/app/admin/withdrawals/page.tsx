@@ -18,8 +18,10 @@ import {
   doc, 
   updateDoc, 
   writeBatch, 
+  collection, 
   serverTimestamp, 
-  increment 
+  increment,
+  runTransaction
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -46,6 +48,7 @@ type AdminSettings = {
   delayCompensationEnabled?: boolean;
   delayBonusPerDay?: number;
   maxBonusDays?: number;
+  adminProfitBalance?: number;
 };
 
 type WithdrawalRequest = {
@@ -104,45 +107,79 @@ export default function WithdrawalsPage() {
     if (selectedIds.length === 0 || !currentAdmin) return;
     
     setIsProcessing(true);
-    const batch = writeBatch(firestore);
-    let processedCount = 0;
+    
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const settingsRef = doc(firestore, 'settings', 'admin');
+            const settingsDoc = await transaction.get(settingsRef);
+            let currentProfit = settingsDoc.data()?.adminProfitBalance || 0;
+            let profitToAdd = 0;
 
-    for (const id of selectedIds) {
-      const withdrawal = filteredWithdrawals.find(w => w.id === id);
-      if (withdrawal && withdrawal.status === 'pending') {
-        const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
-        const userRef = doc(firestore, 'users', withdrawal.userId);
+            for (const id of selectedIds) {
+                const withdrawal = filteredWithdrawals.find(w => w.id === id);
+                if (withdrawal && withdrawal.status === 'pending') {
+                    const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
+                    const userRef = doc(firestore, 'users', withdrawal.userId);
 
-        if (newStatus === 'rejected') {
-          batch.update(userRef, { walletBalance: increment(withdrawal.amount) });
-          batch.update(withdrawalRef, { status: 'rejected', reviewedBy: currentAdmin.uid, reviewedAt: serverTimestamp() });
-        } else {
-          batch.update(withdrawalRef, { status: 'approved', paidDate: serverTimestamp(), finalAmount: withdrawal.finalAmount || withdrawal.amount, reviewedBy: currentAdmin.uid, reviewedAt: serverTimestamp() });
-        }
-        processedCount++;
-      }
+                    if (newStatus === 'rejected') {
+                        transaction.update(userRef, { walletBalance: increment(withdrawal.amount) });
+                        transaction.update(withdrawalRef, { status: 'rejected', reviewedBy: currentAdmin.uid, reviewedAt: serverTimestamp() });
+                    } else {
+                        transaction.update(withdrawalRef, { 
+                            status: 'approved', 
+                            paidDate: serverTimestamp(), 
+                            finalAmount: withdrawal.finalAmount || withdrawal.amount, 
+                            reviewedBy: currentAdmin.uid, 
+                            reviewedAt: serverTimestamp() 
+                        });
+                        profitToAdd += (withdrawal.gstAmount || 0);
+                    }
+                }
+            }
+            
+            if (profitToAdd > 0) {
+                transaction.update(settingsRef, { adminProfitBalance: currentProfit + profitToAdd });
+            }
+        });
+
+        toast({ title: `Batch Action Complete` });
+        setSelectedIds([]);
+    } catch (e) {
+        toast({ title: "Batch Action Failed", variant: "destructive" });
+    } finally {
+        setIsProcessing(false);
     }
-
-    batch.commit()
-    .then(() => { toast({ title: `${processedCount} Requests Processed` }); setSelectedIds([]); })
-    .catch(() => toast({ title: "Batch Action Failed", variant: "destructive" }))
-    .finally(() => setIsProcessing(false));
   };
 
   const handleUpdateStatus = (withdrawal: WithdrawalRequest, newStatus: 'approved' | 'rejected') => {
       if(!currentAdmin) return;
-      const batch = writeBatch(firestore);
-      const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
-      const userRef = doc(firestore, 'users', withdrawal.userId);
+      
+      runTransaction(firestore, async (transaction) => {
+          const withdrawalRef = doc(firestore, 'withdrawals', withdrawal.id);
+          const userRef = doc(firestore, 'users', withdrawal.userId);
+          const settingsRef = doc(firestore, 'settings', 'admin');
+          const settingsDoc = await transaction.get(settingsRef);
 
-      if (newStatus === 'rejected') {
-          batch.update(userRef, { walletBalance: increment(withdrawal.amount) });
-          batch.update(withdrawalRef, { status: 'rejected', reviewedBy: currentAdmin.uid, reviewedAt: serverTimestamp() });
-      } else {
-          batch.update(withdrawalRef, { status: 'approved', paidDate: serverTimestamp(), finalAmount: withdrawal.finalAmount || withdrawal.amount, reviewedBy: currentAdmin.uid, reviewedAt: serverTimestamp() });
-      }
-
-      batch.commit().then(() => toast({ title: `Withdrawal ${newStatus}` })).catch(() => toast({ title: "Update Failed", variant: "destructive" }));
+          if (newStatus === 'rejected') {
+              transaction.update(userRef, { walletBalance: increment(withdrawal.amount) });
+              transaction.update(withdrawalRef, { status: 'rejected', reviewedBy: currentAdmin.uid, reviewedAt: serverTimestamp() });
+          } else {
+              transaction.update(withdrawalRef, { 
+                  status: 'approved', 
+                  paidDate: serverTimestamp(), 
+                  finalAmount: withdrawal.finalAmount || withdrawal.amount, 
+                  reviewedBy: currentAdmin.uid, 
+                  reviewedAt: serverTimestamp() 
+              });
+              
+              if (withdrawal.gstAmount) {
+                  const currentProfit = settingsDoc.data()?.adminProfitBalance || 0;
+                  transaction.update(settingsRef, { adminProfitBalance: currentProfit + withdrawal.gstAmount });
+              }
+          }
+      })
+      .then(() => toast({ title: `Withdrawal ${newStatus}` }))
+      .catch(() => toast({ title: "Update Failed", variant: "destructive" }));
   };
 
   const handleActivateBonus = (withdrawal: WithdrawalRequest) => {
@@ -178,17 +215,35 @@ export default function WithdrawalsPage() {
 
   const handleConfirmPaymentSent = () => {
     if (!requestToApprove || !currentAdmin) return;
-    const total = (requestToApprove.finalAmount || requestToApprove.amount) + calculatedBonus;
-    updateDoc(doc(firestore, 'withdrawals', requestToApprove.id), {
-        status: 'approved',
-        totalDelayBonus: calculatedBonus,
-        finalAmount: total,
-        paidDate: serverTimestamp(),
-        reviewedBy: currentAdmin.uid,
-        reviewedAt: serverTimestamp(),
-        payoutScreenshot: payoutScreenshot || '',
-        payoutTransactionId: payoutTid || ''
-    }).then(() => { toast({ title: 'Payment Confirmed' }); setIsPaymentDialogOpen(false); });
+    const baseAmount = requestToApprove.finalAmount || requestToApprove.amount;
+    const total = baseAmount + calculatedBonus;
+    
+    runTransaction(firestore, async (transaction) => {
+        const withdrawalRef = doc(firestore, 'withdrawals', requestToApprove.id);
+        const settingsRef = doc(firestore, 'settings', 'admin');
+        const settingsDoc = await transaction.get(settingsRef);
+
+        transaction.update(withdrawalRef, {
+            status: 'approved',
+            totalDelayBonus: calculatedBonus,
+            finalAmount: total,
+            paidDate: serverTimestamp(),
+            reviewedBy: currentAdmin.uid,
+            reviewedAt: serverTimestamp(),
+            payoutScreenshot: payoutScreenshot || '',
+            payoutTransactionId: payoutTid || ''
+        });
+
+        if (requestToApprove.gstAmount) {
+            const currentProfit = settingsDoc.data()?.adminProfitBalance || 0;
+            transaction.update(settingsRef, { adminProfitBalance: currentProfit + requestToApprove.gstAmount });
+        }
+    })
+    .then(() => { 
+        toast({ title: 'Payment Confirmed' }); 
+        setIsPaymentDialogOpen(false); 
+    })
+    .catch(() => toast({ title: "Failed to confirm payment", variant: "destructive" }));
   };
 
   const totalPayout = requestToApprove ? (requestToApprove.finalAmount || requestToApprove.amount) + calculatedBonus : 0;
@@ -200,8 +255,8 @@ export default function WithdrawalsPage() {
         <h2 className="text-2xl font-bold">Payouts</h2>
         {selectedIds.length > 0 && (
           <div className="flex gap-2">
-            <Button size="sm" onClick={() => handleBatchAction('approved')} disabled={isProcessing} className="bg-green-600 h-8 rounded-lg font-bold text-[10px]">APPROVE ALL</Button>
-            <Button size="sm" variant="destructive" onClick={() => handleBatchAction('rejected')} disabled={isProcessing} className="h-8 rounded-lg font-bold text-[10px]">REJECT ALL</Button>
+            <Button size="sm" type="button" onClick={() => handleBatchAction('approved')} disabled={isProcessing} className="bg-green-600 h-8 rounded-lg font-bold text-[10px]">APPROVE ALL</Button>
+            <Button size="sm" type="button" variant="destructive" onClick={() => handleBatchAction('rejected')} disabled={isProcessing} className="h-8 rounded-lg font-bold text-[10px]">REJECT ALL</Button>
           </div>
         )}
       </div>
@@ -243,10 +298,10 @@ export default function WithdrawalsPage() {
                     <div className="flex justify-end gap-2">
                         {withdrawal.status === 'pending' && (
                           <>
-                            <Button variant="outline" size="sm" className="bg-green-600/10 text-green-500 font-bold text-[10px]" onClick={() => openApproveDialog(withdrawal)}>PAY</Button>
-                            <Button variant="outline" size="sm" className="bg-red-600/10 text-red-500 font-bold text-[10px]" onClick={() => handleUpdateStatus(withdrawal, 'rejected')}>X</Button>
+                            <Button variant="outline" size="sm" type="button" className="bg-green-600/10 text-green-500 font-bold text-[10px]" onClick={() => openApproveDialog(withdrawal)}>PAY</Button>
+                            <Button variant="outline" size="sm" type="button" className="bg-red-600/10 text-red-500 font-bold text-[10px]" onClick={() => handleUpdateStatus(withdrawal, 'rejected')}>X</Button>
                              {adminSettings?.delayCompensationEnabled && !withdrawal.delayBonusActive && (
-                                <Button variant="outline" size="sm" className="bg-blue-600/10 text-blue-400 font-bold text-[9px]" onClick={() => handleActivateBonus(withdrawal)}>BONUS</Button>
+                                <Button variant="outline" size="sm" type="button" className="bg-blue-600/10 text-blue-400 font-bold text-[9px]" onClick={() => handleActivateBonus(withdrawal)}>BONUS</Button>
                             )}
                           </>
                         )}
@@ -274,7 +329,7 @@ export default function WithdrawalsPage() {
                         <Label className="text-[10px] font-black uppercase text-white/20 pl-1">User UPI ID</Label>
                         <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-center">
                             <span className="font-mono text-sm font-bold text-primary">{requestToApprove?.upiId}</span>
-                            <Button variant="ghost" size="icon" onClick={() => navigator.clipboard.writeText(requestToApprove?.upiId || '')} className="h-8 w-8"><Copy size={14} /></Button>
+                            <Button variant="ghost" size="icon" type="button" onClick={() => navigator.clipboard.writeText(requestToApprove?.upiId || '')} className="h-8 w-8"><Copy size={14} /></Button>
                         </div>
                     </div>
                     <Separator className="bg-white/5" />
@@ -291,8 +346,8 @@ export default function WithdrawalsPage() {
                         </div>
                     </div>
                     <div className="space-y-3 pt-2">
-                        <Button asChild className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px]"><a href={upiDeeplink}><QrCode size={16} className="mr-2" /> Open UPI App</a></Button>
-                        <Button type="button" onClick={handleConfirmPaymentSent} disabled={!payoutTid} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">CONFIRM & NOTIFY USER</Button>
+                        <Button asChild type="button" className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px]"><a href={upiDeeplink}><QrCode size={16} className="mr-2" /> Open UPI App</a></Button>
+                        <Button type="button" onClick={handleConfirmPaymentSent} disabled={!payoutTid} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-2xl shadow-primary/20">AUTHORIZE SETTLEMENT</Button>
                     </div>
                 </div>
             </ScrollArea>

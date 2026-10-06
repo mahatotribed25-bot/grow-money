@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCollection, useFirestore, useDoc, useUser } from '@/firebase';
-import { doc, runTransaction, serverTimestamp, collection, getDocs, writeBatch, type Timestamp } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp, collection, getDocs, writeBatch, type Timestamp, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { 
     IndianRupee, 
@@ -105,6 +105,14 @@ type LoanPlan = {
     tax?: number;
 };
 
+type WithdrawalTransaction = {
+    id: string;
+    amount: number;
+    gstAmount?: number;
+    status: string;
+    createdAt: Timestamp;
+};
+
 const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
 export default function AdminFinancePage() {
@@ -126,6 +134,7 @@ export default function AdminFinancePage() {
     const { data: standardLoans } = useCollection<StandardLoanRequest>(isAdmin ? 'loanRequests' : null);
     const { data: customLoans } = useCollection<CustomLoanRequest>(isAdmin ? 'customLoanRequests' : null);
     const { data: loanPlans } = useCollection<LoanPlan>(isAdmin ? 'loanPlans' : null);
+    const { data: userWithdrawals } = useCollection<WithdrawalTransaction>(isAdmin ? 'withdrawals' : null);
 
     const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
     const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
@@ -135,7 +144,7 @@ export default function AdminFinancePage() {
     const calcStartDate = settings?.profitCalculationStartDate;
 
     const stats = useMemo(() => {
-        if (!investments || !plans || !standardLoans || !customLoans || !loanPlans) return null;
+        if (!investments || !plans || !standardLoans || !customLoans || !loanPlans || !userWithdrawals) return null;
 
         const filterByDate = (item: any) => {
             if (!calcStartDate) return true;
@@ -147,6 +156,7 @@ export default function AdminFinancePage() {
         const filteredP2PLoans = p2pLoans?.filter(filterByDate);
         const filteredStdLoans = standardLoans.filter(filterByDate);
         const filteredCustomLoans = customLoans.filter(filterByDate);
+        const filteredWithdrawals = userWithdrawals.filter(filterByDate);
 
         const planStats = plans.map(plan => {
             const planInvestments = filteredInvestments.filter(inv => inv.planName === plan.name);
@@ -175,19 +185,24 @@ export default function AdminFinancePage() {
         
         const customCapitalOut = customLoansActive.reduce((sum, l) => sum + l.requestedAmount, 0);
 
+        const totalWithdrawalFees = filteredWithdrawals
+            .filter(w => w.status === 'approved')
+            .reduce((sum, w) => sum + (w.gstAmount || 0), 0);
+
         return {
             planStats,
             totalOverallRevenue: planStats.reduce((sum, p) => sum + p.totalRevenue, 0),
-            totalOverallProfit: totalInvestmentProfit + p2pProfit + stdLoanProfit + customLoanProfit,
+            totalOverallProfit: totalInvestmentProfit + p2pProfit + stdLoanProfit + customLoanProfit + totalWithdrawalFees,
             p2pProfit,
             stdLoanProfit,
             customLoanProfit,
+            totalWithdrawalFees,
             totalLoanProfit: stdLoanProfit + customLoanProfit,
             totalCapitalOut: stdCapitalOut + customCapitalOut,
             stdCapitalOut,
             customCapitalOut
         };
-    }, [investments, plans, p2pLoans, standardLoans, customLoans, loanPlans, calcStartDate]);
+    }, [investments, plans, p2pLoans, standardLoans, customLoans, loanPlans, userWithdrawals, calcStartDate]);
 
     const handleWithdrawProfit = async () => {
         const amount = parseFloat(withdrawAmount);
@@ -237,10 +252,10 @@ export default function AdminFinancePage() {
                     <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">System Earnings & Payouts</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setIsResetDialogOpen(true)} className="border-red-500/20 text-red-400 font-bold h-11 rounded-xl uppercase text-[10px]">
+                    <Button variant="outline" type="button" onClick={() => setIsResetDialogOpen(true)} className="border-red-500/20 text-red-400 font-bold h-11 rounded-xl uppercase text-[10px]">
                         <RefreshCcw className="mr-2 h-4 w-4" /> Reset History
                     </Button>
-                    <Button onClick={() => setIsWithdrawDialogOpen(true)} className="bg-white text-black hover:bg-primary hover:text-white font-black h-11 rounded-xl uppercase text-[10px] px-6">
+                    <Button onClick={() => setIsWithdrawDialogOpen(true)} type="button" className="bg-white text-black hover:bg-primary hover:text-white font-black h-11 rounded-xl uppercase text-[10px] px-6">
                         <IndianRupee className="mr-2 h-4 w-4" /> Withdraw Earnings
                     </Button>
                 </div>
@@ -248,19 +263,19 @@ export default function AdminFinancePage() {
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl p-6">
-                    <p className="text-[10px] uppercase font-black tracking-widest text-white/40 mb-2">My Profit Balance</p>
+                    <p className="text-[9px] uppercase font-black tracking-widest text-white/40 mb-2">My Profit Balance</p>
                     <p className="text-3xl font-black text-white">₹{profitBalance.toFixed(2)}</p>
                 </Card>
                 <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl p-6">
-                    <p className="text-[10px] uppercase font-black tracking-widest text-white/40 mb-2">Total Sales Volume</p>
+                    <p className="text-[9px] uppercase font-black tracking-widest text-white/40 mb-2">Total Sales Volume</p>
                     <p className="text-3xl font-black text-blue-400">₹{stats?.totalOverallRevenue.toLocaleString()}</p>
                 </Card>
                 <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl p-6">
-                    <p className="text-[10px] uppercase font-black tracking-widest text-white/40 mb-2">Net Earnings</p>
+                    <p className="text-[9px] uppercase font-black tracking-widest text-white/40 mb-2">Net Earnings</p>
                     <p className="text-3xl font-black text-green-400">₹{stats?.totalOverallProfit.toLocaleString()}</p>
                 </Card>
                 <Card className="bg-white/[0.03] border-white/[0.08] rounded-3xl p-6">
-                    <p className="text-[10px] uppercase font-black tracking-widest text-white/40 mb-2">Capital on Loans</p>
+                    <p className="text-[9px] uppercase font-black tracking-widest text-white/40 mb-2">Capital on Loans</p>
                     <p className="text-3xl font-black text-primary">₹{stats?.totalCapitalOut.toLocaleString()}</p>
                 </Card>
             </div>
@@ -296,7 +311,7 @@ export default function AdminFinancePage() {
 
                 <Card className="lg:col-span-3 bg-white/[0.03] border-white/[0.08] rounded-[2rem] p-8 flex flex-col space-y-6">
                     <CardTitle className="text-sm font-black uppercase text-white flex items-center gap-2">
-                        <HandCoins className="h-4 w-4" /> Loan Portfolio
+                        <HandCoins className="h-4 w-4" /> Platform Revenue Nodes
                     </CardTitle>
                     <div className="space-y-6">
                         <div className="flex justify-between items-center group">
@@ -313,14 +328,21 @@ export default function AdminFinancePage() {
                             </div>
                             <p className="text-sm font-black text-white">₹{stats?.customLoanProfit.toLocaleString()}</p>
                         </div>
+                         <div className="flex justify-between items-center group">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 border border-purple-500/20"><Wallet size={18}/></div>
+                                <div><p className="text-xs font-black text-white/80">Withdrawal Fees</p><p className="text-[8px] text-white/20 uppercase font-bold">Platform Commission</p></div>
+                            </div>
+                            <p className="text-sm font-black text-white">₹{stats?.totalWithdrawalFees.toLocaleString()}</p>
+                        </div>
                     </div>
                     <Separator className="bg-white/5" />
                     <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 flex justify-between items-center">
                         <div>
-                            <p className="text-[9px] font-black text-primary uppercase">Estimated Return</p>
+                            <p className="text-[9px] font-black text-primary uppercase">Projected Portfolio</p>
                             <p className="text-xl font-black text-white">₹{(stats?.totalCapitalOut! + stats?.totalLoanProfit!).toLocaleString()}</p>
                         </div>
-                        <Badge className="bg-primary text-white text-[8px] font-black uppercase h-5">Target</Badge>
+                        <Badge className="bg-primary text-white text-[8px] font-black uppercase h-5 px-2">Projected</Badge>
                     </div>
                 </Card>
             </div>
@@ -341,7 +363,7 @@ export default function AdminFinancePage() {
                             <Input type="number" placeholder="0" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} className="bg-white/5 border-white/10 h-12 rounded-xl text-lg font-bold" />
                         </div>
                     </div>
-                    <DialogFooter><Button onClick={handleWithdrawProfit} className="w-full h-14 rounded-2xl font-black bg-white text-black hover:bg-primary hover:text-white uppercase text-xs">Authorize Payment</Button></DialogFooter>
+                    <DialogFooter><Button onClick={handleWithdrawProfit} type="button" className="w-full h-14 rounded-2xl font-black bg-white text-black hover:bg-primary hover:text-white uppercase text-xs">Authorize Payment</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
