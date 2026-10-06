@@ -87,7 +87,7 @@ type CustomLoanRequest = {
   penalty?: number;
   extensionRequestedDays?: number;
   
-  // New Proof Fields
+  // Proof Fields
   adminDispatchScreenshot?: string;
   adminDispatchTid?: string;
   userPaymentScreenshot?: string;
@@ -231,11 +231,7 @@ export default function CustomLoansPage() {
             setIsApproveDialogOpen(false);
         })
         .catch(async () => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: requestRef.path,
-                operation: 'update',
-                requestResourceData: updateData
-            }));
+            toast({ title: "Failed to send offer", variant: "destructive" });
         });
   };
 
@@ -280,7 +276,10 @@ export default function CustomLoansPage() {
     
     runTransaction(firestore, async (transaction) => {
         const settingsDoc = await transaction.get(settingsRef);
-        const currentUsage = settingsDoc.data()?.currentCustomLoanUsage || 0;
+        let currentUsage = 0;
+        if (settingsDoc.exists()) {
+            currentUsage = settingsDoc.data().currentCustomLoanUsage || 0;
+        }
         transaction.update(requestRef, { status: 'completed', settledAt: serverTimestamp() });
         transaction.update(settingsRef, { currentCustomLoanUsage: Math.max(0, currentUsage - request.requestedAmount) });
     })
@@ -296,7 +295,8 @@ export default function CustomLoansPage() {
   };
 
   const handleWhatsAppNotify = (request: CustomLoanRequest, user: UserData | null, type: 'approval' | 'completion' = 'approval') => {
-      if (!user?.phoneNumber) {
+      const phone = user?.phoneNumber || '';
+      if (!phone) {
           toast({ title: "Phone number not found", variant: "destructive" });
           return;
       }
@@ -308,11 +308,12 @@ export default function CustomLoansPage() {
           message = `🚀 *Grow Money: Loan Settled!* 🚀\n\nHello *${request.userName}*,\n\nThank you for choosing *Grow Money*! Your loan has been successfully closed. It was a pleasure working with you, and we truly appreciate your timely settlement.\n\nWe look forward to supporting your future growth! 🙏💰`;
       }
       
-      window.open(`https://wa.me/91${user.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+      window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const handleEmailNotify = (request: CustomLoanRequest, user: UserData | null, type: 'approval' | 'completion' = 'approval') => {
-      if (!user?.email) {
+      const email = user?.email || '';
+      if (!email) {
           toast({ title: "Email not found", variant: "destructive" });
           return;
       }
@@ -328,7 +329,7 @@ export default function CustomLoansPage() {
           body = `Hello ${request.userName},\n\nThank you for being part of Grow Money! Your loan has been successfully closed and archived.\n\nWe really enjoyed working with you and look forward to assisting you again in the future.\n\nBest Regards,\nTeam Grow Money`;
       }
 
-      window.location.href = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const upiDeeplink = requestToUpdate?.upiId ? `upi://pay?pa=${requestToUpdate.upiId}&pn=${encodeURIComponent(requestToUpdate.userName)}&am=${requestToUpdate.requestedAmount.toFixed(2)}&cu=INR` : '';

@@ -113,34 +113,6 @@ type CustomLoanRequest = {
   adminDispatchTid?: string;
 };
 
-const TimeRemaining = ({ targetDate }: { targetDate: Date }) => {
-    const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0 });
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const now = new Date();
-            const diff = targetDate.getTime() - now.getTime();
-            if (diff <= 0) {
-                clearInterval(interval);
-                return;
-            }
-            setTimeLeft({
-                d: Math.floor(diff / (1000 * 60 * 60 * 24)),
-                h: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-                m: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
-                s: Math.floor((diff % (1000 * 60)) / 1000)
-            });
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [targetDate]);
-
-    return (
-        <span className="font-mono font-black text-foreground/80 tabular-nums text-xs">
-            {timeLeft.d}D {timeLeft.h}H {timeLeft.m}M {timeLeft.s}S
-        </span>
-    );
-};
-
 export default function MyLoansPage() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -222,11 +194,37 @@ export default function MyLoansPage() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
-    reader.onloadend = () => setPaymentScreenshot(reader.result as string);
+    reader.onloadend = async () => {
+      const img = new window.Image();
+      img.src = reader.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const MAX_DIM = 1000;
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        setPaymentScreenshot(canvas.toDataURL('image/jpeg', 0.6));
+      };
+    };
     reader.readAsDataURL(file);
   };
 
@@ -274,8 +272,8 @@ export default function MyLoansPage() {
             batch.update(loanRef, { 
                 status: 'payment_pending', 
                 paidNotificationAt: serverTimestamp(),
-                userPaymentScreenshot: paymentScreenshot || '',
-                userPaymentTid: paymentTid || ''
+                userPaymentScreenshot: paymentScreenshot,
+                userPaymentTid: paymentTid
             });
         } else {
             const originalLoan = processedStandardLoans.find(l => l.id === item.id);
@@ -305,7 +303,7 @@ export default function MyLoansPage() {
         setPaymentScreenshot(null);
         setPaymentTid('');
     } catch (e: any) {
-        toast({ title: 'Update Failed', variant: 'destructive' });
+        toast({ title: 'Update Failed', description: "Could not save records. Image might be too large.", variant: 'destructive' });
     } finally {
         setIsProcessing(false);
     }
@@ -638,8 +636,9 @@ export default function MyLoansPage() {
 }
 
 function RepaymentRow({ date, amount, status, isSelected, onToggle, subtext }: { date: Date, amount: number, status: string, isSelected: boolean, onToggle: () => void, subtext?: string }) {
-    const isPaid = status.toLowerCase() === 'paid' || status.toLowerCase() === 'completed';
-    const isPendingAdmin = status.toLowerCase() === 'payment pending';
+    const s = status.toLowerCase();
+    const isPaid = s === 'paid' || s === 'completed';
+    const isPendingAdmin = s === 'payment pending' || s === 'payment_pending';
     const isSelectable = !isPaid && !isPendingAdmin;
 
     return (
