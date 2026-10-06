@@ -206,15 +206,22 @@ export default function DepositsPage() {
       });
   };
 
+  const openNotifyDialog = async (deposit: DepositRequest) => {
+      const userSnap = await getDoc(doc(firestore, 'users', deposit.userId));
+      const userData = userSnap.exists() ? userSnap.data() as UserData : {};
+      setNotifyTarget({ ...deposit, ...userData });
+      setIsNotifyOpen(true);
+  };
+
   const handleWhatsAppNotify = () => {
       if (!notifyTarget?.phoneNumber) return;
-      const message = `Hello *${notifyTarget.name}*, your Deposit of *₹${notifyTarget.amount}* has been approved and added to your wallet. Thank you for choosing Grow Money! 💰`;
+      const message = `💰 *Grow Money: Deposit Credited!* 💰\n\nHello *${notifyTarget.name}*,\n\nYour deposit of *₹${notifyTarget.amount}* has been verified and added to your wallet. You are now ready to invest and build your wealth node!\n\nThank you for your trust.\n*Team Grow Money*`;
       window.open(`https://wa.me/91${notifyTarget.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const handleEmailNotify = () => {
       if (!notifyTarget?.email) return;
-      const subject = `Deposit Approved - Grow Money`;
+      const subject = `Deposit Verified - Grow Money`;
       const body = `Hello ${notifyTarget.name},\n\nYour deposit request for INR ${notifyTarget.amount} (Ref: ${notifyTarget.transactionId}) has been successfully verified and credited to your wallet balance.\n\nYou can now start investing in our plans.\n\nBest Regards,\nGrow Money Team`;
       window.location.href = `mailto:${notifyTarget.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
@@ -346,7 +353,21 @@ export default function DepositsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="pr-6 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end items-center gap-2">
+                        {/* Notify Button for History Persistence */}
+                        {deposit.status === 'approved' && (
+                            <Button 
+                                variant="ghost" 
+                                type="button"
+                                size="icon" 
+                                className="h-8 w-8 text-green-500/40 hover:text-green-500 hover:bg-green-500/10"
+                                onClick={() => openNotifyDialog(deposit)}
+                                title="Notify User Again"
+                            >
+                                <MessageSquare size={16} />
+                            </Button>
+                        )}
+
                         {deposit.screenshot && (
                             <Button 
                                 variant="ghost" 

@@ -264,9 +264,17 @@ export default function WithdrawalsPage() {
     .catch(() => toast({ title: "Failed to confirm payment", variant: "destructive" }));
   };
 
+  const openNotifyDialog = async (withdrawal: WithdrawalRequest) => {
+      const userRef = doc(firestore, 'users', withdrawal.userId);
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.exists() ? userSnap.data() as UserData : {};
+      setNotifyTarget({ ...withdrawal, ...userData, finalAmount: withdrawal.finalAmount || withdrawal.amount });
+      setIsNotifyOpen(true);
+  };
+
   const handleWhatsAppNotify = () => {
       if (!notifyTarget?.phoneNumber) return;
-      const message = `Hello *${notifyTarget.name}*, your Withdrawal request of *₹${notifyTarget.amount}* has been approved. After a platform fee of *₹${notifyTarget.gstAmount || 0}*, an amount of *₹${notifyTarget.finalAmount?.toFixed(2)}* has been credited to your UPI ID: *${notifyTarget.upiId}*. Thank you for choosing Grow Money! 💰`;
+      const message = `💸 *Grow Money: Payout Dispatched!* 💸\n\nHello *${notifyTarget.name}*,\n\nYour withdrawal request for *₹${notifyTarget.amount}* has been settled. After a platform fee of *₹${notifyTarget.gstAmount || 0}*, a net amount of *₹${notifyTarget.finalAmount?.toLocaleString()}* was sent to your UPI: *${notifyTarget.upiId}*.\n\nThank you for being part of our network!\n*Team Grow Money* 💰`;
       window.open(`https://wa.me/91${notifyTarget.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -326,7 +334,19 @@ export default function WithdrawalsPage() {
                   <TableCell className="font-mono text-[10px] text-primary">{withdrawal.upiId}</TableCell>
                   <TableCell><Badge variant="outline" className="text-[9px] uppercase">{withdrawal.status}</Badge></TableCell>
                   <TableCell className="pr-6 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end items-center gap-2">
+                        {withdrawal.status === 'approved' && (
+                             <Button 
+                                variant="ghost" 
+                                type="button"
+                                size="icon" 
+                                className="h-8 w-8 text-blue-400 hover:text-blue-500 hover:bg-blue-500/10"
+                                onClick={() => openNotifyDialog(withdrawal)}
+                                title="Notify User Again"
+                            >
+                                <MessageSquare size={16} />
+                            </Button>
+                        )}
                         {withdrawal.status === 'pending' && (
                           <>
                             <Button variant="outline" size="sm" type="button" className="bg-green-600/10 text-green-500 font-bold text-[10px]" onClick={() => openApproveDialog(withdrawal)}>PAY</Button>

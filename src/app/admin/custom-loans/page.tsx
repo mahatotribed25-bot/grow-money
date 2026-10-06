@@ -26,7 +26,8 @@ import {
     HeartHandshake,
     AlertCircle,
     ShieldAlert,
-    TrendingUp
+    TrendingUp,
+    Mail
 } from 'lucide-react';
 import { useCollection, useFirestore, useDoc } from '@/firebase';
 import {
@@ -85,6 +86,7 @@ type UserData = {
   id: string;
   name: string;
   phoneNumber?: string;
+  email?: string;
   trustScore?: number;
   kycStatus?: string;
 };
@@ -238,17 +240,50 @@ export default function CustomLoansPage() {
         transaction.update(requestRef, { status: 'completed', settledAt: serverTimestamp() });
         transaction.update(settingsRef, { currentCustomLoanUsage: Math.max(0, currentUsage - request.requestedAmount) });
     })
-    .then(() => {
+    .then(async () => {
         toast({ title: 'Loan Completed' });
+        setRequestToUpdate(request);
+        const userDoc = await getDoc(doc(firestore, 'users', request.userId));
+        if (userDoc.exists()) setUserKycData({ id: userDoc.id, ...userDoc.data() } as UserData);
         setIsCompletionNotificationOpen(true);
     })
     .catch(() => toast({ title: 'Error settling loan', variant: 'destructive'}));
   };
 
-  const handleWhatsAppNotify = (request: CustomLoanRequest, user: UserData | null) => {
-      if (!user?.phoneNumber) return;
-      const message = `Hello *${request.userName}*, your Loan of *₹${request.requestedAmount}* is approved and money has been sent. Thank you!`;
+  const handleWhatsAppNotify = (request: CustomLoanRequest, user: UserData | null, type: 'approval' | 'completion' = 'approval') => {
+      if (!user?.phoneNumber) {
+          toast({ title: "Phone number not found", variant: "destructive" });
+          return;
+      }
+      
+      let message = "";
+      if (type === 'approval') {
+          message = `Hello *${request.userName}*, your Flexible Loan of *₹${request.requestedAmount}* has been approved and money has been sent. Thank you! 💰`;
+      } else {
+          message = `🚀 *Grow Money: Loan Settled!* 🚀\n\nHello *${request.userName}*,\n\nThank you for choosing *Grow Money*! Your loan has been successfully closed. It was a pleasure working with you, and we truly appreciate your timely settlement.\n\nWe look forward to supporting your future growth! 🙏💰`;
+      }
+      
       window.open(`https://wa.me/91${user.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleEmailNotify = (request: CustomLoanRequest, user: UserData | null, type: 'approval' | 'completion' = 'approval') => {
+      if (!user?.email) {
+          toast({ title: "Email not found", variant: "destructive" });
+          return;
+      }
+
+      let subject = "";
+      let body = "";
+
+      if (type === 'approval') {
+          subject = "Flexible Loan Approved - Grow Money";
+          body = `Hello ${request.userName},\n\nYour flexible loan request for INR ${request.requestedAmount} has been approved and funds have been dispatched to your account.\n\nThank you for choosing Grow Money!`;
+      } else {
+          subject = "Loan Successfully Closed - Grow Money";
+          body = `Hello ${request.userName},\n\nThank you for being part of Grow Money! Your loan has been successfully closed and archived.\n\nWe really enjoyed working with you and look forward to assisting you again in the future.\n\nBest Regards,\nTeam Grow Money`;
+      }
+
+      window.location.href = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const upiDeeplink = requestToUpdate?.upiId ? `upi://pay?pa=${requestToUpdate.upiId}&pn=${encodeURIComponent(requestToUpdate.userName)}&am=${requestToUpdate.requestedAmount.toFixed(2)}&cu=INR` : '';
@@ -305,7 +340,35 @@ export default function CustomLoansPage() {
                   </TableCell>
                   <TableCell>{getStatusBadge(request.status)}</TableCell>
                   <TableCell className="text-right pr-6">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end items-center gap-2">
+                        {/* Persistent Notification Buttons for history/tracking */}
+                        {['active', 'completed', 'payment_pending', 'extension_pending'].includes(request.status) && (
+                            <div className="flex items-center gap-1.5 mr-2">
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 rounded-lg bg-green-500/5 text-green-500 hover:bg-green-500/20"
+                                    onClick={async () => {
+                                        const userSnap = await getDoc(doc(firestore, 'users', request.userId));
+                                        handleWhatsAppNotify(request, userSnap.exists() ? userSnap.data() as UserData : null, request.status === 'completed' ? 'completion' : 'approval');
+                                    }}
+                                >
+                                    <MessageSquare size={14} />
+                                </Button>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 rounded-lg bg-blue-500/5 text-blue-500 hover:bg-blue-500/20"
+                                    onClick={async () => {
+                                        const userSnap = await getDoc(doc(firestore, 'users', request.userId));
+                                        handleEmailNotify(request, userSnap.exists() ? userSnap.data() as UserData : null, request.status === 'completed' ? 'completion' : 'approval');
+                                    }}
+                                >
+                                    <Mail size={14} />
+                                </Button>
+                            </div>
+                        )}
+
                         {request.status === 'pending_admin_review' && (
                             <Button size="sm" type="button" onClick={() => openApproveDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-primary">REVIEW & OFFER</Button>
                         )}
@@ -313,7 +376,7 @@ export default function CustomLoansPage() {
                             <Button size="sm" type="button" onClick={() => openPaymentDialog(request)} className="h-8 rounded-lg font-black text-[10px] bg-green-600">SEND MONEY</Button>
                         )}
                         {(request.status === 'payment_pending' || request.status === 'active') && (
-                            <Button size="sm" type="button" onClick={() => handleMarkAsCompleted(request)} variant="outline" className="h-8 rounded-lg font-black text-[10px] border-white/10 hover:bg-white/5">CONFIRM SETTLEMENT</Button>
+                            <Button size="sm" type="button" onClick={() => handleMarkAsCompleted(request)} variant="outline" className="h-8 rounded-lg font-black text-[10px] border-white/10 hover:bg-white/5">SETTLE LOAN</Button>
                         )}
                     </div>
                   </TableCell>
@@ -404,10 +467,42 @@ export default function CustomLoansPage() {
                 <DialogTitle className="text-center font-black uppercase">Success!</DialogTitle>
                 <DialogDescription className="text-center text-white/40 text-xs">Notify the user about the payment.</DialogDescription>
             </DialogHeader>
-            <div className="py-6">
-                <Button onClick={() => handleWhatsAppNotify(requestToUpdate!, userKycData)} className="w-full h-14 rounded-xl bg-green-600 font-bold uppercase gap-2">
+            <div className="py-6 flex flex-col gap-3">
+                <Button onClick={() => handleWhatsAppNotify(requestToUpdate!, userKycData, 'approval')} className="w-full h-14 rounded-xl bg-green-600 font-bold uppercase gap-2">
                     <MessageSquare size={18} /> Notify on WhatsApp
                 </Button>
+                <Button onClick={() => handleEmailNotify(requestToUpdate!, userKycData, 'approval')} variant="outline" className="w-full h-14 rounded-xl border-white/10 font-bold uppercase gap-2">
+                    <Mail size={18} /> Send Email
+                </Button>
+            </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Settlement Notification */}
+      <Dialog open={isCompletionNotificationOpen} onOpenChange={setIsCompletionNotificationOpen}>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-3xl max-w-sm">
+            <DialogHeader>
+                <DialogTitle className="text-center font-black uppercase text-xl tracking-tight">Loan Closed!</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-xs pt-2">Send a thank you message to the user.</DialogDescription>
+            </DialogHeader>
+            <div className="py-8 space-y-6">
+                 <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-6 flex flex-col items-center gap-3 text-center">
+                    <div className="h-16 w-16 rounded-full bg-green-500/20 flex items-center justify-center text-green-500 shadow-lg">
+                        <HeartHandshake size={32} />
+                    </div>
+                    <p className="text-xs text-white/60 leading-relaxed font-medium">
+                        "नमस्ते *${requestToUpdate?.userName}*, ग्रो मनी में जुड़ने के लिए धन्यवाद! आपका लोन सफलतापूर्वक क्लोज हो चुका है।"
+                    </p>
+                 </div>
+
+                 <div className="flex flex-col gap-3">
+                    <Button onClick={() => handleWhatsAppNotify(requestToUpdate!, userKycData, 'completion')} className="w-full h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase text-xs tracking-widest gap-2 shadow-xl shadow-green-600/20">
+                        <MessageSquare size={18} /> Send WhatsApp Thanks
+                    </Button>
+                    <Button onClick={() => handleEmailNotify(requestToUpdate!, userKycData, 'completion')} variant="outline" className="w-full h-14 rounded-2xl border-white/10 bg-white/5 text-white font-black uppercase text-xs tracking-widest gap-2">
+                        <Mail size={18} /> Send Official Email
+                    </Button>
+                 </div>
             </div>
         </DialogContent>
       </Dialog>
