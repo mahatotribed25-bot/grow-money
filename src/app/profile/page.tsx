@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -143,7 +142,6 @@ type UserData = {
   upiId?: string;
   upiProvider?: string;
   upiStatus?: 'Unverified' | 'Pending' | 'Verified' | 'Rejected';
-  vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
   trustScore?: number;
   kycStatus?: 'Not Submitted' | 'Pending' | 'Verified' | 'Rejected';
   kycRejectionReason?: string;
@@ -514,9 +512,6 @@ export default function ProfilePage() {
                 </div>
                 <CardDescription className="text-muted-foreground font-medium">{user?.email}</CardDescription>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-2">
-                    <Badge className="bg-primary/20 border-primary/30 text-primary uppercase text-[9px] font-black tracking-widest px-3 py-1 rounded-lg">
-                        {userData?.vipLevel || 'Bronze'} Tier
-                    </Badge>
                     <Badge variant="outline" className="border-border text-muted-foreground text-[9px] font-black tracking-widest uppercase">ID: {user?.uid.slice(-8).toUpperCase()}</Badge>
                 </div>
               </div>
@@ -762,7 +757,7 @@ export default function ProfilePage() {
                                     
                                     {selectedReceipt.type === 'withdrawal' && (
                                         <div className="space-y-3 pt-1">
-                                            <ReceiptRow label="Taxes/Fees" value={`- ₹${(selectedReceipt.tx.gstAmount || 0).toFixed(2)}`} isNegative />
+                                            <ReceiptRow label="Platform Fee" value={`- ₹${(selectedReceipt.tx.gstAmount || 0).toFixed(2)}`} isNegative />
                                             {selectedReceipt.tx.totalDelayBonus ? (
                                                 <ReceiptRow label="Extra Bonus" value={`+ ₹${selectedReceipt.tx.totalDelayBonus.toFixed(2)}`} isPositive />
                                             ) : null}

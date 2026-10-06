@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -13,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Gem, Users, Phone, Zap, PlayCircle, Plus, Trash2, ShieldCheck } from 'lucide-react';
+import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Users, Phone, Zap, PlayCircle, Plus, Trash2, ShieldCheck } from 'lucide-react';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
@@ -36,7 +35,9 @@ type AdminSettings = {
   withdrawalGstPercentage?: number;
   loanPenalty?: number;
   customLoanPenalty?: number;
-  customLoanInterestPer1000?: number;
+  customLoanInterestLow?: number;
+  customLoanInterestHigh?: number;
+  customLoanThreshold?: number;
   customLoanUpi?: string;
   kycGoogleFormUrl?: string;
   kycValidityDays?: number;
@@ -53,17 +54,6 @@ type AdminSettings = {
   p2pPlatformFeePercent?: number;
   spinCost?: number;
   spinRewards?: number[];
-  vipTiers?: {
-    silver: number;
-    gold: number;
-    platinum: number;
-  };
-  vipWithdrawalGst?: {
-    bronze: number;
-    silver: number;
-    gold: number;
-    platinum: number;
-  };
   homepageVideoUrls?: string[];
 };
 
@@ -82,7 +72,9 @@ export default function SettingsPage() {
   const [withdrawalGstPercentage, setWithdrawalGstPercentage] = useState(0);
   const [loanPenalty, setLoanPenalty] = useState(0);
   const [customLoanPenalty, setCustomLoanPenalty] = useState(0);
-  const [customLoanInterest, setCustomLoanInterest] = useState(5);
+  const [customLoanInterestLow, setCustomLoanInterestLow] = useState(5);
+  const [customLoanInterestHigh, setCustomLoanInterestHigh] = useState(8);
+  const [customLoanThreshold, setCustomLoanThreshold] = useState(5000);
   const [customLoanUpi, setCustomLoanUpi] = useState('');
   const [kycGoogleFormUrl, setKycGoogleFormUrl] = useState('');
   const [kycValidityDays, setKycValidityDays] = useState(365);
@@ -106,10 +98,6 @@ export default function SettingsPage() {
   // Engagement State
   const [dailyCheckInBonus, setDailyCheckInBonus] = useState(0);
 
-  // VIP State
-  const [vipTiers, setVipTiers] = useState({ silver: 0, gold: 0, platinum: 0 });
-  const [vipGst, setVipGst] = useState({ bronze: 0, silver: 0, gold: 0, platinum: 0 });
-
   // Password change state
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -127,7 +115,9 @@ export default function SettingsPage() {
       setWithdrawalGstPercentage(settings.withdrawalGstPercentage || 0);
       setLoanPenalty(settings.loanPenalty || 0);
       setCustomLoanPenalty(settings.customLoanPenalty || 0);
-      setCustomLoanInterest(settings.customLoanInterestPer1000 || 5);
+      setCustomLoanInterestLow(settings.customLoanInterestLow ?? 5);
+      setCustomLoanInterestHigh(settings.customLoanInterestHigh ?? 8);
+      setCustomLoanThreshold(settings.customLoanThreshold ?? 5000);
       setCustomLoanUpi(settings.customLoanUpi || '');
       setKycGoogleFormUrl(settings.kycGoogleFormUrl || '');
       setKycValidityDays(settings.kycValidityDays || 365);
@@ -150,9 +140,6 @@ export default function SettingsPage() {
       if (settings.spinRewards) {
           setSpinRewards(settings.spinRewards.join(', '));
       }
-
-      setVipTiers(settings.vipTiers || { silver: 0, gold: 0, platinum: 0 });
-      setVipGst(settings.vipWithdrawalGst || { bronze: 0, silver: 0, gold: 0, platinum: 0 });
 
       const isCurrentlyUnderMaintenance = settings.maintenanceEndTime
         ? settings.maintenanceEndTime.toDate() > new Date()
@@ -178,7 +165,9 @@ export default function SettingsPage() {
       withdrawalGstPercentage: Number(withdrawalGstPercentage),
       loanPenalty: Number(loanPenalty),
       customLoanPenalty: Number(customLoanPenalty),
-      customLoanInterestPer1000: Number(customLoanInterest),
+      customLoanInterestLow: Number(customLoanInterestLow),
+      customLoanInterestHigh: Number(customLoanInterestHigh),
+      customLoanThreshold: Number(customLoanThreshold),
       customLoanUpi,
       kycGoogleFormUrl: kycGoogleFormUrl,
       kycValidityDays: Number(kycValidityDays),
@@ -191,8 +180,6 @@ export default function SettingsPage() {
       p2pPlatformFeePercent: Number(p2pFee),
       spinCost: Number(spinCost),
       spinRewards: rewardsArray,
-      vipTiers,
-      vipWithdrawalGst: vipGst,
       homepageVideoUrls: homepageVideoUrls.filter(u => u.trim() !== ''),
     };
 
@@ -615,52 +602,6 @@ export default function SettingsPage() {
                 </div>
                 <Separator />
 
-                 <div>
-                    <CardTitle className="flex items-center gap-2"><Gem /> VIP Level Settings</CardTitle>
-                     <CardDescription>
-                        Set the total investment amount required to reach each VIP level.
-                    </CardDescription>
-                    <div className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="vip-silver">Silver Level Threshold</Label>
-                            <Input id="vip-silver" type="number" placeholder="e.g., 10000" value={vipTiers.silver} onChange={(e) => setVipTiers({...vipTiers, silver: Number(e.target.value)})} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="vip-gold">Gold Level Threshold</Label>
-                            <Input id="vip-gold" type="number" placeholder="e.g., 50000" value={vipTiers.gold} onChange={(e) => setVipTiers({...vipTiers, gold: Number(e.target.value)})} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="vip-platinum">Platinum Level Threshold</Label>
-                            <Input id="vip-platinum" type="number" placeholder="e.g., 100000" value={vipTiers.platinum} onChange={(e) => setVipTiers({...vipTiers, platinum: Number(e.target.value)})} />
-                        </div>
-                    </div>
-                </div>
-                 <Separator />
-                 <div>
-                    <CardTitle className="flex items-center gap-2"><Gem /> VIP Benefits Settings</CardTitle>
-                     <CardDescription>
-                        Set the withdrawal GST percentage for each VIP level.
-                    </CardDescription>
-                    <div className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="gst-bronze">Bronze GST (%)</Label>
-                            <Input id="gst-bronze" type="number" placeholder="e.g., 5" value={vipGst.bronze} onChange={(e) => setVipGst({...vipGst, bronze: Number(e.target.value)})} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="gst-silver">Silver GST (%)</Label>
-                            <Input id="gst-silver" type="number" placeholder="e.g., 4" value={vipGst.silver} onChange={(e) => setVipGst({...vipGst, silver: Number(e.target.value)})} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="gst-gold">Gold GST (%)</Label>
-                            <Input id="gst-gold" type="number" placeholder="e.g., 3" value={vipGst.gold} onChange={(e) => setVipGst({...vipGst, gold: Number(e.target.value)})} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="gst-platinum">Platinum GST (%)</Label>
-                            <Input id="gst-platinum" type="number" placeholder="e.g., 2" value={vipGst.platinum} onChange={(e) => setVipGst({...vipGst, platinum: Number(e.target.value)})} />
-                        </div>
-                    </div>
-                </div>
-                <Separator />
                 <div>
                     <CardTitle className="flex items-center gap-2"><UserPlus /> User Engagement</CardTitle>
                     <div className="space-y-4 mt-4">
@@ -731,7 +672,7 @@ export default function SettingsPage() {
                             </p>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="withdrawal-gst">Default Withdrawal GST (%)</Label>
+                            <Label htmlFor="withdrawal-gst">Default Platform Fee (%)</Label>
                             <Input
                             id="withdrawal-gst"
                             type="number"
@@ -740,7 +681,7 @@ export default function SettingsPage() {
                             onChange={(e) => setWithdrawalGstPercentage(Number(e.target.value))}
                             />
                              <p className="text-sm text-muted-foreground">
-                                Default tax to deduct if a user is not in a special VIP tier.
+                                Default fee to deduct when a user withdraws funds.
                             </p>
                         </div>
                     </div>
@@ -779,18 +720,38 @@ export default function SettingsPage() {
                 <div>
                     <CardTitle>Loan Settings</CardTitle>
                      <div className="space-y-4 mt-4">
-                         <div className="space-y-2">
-                            <Label htmlFor="custom-loan-interest">Daily Custom Loan Interest (per ₹1000)</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="custom-loan-interest-low">Interest (per ₹1000) for Small Loans</Label>
+                                <Input
+                                    id="custom-loan-interest-low"
+                                    type="number"
+                                    placeholder="e.g., 5"
+                                    value={customLoanInterestLow}
+                                    onChange={(e) => setCustomLoanInterestLow(Number(e.target.value))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="custom-loan-interest-high">Interest (per ₹1000) for Large Loans</Label>
+                                <Input
+                                    id="custom-loan-interest-high"
+                                    type="number"
+                                    placeholder="e.g., 8"
+                                    value={customLoanInterestHigh}
+                                    onChange={(e) => setCustomLoanInterestHigh(Number(e.target.value))}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="custom-loan-threshold">Large Loan Threshold (₹)</Label>
                             <Input
-                                id="custom-loan-interest"
+                                id="custom-loan-threshold"
                                 type="number"
-                                placeholder="e.g., 5"
-                                value={customLoanInterest}
-                                onChange={(e) => setCustomLoanInterest(Number(e.target.value))}
+                                placeholder="e.g., 5000"
+                                value={customLoanThreshold}
+                                onChange={(e) => setCustomLoanThreshold(Number(e.target.value))}
                             />
-                            <p className="text-sm text-muted-foreground">
-                                The amount of interest charged per day for every ₹1000 of the loan amount.
-                            </p>
+                            <p className="text-sm text-muted-foreground">Loans above this amount will use the high interest rate.</p>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="custom-loan-upi">Custom Loan Repayment UPI ID</Label>

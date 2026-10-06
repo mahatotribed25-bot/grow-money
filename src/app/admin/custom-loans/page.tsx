@@ -90,7 +90,9 @@ type UserData = {
 };
 
 type AdminSettings = {
-    customLoanInterestPer1000?: number;
+    customLoanInterestLow?: number;
+    customLoanInterestHigh?: number;
+    customLoanThreshold?: number;
     totalCustomLoanLimit?: number;
     currentCustomLoanUsage?: number;
 }
@@ -132,8 +134,12 @@ export default function CustomLoansPage() {
   const openApproveDialog = async (request: CustomLoanRequest) => {
     setRequestToUpdate(request);
     
-    // Auto-calculate suggested terms
-    const ratePer1k = request.requestedAmount < 5000 ? 5 : 8;
+    // Auto-calculate suggested terms based on new admin settings
+    const threshold = adminSettings?.customLoanThreshold ?? 5000;
+    const lowRate = adminSettings?.customLoanInterestLow ?? 5;
+    const highRate = adminSettings?.customLoanInterestHigh ?? 8;
+
+    const ratePer1k = request.requestedAmount < threshold ? lowRate : highRate;
     const dailyInterest = (request.requestedAmount / 1000) * ratePer1k;
     const totalInterest = dailyInterest * request.requestedDuration;
     const totalRepayment = request.requestedAmount + totalInterest;

@@ -47,17 +47,11 @@ type UserData = {
     walletBalance: number;
     referredBy?: string;
     totalInvestment?: number;
-    vipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
     referralBonusPaid?: boolean;
 };
 
 type AdminSettings = {
     referralBonus?: number;
-    vipTiers?: {
-        silver: number;
-        gold: number;
-        platinum: number;
-    }
     adminProfitBalance?: number;
 }
 
@@ -108,7 +102,6 @@ export default function PlansPage() {
         const planRef = doc(firestore, 'investmentPlans', plan.id);
         const settingsRef = doc(firestore, 'settings', 'admin');
         
-        // --- 1. START READS ---
         const userDoc = await transaction.get(userRef);
         const planDoc = await transaction.get(planRef);
         const settingsDoc = await transaction.get(settingsRef);
@@ -125,16 +118,13 @@ export default function PlansPage() {
         const referralBonusAmount = adminSettingsData?.referralBonus || 0;
         const bonusAlreadyPaid = userDataInTx.referralBonusPaid || false;
 
-        // Fetch referrer doc if needed (MUST BE DONE BEFORE ANY WRITES)
         let referrerDoc = null;
         let referrerRef = null;
         if (referredBy && !bonusAlreadyPaid && currentTotalInvestment === 0 && referralBonusAmount > 0) {
             referrerRef = doc(firestore, 'users', referredBy);
             referrerDoc = await transaction.get(referrerRef);
         }
-        // --- END READS ---
 
-        // --- 2. START WRITES ---
         const currentStock = planDataInTx.stock;
         if (currentStock !== undefined && currentStock <= 0) {
             throw new Error("Target plan is now out of stock.");
@@ -163,21 +153,9 @@ export default function PlansPage() {
             transaction.update(userRef, { referralBonusPaid: true });
         }
 
-        let newVipLevel = userDataInTx.vipLevel || 'Bronze';
-        if (adminSettingsData?.vipTiers) {
-            if (newTotalInvestment >= adminSettingsData.vipTiers.platinum) {
-                newVipLevel = 'Platinum';
-            } else if (newTotalInvestment >= adminSettingsData.vipTiers.gold) {
-                newVipLevel = 'Gold';
-            } else if (newTotalInvestment >= adminSettingsData.vipTiers.silver) {
-                newVipLevel = 'Silver';
-            }
-        }
-
         transaction.update(userRef, {
             walletBalance: newWalletBalance,
             totalInvestment: newTotalInvestment,
-            vipLevel: newVipLevel,
         });
 
         const historyRef = doc(collection(firestore, 'users', user.uid, 'walletHistory'));

@@ -40,7 +40,9 @@ type AdminSettings = {
   maxCustomLoanAmount?: number;
   totalCustomLoanLimit?: number;
   currentCustomLoanUsage?: number;
-  customLoanInterestPer1000?: number;
+  customLoanInterestLow?: number;
+  customLoanInterestHigh?: number;
+  customLoanThreshold?: number;
   adminPhone?: string;
 };
 
@@ -92,15 +94,19 @@ export default function CustomLoanPage() {
     const principal = parseFloat(amount);
     const days = parseInt(duration, 10);
     
-    if (principal > 0 && days > 0) {
-        const interestPer1000 = principal < 5000 ? 5 : 8;
+    if (principal > 0 && days > 0 && adminSettings) {
+        const threshold = adminSettings.customLoanThreshold ?? 5000;
+        const lowRate = adminSettings.customLoanInterestLow ?? 5;
+        const highRate = adminSettings.customLoanInterestHigh ?? 8;
+
+        const interestPer1000 = principal < threshold ? lowRate : highRate;
         const dailyInterest = (principal / 1000) * interestPer1000;
         const totalInterest = dailyInterest * days;
         const totalRepayment = principal + totalInterest;
         return { dailyInterest, totalInterest, totalRepayment, rateLabel: interestPer1000 };
     }
     return null;
-  }, [amount, duration]);
+  }, [amount, duration, adminSettings]);
 
 
   const handleSubmit = async () => {
