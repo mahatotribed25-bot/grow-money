@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -27,7 +26,7 @@ import {
   FileBadge,
   Zap,
   ArrowRight,
-  Lock
+  Lock,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -58,7 +57,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import Image from 'next/image';
 import { useSettings } from '@/context/settings-context';
 
@@ -226,7 +225,7 @@ export default function MyLoansPage() {
 
     try {
         await batch.commit();
-        toast({ title: 'Notifications Sent', description: `${selectedItems.length} payments notified to admin.` });
+        toast({ title: 'Notifications Sent', description: `${selectedItems.length} payments notified for admin verification.` });
         setSelectedItems([]);
         setIsPaymentModalOpen(false);
     } catch (e: any) {
@@ -409,7 +408,7 @@ export default function MyLoansPage() {
                                                         </div>
                                                         <div className="space-y-1">
                                                             <p className="text-[10px] font-black uppercase tracking-[3px] text-white/40">Settlement Node Locked</p>
-                                                            <p className="text-[8px] font-bold text-white/10 uppercase tracking-widest">Repayment option will activate on maturity</p>
+                                                            <p className="text-[8px] font-bold text-white/10 uppercase tracking-widest">Option activates upon protocol maturity</p>
                                                         </div>
                                                     </div>
                                                 )}
@@ -465,7 +464,7 @@ export default function MyLoansPage() {
             <DialogContent className="bg-[#030408] border-white/10 text-white rounded-3xl">
                 <DialogHeader>
                     <DialogTitle className="text-xl font-black uppercase tracking-tight">Term Extension Request</DialogTitle>
-                    <DialogDescription className="text-white/40">Request more time to settle your loan. A small administrative fee will be applied.</DialogDescription>
+                    <DialogDescription className="text-white/40">Request more time to settle your loan.</DialogDescription>
                 </DialogHeader>
                 <div className="py-6 space-y-4">
                     <div className="space-y-2">
@@ -483,7 +482,7 @@ export default function MyLoansPage() {
                     </div>
                     <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex items-start gap-3">
                         <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={16} />
-                        <p className="text-[10px] text-amber-200/40 leading-relaxed font-bold uppercase tracking-tight">Your request will be reviewed by an administrator within 24 hours.</p>
+                        <p className="text-[10px] text-amber-200/40 leading-relaxed font-bold uppercase tracking-tight">Your request will be reviewed by an administrator.</p>
                     </div>
                 </div>
                 <DialogFooter>
@@ -509,7 +508,7 @@ export default function MyLoansPage() {
                     <ScrollArea className="max-h-24 pr-4">
                         <div className="space-y-3">
                             {selectedItems.map((item, i) => (
-                                <div className="flex justify-between text-[10px] font-bold text-white/40 uppercase tracking-widest border-l-2 border-primary/20 pl-3">
+                                <div key={i} className="flex justify-between text-[10px] font-bold text-white/40 uppercase tracking-widest border-l-2 border-primary/20 pl-3">
                                     <span>{item.loanName}</span>
                                     <span className="text-white">₹{item.amount.toFixed(2)}</span>
                                 </div>
@@ -612,7 +611,7 @@ function HistoryCard({ loan, isCustom }: { loan: any, isCustom?: boolean }) {
     const penalty = loan.penalty || 0;
     
     const startDate = (loan.startDate || loan.activatedAt || loan.createdAt)?.toDate() || new Date();
-    const settledDate = (loan.repaidAt || loan.paidNotificationAt || loan.dueDate)?.toDate() || new Date();
+    const settledDate = (loan.repaidAt || loan.paidNotificationAt || loan.dueDate || loan.settledAt)?.toDate() || new Date();
 
     return (
         <Card className="bg-muted/10 border-border rounded-3xl p-6 group grayscale hover:grayscale-0 transition-all duration-500 relative overflow-hidden">

@@ -12,6 +12,8 @@ import {
   Info,
   Send,
   Timer,
+  AlertCircle,
+  Zap,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -32,6 +34,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 type AdminSettings = {
   maxCustomLoanAmount?: number;
@@ -79,19 +82,21 @@ export default function CustomLoanPage() {
   const hasActiveRequest = existingRequests && existingRequests.length > 0;
   const pendingRequest = existingRequests?.find(r => r.status === 'pending_admin_review');
   
+  // Dynamic Interest Logic based on Amount
   const calculatedInfo = useMemo(() => {
     const principal = parseFloat(amount);
     const days = parseInt(duration, 10);
-    const interestPer1000 = adminSettings?.customLoanInterestPer1000 || 0;
-
-    if (principal > 0 && days > 0 && interestPer1000 > 0) {
+    
+    if (principal > 0 && days > 0) {
+        // Logic: Low Amount (<5000) = Lower Interest, High Amount (>=5000) = Higher Interest
+        const interestPer1000 = principal < 5000 ? 5 : 8;
         const dailyInterest = (principal / 1000) * interestPer1000;
         const totalInterest = dailyInterest * days;
         const totalRepayment = principal + totalInterest;
-        return { dailyInterest, totalInterest, totalRepayment };
+        return { dailyInterest, totalInterest, totalRepayment, rateLabel: interestPer1000 };
     }
     return null;
-  }, [amount, duration, adminSettings]);
+  }, [amount, duration]);
 
 
   const handleSubmit = async () => {
@@ -110,10 +115,17 @@ export default function CustomLoanPage() {
       toast({ title: 'Invalid Duration', description: 'Please enter a valid duration in days.', variant: 'destructive' });
       return;
     }
+    
+    // Strict 30-day limit
     if (requestedDuration > 30) {
-      toast({ title: 'Invalid Duration', description: 'Loan duration cannot exceed 30 days.', variant: 'destructive' });
+      toast({ 
+        title: 'Limit Exceeded', 
+        description: 'Maximum duration for a flexible loan is 30 days.', 
+        variant: 'destructive' 
+      });
       return;
     }
+
     if (maxAmount > 0 && requestedAmount > maxAmount) {
       toast({ title: 'Amount Exceeds Limit', description: `You can request a maximum of ₹${maxAmount}.`, variant: 'destructive' });
       return;
@@ -164,7 +176,7 @@ export default function CustomLoanPage() {
       await addDoc(customLoanRequestsCollection, requestData);
       toast({
         title: 'Request Submitted',
-        description: 'Your custom loan request has been sent to the admin for review.',
+        description: 'Your flexible loan request has been sent to the admin for review.',
       });
       setAmount('');
       setDuration('');
@@ -191,31 +203,33 @@ export default function CustomLoanPage() {
     const request = pendingRequest || existingRequests?.[0];
     if (!request) return;
 
-    const message = `🛠️ *Expedite My Custom Loan* 🛠️\n\nHello Admin,\n\nI am *${userData?.name || user?.displayName}*.\n\nI just submitted a *Custom Flexi Loan* request for ₹${request.requestedAmount.toFixed(2)}.\n\nCould you please review and approve it? \n\n*User ID:* ${user?.uid}\n\nThank you!`;
+    const message = `🛠️ *Expedite My Custom Loan* 🛠️\n\nHello Admin,\n\nI am *${userData?.name || user?.displayName}*.\n\nI just submitted a *Flexible Loan* request for ₹${request.requestedAmount.toFixed(2)}.\n\nCould you please review and approve it? \n\n*User ID:* ${user?.uid}\n\nThank you!`;
     
     window.open(`https://wa.me/91${adminSettings.adminPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 px-4 backdrop-blur-sm sm:px-6">
         <Link href="/dashboard">
           <Button variant="ghost" size="icon">
             <ChevronLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <h1 className="text-lg font-semibold">Request a Custom Loan</h1>
+        <h1 className="text-lg font-black tracking-tighter uppercase">Flexi Capital</h1>
         <div className="w-9" />
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-        {(settingsLoading || requestsLoading) ? <p>Loading...</p> : (
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        {(settingsLoading || requestsLoading) ? (
+            <div className="flex h-40 items-center justify-center"><Timer className="animate-spin text-primary" /></div>
+        ) : (
             !isServiceEnabled ? (
                 <Card className="bg-white/5 border-white/10 backdrop-blur-xl rounded-3xl p-10 text-center border-dashed">
                     <CardHeader>
                     <CardTitle className="text-white/80">Service Offline</CardTitle>
                     <CardDescription className="text-white/40">
-                        The custom loan service is currently not available. Our administrative team is currently adjusting the platform limits.
+                        The custom loan service is currently not available.
                     </CardDescription>
                     </CardHeader>
                 </Card>
@@ -225,156 +239,187 @@ export default function CustomLoanPage() {
                         <div className="mx-auto w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(245,158,11,0.1)]">
                             <Timer className="text-amber-400 h-10 w-10 animate-pulse" />
                         </div>
-                        <CardTitle className="text-white text-3xl font-black tracking-tight">Coming Soon</CardTitle>
-                        <CardDescription className="text-amber-400/60 font-black uppercase tracking-[4px] text-[10px] mt-2">New Borrow Limit Pending</CardDescription>
+                        <CardTitle className="text-white text-3xl font-black tracking-tight">Reservoir Empty</CardTitle>
+                        <CardDescription className="text-amber-400/60 font-black uppercase tracking-[4px] text-[10px] mt-2">Allocated limit fully utilized</CardDescription>
                     </CardHeader>
                     <CardContent className="text-center space-y-6 pb-12 px-8">
                         <p className="text-sm text-white/50 leading-relaxed max-w-xs mx-auto">
-                            The current platform-wide custom loan allocation has been fully exhausted by our investors. 
+                            The platform's current custom loan allocation is fully exhausted. New limits will be released shortly.
                         </p>
                         <div className="inline-flex flex-col items-center gap-2 p-5 bg-white/5 rounded-2xl border border-white/5">
                              <p className="text-[9px] text-white/20 uppercase font-black tracking-widest">Platform Status</p>
                              <div className="flex items-center gap-2">
                                 <div className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-                                <p className="text-sm font-black text-white">REFILLING RESERVES</p>
+                                <p className="text-sm font-black text-white uppercase tracking-tighter">Refilling Reserves</p>
                              </div>
                         </div>
-                        <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest pt-4">Check back in 24-48 hours</p>
                     </CardContent>
                 </Card>
             ) : (
-                <Card className="bg-gradient-to-br from-card to-card/70">
-                <CardHeader>
-                    <CardTitle>Loan Application</CardTitle>
-                    <CardDescription>
-                    Enter the amount and duration (max 30 days) for the loan you need. Your request will be sent to an admin for approval.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {availableLimit > 0 && (
-                        <div className="rounded-md border border-blue-500/50 bg-blue-500/10 p-4 text-center text-blue-300">
-                            <p className="font-semibold flex items-center justify-center gap-2"><Info /> Platform Loan Limit</p>
-                            <p className="text-sm">Available Limit for All Users: <span className="font-bold">₹{availableLimit.toFixed(2)}</span></p>
+                <div className="space-y-6">
+                    <div className="bg-primary/5 border border-primary/20 p-5 rounded-3xl flex items-start gap-4">
+                        <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary shrink-0">
+                            <Zap size={20} className="fill-current" />
                         </div>
-                    )}
-                    {hasActiveRequest ? (
-                        <div className="text-center p-6 rounded-md bg-yellow-500/10 text-yellow-300 space-y-4">
-                            <div>
-                                <p className="font-semibold">You have an active request.</p>
-                                <p className="text-sm">Please wait for the admin to process your current custom loan request before creating a new one.</p>
-                            </div>
-                            {pendingRequest && (
-                                <Button variant="outline" className="text-green-500 border-green-500/50 hover:bg-green-500/10" onClick={handleNotifyAdmin}>
-                                    <Send className="mr-2 h-4 w-4" />
-                                    Notify Admin on WhatsApp
-                                </Button>
-                            )}
+                        <div className="space-y-1">
+                            <p className="text-xs font-black text-white uppercase tracking-tight">Flexible Interest Node</p>
+                            <p className="text-[10px] text-white/40 leading-relaxed">
+                                <span className="text-green-400">Low Amount (&lt;₹5k)</span> = ₹5 per 1k daily.<br />
+                                <span className="text-amber-400">High Amount (≥₹5k)</span> = ₹8 per 1k daily.
+                            </p>
                         </div>
-                    ) : (
-                        <>
-                            <div className="space-y-2">
-                            <Label htmlFor="amount">Loan Amount (₹)</Label>
-                            <Input
-                                id="amount"
-                                type="number"
-                                placeholder={`e.g., 2000`}
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                            />
-                            {maxAmount > 0 && <p className="text-xs text-muted-foreground">Maximum amount per user: ₹{maxAmount}</p>}
-                            </div>
-                            <div className="space-y-2">
-                            <Label htmlFor="duration">Loan Duration (in days)</Label>
-                            <Input
-                                id="duration"
-                                type="number"
-                                placeholder="e.g., 30"
-                                value={duration}
-                                onChange={(e) => setDuration(e.target.value)}
-                            />
-                            </div>
+                    </div>
 
-                             {calculatedInfo && (
-                                <Card className="bg-muted/50 p-4 space-y-2 animate-in fade-in-0">
-                                    <h4 className="font-semibold text-center mb-2">Loan Estimate</h4>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-muted-foreground">Daily Interest (@ ₹{adminSettings?.customLoanInterestPer1000 || 0} per ₹1000):</span>
-                                        <span className="font-semibold">₹{calculatedInfo.dailyInterest.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-muted-foreground">Total Interest ({duration} days):</span>
-                                        <span className="font-semibold text-red-400">₹{calculatedInfo.totalInterest.toFixed(2)}</span>
-                                    </div>
-                                    <Separator className="my-2" />
-                                    <div className="flex justify-between text-lg font-bold">
-                                        <span>Estimated Repayment:</span>
-                                        <span>₹{calculatedInfo.totalRepayment.toFixed(2)}</span>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground text-center pt-2">This is an estimate. The final amount will be confirmed by the admin.</p>
-                                </Card>
-                            )}
-                            
-                            <div className="space-y-2">
-                                <Label>How would you like to receive the money?</Label>
-                                <RadioGroup onValueChange={(value: 'Bank' | 'UPI') => setPaymentMethod(value)} value={paymentMethod} className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <RadioGroupItem value="Bank" id="bank" className="peer sr-only" />
-                                        <Label htmlFor="bank" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                            Bank Transfer
-                                        </Label>
-                                    </div>
-                                    <div>
-                                        <RadioGroupItem value="UPI" id="upi" className="peer sr-only" />
-                                        <Label htmlFor="upi" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                            UPI
-                                        </Label>
-                                    </div>
-                                </RadioGroup>
-                            </div>
-
-                            {paymentMethod === 'Bank' && (
-                                <div className="space-y-4 rounded-md border p-4 animate-in fade-in-0 zoom-in-95">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="accountHolderName">Account Holder Name</Label>
-                                        <Input id="accountHolderName" placeholder="John Doe" value={bankDetails.accountHolderName} onChange={(e) => setBankDetails({...bankDetails, accountHolderName: e.target.value})} />
+                    <Card className="bg-card border-border rounded-[2rem] shadow-2xl overflow-hidden">
+                        <CardHeader className="pb-2 pt-8">
+                            <CardTitle className="text-2xl font-black tracking-tighter">Application Terminal</CardTitle>
+                            <CardDescription className="text-[10px] uppercase font-bold tracking-[3px] text-muted-foreground">Protocol Limit: 30 Days Max</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6 pb-10">
+                            {hasActiveRequest ? (
+                                <div className="text-center p-8 rounded-3xl bg-yellow-500/5 border border-yellow-500/20 space-y-6">
+                                    <div className="h-16 w-16 rounded-2xl bg-yellow-500/10 flex items-center justify-center mx-auto text-yellow-500">
+                                        <Timer size={32} />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="accountNumber">Account Number</Label>
-                                        <Input id="accountNumber" placeholder="Your bank account number" value={bankDetails.accountNumber} onChange={(e) => setBankDetails({...bankDetails, accountNumber: e.target.value})} />
+                                        <p className="font-black text-white uppercase tracking-tight">Active Request in Pipeline</p>
+                                        <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-relaxed">Wait for admin to process your current request node.</p>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="ifscCode">IFSC Code</Label>
-                                        <Input id="ifscCode" placeholder="Your bank's IFSC code" value={bankDetails.ifscCode} onChange={(e) => setBankDetails({...bankDetails, ifscCode: e.target.value})} />
-                                    </div>
+                                    {pendingRequest && (
+                                        <Button variant="outline" className="w-full h-12 rounded-xl text-green-500 border-green-500/20 hover:bg-green-500/10 font-black uppercase text-[10px] tracking-widest" onClick={handleNotifyAdmin}>
+                                            <Send className="mr-2 h-4 w-4" /> Ping Admin WhatsApp
+                                        </Button>
+                                    )}
                                 </div>
-                            )}
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">Loan Amount</Label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₹</span>
+                                                <Input
+                                                    id="amount"
+                                                    type="number"
+                                                    placeholder="0.00"
+                                                    value={amount}
+                                                    onChange={(e) => setAmount(e.target.value)}
+                                                    className="h-12 pl-7 rounded-xl font-black text-lg bg-muted/50"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">Days Node</Label>
+                                            <div className="relative">
+                                                <Timer className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                <Input
+                                                    id="duration"
+                                                    type="number"
+                                                    placeholder="1-30"
+                                                    value={duration}
+                                                    onChange={(e) => setDuration(e.target.value)}
+                                                    className={cn("h-12 pl-9 rounded-xl font-black text-lg bg-muted/50", parseInt(duration) > 30 && "border-red-500 text-red-500")}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
 
-                            {paymentMethod === 'UPI' && (
-                                <div className="space-y-2 animate-in fade-in-0 zoom-in-95">
-                                    <Label htmlFor="upiId">Your UPI ID</Label>
-                                    <Input id="upiId" placeholder="yourname@oksbi" value={upiId} onChange={(e) => setUpiId(e.target.value)} />
-                                </div>
-                            )}
+                                    {parseInt(duration) > 30 && (
+                                        <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest flex items-center gap-1.5 px-2 animate-in slide-in-from-top-1">
+                                            <AlertCircle size={12} /> Protocol violation: Max 30 days allowed
+                                        </p>
+                                    )}
 
-                            <Button onClick={handleSubmit} className="w-full">
-                            Submit Request
-                            </Button>
-                        </>
-                    )}
-                </CardContent>
-                </Card>
+                                    {calculatedInfo && (
+                                        <Card className="bg-muted/30 border-border p-6 rounded-3xl space-y-4 animate-in zoom-in-95">
+                                            <div className="flex justify-between items-center">
+                                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Protocol Terms</p>
+                                                <Badge className="bg-primary/20 text-primary border-none text-[8px] font-black uppercase">₹{calculatedInfo.rateLabel}/1k Rate</Badge>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between text-xs font-bold">
+                                                    <span className="text-muted-foreground">Daily Interest:</span>
+                                                    <span className="text-white">₹{calculatedInfo.dailyInterest.toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs font-bold">
+                                                    <span className="text-muted-foreground">Total Accrued:</span>
+                                                    <span className="text-red-400">+ ₹{calculatedInfo.totalInterest.toFixed(2)}</span>
+                                                </div>
+                                                <Separator className="bg-white/5 my-2" />
+                                                <div className="flex justify-between items-end">
+                                                    <span className="text-[10px] font-black uppercase tracking-[3px] text-muted-foreground">Settlement Node</span>
+                                                    <span className="text-2xl font-black text-white tracking-tighter">₹{calculatedInfo.totalRepayment.toFixed(2)}</span>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    )}
+                                    
+                                    <div className="space-y-3">
+                                        <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">Dispatch Destination</Label>
+                                        <RadioGroup onValueChange={(value: 'Bank' | 'UPI') => setPaymentMethod(value)} value={paymentMethod} className="grid grid-cols-2 gap-3">
+                                            <div className="relative">
+                                                <RadioGroupItem value="Bank" id="bank" className="peer sr-only" />
+                                                <Label htmlFor="bank" className="flex flex-col items-center justify-center h-16 rounded-2xl border-2 border-border bg-muted/20 hover:bg-muted transition-all cursor-pointer peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Bank IMPS</span>
+                                                </Label>
+                                            </div>
+                                            <div className="relative">
+                                                <RadioGroupItem value="UPI" id="upi" className="peer sr-only" />
+                                                <Label htmlFor="upi" className="flex flex-col items-center justify-center h-16 rounded-2xl border-2 border-border bg-muted/20 hover:bg-muted transition-all cursor-pointer peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">UPI ID</span>
+                                                </Label>
+                                            </div>
+                                        </RadioGroup>
+                                    </div>
+
+                                    {paymentMethod === 'Bank' && (
+                                        <div className="space-y-4 rounded-3xl bg-muted/20 border border-border p-5 animate-in fade-in zoom-in-95">
+                                            <div className="space-y-2">
+                                                <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Account Holder</Label>
+                                                <Input id="accountHolderName" placeholder="Full Name" value={bankDetails.accountHolderName} onChange={(e) => setBankDetails({...bankDetails, accountHolderName: e.target.value})} className="bg-muted/40 rounded-xl" />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-2">
+                                                    <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Account No.</Label>
+                                                    <Input id="accountNumber" placeholder="XXXXXX" value={bankDetails.accountNumber} onChange={(e) => setBankDetails({...bankDetails, accountNumber: e.target.value})} className="bg-muted/40 rounded-xl" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">IFSC Code</Label>
+                                                    <Input id="ifscCode" placeholder="BANK0000" value={bankDetails.ifscCode} onChange={(e) => setBankDetails({...bankDetails, ifscCode: e.target.value})} className="bg-muted/40 rounded-xl font-mono uppercase" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {paymentMethod === 'UPI' && (
+                                        <div className="space-y-2 animate-in fade-in zoom-in-95">
+                                            <Label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Your Virtual Payment Address</Label>
+                                            <Input id="upiId" placeholder="username@bank" value={upiId} onChange={(e) => setUpiId(e.target.value)} className="h-12 bg-muted/40 rounded-xl font-mono" />
+                                        </div>
+                                    )}
+
+                                    <Button 
+                                        onClick={handleSubmit} 
+                                        disabled={parseInt(duration) > 30 || !amount}
+                                        className="w-full h-16 rounded-[1.5rem] bg-primary text-primary-foreground font-black uppercase tracking-[3px] shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all"
+                                    >
+                                        Initiate Protocol
+                                    </Button>
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
             )
         )}
       </main>
 
-       <nav className="sticky bottom-0 z-10 border-t border-border/20 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-4 text-xs">
+       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-xl h-16 flex items-center justify-around px-4">
           <BottomNavItem icon={Home} label="Home" href="/dashboard" />
           <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
           <BottomNavItem icon={Trophy} label="Leaders" href="/leaderboard" />
           <BottomNavItem icon={HandCoins} label="My Loans" href="/my-loans" />
           <BottomNavItem icon={User} label="Profile" href="/profile" />
-        </div>
       </nav>
     </div>
   );
@@ -399,7 +444,7 @@ function BottomNavItem({
       }`}
     >
       <Icon className="h-5 w-5" />
-      <span>{label}</span>
+      <span className="text-[9px] font-black uppercase tracking-tight">{label}</span>
     </Link>
   );
 }
