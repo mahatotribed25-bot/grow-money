@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, HandCoins, Copy, QrCode, Loader2, Camera } from 'lucide-react';
+import { Check, X, HandCoins, Copy, QrCode, Loader2, Camera, MessageSquare, Mail, ShieldCheck } from 'lucide-react';
 import { useCollection, useFirestore, useDoc, useUser } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { 
@@ -21,7 +21,8 @@ import {
   collection, 
   serverTimestamp, 
   increment,
-  runTransaction
+  runTransaction,
+  getDoc
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -72,6 +73,11 @@ type WithdrawalRequest = {
   payoutTransactionId?: string;
 };
 
+type UserData = {
+    phoneNumber?: string;
+    email?: string;
+}
+
 const formatDate = (timestamp: Timestamp) => {
   if (!timestamp) return 'N/A';
   return new Date(timestamp.seconds * 1000).toLocaleDateString();
@@ -95,6 +101,10 @@ export default function WithdrawalsPage() {
   const [payoutScreenshot, setPayoutScreenshot] = useState<string | null>(null);
   const [payoutTid, setPayoutTid] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Notification State
+  const [isNotifyOpen, setIsNotifyOpen] = useState(false);
+  const [notifyTarget, setNotifyTarget] = useState<(WithdrawalRequest & { phoneNumber?: string, email?: string }) | null>(null);
 
   const filteredWithdrawals = useMemo(() => {
     if (!withdrawals) return [];
@@ -239,11 +249,32 @@ export default function WithdrawalsPage() {
             transaction.update(settingsRef, { adminProfitBalance: currentProfit + requestToApprove.gstAmount });
         }
     })
-    .then(() => { 
+    .then(async () => { 
         toast({ title: 'Payment Confirmed' }); 
         setIsPaymentDialogOpen(false); 
+
+        // Fetch user data for notification
+        const userRef = doc(firestore, 'users', requestToApprove.userId);
+        const userSnap = await getDoc(userRef);
+        const userData = userSnap.exists() ? userSnap.data() as UserData : {};
+        
+        setNotifyTarget({ ...requestToApprove, ...userData, finalAmount: total });
+        setIsNotifyOpen(true);
     })
     .catch(() => toast({ title: "Failed to confirm payment", variant: "destructive" }));
+  };
+
+  const handleWhatsAppNotify = () => {
+      if (!notifyTarget?.phoneNumber) return;
+      const message = `Hello *${notifyTarget.name}*, your Withdrawal request of *₹${notifyTarget.amount}* has been approved. After a platform fee of *₹${notifyTarget.gstAmount || 0}*, an amount of *₹${notifyTarget.finalAmount?.toFixed(2)}* has been credited to your UPI ID: *${notifyTarget.upiId}*. Thank you for choosing Grow Money! 💰`;
+      window.open(`https://wa.me/91${notifyTarget.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleEmailNotify = () => {
+      if (!notifyTarget?.email) return;
+      const subject = `Withdrawal Approved - Grow Money`;
+      const body = `Hello ${notifyTarget.name},\n\nYour withdrawal request for INR ${notifyTarget.amount} has been successfully processed.\n\nSummary:\n- Requested: INR ${notifyTarget.amount}\n- Platform Fee: INR ${notifyTarget.gstAmount || 0}\n- Net Payout: INR ${notifyTarget.finalAmount?.toFixed(2)}\n\nThe amount has been sent to your linked UPI ID: ${notifyTarget.upiId}.\n\nThank you for your trust!\nGrow Money Team`;
+      window.location.href = `mailto:${notifyTarget.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const totalPayout = requestToApprove ? (requestToApprove.finalAmount || requestToApprove.amount) + calculatedBonus : 0;
@@ -351,6 +382,54 @@ export default function WithdrawalsPage() {
                     </div>
                 </div>
             </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Withdrawal Success Notification Dialog */}
+      <Dialog open={isNotifyOpen} onOpenChange={setIsNotifyOpen}>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-3xl max-w-sm">
+            <DialogHeader>
+                <DialogTitle className="text-center font-black uppercase tracking-tight text-xl">Withdrawal Settled!</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-[10px] uppercase tracking-widest pt-2">Notify the investor node</DialogDescription>
+            </DialogHeader>
+            <div className="py-6 space-y-6">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-5 flex flex-col items-center gap-3">
+                    <div className="h-14 w-14 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                        <ShieldCheck size={32} />
+                    </div>
+                    <div className="text-center">
+                        <p className="text-[10px] font-black text-white/30 uppercase tracking-[3px]">Net Amount Dispatched</p>
+                        <p className="text-3xl font-black text-blue-400">₹{notifyTarget?.finalAmount?.toLocaleString()}</p>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <Button 
+                        onClick={handleWhatsAppNotify} 
+                        disabled={!notifyTarget?.phoneNumber}
+                        className="w-full h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase text-xs tracking-widest gap-2 shadow-lg shadow-green-600/20 transition-all"
+                    >
+                        <MessageSquare size={18} /> Notify on WhatsApp
+                    </Button>
+                    <Button 
+                        onClick={handleEmailNotify} 
+                        disabled={!notifyTarget?.email}
+                        variant="outline"
+                        className="w-full h-14 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase text-xs tracking-widest gap-2"
+                    >
+                        <Mail size={18} /> Send Email Notice
+                    </Button>
+                </div>
+
+                {!notifyTarget?.phoneNumber && (
+                    <p className="text-[9px] text-center text-red-400 font-bold uppercase tracking-tight italic">User has not linked a phone number node.</p>
+                )}
+            </div>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button variant="ghost" className="w-full text-white/40 uppercase text-[10px] font-black">Archive Record</Button>
+                </DialogClose>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

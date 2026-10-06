@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, Send, Loader2, Eye, ScanText, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Check, X, Send, Loader2, Eye, ScanText, ShieldCheck, AlertCircle, MessageSquare, Mail } from 'lucide-react';
 import { useCollection, useFirestore, useUser } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { 
@@ -20,7 +20,8 @@ import {
   writeBatch, 
   collection, 
   serverTimestamp, 
-  increment 
+  increment,
+  getDoc
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -55,6 +56,11 @@ type DepositRequest = {
   reviewedBy?: string;
 };
 
+type UserData = {
+    phoneNumber?: string;
+    email?: string;
+};
+
 const formatDate = (timestamp: Timestamp) => {
   if (!timestamp) return 'N/A';
   return new Date(timestamp.seconds * 1000).toLocaleDateString();
@@ -72,6 +78,10 @@ export default function DepositsPage() {
   const [auditTarget, setAuditTarget] = useState<DepositRequest | null>(null);
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<{ tid: string, matched: boolean } | null>(null);
+
+  // Notification State
+  const [isNotifyOpen, setIsNotifyOpen] = useState(false);
+  const [notifyTarget, setNotifyTarget] = useState<(DepositRequest & { phoneNumber?: string, email?: string }) | null>(null);
 
   const filteredDeposits = useMemo(() => {
     if (!deposits) return [];
@@ -146,7 +156,7 @@ export default function DepositsPage() {
     setIsProcessing(false);
   };
 
-  const handleUpdateStatus = (deposit: DepositRequest, newStatus: 'approved' | 'rejected') => {
+  const handleUpdateStatus = async (deposit: DepositRequest, newStatus: 'approved' | 'rejected') => {
       if (deposit.status !== 'pending' || !currentAdmin) {
           toast({ title: "Action Restricted", variant: "destructive" });
           return;
@@ -174,11 +184,18 @@ export default function DepositsPage() {
           reviewedAt: serverTimestamp()
       });
 
-      // Execute batch commit (Non-blocking but batches must be awaited to handle UI state)
       batch.commit()
-      .then(() => {
+      .then(async () => {
           toast({ title: `Deposit ${newStatus === 'approved' ? 'Approved' : 'Rejected'}` });
           if (auditTarget?.id === deposit.id) setAuditTarget(null);
+
+          if (newStatus === 'approved') {
+              // Fetch user contact info for notification
+              const userSnap = await getDoc(userRef);
+              const userData = userSnap.exists() ? userSnap.data() as UserData : {};
+              setNotifyTarget({ ...deposit, ...userData });
+              setIsNotifyOpen(true);
+          }
       })
       .catch((error) => {
           const permissionError = new FirestorePermissionError({
@@ -187,6 +204,19 @@ export default function DepositsPage() {
           });
           errorEmitter.emit('permission-error', permissionError);
       });
+  };
+
+  const handleWhatsAppNotify = () => {
+      if (!notifyTarget?.phoneNumber) return;
+      const message = `Hello *${notifyTarget.name}*, your Deposit of *₹${notifyTarget.amount}* has been approved and added to your wallet. Thank you for choosing Grow Money! 💰`;
+      window.open(`https://wa.me/91${notifyTarget.phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleEmailNotify = () => {
+      if (!notifyTarget?.email) return;
+      const subject = `Deposit Approved - Grow Money`;
+      const body = `Hello ${notifyTarget.name},\n\nYour deposit request for INR ${notifyTarget.amount} (Ref: ${notifyTarget.transactionId}) has been successfully verified and credited to your wallet balance.\n\nYou can now start investing in our plans.\n\nBest Regards,\nGrow Money Team`;
+      window.location.href = `mailto:${notifyTarget.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const runAIAudit = async () => {
@@ -365,6 +395,7 @@ export default function DepositsPage() {
         </Table>
       </div>
 
+      {/* AI Audit Dialog */}
       <Dialog open={!!auditTarget} onOpenChange={() => setAuditTarget(null)}>
         <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-4xl">
             <DialogHeader>
@@ -502,6 +533,54 @@ export default function DepositsPage() {
                     </div>
                 </div>
             </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deposit Success Notification Dialog */}
+      <Dialog open={isNotifyOpen} onOpenChange={setIsNotifyOpen}>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-3xl max-w-sm">
+            <DialogHeader>
+                <DialogTitle className="text-center font-black uppercase tracking-tight text-xl">Deposit Verified!</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-[10px] uppercase tracking-widest pt-2">Notify the investor node</DialogDescription>
+            </DialogHeader>
+            <div className="py-6 space-y-6">
+                <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-5 flex flex-col items-center gap-3">
+                    <div className="h-14 w-14 rounded-full bg-green-500/20 flex items-center justify-center text-green-500">
+                        <ShieldCheck size={32} />
+                    </div>
+                    <div className="text-center">
+                        <p className="text-[10px] font-black text-white/30 uppercase tracking-[3px]">Amount Credited</p>
+                        <p className="text-3xl font-black text-green-400">₹{notifyTarget?.amount.toLocaleString()}</p>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <Button 
+                        onClick={handleWhatsAppNotify} 
+                        disabled={!notifyTarget?.phoneNumber}
+                        className="w-full h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase text-xs tracking-widest gap-2 shadow-lg shadow-green-600/20 transition-all"
+                    >
+                        <MessageSquare size={18} /> Notify on WhatsApp
+                    </Button>
+                    <Button 
+                        onClick={handleEmailNotify} 
+                        disabled={!notifyTarget?.email}
+                        variant="outline"
+                        className="w-full h-14 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase text-xs tracking-widest gap-2"
+                    >
+                        <Mail size={18} /> Send Email Notice
+                    </Button>
+                </div>
+
+                {!notifyTarget?.phoneNumber && (
+                    <p className="text-[9px] text-center text-red-400 font-bold uppercase tracking-tight italic">User has not linked a phone number node.</p>
+                )}
+            </div>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button variant="ghost" className="w-full text-white/40 uppercase text-[10px] font-black">Close Library</Button>
+                </DialogClose>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
