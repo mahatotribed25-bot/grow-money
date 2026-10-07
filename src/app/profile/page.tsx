@@ -120,6 +120,7 @@ type UpiRequest = {
 
 type GroupInvestment = {
     id: string;
+    planId: string;
     planName: string;
     investedAmount: number;
     amountReceived: number;
@@ -179,6 +180,14 @@ type AttendanceLog = {
     status: string;
 }
 
+type CustomLoanRequest = {
+    id: string;
+    requestedAmount: number;
+    status: string;
+    totalRepayment?: number;
+    createdAt: Timestamp;
+};
+
 export default function ProfilePage() {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -196,6 +205,8 @@ export default function ProfilePage() {
   const { data: mySalaries } = useCollection<SalaryRecord>(user?.uid ? 'staffSalaries' : null, { where: ['staffId', '==', user?.uid] });
   const { data: myAttendance } = useCollection<AttendanceLog>(user?.uid ? 'attendance' : null, { where: ['userId', '==', user?.uid] });
   const { data: userReferrals } = useCollection<any>(user ? 'users' : null, { where: ['referredBy', '==', user?.uid] });
+  const { data: standardLoans } = useCollection<any>(user ? `users/${user.uid}/loans` : null);
+  const { data: customLoans } = useCollection<CustomLoanRequest>(user ? query(collection(firestore, 'customLoanRequests'), where('userId', '==', user.uid)) : null);
 
   const [groupInvestments, setGroupInvestments] = useState<GroupInvestment[]>([]);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -456,9 +467,15 @@ export default function ProfilePage() {
       return (base / attendanceSummary.daysInMonth) * attendanceSummary.credit;
   }, [userData, attendanceSummary]);
 
+  const combinedLoans = useMemo(() => {
+      const std = standardLoans?.map(l => ({ ...l, type: 'standard' })) || [];
+      const flex = customLoans?.map(l => ({ ...l, type: 'flexible' })) || [];
+      return [...std, ...flex].sort((a,b) => (b.createdAt?.seconds || b.startDate?.seconds || 0) - (a.createdAt?.seconds || a.startDate?.seconds || 0));
+  }, [standardLoans, customLoans]);
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-sm px-4 sm:px-6">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-sm px-4 backdrop-blur-sm sm:px-6">
         <Link href="/dashboard"><Button variant="ghost" size="icon" className="hover:bg-accent"><ChevronLeft className="h-5 w-5" /></Button></Link>
         <h1 className="text-lg font-bold tracking-tight">{t.profile.title}</h1>
         <div className="flex gap-2 items-center">
@@ -649,7 +666,7 @@ export default function ProfilePage() {
                     <TabsTrigger value="history" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">{t.profile.ledger}</TabsTrigger>
                     <TabsTrigger value="deposits" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">{t.profile.recharge}</TabsTrigger>
                     <TabsTrigger value="withdrawals" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">{t.profile.payout}</TabsTrigger>
-                    {isStaff && <TabsTrigger value="salary" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">Salary</TabsTrigger>}
+                    <TabsTrigger value="loans" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">{t.nav.loans}</TabsTrigger>
                     <TabsTrigger value="groups" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">{t.profile.pools}</TabsTrigger>
                 </TabsList>
                 <Button variant="outline" size="icon" onClick={exportToExcel} className="h-14 w-14 rounded-2xl border-border bg-card hover:bg-accent/10 text-accent shadow-lg shrink-0"><FileSpreadsheet size={20} /></Button>
@@ -666,6 +683,26 @@ export default function ProfilePage() {
                 <TabsContent value="deposits"><TransactionTable transactions={deposits} type="deposit" onViewReceipt={(tx) => setSelectedReceipt({ tx, type: 'deposit' })} /></TabsContent>
                 <TabsContent value="withdrawals"><TransactionTable transactions={withdrawals} type="withdrawal" onViewReceipt={(tx) => setSelectedReceipt({ tx, type: 'withdrawal' })} /></TabsContent>
                 <TabsContent value="groups"><GroupInvestmentTable investments={groupInvestments} /></TabsContent>
+                <TabsContent value="loans">
+                    <HistoryTable headers={['Asset Node', 'Status']} items={combinedLoans} renderRow={(l) => (
+                        <TableRow key={l.id} className="border-border hover:bg-muted/30">
+                            <TableCell className="pl-6 py-4">
+                                <p className="text-xs font-bold">{l.planName || 'Flexi Loan Portfolio'}</p>
+                                <p className="text-[9px] text-muted-foreground uppercase font-black">
+                                    ₹{(l.loanAmount || l.requestedAmount || 0).toLocaleString()} • {l.type.toUpperCase()}
+                                </p>
+                            </TableCell>
+                            <TableCell className="text-right pr-6">
+                                <Badge variant="outline" className={cn(
+                                    "text-[8px] font-black uppercase px-2 h-5",
+                                    (l.status === 'Completed' || l.status === 'completed') ? "border-accent/20 text-accent" : "border-primary/20 text-primary"
+                                )}>
+                                    {l.status}
+                                </Badge>
+                            </TableCell>
+                        </TableRow>
+                    )} />
+                </TabsContent>
                 <TabsContent value="salary">
                     <div className="space-y-6">
                         {isStaff && (

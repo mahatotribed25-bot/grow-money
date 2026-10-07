@@ -63,6 +63,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Image from 'next/image';
 import { useSettings } from '@/context/settings-context';
 import { differenceInDays } from 'date-fns';
@@ -152,7 +153,6 @@ export default function MyLoansPage() {
   }, [allLoans, adminSettings]);
   
   const sortedLoans = useMemo(() => processedStandardLoans.sort((a,b) => b.startDate.seconds - a.startDate.seconds), [processedStandardLoans]);
-  const activeStandardLoans = sortedLoans.filter(l => l.status !== 'Completed');
   
   const processedCustomLoans = useMemo(() => {
     if (!customLoans) return [];
@@ -171,7 +171,13 @@ export default function MyLoansPage() {
   }, [customLoans, adminSettings]);
 
   const sortedCustomLoans = useMemo(() => processedCustomLoans.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds), [processedCustomLoans]);
-  const activeCustomLoans = sortedCustomLoans.filter(l => ['active', 'payment_pending', 'extension_pending', 'pending_user_approval', 'approved_by_user'].includes(l.status));
+
+  // Filters for Tabs
+  const activeStandard = sortedLoans.filter(l => l.status !== 'Completed');
+  const historyStandard = sortedLoans.filter(l => l.status === 'Completed');
+  
+  const activeCustom = sortedCustomLoans.filter(l => ['active', 'payment_pending', 'extension_pending', 'pending_user_approval', 'approved_by_user'].includes(l.status));
+  const historyCustom = sortedCustomLoans.filter(l => l.status === 'completed');
 
   const totalSelectedAmount = useMemo(() => {
     return selectedItems.reduce((sum, item) => sum + item.amount, 0);
@@ -327,184 +333,247 @@ export default function MyLoansPage() {
         <div className="w-9" />
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-10">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8">
         
-        {(activeStandardLoans.length > 0 || activeCustomLoans.length > 0) ? (
-            <Card className="bg-card border-border rounded-[2.5rem] overflow-hidden shadow-2xl relative border-primary/10">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-transparent" />
-                <CardHeader className="pb-2 pt-10 px-8">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <p className="text-[10px] font-black uppercase tracking-[4px] text-primary/60">Active Obligations</p>
-                            <h2 className="text-2xl font-black tracking-tight text-white mt-1">Live Credit Nodes</h2>
-                        </div>
-                        <div className="h-10 w-10 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-center text-primary">
-                            <Activity size={20} className="animate-pulse" />
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-8 p-8">
-                    <div className="flex justify-between items-end bg-black/20 p-6 rounded-3xl border border-white/5 shadow-inner">
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase text-white/20 tracking-widest mb-1">Due for Settlement</span>
-                            <span className="text-5xl font-black tracking-tighter text-white">
-                                ₹{totalSelectedAmount > 0 ? totalSelectedAmount.toLocaleString() : "0.00"}
-                            </span>
-                        </div>
-                        {selectedItems.length > 0 && (
-                            <Button onClick={() => setIsPaymentModalOpen(true)} className="h-14 px-8 rounded-2xl bg-primary text-white font-black uppercase text-xs tracking-widest animate-in zoom-in-50 shadow-xl shadow-primary/20 hover:scale-105 transition-transform">
-                                Pay Selected
-                            </Button>
-                        )}
-                    </div>
+        <Tabs defaultValue="active" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 bg-muted h-14 rounded-2xl p-1.5 border border-border">
+                <TabsTrigger value="active" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">Active Obligations</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-xl font-bold uppercase tracking-widest text-[9px] data-[state=active]:bg-background">Repayment History</TabsTrigger>
+            </TabsList>
 
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between px-1">
-                             <p className="text-[10px] font-black uppercase tracking-[4px] text-muted-foreground">Repayment Schedule</p>
-                             <p className="text-[8px] font-bold text-muted-foreground uppercase opacity-50">Select items to pay</p>
-                        </div>
-                        
-                        <div className="space-y-4">
-                             {activeStandardLoans.map(loan => (
-                                <div key={loan.id} className="space-y-3">
-                                    <div className="flex justify-between items-end px-2">
-                                        <div className="space-y-0.5">
-                                            <p className="text-[10px] font-black text-white uppercase tracking-widest">{loan.planName}</p>
-                                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">#{loan.id.slice(-8).toUpperCase()}</p>
-                                        </div>
-                                        <Badge variant="outline" className="h-5 text-[8px] font-black tracking-widest border-primary/20 text-primary uppercase">{loan.status}</Badge>
-                                    </div>
-                                    <div className="bg-white/[0.02] rounded-2xl p-4 border border-white/5 space-y-4">
-                                        <div className="grid grid-cols-2 gap-4 border-b border-white/5 pb-4">
-                                            <div className="space-y-0.5">
-                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Disbursed On</p>
-                                                <p className="text-xs font-bold text-white/60">{loan.startDate.toDate().toLocaleDateString()}</p>
-                                            </div>
-                                            <div className="space-y-0.5 text-right">
-                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Late Penalty</p>
-                                                <p className={cn("text-xs font-bold", (loan.penalty || 0) > 0 ? "text-red-400" : "text-white/40")}>₹{(loan.penalty || 0).toFixed(2)}</p>
-                                            </div>
-                                        </div>
-                                        {loan.repaymentMethod === 'EMI' ? loan.emis?.map((emi, i) => (
-                                            <RepaymentRow 
-                                                key={`${loan.id}-${i}`}
-                                                date={emi.dueDate.toDate()} 
-                                                amount={emi.emiAmount} 
-                                                status={emi.status} 
-                                                isSelected={!!selectedItems.find(item => item.id === loan.id && item.emiIndex === i)}
-                                                onToggle={() => handleToggleSelect(loan, emi.emiAmount, false, i)}
-                                            />
-                                        )) : (
-                                            <RepaymentRow 
-                                                date={loan.dueDate.toDate()} 
-                                                amount={loan.totalPayable + (loan.penalty || 0)} 
-                                                status={loan.status} 
-                                                subtext={loan.penalty ? `Includes ₹${loan.penalty.toFixed(2)} Late Penalty` : undefined}
-                                                isSelected={!!selectedItems.find(item => item.id === loan.id && item.emiIndex === undefined)}
-                                                onToggle={() => handleToggleSelect(loan, loan.totalPayable + (loan.penalty || 0), false)}
-                                            />
-                                        )}
-                                    </div>
+            <TabsContent value="active" className="mt-8 space-y-8">
+                {(activeStandard.length > 0 || activeCustom.length > 0) ? (
+                    <Card className="bg-card border-border rounded-[2.5rem] overflow-hidden shadow-2xl relative border-primary/10">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-transparent" />
+                        <CardHeader className="pb-2 pt-10 px-8">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[4px] text-primary/60">Current Dues</p>
+                                    <h2 className="text-2xl font-black tracking-tight text-white mt-1">Live Credit Nodes</h2>
                                 </div>
-                             ))}
+                                <div className="h-10 w-10 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-center text-primary">
+                                    <Activity size={20} className="animate-pulse" />
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-8 p-8">
+                            <div className="flex justify-between items-end bg-black/20 p-6 rounded-3xl border border-white/5 shadow-inner">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black uppercase text-white/20 tracking-widest mb-1">Due for Settlement</span>
+                                    <span className="text-5xl font-black tracking-tighter text-white">
+                                        ₹{totalSelectedAmount > 0 ? totalSelectedAmount.toLocaleString() : "0.00"}
+                                    </span>
+                                </div>
+                                {selectedItems.length > 0 && (
+                                    <Button onClick={() => setIsPaymentModalOpen(true)} className="h-14 px-8 rounded-2xl bg-primary text-white font-black uppercase text-xs tracking-widest animate-in zoom-in-50 shadow-xl shadow-primary/20 hover:scale-105 transition-transform">
+                                        Pay Selected
+                                    </Button>
+                                )}
+                            </div>
 
-                             {activeCustomLoans.map(loan => {
-                                const isRepaymentVisible = ['active', 'payment_pending', 'extension_pending'].includes(loan.status);
-
-                                return (
-                                <div key={loan.id} className="space-y-3">
-                                    <div className="flex justify-between items-end px-2">
-                                        <div className="space-y-0.5">
-                                            <p className="text-[10px] font-black text-accent uppercase tracking-widest">Flexi Protocol Node</p>
-                                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">#{loan.id.slice(-8).toUpperCase()}</p>
-                                        </div>
-                                        <Badge variant="outline" className={cn(
-                                            "h-5 text-[8px] font-black tracking-widest uppercase border-accent/20 text-accent",
-                                            loan.status === 'pending_user_approval' && "text-blue-400 border-blue-400/20"
-                                        )}>
-                                            {loan.status.replace(/_/g, ' ')}
-                                        </Badge>
-                                    </div>
-                                    <div className="bg-white/[0.02] rounded-2xl p-4 border border-white/5 space-y-4">
-                                        {loan.status === 'pending_user_approval' ? (
-                                            <div className="space-y-4">
-                                                <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl space-y-3">
-                                                    <p className="text-[10px] font-black uppercase text-blue-400 tracking-widest">Offer Available</p>
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div>
-                                                            <p className="text-[8px] font-bold text-white/20 uppercase">Interest</p>
-                                                            <p className="text-sm font-black text-white">{loan.interestRate?.toFixed(2)}%</p>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-[8px] font-bold text-white/20 uppercase">Settlement</p>
-                                                            <p className="text-sm font-black text-green-400">₹{loan.totalRepayment?.toFixed(2)}</p>
-                                                        </div>
-                                                    </div>
-                                                    <Button onClick={() => handleAcceptOffer(loan.id)} className="w-full bg-blue-600 text-white font-black uppercase text-[10px] h-10 rounded-lg">Accept Offer</Button>
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between px-1">
+                                    <p className="text-[10px] font-black uppercase tracking-[4px] text-muted-foreground">Repayment Schedule</p>
+                                    <p className="text-[8px] font-bold text-muted-foreground uppercase opacity-50">Select items to pay</p>
+                                </div>
+                                
+                                <div className="space-y-4">
+                                    {activeStandard.map(loan => (
+                                        <div key={loan.id} className="space-y-3">
+                                            <div className="flex justify-between items-end px-2">
+                                                <div className="space-y-0.5">
+                                                    <p className="text-[10px] font-black text-white uppercase tracking-widest">{loan.planName}</p>
+                                                    <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">#{loan.id.slice(-8).toUpperCase()}</p>
                                                 </div>
+                                                <Badge variant="outline" className="h-5 text-[8px] font-black tracking-widest border-primary/20 text-primary uppercase">{loan.status}</Badge>
                                             </div>
-                                        ) : (
-                                            <>
-                                                <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-white/[0.02] rounded-2xl p-4 border border-white/5 space-y-4">
+                                                <div className="grid grid-cols-2 gap-4 border-b border-white/5 pb-4">
                                                     <div className="space-y-0.5">
-                                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Protocol Start</p>
-                                                        <p className="text-xs font-bold text-white/60">{(loan.activatedAt || loan.createdAt).toDate().toLocaleDateString()}</p>
+                                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Disbursed On</p>
+                                                        <p className="text-xs font-bold text-white/60">{loan.startDate.toDate().toLocaleDateString()}</p>
                                                     </div>
                                                     <div className="space-y-0.5 text-right">
-                                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Penalty</p>
+                                                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Late Penalty</p>
                                                         <p className={cn("text-xs font-bold", (loan.penalty || 0) > 0 ? "text-red-400" : "text-white/40")}>₹{(loan.penalty || 0).toFixed(2)}</p>
                                                     </div>
                                                 </div>
-                                                
-                                                {loan.adminDispatchScreenshot && (
-                                                    <Button variant="outline" size="sm" onClick={() => setViewingAdminProof(loan.adminDispatchScreenshot!)} className="w-full h-8 text-[9px] font-black uppercase border-primary/20 text-primary gap-2">
-                                                        <ImageIcon size={12}/> View Dispatch Receipt
-                                                    </Button>
-                                                )}
-
-                                                {isRepaymentVisible ? (
+                                                {loan.repaymentMethod === 'EMI' ? loan.emis?.map((emi, i) => (
                                                     <RepaymentRow 
-                                                        date={loan.dueDate?.toDate() || new Date()} 
-                                                        amount={(loan.totalRepayment || 0) + (loan.penalty || 0)} 
-                                                        status={loan.status === 'active' ? 'Active' : loan.status} 
-                                                        subtext={loan.penalty ? `Includes ₹${loan.penalty.toFixed(2)} Late Penalty` : `Principal: ₹${loan.requestedAmount} | Int: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
-                                                        isSelected={!!selectedItems.find(item => item.id === loan.id)}
-                                                        onToggle={() => handleToggleSelect(loan, (loan.totalRepayment || 0) + (loan.penalty || 0), true)}
+                                                        key={`${loan.id}-${i}`}
+                                                        date={emi.dueDate.toDate()} 
+                                                        amount={emi.emiAmount} 
+                                                        status={emi.status} 
+                                                        isSelected={!!selectedItems.find(item => item.id === loan.id && item.emiIndex === i)}
+                                                        onToggle={() => handleToggleSelect(loan, emi.emiAmount, false, i)}
                                                     />
-                                                ) : (
-                                                    <div className="p-8 text-center text-[10px] font-black uppercase text-white/10 italic">Awaiting Fund Dispatch</div>
+                                                )) : (
+                                                    <RepaymentRow 
+                                                        date={loan.dueDate.toDate()} 
+                                                        amount={loan.totalPayable + (loan.penalty || 0)} 
+                                                        status={loan.status} 
+                                                        subtext={loan.penalty ? `Includes ₹${loan.penalty.toFixed(2)} Late Penalty` : undefined}
+                                                        isSelected={!!selectedItems.find(item => item.id === loan.id && item.emiIndex === undefined)}
+                                                        onToggle={() => handleToggleSelect(loan, loan.totalPayable + (loan.penalty || 0), false)}
+                                                    />
                                                 )}
+                                            </div>
+                                        </div>
+                                    ))}
 
-                                                {loan.status === 'active' && (
-                                                    <Button variant="ghost" onClick={() => setExtTargetId(loan.id)} className="w-full text-[9px] font-black uppercase tracking-widest text-primary h-8 gap-2">
-                                                        <Zap size={12}/> Request Time Extension
-                                                    </Button>
+                                    {activeCustom.map(loan => {
+                                        const isRepaymentVisible = ['active', 'payment_pending', 'extension_pending'].includes(loan.status);
+
+                                        return (
+                                        <div key={loan.id} className="space-y-3">
+                                            <div className="flex justify-between items-end px-2">
+                                                <div className="space-y-0.5">
+                                                    <p className="text-[10px] font-black text-accent uppercase tracking-widest">Flexi Protocol Node</p>
+                                                    <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">#{loan.id.slice(-8).toUpperCase()}</p>
+                                                </div>
+                                                <Badge variant="outline" className={cn(
+                                                    "h-5 text-[8px] font-black tracking-widest uppercase border-accent/20 text-accent",
+                                                    loan.status === 'pending_user_approval' && "text-blue-400 border-blue-400/20"
+                                                )}>
+                                                    {loan.status.replace(/_/g, ' ')}
+                                                </Badge>
+                                            </div>
+                                            <div className="bg-white/[0.02] rounded-2xl p-4 border border-white/5 space-y-4">
+                                                {loan.status === 'pending_user_approval' ? (
+                                                    <div className="space-y-4">
+                                                        <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl space-y-3">
+                                                            <p className="text-[10px] font-black uppercase text-blue-400 tracking-widest">Offer Available</p>
+                                                            <div className="grid grid-cols-2 gap-4">
+                                                                <div>
+                                                                    <p className="text-[8px] font-bold text-white/20 uppercase">Interest</p>
+                                                                    <p className="text-sm font-black text-white">{loan.interestRate?.toFixed(2)}%</p>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <p className="text-[8px] font-bold text-white/20 uppercase">Settlement</p>
+                                                                    <p className="text-sm font-black text-green-400">₹{loan.totalRepayment?.toFixed(2)}</p>
+                                                                </div>
+                                                            </div>
+                                                            <Button onClick={() => handleAcceptOffer(loan.id)} className="w-full bg-blue-600 text-white font-black uppercase text-[10px] h-10 rounded-lg">Accept Offer</Button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div className="space-y-0.5">
+                                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Protocol Start</p>
+                                                                <p className="text-xs font-bold text-white/60">{(loan.activatedAt || loan.createdAt).toDate().toLocaleDateString()}</p>
+                                                            </div>
+                                                            <div className="space-y-0.5 text-right">
+                                                                <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Penalty</p>
+                                                                <p className={cn("text-xs font-bold", (loan.penalty || 0) > 0 ? "text-red-400" : "text-white/40")}>₹{(loan.penalty || 0).toFixed(2)}</p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {loan.adminDispatchScreenshot && (
+                                                            <Button variant="outline" size="sm" onClick={() => setViewingAdminProof(loan.adminDispatchScreenshot!)} className="w-full h-8 text-[9px] font-black uppercase border-primary/20 text-primary gap-2">
+                                                                <ImageIcon size={12}/> View Dispatch Receipt
+                                                            </Button>
+                                                        )}
+
+                                                        {isRepaymentVisible ? (
+                                                            <RepaymentRow 
+                                                                date={loan.dueDate?.toDate() || new Date()} 
+                                                                amount={(loan.totalRepayment || 0) + (loan.penalty || 0)} 
+                                                                status={loan.status === 'active' ? 'Active' : loan.status} 
+                                                                subtext={loan.penalty ? `Includes ₹${loan.penalty.toFixed(2)} Late Penalty` : `Principal: ₹${loan.requestedAmount} | Int: ₹${loan.interestAmount?.toFixed(2) || '0.00'}`}
+                                                                isSelected={!!selectedItems.find(item => item.id === loan.id)}
+                                                                onToggle={() => handleToggleSelect(loan, (loan.totalRepayment || 0) + (loan.penalty || 0), true)}
+                                                            />
+                                                        ) : (
+                                                            <div className="p-8 text-center text-[10px] font-black uppercase text-white/10 italic">Awaiting Fund Dispatch</div>
+                                                        )}
+
+                                                        {loan.status === 'active' && (
+                                                            <Button variant="ghost" onClick={() => setExtTargetId(loan.id)} className="w-full text-[9px] font-black uppercase tracking-widest text-primary h-8 gap-2">
+                                                                <Zap size={12}/> Request Time Extension
+                                                            </Button>
+                                                        )}
+                                                    </>
                                                 )}
-                                            </>
-                                        )}
+                                            </div>
+                                        </div>
+                                    )})}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card className="bg-muted/20 border-dashed border-border rounded-[3rem] py-28 text-center shadow-inner">
+                        <CardContent className="space-y-6">
+                            <div className="h-20 w-20 rounded-3xl bg-muted/50 border border-white/5 flex items-center justify-center mx-auto">
+                                <HandCoins size={40} className="text-white/10" />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="text-lg font-black uppercase text-white/40 tracking-widest">Protocol Clear</h3>
+                                <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">No active liabilities</p>
+                            </div>
+                            <Button asChild variant="outline" className="border-border text-[10px] font-black uppercase tracking-widest h-12 px-8 rounded-xl">
+                                <Link href="/loans">Acquire Capital</Link>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )}
+            </TabsContent>
+
+            <TabsContent value="history" className="mt-8 space-y-6">
+                {(historyStandard.length > 0 || historyCustom.length > 0) ? (
+                    <div className="space-y-4">
+                        {historyStandard.map(loan => (
+                             <Card key={loan.id} className="bg-card border-border rounded-3xl p-6 opacity-60 hover:opacity-100 transition-opacity grayscale hover:grayscale-0">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <p className="text-sm font-bold text-white">{loan.planName}</p>
+                                        <p className="text-[10px] text-white/20 uppercase font-black">Settled Standard Node</p>
+                                    </div>
+                                    <Badge className="bg-accent/20 text-accent border-accent/20 text-[8px] font-black uppercase">COMPLETED</Badge>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 bg-black/20 p-4 rounded-2xl border border-white/5">
+                                    <div>
+                                        <p className="text-[9px] text-white/20 uppercase font-bold tracking-widest mb-1">Principal</p>
+                                        <p className="text-sm font-black text-white">₹{loan.loanAmount.toLocaleString()}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[9px] text-white/20 uppercase font-bold tracking-widest mb-1">Final Settlement</p>
+                                        <p className="text-sm font-black text-white/80">₹{loan.totalPayable.toLocaleString()}</p>
                                     </div>
                                 </div>
-                             )})}
-                        </div>
+                             </Card>
+                        ))}
+                        {historyCustom.map(loan => (
+                             <Card key={loan.id} className="bg-card border-border rounded-3xl p-6 opacity-60 hover:opacity-100 transition-opacity grayscale hover:grayscale-0">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <p className="text-sm font-bold text-white">Flexible Loan Portfolio</p>
+                                        <p className="text-[10px] text-white/20 uppercase font-black">Settled Flexi Node</p>
+                                    </div>
+                                    <Badge className="bg-accent/20 text-accent border-accent/20 text-[8px] font-black uppercase">SETTLED</Badge>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 bg-black/20 p-4 rounded-2xl border border-white/5">
+                                    <div>
+                                        <p className="text-[9px] text-white/20 uppercase font-bold tracking-widest mb-1">Principal</p>
+                                        <p className="text-sm font-black text-white">₹{loan.requestedAmount.toLocaleString()}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[9px] text-white/20 uppercase font-bold tracking-widest mb-1">Final Settlement</p>
+                                        <p className="text-sm font-black text-white/80">₹{loan.totalRepayment?.toLocaleString()}</p>
+                                    </div>
+                                </div>
+                             </Card>
+                        ))}
                     </div>
-                </CardContent>
-            </Card>
-        ) : (
-            <Card className="bg-muted/20 border-dashed border-border rounded-[3rem] py-28 text-center shadow-inner">
-                <CardContent className="space-y-6">
-                    <div className="h-20 w-20 rounded-3xl bg-muted/50 border border-white/5 flex items-center justify-center mx-auto">
-                        <HandCoins size={40} className="text-white/10" />
+                ) : (
+                    <div className="text-center py-20 bg-muted/20 border-dashed border-border rounded-[3rem] shadow-inner space-y-4">
+                        <HistoryIcon size={48} className="mx-auto text-white/10" />
+                        <p className="text-white/20 text-xs uppercase font-black tracking-widest">No repayment history recorded</p>
                     </div>
-                    <div className="space-y-1">
-                        <h3 className="text-lg font-black uppercase text-white/40 tracking-widest">Protocol Clear</h3>
-                        <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">No active liabilities</p>
-                    </div>
-                    <Button asChild variant="outline" className="border-border text-[10px] font-black uppercase tracking-widest h-12 px-8 rounded-xl">
-                        <Link href="/loans">Acquire Capital</Link>
-                    </Button>
-                </CardContent>
-            </Card>
-        )}
+                )}
+            </TabsContent>
+        </Tabs>
 
         {/* Extension Dialog */}
         <Dialog open={!!extTargetId} onOpenChange={() => setExtTargetId(null)}>
