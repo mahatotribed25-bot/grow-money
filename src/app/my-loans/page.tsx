@@ -85,6 +85,7 @@ type Loan = {
   penalty?: number;
   startDate: Timestamp;
   dueDate: Timestamp;
+  settledAt?: Timestamp;
   status: 'Active' | 'Due' | 'Completed' | 'Payment Pending';
   repaymentMethod?: 'EMI' | 'Direct';
   emis?: EMI[];
@@ -109,6 +110,7 @@ type CustomLoanRequest = {
   createdAt: Timestamp;
   activatedAt?: Timestamp;
   dueDate?: Timestamp;
+  settledAt?: Timestamp;
   extensionRequestedDays?: number;
   adminDispatchScreenshot?: string;
   adminDispatchTid?: string;
@@ -174,10 +176,10 @@ export default function MyLoansPage() {
 
   // Filters for Tabs
   const activeStandard = sortedLoans.filter(l => l.status !== 'Completed');
-  const historyStandard = sortedLoans.filter(l => l.status === 'Completed');
+  const historyStandard = sortedLoans.filter(l => l.status === 'Completed').sort((a,b) => (b.settledAt?.seconds || 0) - (a.settledAt?.seconds || 0));
   
   const activeCustom = sortedCustomLoans.filter(l => ['active', 'payment_pending', 'extension_pending', 'pending_user_approval', 'approved_by_user'].includes(l.status));
-  const historyCustom = sortedCustomLoans.filter(l => l.status === 'completed');
+  const historyCustom = sortedCustomLoans.filter(l => l.status === 'completed').sort((a,b) => (b.settledAt?.seconds || 0) - (a.settledAt?.seconds || 0));
 
   const totalSelectedAmount = useMemo(() => {
     return selectedItems.reduce((sum, item) => sum + item.amount, 0);
@@ -343,7 +345,7 @@ export default function MyLoansPage() {
 
             <TabsContent value="active" className="mt-8 space-y-8">
                 {(activeStandard.length > 0 || activeCustom.length > 0) ? (
-                    <Card className="bg-card border-border rounded-[2.5rem] overflow-hidden shadow-2xl relative border-primary/10">
+                    <Card className="bg-card border-border rounded-[2rem] overflow-hidden shadow-2xl relative border-primary/10">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-transparent" />
                         <CardHeader className="pb-2 pt-10 px-8">
                             <div className="flex justify-between items-center">
@@ -522,45 +524,55 @@ export default function MyLoansPage() {
 
             <TabsContent value="history" className="mt-8 space-y-6">
                 {(historyStandard.length > 0 || historyCustom.length > 0) ? (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         {historyStandard.map(loan => (
-                             <Card key={loan.id} className="bg-card border-border rounded-3xl p-6 opacity-60 hover:opacity-100 transition-opacity grayscale hover:grayscale-0">
-                                <div className="flex justify-between items-start mb-4">
+                             <Card key={loan.id} className="bg-card border-border rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-5"><ShieldCheck size={100} /></div>
+                                <div className="flex justify-between items-start mb-6">
                                     <div>
-                                        <p className="text-sm font-bold text-white">{loan.planName}</p>
-                                        <p className="text-[10px] text-white/20 uppercase font-black">Settled Standard Node</p>
+                                        <p className="text-[10px] font-black text-primary uppercase tracking-[3px] mb-1">Standard Protocol Node</p>
+                                        <h3 className="text-lg font-black text-white tracking-tight">{loan.planName}</h3>
                                     </div>
-                                    <Badge className="bg-accent/20 text-accent border-accent/20 text-[8px] font-black uppercase">COMPLETED</Badge>
+                                    <Badge className="bg-accent/20 text-accent border-accent/20 text-[9px] font-black uppercase px-3 h-6">SETTLED</Badge>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4 bg-black/20 p-4 rounded-2xl border border-white/5">
-                                    <div>
-                                        <p className="text-[9px] text-white/20 uppercase font-bold tracking-widest mb-1">Principal</p>
-                                        <p className="text-sm font-black text-white">₹{loan.loanAmount.toLocaleString()}</p>
+
+                                <div className="bg-white/5 border border-white/5 rounded-2xl p-5 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <HistoryMetric label="Base Principal" value={`₹${loan.loanAmount.toLocaleString()}`} />
+                                        <HistoryMetric label="Interest Paid" value={`+ ₹${(loan.interest || 0).toLocaleString()}`} />
+                                        <HistoryMetric label="Penalty Node" value={`+ ₹${(loan.penalty || 0).toLocaleString()}`} isPenalty />
+                                        <HistoryMetric label="Final Settlement" value={`₹${(loan.totalPayable + (loan.penalty || 0)).toLocaleString()}`} isHighlight />
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[9px] text-white/20 uppercase font-bold tracking-widest mb-1">Final Settlement</p>
-                                        <p className="text-sm font-black text-white/80">₹{loan.totalPayable.toLocaleString()}</p>
+                                    <Separator className="bg-white/5" />
+                                    <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-white/30">
+                                        <div className="flex items-center gap-1.5"><Calendar size={12}/> Disbursed: {loan.startDate.toDate().toLocaleDateString()}</div>
+                                        <div className="flex items-center gap-1.5"><CheckCircle size={12} className="text-accent"/> Settled: {loan.settledAt ? loan.settledAt.toDate().toLocaleDateString() : 'N/A'}</div>
                                     </div>
                                 </div>
                              </Card>
                         ))}
                         {historyCustom.map(loan => (
-                             <Card key={loan.id} className="bg-card border-border rounded-3xl p-6 opacity-60 hover:opacity-100 transition-opacity grayscale hover:grayscale-0">
-                                <div className="flex justify-between items-start mb-4">
+                             <Card key={loan.id} className="bg-card border-border rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-5"><Zap size={100} className="text-accent" /></div>
+                                <div className="flex justify-between items-start mb-6">
                                     <div>
-                                        <p className="text-sm font-bold text-white">Flexible Loan Portfolio</p>
-                                        <p className="text-[10px] text-white/20 uppercase font-black">Settled Flexi Node</p>
+                                        <p className="text-[10px] font-black text-accent uppercase tracking-[3px] mb-1">Flexible Protocol Node</p>
+                                        <h3 className="text-lg font-black text-white tracking-tight">Flexible Loan Portfolio</h3>
                                     </div>
-                                    <Badge className="bg-accent/20 text-accent border-accent/20 text-[8px] font-black uppercase">SETTLED</Badge>
+                                    <Badge className="bg-accent/20 text-accent border-accent/20 text-[9px] font-black uppercase px-3 h-6">ARCHIVED</Badge>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4 bg-black/20 p-4 rounded-2xl border border-white/5">
-                                    <div>
-                                        <p className="text-[9px] text-white/20 uppercase font-bold tracking-widest mb-1">Principal</p>
-                                        <p className="text-sm font-black text-white">₹{loan.requestedAmount.toLocaleString()}</p>
+
+                                <div className="bg-white/5 border border-white/5 rounded-2xl p-5 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <HistoryMetric label="Base Principal" value={`₹${loan.requestedAmount.toLocaleString()}`} />
+                                        <HistoryMetric label="Agreed Interest" value={`+ ₹${(loan.interestAmount || 0).toLocaleString()}`} />
+                                        <HistoryMetric label="Penalty Node" value={`+ ₹${(loan.penalty || 0).toLocaleString()}`} isPenalty />
+                                        <HistoryMetric label="Final Settlement" value={`₹${((loan.totalRepayment || 0) + (loan.penalty || 0)).toLocaleString()}`} isHighlight />
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[9px] text-white/20 uppercase font-bold tracking-widest mb-1">Final Settlement</p>
-                                        <p className="text-sm font-black text-white/80">₹{loan.totalRepayment?.toLocaleString()}</p>
+                                    <Separator className="bg-white/5" />
+                                    <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-white/30">
+                                        <div className="flex items-center gap-1.5"><Calendar size={12}/> Active: {loan.activatedAt ? loan.activatedAt.toDate().toLocaleDateString() : loan.createdAt.toDate().toLocaleDateString()}</div>
+                                        <div className="flex items-center gap-1.5"><CheckCircle size={12} className="text-accent"/> Settled: {loan.settledAt ? loan.settledAt.toDate().toLocaleDateString() : 'N/A'}</div>
                                     </div>
                                 </div>
                              </Card>
@@ -702,6 +714,20 @@ export default function MyLoansPage() {
       </nav>
     </div>
   );
+}
+
+function HistoryMetric({ label, value, isHighlight, isPenalty }: { label: string, value: string, isHighlight?: boolean, isPenalty?: boolean }) {
+    return (
+        <div className="space-y-1">
+            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">{label}</p>
+            <p className={cn(
+                "text-base font-black tracking-tight",
+                isHighlight ? "text-white" : isPenalty ? "text-red-400" : "text-white/60"
+            )}>
+                {value}
+            </p>
+        </div>
+    )
 }
 
 function RepaymentRow({ date, amount, status, isSelected, onToggle, subtext }: { date: Date, amount: number, status: string, isSelected: boolean, onToggle: () => void, subtext?: string }) {

@@ -93,6 +93,7 @@ type CustomLoanRequest = {
   userPaymentScreenshot?: string;
   userPaymentTid?: string;
   paidNotificationAt?: Timestamp;
+  settledAt?: Timestamp;
 };
 
 type UserData = {
@@ -280,7 +281,10 @@ export default function CustomLoansPage() {
         if (settingsDoc.exists()) {
             currentUsage = settingsDoc.data().currentCustomLoanUsage || 0;
         }
-        transaction.update(requestRef, { status: 'completed', settledAt: serverTimestamp() });
+        transaction.update(requestRef, { 
+            status: 'completed', 
+            settledAt: serverTimestamp() 
+        });
         transaction.update(settingsRef, { currentCustomLoanUsage: Math.max(0, currentUsage - request.requestedAmount) });
     })
     .then(async () => {

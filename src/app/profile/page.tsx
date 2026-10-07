@@ -186,6 +186,9 @@ type CustomLoanRequest = {
     status: string;
     totalRepayment?: number;
     createdAt: Timestamp;
+    settledAt?: Timestamp;
+    interestAmount?: number;
+    penalty?: number;
 };
 
 export default function ProfilePage() {
@@ -684,24 +687,41 @@ export default function ProfilePage() {
                 <TabsContent value="withdrawals"><TransactionTable transactions={withdrawals} type="withdrawal" onViewReceipt={(tx) => setSelectedReceipt({ tx, type: 'withdrawal' })} /></TabsContent>
                 <TabsContent value="groups"><GroupInvestmentTable investments={groupInvestments} /></TabsContent>
                 <TabsContent value="loans">
-                    <HistoryTable headers={['Asset Node', 'Status']} items={combinedLoans} renderRow={(l) => (
+                    <HistoryTable headers={['Asset Node', 'Status']} items={combinedLoans} renderRow={(l) => {
+                        const isSettled = l.status === 'Completed' || l.status === 'completed';
+                        const principal = l.loanAmount || l.requestedAmount || 0;
+                        const finalAmt = (l.totalPayable || l.totalRepayment || 0) + (l.penalty || 0);
+
+                        return (
                         <TableRow key={l.id} className="border-border hover:bg-muted/30">
                             <TableCell className="pl-6 py-4">
-                                <p className="text-xs font-bold">{l.planName || 'Flexi Loan Portfolio'}</p>
-                                <p className="text-[9px] text-muted-foreground uppercase font-black">
-                                    ₹{(l.loanAmount || l.requestedAmount || 0).toLocaleString()} • {l.type.toUpperCase()}
-                                </p>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold">{l.planName || 'Flexi Loan Portfolio'}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-[9px] text-muted-foreground uppercase font-black">
+                                            Principal: ₹{principal.toLocaleString()}
+                                        </p>
+                                        {isSettled && (
+                                            <p className="text-[9px] text-accent uppercase font-black">
+                                                Paid: ₹{finalAmt.toLocaleString()}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <p className="text-[8px] text-white/20 font-bold uppercase">
+                                        {l.type.toUpperCase()} NODE • {l.createdAt ? new Date(l.createdAt.seconds * 1000).toLocaleDateString() : (l.startDate ? new Date(l.startDate.seconds * 1000).toLocaleDateString() : 'N/A')}
+                                    </p>
+                                </div>
                             </TableCell>
                             <TableCell className="text-right pr-6">
                                 <Badge variant="outline" className={cn(
                                     "text-[8px] font-black uppercase px-2 h-5",
-                                    (l.status === 'Completed' || l.status === 'completed') ? "border-accent/20 text-accent" : "border-primary/20 text-primary"
+                                    isSettled ? "border-accent/20 text-accent bg-accent/10" : "border-primary/20 text-primary bg-primary/5"
                                 )}>
                                     {l.status}
                                 </Badge>
                             </TableCell>
                         </TableRow>
-                    )} />
+                    )}} />
                 </TabsContent>
                 <TabsContent value="salary">
                     <div className="space-y-6">
