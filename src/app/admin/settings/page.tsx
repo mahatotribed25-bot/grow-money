@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Users, Phone, Zap, PlayCircle, Plus, Trash2, ShieldCheck } from 'lucide-react';
+import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Users, Phone, Zap, PlayCircle, Plus, Trash2, ShieldCheck, PiggyBank } from 'lucide-react';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
@@ -55,6 +55,8 @@ type AdminSettings = {
   spinCost?: number;
   spinRewards?: number[];
   homepageVideoUrls?: string[];
+  globalSavingsInterestRate?: number;
+  minSavingsDeposit?: number;
 };
 
 export default function SettingsPage() {
@@ -85,6 +87,8 @@ export default function SettingsPage() {
   const [profitStartDate, setProfitStartDate] = useState<Date | null>(null);
   const [p2pFee, setP2pFee] = useState(2);
   const [homepageVideoUrls, setHomepageVideoUrls] = useState<string[]>(['', '', '', '', '']);
+  const [globalSavingsRate, setGlobalSavingsRate] = useState(0.5);
+  const [minSavingsDeposit, setMinSavingsDeposit] = useState(100);
 
   // Spin Settings
   const [spinCost, setSpinCost] = useState(0);
@@ -124,6 +128,8 @@ export default function SettingsPage() {
       setMaxCustomLoanAmount(settings.maxCustomLoanAmount || 5000);
       setTotalCustomLoanLimit(settings.totalCustomLoanLimit || 0);
       setProfitStartDate(settings.profitCalculationStartDate?.toDate() || null);
+      setGlobalSavingsRate(settings.globalSavingsInterestRate ?? 0.5);
+      setMinSavingsDeposit(settings.minSavingsDeposit ?? 100);
       
       const savedUrls = settings.homepageVideoUrls || [];
       const paddedUrls = [...savedUrls, '', '', '', '', ''].slice(0, 5);
@@ -181,6 +187,8 @@ export default function SettingsPage() {
       spinCost: Number(spinCost),
       spinRewards: rewardsArray,
       homepageVideoUrls: homepageVideoUrls.filter(u => u.trim() !== ''),
+      globalSavingsInterestRate: Number(globalSavingsRate),
+      minSavingsDeposit: Number(minSavingsDeposit),
     };
 
     setDoc(settingsRef, settingsData, { merge: true })
@@ -455,6 +463,45 @@ export default function SettingsPage() {
                     </div>
                 </div>
                 <Separator />
+
+                {/* Dynamic Savings Section */}
+                <div>
+                    <CardTitle className="flex items-center gap-2"><PiggyBank className="text-primary" /> Global Savings Vault</CardTitle>
+                     <CardDescription>
+                        Set the universal interest rate for user savings.
+                    </CardDescription>
+                    <div className="space-y-4 mt-4 p-4 border border-primary/20 rounded-xl bg-primary/5">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="savings-rate">Daily Interest Rate (%)</Label>
+                                <Input 
+                                    id="savings-rate" 
+                                    type="number" 
+                                    step="0.01"
+                                    placeholder="e.g., 0.5" 
+                                    value={globalSavingsRate} 
+                                    onChange={(e) => setGlobalSavingsRate(Number(e.target.value))} 
+                                    className="bg-white/5 border-white/10 font-bold"
+                                />
+                                <p className="text-[9px] text-white/40 uppercase">Users will earn this much on their balance every 24 hours.</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="min-savings">Min. Deposit (₹)</Label>
+                                <Input 
+                                    id="min-savings" 
+                                    type="number" 
+                                    placeholder="e.g., 100" 
+                                    value={minSavingsDeposit} 
+                                    onChange={(e) => setMinSavingsDeposit(Number(e.target.value))} 
+                                    className="bg-white/5 border-white/10 font-bold"
+                                />
+                                <p className="text-[9px] text-white/40 uppercase">Minimum amount to start earning interest.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <Separator />
+
                 <div>
                     <CardTitle>Profit Settings</CardTitle>
                     <CardDescription>

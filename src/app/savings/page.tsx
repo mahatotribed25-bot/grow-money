@@ -6,7 +6,7 @@ import { doc, runTransaction, serverTimestamp, collection, Timestamp, addDoc } f
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, PiggyBank, TrendingUp, ArrowUpRight, ArrowDownRight, Wallet, History, Timer, Info, Sparkles, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, PiggyBank, TrendingUp, ArrowUpRight, ArrowDownRight, Wallet, History, Timer, Info, Sparkles, ShieldCheck, Calculator } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -16,18 +16,15 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 
-type SavingsPlan = {
-    id: string;
-    name: string;
-    dailyRate: number;
-    minDeposit: number;
-}
-
 type UserSavings = {
     balance: number;
     totalInterestEarned: number;
     lastInterestCalculation: Timestamp;
-    activePlanId: string;
+}
+
+type AdminSettings = {
+    globalSavingsInterestRate?: number;
+    minSavingsDeposit?: number;
 }
 
 type UserData = {
@@ -42,28 +39,26 @@ export default function SavingsVaultPage() {
     
     const { data: userData } = useDoc<UserData>(user ? `users/${user.uid}` : null);
     const { data: savingsData, loading: savingsLoading } = useDoc<UserSavings>(user ? `users/${user.uid}/savings/main` : null);
-    const { data: plans, loading: plansLoading } = useCollection<SavingsPlan>('savingsPlans');
+    const { data: adminSettings, loading: settingsLoading } = useDoc<AdminSettings>('settings/admin');
 
     const [transferAmount, setTransferAmount] = useState('');
     const [isTransferInOpen, setIsTransferInOpen] = useState(false);
     const [isTransferOutOpen, setIsTransferOutOpen] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const activePlan = useMemo(() => {
-        if (!savingsData || !plans) return null;
-        return plans.find(p => p.id === savingsData.activePlanId);
-    }, [savingsData, plans]);
+    const dailyRate = adminSettings?.globalSavingsInterestRate ?? 0.5;
+    const minDeposit = adminSettings?.minSavingsDeposit ?? 100;
 
     // AUTO-INTEREST CALCULATION LOGIC
     const syncInterest = useCallback(async () => {
-        if (!user || !savingsData || !activePlan || savingsData.balance <= 0) return;
+        if (!user || !savingsData || !dailyRate || savingsData.balance <= 0) return;
 
         const now = new Date();
         const lastCalc = savingsData.lastInterestCalculation.toDate();
         const diffInMs = now.getTime() - lastCalc.getTime();
         const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
 
-        if (diffInDays < 1) return; // Need at least 24 hours
+        if (diffInDays < 1) return;
 
         try {
             await runTransaction(firestore, async (transaction) => {
@@ -72,8 +67,8 @@ export default function SavingsVaultPage() {
                 if (!sDoc.exists()) return;
 
                 const currentData = sDoc.data() as UserSavings;
-                const dailyRate = activePlan.dailyRate / 100;
-                const interestEarned = currentData.balance * dailyRate * diffInDays;
+                const rateDecimal = dailyRate / 100;
+                const interestEarned = currentData.balance * rateDecimal * diffInDays;
 
                 transaction.update(savingsRef, {
                     balance: currentData.balance + interestEarned,
@@ -81,34 +76,30 @@ export default function SavingsVaultPage() {
                     lastInterestCalculation: serverTimestamp()
                 });
 
-                // Log to history
                 const historyRef = doc(collection(firestore, `users/${user.uid}/walletHistory`));
                 transaction.set(historyRef, {
                     amount: interestEarned,
                     type: 'credit',
                     category: 'Savings Interest',
-                    description: `Daily accrued interest for ${diffInDays} days`,
+                    description: `Daily accrued interest (${dailyRate}%) for ${diffInDays} days`,
                     createdAt: serverTimestamp()
                 });
             });
-            toast({ title: "Interest Accrued!", description: `₹${(savingsData.balance * (activePlan.dailyRate/100) * diffInDays).toFixed(2)} added to your vault.` });
+            toast({ title: "Interest Accrued!", description: `₹${(savingsData.balance * (dailyRate/100) * diffInDays).toFixed(2)} added to your vault.` });
         } catch (e) {
             console.error("Interest sync failed", e);
         }
-    }, [user, savingsData, activePlan, firestore, toast]);
+    }, [user, savingsData, dailyRate, firestore, toast]);
 
     useEffect(() => {
-        if (savingsData && activePlan) syncInterest();
-    }, [savingsData?.id, activePlan?.id]); // Run when data loads
+        if (savingsData && dailyRate) syncInterest();
+    }, [savingsData?.id, dailyRate]);
 
-    const handleTransferIn = async (plan: SavingsPlan) => {
+    const handleTransferIn = async () => {
         if (!user || !userData || isProcessing) return;
         const amt = parseFloat(transferAmount);
         
-        if (amt < plan.minDeposit) {
-            toast({ title: "Minimum Requirement", description: `You need at least ₹${plan.minDeposit} to activate this tier.`, variant: "destructive" });
-            return;
-        }
+        if (isNaN(amt) || amt <= 0) return;
 
         if (userData.walletBalance < amt) {
             toast({ title: "Insufficient Balance", description: "Recharge your main wallet to transfer funds.", variant: "destructive" });
@@ -131,24 +122,27 @@ export default function SavingsVaultPage() {
                 
                 const newSavingsData = {
                     balance: currentSavings + amt,
-                    activePlanId: plan.id,
-                    lastInterestCalculation: serverTimestamp(),
+                    lastInterestCalculation: sDoc.exists() ? sDoc.data().lastInterestCalculation : serverTimestamp(),
                     totalInterestEarned: sDoc.exists() ? sDoc.data().totalInterestEarned : 0
                 };
 
+                // If starting fresh, set the timestamp now
+                if (!sDoc.exists()) {
+                    newSavingsData.lastInterestCalculation = serverTimestamp();
+                }
+
                 transaction.set(savingsRef, newSavingsData, { merge: true });
 
-                // History
                 const historyRef = doc(collection(firestore, `users/${user.uid}/walletHistory`));
                 transaction.set(historyRef, {
                     amount: amt,
                     type: 'debit',
                     category: 'Vault Deposit',
-                    description: `Transferred to ${plan.name}`,
+                    description: `Transferred to Savings Vault`,
                     createdAt: serverTimestamp()
                 });
             });
-            toast({ title: "Vault Activated!", description: `₹${amt} is now earning daily interest.` });
+            toast({ title: "Vault Updated!", description: `₹${amt} is now earning daily interest.` });
             setIsTransferInOpen(false);
             setTransferAmount('');
         } catch (e) {
@@ -184,7 +178,6 @@ export default function SavingsVaultPage() {
                     balance: currentSavings - amt,
                 });
 
-                // History
                 const historyRef = doc(collection(firestore, `users/${user.uid}/walletHistory`));
                 transaction.set(historyRef, {
                     amount: amt,
@@ -204,9 +197,11 @@ export default function SavingsVaultPage() {
         }
     };
 
+    const loading = savingsLoading || settingsLoading;
+
     return (
         <div className="flex min-h-screen w-full flex-col bg-background text-foreground relative z-10 pb-24">
-            <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 px-4 backdrop-blur-xl sm:px-6">
+            <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/[0.05] bg-black/40 backdrop-blur-xl px-4 sm:px-6">
                 <Link href="/dashboard">
                     <Button variant="ghost" size="icon" className="hover:bg-white/10 text-white/70">
                         <ChevronLeft className="h-5 w-5" />
@@ -232,11 +227,9 @@ export default function SavingsVaultPage() {
                             <h2 className="text-5xl font-black text-white tracking-tighter drop-shadow-2xl">
                                 ₹{(savingsData?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </h2>
-                            {activePlan && (
-                                <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px] font-black uppercase tracking-widest px-4 h-6">
-                                    {activePlan.name} Node Active
-                                </Badge>
-                            )}
+                            <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px] font-black uppercase tracking-widest px-4 h-6">
+                                Auto-Accrual Active
+                            </Badge>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -246,7 +239,7 @@ export default function SavingsVaultPage() {
                             </div>
                             <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-right">
                                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Current ROI</p>
-                                <p className="text-xl font-black text-primary">+{activePlan?.dailyRate || 0}%<span className="text-[10px] ml-1">/day</span></p>
+                                <p className="text-xl font-black text-primary">+{dailyRate}%<span className="text-[10px] ml-1">/day</span></p>
                             </div>
                         </div>
 
@@ -262,61 +255,44 @@ export default function SavingsVaultPage() {
                 </Card>
 
                 {/* Info Note */}
-                <div className="p-5 bg-blue-500/5 border border-blue-500/10 rounded-3xl flex items-start gap-4">
-                    <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-                        <Info size={20} />
+                <div className="p-6 bg-blue-500/5 border border-blue-500/10 rounded-[2rem] space-y-4">
+                    <div className="flex items-start gap-4">
+                        <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                            <Info size={20} />
+                        </div>
+                        <div>
+                            <h4 className="text-xs font-black uppercase text-white/80 tracking-widest mb-1">Universal Protocol</h4>
+                            <p className="text-[11px] text-white/40 leading-relaxed font-medium">
+                                Every rupee in this vault earns <strong className="text-white">{dailyRate}%</strong> interest daily. No fixed terms, no maturity dates. Withdraw your capital and profits anytime back to your main wallet.
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h4 className="text-xs font-black uppercase text-white/80 tracking-widest mb-1">Protocol Logic</h4>
-                        <p className="text-[11px] text-white/40 leading-relaxed font-medium">
-                            Interest is calculated every 24 hours. Your balance must stay above the minimum tier requirement to keep earning. Withdrawing below the limit will pause the auto-accrual node.
-                        </p>
+                    <Separator className="bg-white/5" />
+                    <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-white/20 px-2">
+                        <div className="flex items-center gap-1.5"><ShieldCheck size={12} className="text-green-500"/> Secured Node</div>
+                        <div className="flex items-center gap-1.5"><Calculator size={12}/> Min. Deposit: ₹{minDeposit}</div>
                     </div>
                 </div>
 
-                {/* Tier Selection */}
+                {/* Prediction Tool */}
                 <div className="space-y-4">
-                    <h3 className="text-[10px] font-black uppercase tracking-[5px] text-muted-foreground px-2">Available Tiers</h3>
-                    {plansLoading ? (
-                        <div className="py-10 flex flex-col items-center gap-3 opacity-20">
-                            <Timer className="animate-spin" />
-                            <p className="text-[10px] font-bold uppercase tracking-[4px]">Syncing Rates</p>
+                    <h3 className="text-[10px] font-black uppercase tracking-[5px] text-muted-foreground px-2">Profit Projection</h3>
+                    <Card className="bg-white/[0.02] border-white/5 p-6 rounded-[2rem]">
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-1">
+                                    <p className="text-[9px] font-black text-white/20 uppercase">Daily Gain</p>
+                                    <p className="text-lg font-black text-green-400">₹{((savingsData?.balance || 0) * (dailyRate / 100)).toFixed(2)}</p>
+                                </div>
+                                <div className="space-y-1 text-right">
+                                    <p className="text-[9px] font-black text-white/20 uppercase">Monthly Estimate</p>
+                                    <p className="text-lg font-black text-white">₹{((savingsData?.balance || 0) * (dailyRate / 100) * 30).toFixed(0)}</p>
+                                </div>
+                            </div>
+                            <Progress value={100} className="h-1 opacity-20" />
+                            <p className="text-[9px] text-center text-white/10 uppercase font-black tracking-widest italic">Calculated based on current liquid capital</p>
                         </div>
-                    ) : (
-                        <div className="grid gap-4">
-                            {plans?.map(plan => (
-                                <Card key={plan.id} className={cn(
-                                    "bg-white/[0.02] border-white/[0.08] hover:border-primary/40 transition-all rounded-3xl overflow-hidden group",
-                                    activePlan?.id === plan.id && "border-primary/60 bg-primary/[0.03]"
-                                )}>
-                                    <CardContent className="p-6 flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className={cn(
-                                                "h-12 w-12 rounded-2xl flex items-center justify-center border transition-all",
-                                                activePlan?.id === plan.id ? "bg-primary/20 text-primary border-primary/20 shadow-lg shadow-primary/20" : "bg-white/5 text-white/20 border-white/5 group-hover:text-primary group-hover:border-primary/20"
-                                            )}>
-                                                <TrendingUp size={24} />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-sm font-black text-white uppercase">{plan.name}</p>
-                                                    {activePlan?.id === plan.id && <Badge className="bg-green-500/20 text-green-400 border-none text-[8px] h-4">ACTIVE</Badge>}
-                                                </div>
-                                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mt-1">ROI: {plan.dailyRate}% Daily • Min: ₹{plan.minDeposit}</p>
-                                            </div>
-                                        </div>
-                                        <Button 
-                                            variant="ghost" 
-                                            onClick={() => { setTransferAmount(plan.minDeposit.toString()); setIsTransferInOpen(true); }}
-                                            className="h-10 px-6 rounded-xl font-bold uppercase text-[10px] text-primary hover:bg-primary hover:text-white"
-                                        >
-                                            Invest
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    )}
+                    </Card>
                 </div>
             </main>
 
@@ -342,11 +318,11 @@ export default function SavingsVaultPage() {
                             />
                         </div>
                         <Button 
-                            onClick={() => activePlan ? handleTransferIn(activePlan) : (plans?.[0] && handleTransferIn(plans[0]))} 
-                            disabled={isProcessing || !transferAmount}
+                            onClick={handleTransferIn} 
+                            disabled={isProcessing || !transferAmount || parseFloat(transferAmount) < minDeposit}
                             className="w-full h-16 rounded-[1.5rem] bg-primary text-white font-black uppercase tracking-widest text-xs shadow-2xl shadow-primary/40"
                         >
-                            {isProcessing ? "Processing..." : "Commit Transfer"}
+                            {isProcessing ? "Processing..." : parseFloat(transferAmount) < minDeposit ? `Min. ₹${minDeposit} Required` : "Commit Transfer"}
                         </Button>
                     </div>
                 </DialogContent>
@@ -384,7 +360,7 @@ export default function SavingsVaultPage() {
                 </DialogContent>
             </Dialog>
 
-            <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/[0.05] bg-black/40 backdrop-blur-xl h-16 flex items-center justify-around px-4">
+            <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-xl h-16 flex items-center justify-around px-4">
                 <BottomNavItem icon={Home} label="Home" href="/dashboard" />
                 <BottomNavItem icon={Briefcase} label="Plans" href="/plans" />
                 <BottomNavItem icon={PiggyBank} label="Savings" href="/savings" active />
