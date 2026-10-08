@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -13,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 
@@ -55,7 +55,6 @@ export default function SavingsVaultPage() {
     }, [savingsData, plans]);
 
     // AUTO-INTEREST CALCULATION LOGIC
-    // Accrues interest every time the user visits the page based on days passed.
     const syncInterest = useCallback(async () => {
         if (!user || !savingsData || !activePlan || savingsData.balance <= 0) return;
 
@@ -183,7 +182,6 @@ export default function SavingsVaultPage() {
                 transaction.update(userRef, { walletBalance: currentBalance + amt });
                 transaction.update(savingsRef, { 
                     balance: currentSavings - amt,
-                    // If balance hits 0, maybe clear the plan? No, keep it for record.
                 });
 
                 // History
