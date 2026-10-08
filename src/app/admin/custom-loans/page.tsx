@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -141,6 +141,7 @@ export default function CustomLoansPage() {
   
   const [dispatchScreenshot, setDispatchScreenshot] = useState<string | null>(null);
   const [dispatchTid, setDispatchTid] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending_admin_review' | 'pending_user_approval' | 'approved_by_user' | 'active' | 'completed' | 'rejected' | 'payment_pending' | 'extension_pending'>('pending_admin_review');
 
@@ -171,8 +172,34 @@ export default function CustomLoansPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
-    reader.onloadend = () => setDispatchScreenshot(reader.result as string);
+    reader.onloadend = () => {
+      const img = new window.Image();
+      img.src = reader.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const MAX_DIM = 1000;
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        setDispatchScreenshot(canvas.toDataURL('image/jpeg', 0.6));
+      };
+    };
     reader.readAsDataURL(file);
   };
 
@@ -238,10 +265,15 @@ export default function CustomLoansPage() {
 
   const handleMarkAsSent = () => {
     if (!requestToUpdate) return;
+    if (!dispatchTid) {
+        toast({ title: "TID Required", description: "Please enter the Transaction ID.", variant: "destructive" });
+        return;
+    }
     const request = requestToUpdate;
     const requestRef = doc(firestore, 'customLoanRequests', request.id);
     const settingsRef = doc(firestore, 'settings', 'admin');
     
+    setIsProcessing(true);
     runTransaction(firestore, async (transaction) => {
         const settingsDoc = await transaction.get(settingsRef);
         const currentUsage = settingsDoc.data()?.currentCustomLoanUsage || 0;
@@ -268,7 +300,8 @@ export default function CustomLoansPage() {
     })
     .catch((e: any) => {
         toast({ title: 'Error', description: e.message, variant: 'destructive' });
-    });
+    })
+    .finally(() => setIsProcessing(false));
   };
 
   const handleMarkAsCompleted = async (request: CustomLoanRequest) => {
@@ -423,6 +456,41 @@ export default function CustomLoansPage() {
           </TableBody></Table>
       </div>
 
+      {/* Review Dialog */}
+      <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
+        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
+            <DialogHeader>
+                <DialogTitle className="text-center font-black uppercase">Loan Protocol Analysis</DialogTitle>
+                <DialogDescription className="text-center text-white/40 text-xs">Determine risk and calculate ROI</DialogDescription>
+            </DialogHeader>
+            <div className="py-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Interest Rate (%)</Label>
+                        <Input type="number" value={editInterestRate} onChange={e => setEditInterestRate(e.target.value)} className="bg-white/5 border-white/10 h-12 rounded-xl font-bold" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Final Settlement</Label>
+                        <Input type="number" value={editTotalRepayment} onChange={e => setEditTotalRepayment(e.target.value)} className="bg-white/5 border-white/10 h-12 rounded-xl font-bold text-green-400" />
+                    </div>
+                </div>
+
+                <div className="bg-white/5 p-4 rounded-2xl space-y-3 border border-white/5">
+                    <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-white/40 font-bold uppercase">Base Amount</span>
+                        <span className="font-black text-white">₹{requestToUpdate?.requestedAmount}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-white/40 font-bold uppercase">Term Node</span>
+                        <span className="font-black text-white">{requestToUpdate?.requestedDuration} Days</span>
+                    </div>
+                </div>
+
+                <Button onClick={handleSendOffer} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-xl">TRANSMIT OFFER TO USER</Button>
+            </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Dispatch Dialog (Admin sends money) */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
         <DialogContent className="bg-[#030408] border-white/10 text-white rounded-[2rem] max-w-sm">
@@ -470,7 +538,9 @@ export default function CustomLoansPage() {
                         </div>
                     </div>
 
-                    <Button onClick={handleMarkAsSent} type="button" className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-xl">I HAVE PAID (START LOAN)</Button>
+                    <Button onClick={handleMarkAsSent} disabled={isProcessing} type="button" className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-xl">
+                        {isProcessing ? "PROCESSING..." : "I HAVE PAID (START LOAN)"}
+                    </Button>
                 </div>
             </ScrollArea>
         </DialogContent>
@@ -514,35 +584,6 @@ export default function CustomLoansPage() {
                   </div>
               </ScrollArea>
           </DialogContent>
-      </Dialog>
-
-      {/* Completion Notification */}
-      <Dialog open={isCompletionNotificationOpen} onOpenChange={setIsCompletionNotificationOpen}>
-        <DialogContent className="bg-[#030408] border-white/10 text-white rounded-3xl max-w-sm">
-            <DialogHeader>
-                <DialogTitle className="text-center font-black uppercase text-xl tracking-tight">Loan Closed!</DialogTitle>
-                <DialogDescription className="text-center text-white/40 text-xs pt-2">Send a thank you message to the user.</DialogDescription>
-            </DialogHeader>
-            <div className="py-8 space-y-6">
-                 <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-6 flex flex-col items-center gap-3 text-center">
-                    <div className="h-16 w-16 rounded-full bg-green-500/20 flex items-center justify-center text-green-500 shadow-lg">
-                        <HeartHandshake size={32} />
-                    </div>
-                    <p className="text-xs text-white/60 leading-relaxed font-medium italic">
-                        "नमस्ते *${requestToUpdate?.userName}*, ग्रो मनी में जुड़ने के लिए धन्यवाद! आपका लोन सफलतापूर्वक क्लोज हो चुका है।"
-                    </p>
-                 </div>
-
-                 <div className="flex flex-col gap-3">
-                    <Button onClick={() => handleWhatsAppNotify(requestToUpdate!, userKycData, 'completion')} className="w-full h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black uppercase text-xs tracking-widest gap-2 shadow-xl shadow-green-600/20">
-                        <MessageSquare size={18} /> Send WhatsApp Thanks
-                    </Button>
-                    <Button onClick={() => handleEmailNotify(requestToUpdate!, userKycData, 'completion')} variant="outline" className="w-full h-14 rounded-2xl border-white/10 bg-white/5 text-white font-black uppercase text-xs tracking-widest gap-2">
-                        <Mail size={18} /> Send Official Email
-                    </Button>
-                 </div>
-            </div>
-        </DialogContent>
       </Dialog>
     </div>
   );
