@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Wallet,
@@ -29,7 +30,8 @@ import {
   Loader2,
   XCircle,
   Users2,
-  Gift
+  Gift,
+  PiggyBank
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -238,7 +240,7 @@ export default function Dashboard() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
        <AlertDialog open={showWelcomePopup} onOpenChange={setShowWelcomePopup}>
-        <AlertDialogContent className="rounded-[2rem]">
+        <AlertDialogContent className="rounded-[2.5rem]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-center text-2xl font-black tracking-tight">Welcome, {userData?.name} 💰</AlertDialogTitle>
             <AlertDialogDescription className="text-center font-bold uppercase tracking-widest text-[10px]">Your journey starts now!</AlertDialogDescription>
@@ -310,19 +312,19 @@ export default function Dashboard() {
             <CardTitle className="text-[10px] font-black uppercase tracking-[4px] text-muted-foreground mb-6">{t.dashboard.service_integration}</CardTitle>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <QuickActionButton icon={TrendingUp} label={t.dashboard.market} href="/plans" color="text-green-600" />
+                <QuickActionButton icon={PiggyBank} label="Savings Vault" href="/savings" color="text-primary" />
                 <QuickActionButton icon={Zap} label={t.dashboard.wheel} href="/lucky-spin" color="text-yellow-600" />
                 <QuickActionButton icon={HandCoins} label={t.dashboard.standard_loan} href="/loans" color="text-orange-600" />
                 <QuickActionButton icon={FileText} label={t.dashboard.flexi_loan} href="/custom-loan" color="text-red-600" />
                 <QuickActionButton icon={Users} label={t.dashboard.syndicate} href="/group-investing" color="text-purple-600" />
-                <QuickActionButton icon={PlayCircle} label={t.dashboard.media_hub} href="/media" color="text-primary" />
             </div>
         </Card>
       </main>
 
-      <nav className="sticky bottom-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-xl h-16 flex items-center justify-around px-4">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/20 bg-background/95 backdrop-blur-xl h-16 flex items-center justify-around px-4">
           <BottomNavItem icon={Home} label={t.nav.home} href="/dashboard" active />
           <BottomNavItem icon={Briefcase} label={t.nav.plans} href="/plans" />
-          <BottomNavItem icon={Trophy} label={t.nav.leaders} href="/leaderboard" />
+          <BottomNavItem icon={PiggyBank} label="Savings" href="/savings" />
           <BottomNavItem icon={HandCoins} label={t.nav.loans} href="/my-loans" />
           <BottomNavItem icon={User} label={t.nav.profile} href="/profile" />
       </nav>
