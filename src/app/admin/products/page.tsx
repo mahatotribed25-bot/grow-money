@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -29,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 
 type Product = {
@@ -157,7 +157,7 @@ export default function AdminProductsPage() {
                                     <TableCell>
                                         <Badge variant="outline" className={cn(
                                             "text-[9px] font-black uppercase h-5",
-                                            product.status === 'Active' ? "border-green-500/20 text-green-400 bg-green-500/5" : "border-white/10 text-white/20"
+                                            product.status === 'Active' ? "border-green-500/20 text-green-400 bg-green-500/5" : "border-white/10 text-white/40"
                                         )}>
                                             {product.status}
                                         </Badge>
