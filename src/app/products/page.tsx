@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useCollection } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, ShoppingBag, ExternalLink, Timer, Search, Filter } from 'lucide-react';
+import { ChevronLeft, Home, Briefcase, Trophy, HandCoins, User, ShoppingBag, ExternalLink, Timer, Search, Filter, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/context/settings-context';
