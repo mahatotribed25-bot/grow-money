@@ -11,13 +11,20 @@ import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 type Product = {
     id: string;
     name: string;
     description: string;
     price: number;
-    imageUrl: string;
+    imageUrls: string[];
     affiliateLink: string;
     status: 'Active' | 'Hidden';
 }
@@ -68,32 +75,58 @@ export default function UserProductsPage() {
                 ) : filteredProducts.length > 0 ? (
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 animate-in fade-in duration-700">
                         {filteredProducts.map((product) => (
-                            <Card key={product.id} className="bg-card border-border rounded-[2rem] overflow-hidden shadow-2xl relative group hover:border-primary/40 transition-all">
-                                <div className="relative aspect-square w-full bg-muted/20 overflow-hidden">
-                                    <Image 
-                                        src={product.imageUrl} 
-                                        alt={product.name} 
-                                        fill 
-                                        className="object-cover transition-transform duration-700 group-hover:scale-110" 
-                                    />
-                                    <div className="absolute top-4 left-4 z-10">
+                            <Card key={product.id} className="bg-card border-border rounded-[2rem] overflow-hidden shadow-2xl relative group hover:border-primary/40 transition-all flex flex-col h-full">
+                                <div className="relative w-full aspect-square bg-muted/20 overflow-hidden">
+                                    {product.imageUrls && product.imageUrls.length > 0 ? (
+                                        <Carousel className="w-full h-full">
+                                            <CarouselContent className="h-full ml-0">
+                                                {product.imageUrls.map((url, idx) => (
+                                                    <CarouselItem key={idx} className="pl-0 h-full relative aspect-square">
+                                                        <Image 
+                                                            src={url} 
+                                                            alt={`${product.name} - ${idx + 1}`} 
+                                                            fill 
+                                                            className="object-cover" 
+                                                        />
+                                                    </CarouselItem>
+                                                ))}
+                                            </CarouselContent>
+                                            {product.imageUrls.length > 1 && (
+                                                <>
+                                                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+                                                        {product.imageUrls.map((_, i) => (
+                                                            <div key={i} className="h-1 w-3 rounded-full bg-white/20" />
+                                                        ))}
+                                                    </div>
+                                                    <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <CarouselPrevious className="relative left-0 pointer-events-auto bg-black/40 border-none text-white h-8 w-8" />
+                                                        <CarouselNext className="relative right-0 pointer-events-auto bg-black/40 border-none text-white h-8 w-8" />
+                                                    </div>
+                                                </>
+                                            )}
+                                        </Carousel>
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full text-muted-foreground/20">
+                                            <ShoppingBag size={48} />
+                                        </div>
+                                    )}
+                                    <div className="absolute top-4 left-4 z-10 pointer-events-none">
                                         <Badge className="bg-black/60 backdrop-blur-md border-white/10 text-[9px] font-black uppercase tracking-widest px-3 h-6 shadow-lg">
-                                            Premium Node
+                                            Verified Asset
                                         </Badge>
                                     </div>
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                 </div>
                                 <CardHeader className="pb-2">
                                     <div className="flex justify-between items-start">
                                         <CardTitle className="text-lg font-black tracking-tight text-white/90 line-clamp-1">{product.name}</CardTitle>
                                     </div>
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Verified Supplier</p>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Premium Collection</p>
                                 </CardHeader>
-                                <CardContent className="space-y-6">
+                                <CardContent className="space-y-6 flex-1 flex flex-col justify-between">
                                     <div className="flex justify-between items-end">
                                         <div className="space-y-0.5">
-                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Global Value</p>
-                                            <p className="text-2xl font-black text-white tracking-tighter">₹{product.price.toLocaleString()}</p>
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Market Value</p>
+                                            <p className="text-2xl font-black text-white tracking-tighter">₹{(product.price || 0).toLocaleString()}</p>
                                         </div>
                                         <Button asChild className="h-11 px-6 rounded-xl bg-primary text-primary-foreground font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 hover:scale-105 transition-transform active:scale-95">
                                             <a href={product.affiliateLink} target="_blank" rel="noopener noreferrer">

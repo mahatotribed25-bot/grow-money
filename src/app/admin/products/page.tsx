@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Edit, Trash2, ShoppingBag, ExternalLink, Image as ImageIcon, Timer } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ShoppingBag, ExternalLink, Image as ImageIcon, Timer, Upload, X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -36,7 +36,7 @@ type Product = {
     name: string;
     description: string;
     price: number;
-    imageUrl: string;
+    imageUrls: string[]; // Changed from imageUrl: string to imageUrls: string[]
     affiliateLink: string;
     status: 'Active' | 'Hidden';
     createdAt: Timestamp;
@@ -46,7 +46,7 @@ const emptyProduct: Omit<Product, 'id' | 'createdAt'> = {
     name: '',
     description: '',
     price: 0,
-    imageUrl: '',
+    imageUrls: [],
     affiliateLink: '',
     status: 'Active',
 };
@@ -57,6 +57,7 @@ export default function AdminProductsPage() {
     const { data: products, loading } = useCollection<Product>('products');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const handleCreateNew = () => {
         setEditingProduct(emptyProduct);
@@ -77,9 +78,82 @@ export default function AdminProductsPage() {
         }
     };
 
+    const compressImage = async (base64: string): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new window.Image();
+            img.src = base64;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_DIM = 800;
+                if (width > height) {
+                    if (width > MAX_DIM) {
+                        height *= MAX_DIM / width;
+                        width = MAX_DIM;
+                    }
+                } else {
+                    if (height > MAX_DIM) {
+                        width *= MAX_DIM / height;
+                        height = MAX_DIM;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.6));
+            };
+        });
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+        
+        setIsUploading(true);
+        const currentUrls = editingProduct?.imageUrls || [];
+        
+        if (currentUrls.length + files.length > 5) {
+            toast({ title: "Limit Reached", description: "You can upload a maximum of 5 images per product.", variant: "destructive" });
+            setIsUploading(false);
+            return;
+        }
+
+        try {
+            const newUrls: string[] = [];
+            for (let i = 0; i < files.length; i++) {
+                const reader = new FileReader();
+                const file = files[i];
+                const base64 = await new Promise<string>((resolve) => {
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(file);
+                });
+                const compressed = await compressImage(base64);
+                newUrls.push(compressed);
+            }
+            
+            setEditingProduct(prev => ({
+                ...prev,
+                imageUrls: [...(prev?.imageUrls || []), ...newUrls]
+            }));
+        } catch (error) {
+            toast({ title: "Upload Error", variant: "destructive" });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const removeImage = (index: number) => {
+        setEditingProduct(prev => ({
+            ...prev,
+            imageUrls: prev?.imageUrls?.filter((_, i) => i !== index) || []
+        }));
+    };
+
     const handleSave = async () => {
-        if (!editingProduct?.name || !editingProduct?.price || !editingProduct?.imageUrl || !editingProduct?.affiliateLink) {
-            toast({ title: "Missing Data", description: "All fields except description are required.", variant: "destructive" });
+        if (!editingProduct?.name || !editingProduct?.price || !editingProduct?.imageUrls?.length || !editingProduct?.affiliateLink) {
+            toast({ title: "Missing Data", description: "All fields including at least one image are required.", variant: "destructive" });
             return;
         }
 
@@ -106,6 +180,8 @@ export default function AdminProductsPage() {
             toast({ title: "Save Failed", variant: "destructive" });
         }
     };
+
+    const sortedProducts = products ? [...products].sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)) : [];
 
     return (
         <div className="space-y-6 animate-in fade-in duration-700">
@@ -134,13 +210,17 @@ export default function AdminProductsPage() {
                         <TableBody>
                             {loading ? (
                                 <TableRow><TableCell colSpan={5} className="text-center py-20"><Timer className="animate-spin h-6 w-6 mx-auto mb-2 text-primary opacity-20" /></TableCell></TableRow>
-                            ) : products?.length === 0 ? (
+                            ) : sortedProducts.length === 0 ? (
                                 <TableRow><TableCell colSpan={5} className="text-center py-20 text-white/10 italic">No products forged in the marketplace node.</TableCell></TableRow>
-                            ) : products?.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map((product) => (
+                            ) : sortedProducts.map((product) => (
                                 <TableRow key={product.id} className="border-white/[0.03] hover:bg-white/[0.01]">
                                     <TableCell className="pl-8">
                                         <div className="relative h-12 w-12 rounded-xl overflow-hidden border border-white/10 bg-black/40">
-                                            <Image src={product.imageUrl} alt="P" fill className="object-cover" />
+                                            {product.imageUrls?.[0] ? (
+                                                <Image src={product.imageUrls[0]} alt="P" fill className="object-cover" />
+                                            ) : (
+                                                <div className="flex items-center justify-center h-full text-white/10"><ImageIcon size={16}/></div>
+                                            )}
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -150,16 +230,17 @@ export default function AdminProductsPage() {
                                                 <a href={product.affiliateLink} target="_blank" className="text-[9px] text-primary font-black uppercase flex items-center gap-1 hover:underline">
                                                     <ExternalLink size={10} /> Link Node
                                                 </a>
+                                                <span className="text-[8px] text-white/20 uppercase font-black">{product.imageUrls?.length || 0} Assets</span>
                                             </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-black text-green-400 text-base">₹{product.price.toLocaleString()}</TableCell>
+                                    <TableCell className="font-black text-green-400 text-base">₹{(product.price || 0).toLocaleString()}</TableCell>
                                     <TableCell>
                                         <Badge variant="outline" className={cn(
                                             "text-[9px] font-black uppercase h-5",
                                             product.status === 'Active' ? "border-green-500/20 text-green-400 bg-green-500/5" : "border-white/10 text-white/40"
                                         )}>
-                                            {product.status}
+                                            {product.status || 'Active'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right pr-8">
@@ -219,19 +300,31 @@ export default function AdminProductsPage() {
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Visual Address (Image URL)</Label>
-                                <div className="flex gap-2">
-                                    <Input 
-                                        value={editingProduct?.imageUrl || ''} 
-                                        onChange={e => setEditingProduct(prev => ({...prev, imageUrl: e.target.value}))} 
-                                        className="h-12 bg-white/5 border-white/10 rounded-xl text-xs" 
-                                        placeholder="https://picsum.photos/600/400" 
-                                    />
-                                    {editingProduct?.imageUrl && (
-                                        <div className="relative h-12 w-12 rounded-xl overflow-hidden border border-white/10 shrink-0">
-                                            <Image src={editingProduct.imageUrl} alt="P" fill className="object-cover" />
+                            <div className="space-y-4">
+                                <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Digital Assets (Max 5 Images)</Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {editingProduct?.imageUrls?.map((url, idx) => (
+                                        <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-white/10 group">
+                                            <Image src={url} alt="P" fill className="object-cover" />
+                                            <Button 
+                                                variant="destructive" 
+                                                size="icon" 
+                                                className="absolute top-1 right-1 h-6 w-6 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={() => removeImage(idx)}
+                                            >
+                                                <X size={12}/>
+                                            </Button>
                                         </div>
+                                    ))}
+                                    {(editingProduct?.imageUrls?.length || 0) < 5 && (
+                                        <label className={cn(
+                                            "aspect-square rounded-xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-colors",
+                                            isUploading && "opacity-50 pointer-events-none"
+                                        )}>
+                                            {isUploading ? <Loader2 className="animate-spin text-primary" /> : <Upload className="text-white/20" />}
+                                            <span className="text-[8px] font-black uppercase mt-1 text-white/20">UPLOAD</span>
+                                            <input type="file" multiple className="hidden" accept="image/*" onChange={handleFileUpload} />
+                                        </label>
                                     )}
                                 </div>
                             </div>
