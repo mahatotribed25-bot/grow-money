@@ -136,7 +136,7 @@ export default function AdminProductsPage() {
                                 <TableRow><TableCell colSpan={5} className="text-center py-20"><Timer className="animate-spin h-6 w-6 mx-auto mb-2 text-primary opacity-20" /></TableCell></TableRow>
                             ) : products?.length === 0 ? (
                                 <TableRow><TableCell colSpan={5} className="text-center py-20 text-white/10 italic">No products forged in the marketplace node.</TableCell></TableRow>
-                            ) : products?.sort((a,b) => b.createdAt?.seconds - a.createdAt?.seconds).map((product) => (
+                            ) : products?.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map((product) => (
                                 <TableRow key={product.id} className="border-white/[0.03] hover:bg-white/[0.01]">
                                     <TableCell className="pl-8">
                                         <div className="relative h-12 w-12 rounded-xl overflow-hidden border border-white/10 bg-black/40">
@@ -184,17 +184,30 @@ export default function AdminProductsPage() {
                         <div className="space-y-6 py-6">
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Identity Node (Product Name)</Label>
-                                <Input value={editingProduct?.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="h-12 bg-white/5 border-white/10 rounded-xl font-bold" placeholder="e.g. Premium Smart Watch" />
+                                <Input 
+                                    value={editingProduct?.name || ''} 
+                                    onChange={e => setEditingProduct(prev => ({...prev, name: e.target.value}))} 
+                                    className="h-12 bg-white/5 border-white/10 rounded-xl font-bold" 
+                                    placeholder="e.g. Premium Smart Watch" 
+                                />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Price Value (INR)</Label>
-                                    <Input type="number" value={editingProduct?.price} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} className="h-12 bg-white/5 border-white/10 rounded-xl font-bold text-green-400" />
+                                    <Input 
+                                        type="number" 
+                                        value={editingProduct?.price || 0} 
+                                        onChange={e => setEditingProduct(prev => ({...prev, price: Number(e.target.value)}))} 
+                                        className="h-12 bg-white/5 border-white/10 rounded-xl font-bold text-green-400" 
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Protocol Status</Label>
-                                    <Select value={editingProduct?.status} onValueChange={(v: any) => setEditingProduct({...editingProduct, status: v})}>
+                                    <Select 
+                                        value={editingProduct?.status || 'Active'} 
+                                        onValueChange={(v: any) => setEditingProduct(prev => ({...prev, status: v}))}
+                                    >
                                         <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl">
                                             <SelectValue />
                                         </SelectTrigger>
@@ -209,7 +222,12 @@ export default function AdminProductsPage() {
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Visual Address (Image URL)</Label>
                                 <div className="flex gap-2">
-                                    <Input value={editingProduct?.imageUrl} onChange={e => setEditingProduct({...editingProduct, imageUrl: e.target.value})} className="h-12 bg-white/5 border-white/10 rounded-xl text-xs" placeholder="https://picsum.photos/600/400" />
+                                    <Input 
+                                        value={editingProduct?.imageUrl || ''} 
+                                        onChange={e => setEditingProduct(prev => ({...prev, imageUrl: e.target.value}))} 
+                                        className="h-12 bg-white/5 border-white/10 rounded-xl text-xs" 
+                                        placeholder="https://picsum.photos/600/400" 
+                                    />
                                     {editingProduct?.imageUrl && (
                                         <div className="relative h-12 w-12 rounded-xl overflow-hidden border border-white/10 shrink-0">
                                             <Image src={editingProduct.imageUrl} alt="P" fill className="object-cover" />
@@ -220,12 +238,22 @@ export default function AdminProductsPage() {
 
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Gateway Link (Flipkart/Amazon/etc)</Label>
-                                <Input value={editingProduct?.affiliateLink} onChange={e => setEditingProduct({...editingProduct, affiliateLink: e.target.value})} className="h-12 bg-white/5 border-white/10 rounded-xl text-xs" placeholder="Paste product link here..." />
+                                <Input 
+                                    value={editingProduct?.affiliateLink || ''} 
+                                    onChange={e => setEditingProduct(prev => ({...prev, affiliateLink: e.target.value}))} 
+                                    className="h-12 bg-white/5 border-white/10 rounded-xl text-xs" 
+                                    placeholder="Paste product link here..." 
+                                />
                             </div>
 
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Metadata (Description)</Label>
-                                <Textarea value={editingProduct?.description} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="bg-white/5 border-white/10 h-24 rounded-xl text-xs" placeholder="Technical specs or details..." />
+                                <Textarea 
+                                    value={editingProduct?.description || ''} 
+                                    onChange={e => setEditingProduct(prev => ({...prev, description: e.target.value}))} 
+                                    className="bg-white/5 border-white/10 h-24 rounded-xl text-xs" 
+                                    placeholder="Technical specs or details..." 
+                                />
                             </div>
                         </div>
                     </ScrollArea>
