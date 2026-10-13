@@ -6,7 +6,7 @@ import { collection, query, orderBy, addDoc, serverTimestamp, doc, setDoc, updat
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, User, Search, MessageSquare, MoreVertical, Trash2, Clock, CheckCircle2, Circle } from 'lucide-react';
+import { Send, User, Search, MessageSquare, MoreVertical, Trash2, Clock, CheckCircle2, Circle, Timer } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
