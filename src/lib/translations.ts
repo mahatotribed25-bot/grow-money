@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'hi' | 'mr' | 'gu' | 'te' | 'ml' | 'ta' | 'kn' | 'bn' | 'bh';
 
 export const translations: Record<Language, any> = {
@@ -23,7 +24,8 @@ export const translations: Record<Language, any> = {
       flexi_loan: "Flexible Loan",
       syndicate: "Group Investing",
       media_hub: "Video Guides",
-      training_center: "Help Center"
+      training_center: "Help Center",
+      shopping: "Shopping Hub"
     },
     profile: {
       title: "My Account",
@@ -63,7 +65,8 @@ export const translations: Record<Language, any> = {
       flexi_loan: "फ्लेक्सी लोन",
       syndicate: "ग्रुप इन्वेस्टिंग",
       media_hub: "वीडियो गाइड",
-      training_center: "हेल्प सेंटर"
+      training_center: "हेल्प सेंटर",
+      shopping: "शॉपिंग हब"
     },
     profile: {
       title: "मेरा खाता",
@@ -103,7 +106,8 @@ export const translations: Record<Language, any> = {
       flexi_loan: "फ्लेक्सी कर्ज",
       syndicate: "ग्रुप इन्व्हेस्टिंग",
       media_hub: "व्हिडिओ मार्गदर्शक",
-      training_center: "मदत केंद्र"
+      training_center: "मदत केंद्र",
+      shopping: "शॉपिंग हब"
     },
     profile: {
       title: "माझे खाते",
@@ -143,7 +147,8 @@ export const translations: Record<Language, any> = {
       flexi_loan: "ફ્લેક્સી લોન",
       syndicate: "ગ્રુપ ઇન્વેસ્ટિંગ",
       media_hub: "વિડિયો માર્ગદર્શિકા",
-      training_center: "હેલ્પ સેન્ટર"
+      training_center: "હેલ્પ સેન્ટર",
+      shopping: "શોપિંગ હબ"
     },
     profile: {
       title: "મારું ખાતું",
@@ -183,7 +188,8 @@ export const translations: Record<Language, any> = {
       flexi_loan: "ఫ్లెక్సీ లోన్",
       syndicate: "గ్రూప్ ఇన్వెస్టింగ్",
       media_hub: "వీడియో గైడ్లు",
-      training_center: "సహాయ కేంద్రం"
+      training_center: "సహాయ కేంద్రం",
+      shopping: "షాపింగ్ హబ్"
     },
     profile: {
       title: "నా ఖాతా",
@@ -223,7 +229,8 @@ export const translations: Record<Language, any> = {
       flexi_loan: "ഫ്ലെക്സി ലോൺ",
       syndicate: "ഗ്രൂപ്പ് ഇൻവെസ്റ്റിംഗ്",
       media_hub: "വീഡിയോ ഗൈഡുകൾ",
-      training_center: "സഹായ കേന്ദ്രം"
+      training_center: "സഹായ കേന്ദ്രം",
+      shopping: "ഷോപ്പിംഗ് ഹബ്"
     },
     profile: {
       title: "എന്റെ അക്കൗണ്ട്",
@@ -263,7 +270,8 @@ export const translations: Record<Language, any> = {
       flexi_loan: "நெகிழ்வான கடன்",
       syndicate: "குழு முதலீடு",
       media_hub: "வீடியோ வழிகாட்டிகள்",
-      training_center: "உதவி மையம்"
+      training_center: "உதவி மையம்",
+      shopping: "ஷாப்பிங் மையம்"
     },
     profile: {
       title: "எனது கணக்கு",
@@ -303,7 +311,8 @@ export const translations: Record<Language, any> = {
       flexi_loan: "ಫ್ಲೆಕ್ಸಿ ಸಾಲ",
       syndicate: "ಗುಂಪು ಹೂಡಿಕೆ",
       media_hub: "ವಿಡಿಯೋ ಮಾರ್ಗದರ್ಶಿ",
-      training_center: "ಸಹಾಯ ಕೇಂದ್ರ"
+      training_center: "ಸಹಾಯ ಕೇಂದ್ರ",
+      shopping: "ಶಾಪಿಂಗ್ ಹಬ್"
     },
     profile: {
       title: "ನನ್ನ ಖಾತೆ",
@@ -315,7 +324,7 @@ export const translations: Record<Language, any> = {
       kyc_status: "ಪರಿಶೀಲನೆ ಸ್ಥಿತಿ",
       ledger: "ಇತಿಹಾಸ",
       recharge: "ಡಿಪಾಸಿಟ್ಗಳು",
-      payout: "ಹಿಂಪಡೆಯುವಿಕೆ",
+      payout: "ಪಾವತಿಗಳು",
       pools: "ಪೂಲ್ಸ್",
       export: "ಇತಿಹಾಸ ಡೌನ್ಲೋಡ್ ಮಾಡಿ",
       select_lang: "ಭಾಷೆಯನ್ನು ಆರಿಸಿ"
@@ -343,7 +352,8 @@ export const translations: Record<Language, any> = {
       flexi_loan: "ফ্লেক্সি লোন",
       syndicate: "গ্রুপ ইনভেস্টিং",
       media_hub: "ভিডিও গাইড",
-      training_center: "সাহায্য কেন্দ্র"
+      training_center: "সাহায্য কেন্দ্র",
+      shopping: "শপিং হাব"
     },
     profile: {
       title: "আমার অ্যাকাউন্ট",
@@ -383,7 +393,8 @@ export const translations: Record<Language, any> = {
       flexi_loan: "फ्लेक्सी लोन",
       syndicate: "ग्रुप इन्वेस्टिंग",
       media_hub: "वीडियो गाइड",
-      training_center: "मदद केंद्र"
+      training_center: "मदद केंद्र",
+      shopping: "शॉपिंग हब"
     },
     profile: {
       title: "हमार खाता",

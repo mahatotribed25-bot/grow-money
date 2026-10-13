@@ -31,7 +31,8 @@ import {
   XCircle,
   Users2,
   Gift,
-  PiggyBank
+  PiggyBank,
+  ShoppingBag
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -313,6 +314,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <QuickActionButton icon={TrendingUp} label={t.dashboard.market} href="/plans" color="text-green-600" />
                 <QuickActionButton icon={PiggyBank} label="Savings Vault" href="/savings" color="text-primary" />
+                <QuickActionButton icon={ShoppingBag} label={t.dashboard.shopping || "Marketplace"} href="/products" color="text-blue-500" />
                 <QuickActionButton icon={Zap} label={t.dashboard.wheel} href="/lucky-spin" color="text-yellow-600" />
                 <QuickActionButton icon={HandCoins} label={t.dashboard.standard_loan} href="/loans" color="text-orange-600" />
                 <QuickActionButton icon={FileText} label={t.dashboard.flexi_loan} href="/custom-loan" color="text-red-600" />

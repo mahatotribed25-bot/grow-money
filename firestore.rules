@@ -23,12 +23,38 @@ service cloud.firestore {
       }
     }
     
+    // Global Access for Collection Groups (Required for cross-user searching)
+    match /{path=**}/investments/{id} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/loans/{id} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/walletHistory/{id} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/offers/{id} {
+      allow read: if isSignedIn();
+    }
+
+    // Products collection for Marketplace
+    match /products/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+    
     // Investment plans - allowing write for stock updates during purchase
     match /investmentPlans/{planId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
     
+    // Savings Vault configuration
+    match /savingsPlans/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
     // Global settings - allowing write for admin profit balance updates
     match /settings/{id} {
       allow read: if isSignedIn();

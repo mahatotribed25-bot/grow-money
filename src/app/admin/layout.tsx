@@ -38,7 +38,8 @@ import {
   ShieldAlert,
   Coins,
   Calendar,
-  PiggyBank
+  PiggyBank,
+  ShoppingBag
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -129,6 +130,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="pt-6 pb-2 text-[10px] font-black text-white/10 uppercase tracking-[4px] px-4">Management</div>
             <AdminNavItem icon={TrendingUp} href="/admin/investment-plans">Manage Plans</AdminNavItem>
             <AdminNavItem icon={PiggyBank} href="/admin/savings-plans">Savings Vault</AdminNavItem>
+            <AdminNavItem icon={ShoppingBag} href="/admin/products">Product Market</AdminNavItem>
             <AdminNavItem icon={Users2} href="/admin/group-loans">Group Pools</AdminNavItem>
             <AdminNavItem icon={Hammer} href="/admin/loan-plans">Loan Setup</AdminNavItem>
             
