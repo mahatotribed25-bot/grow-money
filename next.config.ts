@@ -35,6 +35,31 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      // Shopping and Common Image Domains
+      {
+        protocol: 'https',
+        hostname: '**.flipkart.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.amazon.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.media-amazon.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.ajio.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.myntassets.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.staticflickr.com',
+      },
     ],
   },
 };
