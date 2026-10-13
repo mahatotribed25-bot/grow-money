@@ -1,11 +1,11 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Send, X, Trash2, MoreVertical, Circle } from 'lucide-react';
+import { MessageSquare, Send, X, Trash2, MoreVertical, Circle, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useUser, useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp, orderBy, query, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, orderBy, query, doc, setDoc, getDocs, writeBatch } from 'firebase/firestore';
 import type { Timestamp } from 'firebase/firestore';
 import { ScrollArea } from '../ui/scroll-area';
 import {
@@ -15,6 +15,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { format, isToday, isYesterday } from 'date-fns';
 
 type ChatMessage = {
     id: string;
@@ -34,14 +36,18 @@ export function ChatSupportWidget() {
     const { data: messages, loading } = useCollection<ChatMessage>(messagesQuery);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+    const scrollToBottom = () => {
+        if (scrollAreaRef.current) {
+            const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+            if (scrollContainer) {
+                scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
+            }
+        }
+    };
+
     useEffect(() => {
-        if (isOpen && scrollAreaRef.current) {
-            setTimeout(() => {
-                const scrollContainer = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-                if (scrollContainer) {
-                    scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
-                }
-            }, 100);
+        if (isOpen) {
+            setTimeout(scrollToBottom, 100);
         }
     }, [messages, isOpen]);
     
@@ -51,28 +57,27 @@ export function ChatSupportWidget() {
         const messagesCol = collection(firestore, `chats/${user.uid}/messages`);
         const chatDoc = doc(firestore, `chats/${user.uid}`);
         
-        const messageData = {
-            text: message,
-            senderId: user.uid,
-            createdAt: serverTimestamp(),
-            isRead: false,
-        };
-        
-        const chatData = {
-            userId: user.uid,
-            userName: user.displayName,
-            lastMessage: message,
-            lastMessageAt: serverTimestamp(),
-            unreadByAdmin: true,
-            unreadByUser: false,
-        };
+        const currentMsg = message;
+        setMessage('');
 
         try {
-            await addDoc(messagesCol, messageData);
-            await setDoc(chatDoc, chatData, { merge: true });
-            setMessage('');
+            await addDoc(messagesCol, {
+                text: currentMsg,
+                senderId: user.uid,
+                createdAt: serverTimestamp(),
+                isRead: false,
+            });
+            await setDoc(chatDoc, {
+                userId: user.uid,
+                userName: user.displayName,
+                lastMessage: currentMsg,
+                lastMessageAt: serverTimestamp(),
+                unreadByAdmin: true,
+                unreadByUser: false,
+            }, { merge: true });
         } catch (e) {
             console.error(e);
+            toast({ title: "Failed to send message", variant: "destructive" });
         }
     }
 
@@ -82,11 +87,8 @@ export function ChatSupportWidget() {
         try {
             const messagesCol = collection(firestore, `chats/${user.uid}/messages`);
             const snapshot = await getDocs(messagesCol);
-            
             const batch = writeBatch(firestore);
-            snapshot.docs.forEach((doc) => {
-                batch.delete(doc.ref);
-            });
+            snapshot.docs.forEach((doc) => batch.delete(doc.ref));
 
             const chatDoc = doc(firestore, `chats/${user.uid}`);
             batch.update(chatDoc, {
@@ -97,100 +99,140 @@ export function ChatSupportWidget() {
             });
 
             await batch.commit();
-            toast({ title: "Chat Cleared", description: "Your chat history has been deleted." });
+            toast({ title: "Chat Cleared" });
         } catch (e) {
-            console.error(e);
-            toast({ title: "Error", description: "Could not clear chat.", variant: "destructive" });
+            toast({ title: "Error clearing chat", variant: "destructive" });
         }
     }
 
     if (!user) return null;
 
-    const formatTime = (ts?: Timestamp) => {
-        if (!ts) return '';
-        return ts.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
+    const renderDateSeparator = (date: Date) => {
+        let label = format(date, 'dd MMMM yyyy');
+        if (isToday(date)) label = 'Today';
+        else if (isYesterday(date)) label = 'Yesterday';
+
+        return (
+            <div className="flex justify-center my-4">
+                <span className="px-3 py-1 rounded-full bg-muted text-[10px] font-black uppercase tracking-widest text-muted-foreground border">
+                    {label}
+                </span>
+            </div>
+        );
+    };
 
     return (
         <>
             <div className="fixed bottom-6 right-6 z-50">
-                <Button size="icon" className="rounded-full w-14 h-14 shadow-2xl hover:scale-105 transition-transform" onClick={() => setIsOpen(!isOpen)}>
+                <Button size="icon" className="rounded-full w-14 h-14 shadow-2xl hover:scale-105 transition-transform bg-primary text-white" onClick={() => setIsOpen(!isOpen)}>
                     {isOpen ? <X className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}
                 </Button>
             </div>
+            
             {isOpen && (
-                <div className="fixed bottom-24 right-6 z-50 animate-in fade-in-0 slide-in-from-bottom-10 sm:w-96 w-[calc(100vw-3rem)]">
-                    <Card className="h-[32rem] flex flex-col shadow-2xl border-primary/20 overflow-hidden">
-                        <CardHeader className="bg-primary text-primary-foreground py-4 px-4 flex flex-row items-center justify-between space-y-0">
+                <div className="fixed bottom-24 right-6 z-50 animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-10 sm:w-96 w-[calc(100vw-3rem)]">
+                    <Card className="h-[34rem] flex flex-col shadow-2xl border-primary/20 overflow-hidden bg-background/95 backdrop-blur-xl">
+                        <CardHeader className="bg-primary text-primary-foreground py-4 px-4 flex flex-row items-center justify-between space-y-0 shadow-lg">
                             <div className="flex items-center gap-3">
                                 <div className="relative">
-                                    <div className="h-10 w-10 rounded-full bg-primary-foreground/20 flex items-center justify-center font-bold text-lg">
+                                    <div className="h-10 w-10 rounded-2xl bg-white/20 flex items-center justify-center font-black text-lg border border-white/10 shadow-inner">
                                         GM
                                     </div>
-                                    <Circle className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 fill-green-500 stroke-primary text-green-500" />
+                                    <Circle className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 fill-green-500 stroke-primary text-green-500 animate-pulse" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-base">Support Team</CardTitle>
-                                    <p className="text-[10px] text-primary-foreground/70 uppercase tracking-wider font-semibold">Online</p>
+                                    <CardTitle className="text-base font-black tracking-tight">Support Desk</CardTitle>
+                                    <p className="text-[10px] text-primary-foreground/70 uppercase tracking-widest font-black">24/7 Secure Node</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/10">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary-foreground hover:bg-white/10 rounded-lg">
                                             <MoreVertical className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={handleClearChat} className="text-destructive">
+                                    <DropdownMenuContent align="end" className="rounded-xl">
+                                        <DropdownMenuItem onClick={handleClearChat} className="text-destructive font-bold">
                                             <Trash2 className="mr-2 h-4 w-4" />
-                                            Clear Chat
+                                            Clear Chat History
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/10" onClick={() => setIsOpen(false)}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary-foreground hover:bg-white/10 rounded-lg" onClick={() => setIsOpen(false)}>
                                     <X className="h-4 w-4" />
                                 </Button>
                             </div>
                         </CardHeader>
-                        <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden p-0 bg-muted/30">
+
+                        <CardContent className="flex-1 flex flex-col gap-0 overflow-hidden p-0 bg-muted/5">
                             <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-                                <div className="space-y-4">
-                                    {loading ? (
-                                        <div className="flex justify-center items-center h-20">
-                                            <p className="text-xs text-muted-foreground animate-pulse">Loading conversation...</p>
-                                        </div>
-                                    ) : messages?.length === 0 ? (
-                                        <div className="text-center py-10 space-y-2">
-                                            <p className="text-sm text-muted-foreground">No messages yet.</p>
-                                            <p className="text-xs text-muted-foreground/60">How can we help you today?</p>
-                                        </div>
-                                    ) : messages?.map(msg => (
-                                        <div key={msg.id} className={`flex flex-col ${msg.senderId === user.uid ? 'items-end' : 'items-start'}`}>
-                                            <div className={`rounded-2xl px-4 py-2.5 max-w-[85%] text-sm shadow-sm ${
-                                                msg.senderId === user.uid 
-                                                ? 'bg-primary text-primary-foreground rounded-tr-none' 
-                                                : 'bg-card text-foreground rounded-tl-none border'
-                                            }`}>
-                                                <p>{msg.text}</p>
+                                <div className="space-y-1">
+                                    {messages?.length === 0 ? (
+                                        <div className="text-center py-20 space-y-4">
+                                            <div className="h-16 w-16 rounded-3xl bg-primary/5 flex items-center justify-center mx-auto border border-dashed border-primary/20">
+                                                <MessageSquare className="text-primary/40 h-8 w-8" />
                                             </div>
-                                            <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                                                {formatTime(msg.createdAt)}
-                                            </span>
+                                            <div className="space-y-1">
+                                                <p className="text-sm font-black uppercase text-muted-foreground tracking-widest">Protocol Start</p>
+                                                <p className="text-xs text-muted-foreground/60 max-w-[200px] mx-auto">Hello! How can we assist with your wealth building today?</p>
+                                            </div>
                                         </div>
-                                    ))}
+                                    ) : messages?.map((msg, idx) => {
+                                        const prevMsg = messages[idx - 1];
+                                        const showDate = !prevMsg || !isToday(msg.createdAt.toDate()) && format(msg.createdAt.toDate(), 'yyyyMMdd') !== format(prevMsg.createdAt.toDate(), 'yyyyMMdd');
+                                        
+                                        return (
+                                            <div key={msg.id}>
+                                                {showDate && renderDateSeparator(msg.createdAt.toDate())}
+                                                <div className={cn(
+                                                    "flex flex-col mb-2",
+                                                    msg.senderId === user.uid ? "items-end" : "items-start"
+                                                )}>
+                                                    <div className={cn(
+                                                        "rounded-2xl px-4 py-2.5 max-w-[85%] text-sm shadow-sm transition-all hover:shadow-md",
+                                                        msg.senderId === user.uid 
+                                                            ? "bg-primary text-primary-foreground rounded-tr-none" 
+                                                            : "bg-card text-foreground rounded-tl-none border border-border/50"
+                                                    )}>
+                                                        <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                                                        <div className={cn(
+                                                            "flex items-center gap-1 mt-1 opacity-50 justify-end",
+                                                            msg.senderId === user.uid ? "text-primary-foreground" : "text-muted-foreground"
+                                                        )}>
+                                                            <span className="text-[9px] font-bold">
+                                                                {format(msg.createdAt.toDate(), 'HH:mm')}
+                                                            </span>
+                                                            {msg.senderId === user.uid && <Clock size={8} />}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </ScrollArea>
+                            
                             <div className="p-4 bg-background border-t">
-                                <div className="flex gap-2">
-                                    <Input 
-                                        placeholder="Type your message..." 
-                                        className="rounded-full bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary h-10 px-4"
+                                <div className="flex items-end gap-2 bg-muted/30 p-1.5 rounded-2xl border border-border/50">
+                                    <Textarea 
+                                        placeholder="Type your query..." 
+                                        className="min-h-[44px] max-h-32 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 resize-none p-2 text-sm"
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSendMessage();
+                                            }
+                                        }}
                                     />
-                                    <Button size="icon" className="rounded-full h-10 w-10 shrink-0 shadow-lg" onClick={handleSendMessage} disabled={!message.trim()}>
+                                    <Button 
+                                        size="icon" 
+                                        className="rounded-xl h-10 w-10 shrink-0 bg-primary text-white shadow-lg hover:scale-105 transition-transform" 
+                                        onClick={handleSendMessage} 
+                                        disabled={!message.trim()}
+                                    >
                                         <Send className="h-4 w-4" />
                                     </Button>
                                 </div>

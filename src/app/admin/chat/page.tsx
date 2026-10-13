@@ -1,11 +1,12 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
 import type { Timestamp } from 'firebase/firestore';
 import { collection, query, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, User, Search, MessageSquare, MoreVertical, Trash2 } from 'lucide-react';
+import { Send, User, Search, MessageSquare, MoreVertical, Trash2, Clock, CheckCircle2, Circle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -16,8 +17,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { format, isToday, isYesterday } from 'date-fns';
 
 type Chat = {
     id: string;
@@ -42,77 +42,60 @@ export default function AdminChatPage() {
     const [message, setMessage] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     
-    const messagesQuery = selectedChat ? query(collection(firestore, `chats/${selectedChat.id}/messages`), orderBy('createdAt', 'asc')) : null;
+    // Memoize query to prevent re-subscriptions unless selectedChat ID changes
+    const messagesQuery = useMemo(() => 
+        selectedChat ? query(collection(firestore, `chats/${selectedChat.id}/messages`), orderBy('createdAt', 'asc')) : null
+    , [selectedChat?.id, firestore]);
+
     const { data: messages, loading: messagesLoading } = useCollection<ChatMessage>(messagesQuery);
     
     const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
+    const scrollToBottom = () => {
         if (scrollAreaRef.current) {
             const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
             if (scrollContainer) {
-                scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
+                scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'auto' });
             }
         }
+    };
+
+    useEffect(() => {
+        scrollToBottom();
     }, [messages]);
 
     const handleSelectChat = (chat: Chat) => {
         setSelectedChat(chat);
         if (chat.unreadByAdmin) {
-            const chatRef = doc(firestore, 'chats', chat.id);
-            // Non-blocking update
-            updateDoc(chatRef, { unreadByAdmin: false }).catch(async (e) => {
-                const permissionError = new FirestorePermissionError({
-                    path: chatRef.path,
-                    operation: 'update',
-                    requestResourceData: { unreadByAdmin: false }
-                });
-                errorEmitter.emit('permission-error', permissionError);
-            });
+            updateDoc(doc(firestore, 'chats', chat.id), { unreadByAdmin: false });
         }
     }
     
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         if (!selectedChat || !message.trim()) return;
 
+        const chatRef = doc(firestore, 'chats', selectedChat.id);
         const messagesCol = collection(firestore, `chats/${selectedChat.id}/messages`);
-        const chatDoc = doc(firestore, `chats/${selectedChat.id}`);
         
-        const messageData = {
-            text: message,
-            senderId: 'admin',
-            createdAt: serverTimestamp(),
-            isRead: false,
-        };
-        
-        const chatData = {
-            lastMessage: message,
-            lastMessageAt: serverTimestamp(),
-            unreadByUser: true,
-            unreadByAdmin: false,
-        };
-
         const currentMsg = message;
         setMessage('');
 
-        // Non-blocking writes
-        addDoc(messagesCol, messageData).catch(async () => {
-            const permissionError = new FirestorePermissionError({
-                path: messagesCol.path,
-                operation: 'create',
-                requestResourceData: messageData
+        try {
+            await addDoc(messagesCol, {
+                text: currentMsg,
+                senderId: 'admin',
+                createdAt: serverTimestamp(),
+                isRead: false,
             });
-            errorEmitter.emit('permission-error', permissionError);
-        });
-
-        setDoc(chatDoc, chatData, { merge: true }).catch(async () => {
-            const permissionError = new FirestorePermissionError({
-                path: chatDoc.path,
-                operation: 'update',
-                requestResourceData: chatData
+            await updateDoc(chatRef, {
+                lastMessage: currentMsg,
+                lastMessageAt: serverTimestamp(),
+                unreadByUser: true,
+                unreadByAdmin: false,
             });
-            errorEmitter.emit('permission-error', permissionError);
-        });
+        } catch (e) {
+            toast({ title: "Failed to send message", variant: "destructive" });
+        }
     }
 
     const handleClearChat = async () => {
@@ -123,20 +106,17 @@ export default function AdminChatPage() {
             const snapshot = await getDocs(messagesCol);
             
             const batch = writeBatch(firestore);
-            snapshot.docs.forEach((doc) => {
-                batch.delete(doc.ref);
-            });
+            snapshot.docs.forEach((doc) => batch.delete(doc.ref));
 
             const chatDoc = doc(firestore, `chats/${selectedChat.id}`);
             batch.update(chatDoc, {
-                lastMessage: 'Chat history cleared by admin',
+                lastMessage: 'History cleared by admin',
                 lastMessageAt: serverTimestamp(),
                 unreadByAdmin: false,
-                unreadByUser: false,
             });
 
             await batch.commit();
-            toast({ title: "Chat Cleared", description: "User's chat history has been successfully deleted." });
+            toast({ title: "Conversation Cleared" });
         } catch (e) {
             toast({ title: "Error", description: "Could not clear chat history.", variant: "destructive" });
         }
@@ -146,24 +126,37 @@ export default function AdminChatPage() {
         chat.userName.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const formatTime = (ts?: Timestamp) => {
-        if (!ts) return '';
-        return ts.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
+    const renderDateSeparator = (date: Date) => {
+        let label = format(date, 'dd MMM yyyy');
+        if (isToday(date)) label = 'Today';
+        else if (isYesterday(date)) label = 'Yesterday';
+
+        return (
+            <div className="flex justify-center my-6">
+                <span className="px-4 py-1 rounded-full bg-muted text-[10px] font-black uppercase tracking-[2px] text-muted-foreground border border-white/5">
+                    {label}
+                </span>
+            </div>
+        );
+    };
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[calc(100vh-10rem)] border rounded-xl overflow-hidden bg-background">
-            <div className="col-span-1 border-r flex flex-col bg-muted/10">
-                <div className="p-4 border-b space-y-4">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
-                        <MessageSquare className="h-5 w-5 text-primary" />
-                        Conversations
-                    </h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[calc(100vh-12rem)] border border-white/5 rounded-3xl overflow-hidden bg-background shadow-2xl">
+            {/* Sidebar */}
+            <div className="col-span-1 border-r border-white/5 flex flex-col bg-muted/5">
+                <div className="p-6 border-b border-white/5 space-y-4 bg-muted/10">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-sm font-black uppercase tracking-[3px] text-white/40 flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4 text-primary" />
+                            Active Nodes
+                        </h2>
+                        <Badge className="bg-primary/20 text-primary border-primary/20 text-[9px]">{chats?.length || 0}</Badge>
+                    </div>
                     <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
                         <Input 
-                            placeholder="Search users..." 
-                            className="pl-9 bg-background"
+                            placeholder="Filter users..." 
+                            className="pl-10 bg-white/5 border-white/10 rounded-xl h-11 focus:ring-primary text-xs font-bold"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -171,32 +164,39 @@ export default function AdminChatPage() {
                 </div>
                 <ScrollArea className="flex-1">
                     {chatsLoading ? (
-                        <div className="p-4 space-y-4">
-                            {[1,2,3].map(i => <div key={i} className="h-16 w-full bg-muted animate-pulse rounded-lg" />)}
+                        <div className="p-4 space-y-4 opacity-20">
+                            {[1,2,3,4,5].map(i => <div key={i} className="h-16 w-full bg-white/10 animate-pulse rounded-2xl" />)}
                         </div>
                     ) : filteredChats?.length === 0 ? (
-                        <p className="p-8 text-center text-sm text-muted-foreground">No conversations found.</p>
+                        <div className="p-12 text-center text-white/10 italic text-sm">No connections found.</div>
                     ) : (
                         filteredChats?.map(chat => (
                             <div 
                                 key={chat.id} 
                                 onClick={() => handleSelectChat(chat)}
                                 className={cn(
-                                    "p-4 border-b cursor-pointer transition-colors relative group",
-                                    selectedChat?.id === chat.id ? "bg-primary/5 border-l-4 border-l-primary" : "hover:bg-muted/50"
+                                    "p-4 mx-2 my-1 rounded-2xl cursor-pointer transition-all relative group flex items-center gap-3",
+                                    selectedChat?.id === chat.id 
+                                        ? "bg-primary/10 border border-primary/20" 
+                                        : "hover:bg-white/[0.03] border border-transparent"
                                 )}
                             >
-                                <div className="flex justify-between items-start mb-1">
-                                    <p className="font-semibold text-sm truncate pr-4">{chat.userName}</p>
-                                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                        {formatTime(chat.lastMessageAt)}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <p className="text-xs text-muted-foreground truncate max-w-[150px]">{chat.lastMessage}</p>
+                                <div className="relative shrink-0">
+                                    <Avatar className="h-10 w-10 rounded-xl border border-white/10">
+                                        <AvatarFallback className="bg-white/5 text-[10px] font-black">{chat.userName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
                                     {chat.unreadByAdmin && (
-                                        <Badge className="h-4 px-1.5 min-w-[1rem] flex items-center justify-center text-[10px]">New</Badge>
+                                        <span className="absolute -top-1 -right-1 h-3 w-3 bg-primary rounded-full border-2 border-background animate-pulse" />
                                     )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-start mb-0.5">
+                                        <p className="font-bold text-sm text-white/80 truncate pr-2">{chat.userName}</p>
+                                        <span className="text-[9px] text-white/20 font-black uppercase whitespace-nowrap">
+                                            {chat.lastMessageAt ? format(chat.lastMessageAt.toDate(), 'HH:mm') : ''}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-white/40 truncate italic">"{chat.lastMessage}"</p>
                                 </div>
                             </div>
                         ))
@@ -204,84 +204,110 @@ export default function AdminChatPage() {
                 </ScrollArea>
             </div>
 
-            <div className="col-span-3 flex flex-col">
+            {/* Chat Area */}
+            <div className="col-span-3 flex flex-col relative">
                 {selectedChat ? (
                     <>
-                        <div className="p-4 border-b flex items-center justify-between bg-card">
-                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                    <User className="h-6 w-6 text-primary" />
+                        <div className="p-5 border-b border-white/5 flex items-center justify-between bg-card/50 backdrop-blur-md">
+                             <div className="flex items-center gap-4">
+                                <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary shadow-lg border border-primary/20">
+                                    <User className="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <h2 className="font-bold">{selectedChat.userName}</h2>
-                                    <p className="text-[10px] text-green-500 font-semibold uppercase tracking-wider">Active Session</p>
+                                    <h2 className="font-black text-white uppercase tracking-tight">{selectedChat.userName}</h2>
+                                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-green-500 uppercase tracking-widest">
+                                        <Circle className="fill-current h-1.5 w-1.5 animate-pulse" /> Live Terminal
+                                    </div>
                                 </div>
                              </div>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon">
+                                    <Button variant="ghost" size="icon" className="rounded-xl border border-white/5">
                                         <MoreVertical className="h-5 w-5" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={handleClearChat} className="text-destructive">
+                                <DropdownMenuContent align="end" className="rounded-2xl bg-[#0a0b14] border-white/10">
+                                    <DropdownMenuItem onClick={handleClearChat} className="text-destructive font-black uppercase text-[10px] tracking-widest p-3">
                                         <Trash2 className="mr-2 h-4 w-4" />
-                                        Clear Chat History
+                                        Clear History Node
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
-                        <ScrollArea className="flex-1 p-6 bg-muted/5" ref={scrollAreaRef}>
-                            <div className="space-y-6">
+
+                        <ScrollArea className="flex-1 p-8 bg-black/20" ref={scrollAreaRef}>
+                            <div className="space-y-1">
                                 {messagesLoading ? (
-                                    <div className="space-y-4">
-                                        {[1,2,3].map(i => <div key={i} className="h-10 w-32 bg-muted animate-pulse rounded-lg" />)}
-                                    </div>
+                                    <div className="flex items-center justify-center h-40 opacity-20"><Timer className="animate-spin" /></div>
                                 ) : messages?.length === 0 ? (
-                                    <div className="text-center py-20 text-muted-foreground">
-                                        <p className="text-sm">No messages in this conversation.</p>
-                                    </div>
+                                    <div className="text-center py-20 text-white/10 uppercase font-black text-xs tracking-widest">Awaiting Communication</div>
                                 ) : (
-                                    messages?.map(msg => (
-                                        <div key={msg.id} className={cn("flex flex-col", msg.senderId === 'admin' ? "items-end" : "items-start")}>
-                                            <div className={cn(
-                                                "max-w-[70%] rounded-2xl px-4 py-2.5 text-sm shadow-sm",
-                                                msg.senderId === 'admin' 
-                                                ? "bg-primary text-primary-foreground rounded-tr-none" 
-                                                : "bg-card text-foreground rounded-tl-none border"
-                                            )}>
-                                                <p>{msg.text}</p>
+                                    messages?.map((msg, idx) => {
+                                        const prevMsg = messages[idx - 1];
+                                        const showDate = !prevMsg || !isToday(msg.createdAt.toDate()) && format(msg.createdAt.toDate(), 'yyyyMMdd') !== format(prevMsg.createdAt.toDate(), 'yyyyMMdd');
+                                        
+                                        return (
+                                            <div key={msg.id}>
+                                                {showDate && renderDateSeparator(msg.createdAt.toDate())}
+                                                <div className={cn(
+                                                    "flex flex-col mb-4",
+                                                    msg.senderId === 'admin' ? "items-end" : "items-start"
+                                                )}>
+                                                    <div className={cn(
+                                                        "max-w-[70%] rounded-2xl px-5 py-3 shadow-xl relative transition-all hover:scale-[1.01]",
+                                                        msg.senderId === 'admin' 
+                                                            ? "bg-primary text-primary-foreground rounded-tr-none border border-primary/20" 
+                                                            : "bg-white/[0.04] text-white rounded-tl-none border border-white/10"
+                                                    )}>
+                                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                                                        <div className={cn(
+                                                            "flex items-center gap-1.5 mt-2 justify-end opacity-40 text-[9px] font-black uppercase",
+                                                            msg.senderId === 'admin' ? "text-primary-foreground" : "text-white"
+                                                        )}>
+                                                            {format(msg.createdAt.toDate(), 'HH:mm')}
+                                                            {msg.senderId === 'admin' && <CheckCircle2 size={10} />}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                                                {formatTime(msg.createdAt)}
-                                            </span>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
                         </ScrollArea>
-                        <div className="p-4 border-t bg-card">
-                            <div className="flex gap-2 max-w-4xl mx-auto">
-                                <Input 
-                                    placeholder="Type your response..." 
-                                    className="bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary h-11"
+
+                        <div className="p-6 border-t border-white/5 bg-card/80 backdrop-blur-xl">
+                            <div className="flex gap-3 max-w-5xl mx-auto bg-black/40 p-2 rounded-2xl border border-white/5 shadow-inner">
+                                <Textarea 
+                                    placeholder="Type your response... (Shift+Enter for new line)" 
+                                    className="flex-1 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 min-h-[50px] max-h-40 resize-none text-sm font-medium py-3 px-4"
                                     value={message}
                                     onChange={(e) => setMessage(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSendMessage();
+                                        }
+                                    }}
                                 />
-                                <Button size="icon" type="button" className="h-11 w-11 shrink-0 shadow-lg" onClick={handleSendMessage} disabled={!message.trim()}>
+                                <Button 
+                                    size="icon" 
+                                    className="h-12 w-12 rounded-xl bg-primary text-white shadow-2xl hover:scale-105 active:scale-95 transition-all mt-auto" 
+                                    onClick={handleSendMessage} 
+                                    disabled={!message.trim()}
+                                >
                                     <Send className="h-5 w-5" />
                                 </Button>
                             </div>
                         </div>
                     </>
                 ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground bg-muted/5">
-                        <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
-                            <MessageSquare className="h-10 w-10 opacity-20" />
+                    <div className="flex flex-col items-center justify-center h-full text-center px-8">
+                        <div className="h-24 w-24 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-2xl group overflow-hidden">
+                            <MessageSquare className="h-10 w-10 text-white/10 group-hover:text-primary transition-all duration-700" />
                         </div>
-                        <h3 className="text-lg font-medium">Select a user to start chatting</h3>
-                        <p className="text-sm">Conversation history with customers will appear here.</p>
+                        <h3 className="text-xl font-black text-white uppercase tracking-tight">Support Dashboard</h3>
+                        <p className="text-xs text-white/30 max-w-xs mt-2 uppercase font-bold tracking-widest leading-relaxed">Select an active node from the registry to initiate a secure communication session.</p>
                     </div>
                 )}
             </div>
