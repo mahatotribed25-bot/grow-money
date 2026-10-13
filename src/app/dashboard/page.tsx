@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Wallet,
@@ -319,6 +318,7 @@ export default function Dashboard() {
                 <QuickActionButton icon={HandCoins} label={t.dashboard.standard_loan} href="/loans" color="text-orange-600" />
                 <QuickActionButton icon={FileText} label={t.dashboard.flexi_loan} href="/custom-loan" color="text-red-600" />
                 <QuickActionButton icon={Users} label={t.dashboard.syndicate} href="/group-investing" color="text-purple-600" />
+                <QuickActionButton icon={PlayCircle} label={t.dashboard.media_hub} href="/media" color="text-red-500" />
             </div>
         </Card>
       </main>
