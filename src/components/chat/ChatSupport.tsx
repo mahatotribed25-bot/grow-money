@@ -180,11 +180,15 @@ export function ChatSupportWidget() {
                                         </div>
                                     ) : messages?.map((msg, idx) => {
                                         const prevMsg = messages[idx - 1];
-                                        const showDate = !prevMsg || !isToday(msg.createdAt.toDate()) && format(msg.createdAt.toDate(), 'yyyyMMdd') !== format(prevMsg.createdAt.toDate(), 'yyyyMMdd');
+                                        const msgDate = msg.createdAt?.toDate();
+                                        const prevMsgDate = prevMsg?.createdAt?.toDate();
+                                        
+                                        // Show date separator if day has changed
+                                        const showDate = !prevMsg || (msgDate && prevMsgDate && format(msgDate, 'yyyyMMdd') !== format(prevMsgDate, 'yyyyMMdd'));
                                         
                                         return (
                                             <div key={msg.id}>
-                                                {showDate && renderDateSeparator(msg.createdAt.toDate())}
+                                                {showDate && msgDate && renderDateSeparator(msgDate)}
                                                 <div className={cn(
                                                     "flex flex-col mb-2",
                                                     msg.senderId === user.uid ? "items-end" : "items-start"
@@ -201,7 +205,7 @@ export function ChatSupportWidget() {
                                                             msg.senderId === user.uid ? "text-primary-foreground" : "text-muted-foreground"
                                                         )}>
                                                             <span className="text-[9px] font-bold">
-                                                                {format(msg.createdAt.toDate(), 'HH:mm')}
+                                                                {msg.createdAt ? format(msg.createdAt.toDate(), 'HH:mm') : '...'}
                                                             </span>
                                                             {msg.senderId === user.uid && <Clock size={8} />}
                                                         </div>

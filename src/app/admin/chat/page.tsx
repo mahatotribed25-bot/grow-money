@@ -18,6 +18,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { format, isToday, isYesterday } from 'date-fns';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 type Chat = {
     id: string;
@@ -244,11 +245,15 @@ export default function AdminChatPage() {
                                 ) : (
                                     messages?.map((msg, idx) => {
                                         const prevMsg = messages[idx - 1];
-                                        const showDate = !prevMsg || !isToday(msg.createdAt.toDate()) && format(msg.createdAt.toDate(), 'yyyyMMdd') !== format(prevMsg.createdAt.toDate(), 'yyyyMMdd');
+                                        const msgDate = msg.createdAt?.toDate();
+                                        const prevMsgDate = prevMsg?.createdAt?.toDate();
+                                        
+                                        // Show date separator if day has changed
+                                        const showDate = !prevMsg || (msgDate && prevMsgDate && format(msgDate, 'yyyyMMdd') !== format(prevMsgDate, 'yyyyMMdd'));
                                         
                                         return (
                                             <div key={msg.id}>
-                                                {showDate && renderDateSeparator(msg.createdAt.toDate())}
+                                                {showDate && msgDate && renderDateSeparator(msgDate)}
                                                 <div className={cn(
                                                     "flex flex-col mb-4",
                                                     msg.senderId === 'admin' ? "items-end" : "items-start"
@@ -264,7 +269,7 @@ export default function AdminChatPage() {
                                                             "flex items-center gap-1.5 mt-2 justify-end opacity-40 text-[9px] font-black uppercase",
                                                             msg.senderId === 'admin' ? "text-primary-foreground" : "text-white"
                                                         )}>
-                                                            {format(msg.createdAt.toDate(), 'HH:mm')}
+                                                            {msg.createdAt ? format(msg.createdAt.toDate(), 'HH:mm') : '...'}
                                                             {msg.senderId === 'admin' && <CheckCircle2 size={10} />}
                                                         </div>
                                                     </div>
