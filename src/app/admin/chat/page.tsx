@@ -20,7 +20,7 @@ import {
 import { format, isToday, isYesterday } from 'date-fns';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import Image from 'next/image';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 type Chat = {
     id: string;
@@ -287,8 +287,8 @@ export default function AdminChatPage() {
                                 ) : (
                                     messages?.map((msg, idx) => {
                                         const prevMsg = messages[idx - 1];
-                                        const msgDate = msg.createdAt?.toDate();
-                                        const prevMsgDate = prevMsg?.createdAt?.toDate();
+                                        const msgDate = msg.createdAt ? msg.createdAt.toDate() : null;
+                                        const prevMsgDate = prevMsg?.createdAt ? prevMsg.createdAt.toDate() : null;
                                         const showDate = !prevMsg || (msgDate && prevMsgDate && format(msgDate, 'yyyyMMdd') !== format(prevMsgDate, 'yyyyMMdd'));
                                         
                                         return (
@@ -377,6 +377,10 @@ export default function AdminChatPage() {
             {/* Image Preview Modal */}
             <Dialog open={!!fullPreviewUrl} onOpenChange={() => setFullPreviewUrl(null)}>
                 <DialogContent className="max-w-[95vw] h-[90vh] p-0 border-none bg-black/95 rounded-3xl overflow-hidden">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Image Preview</DialogTitle>
+                        <DialogDescription>Full screen view of the shared image.</DialogDescription>
+                    </DialogHeader>
                     <div className="relative w-full h-full flex items-center justify-center p-4">
                         {fullPreviewUrl && <Image src={fullPreviewUrl} alt="full" fill className="object-contain" />}
                         <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white" onClick={() => setFullPreviewUrl(null)}>
