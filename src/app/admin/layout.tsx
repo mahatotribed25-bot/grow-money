@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -39,7 +38,8 @@ import {
   Coins,
   Calendar,
   PiggyBank,
-  ShoppingBag
+  ShoppingBag,
+  Link2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -152,6 +152,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AdminNavItem icon={Megaphone} href="/admin/announcements">News & Updates</AdminNavItem>
             <AdminNavItem icon={Gift} href="/admin/coupons">Gifts & Coupons</AdminNavItem>
             <AdminNavItem icon={MessageSquare} href="/admin/chat">Support Chat</AdminNavItem>
+            <AdminNavItem icon={Link2} href="/admin/user-chats">Chat Bridges</AdminNavItem>
             <AdminNavItem icon={Settings} href="/admin/settings">Settings</AdminNavItem>
           </nav>
         </ScrollArea>

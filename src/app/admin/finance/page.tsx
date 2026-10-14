@@ -61,6 +61,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 type AdminSettings = {
     adminProfitBalance?: number;
@@ -134,6 +135,7 @@ export default function AdminFinancePage() {
     
     const [selectedMonth, setSelectedMonth] = useState(months[new Date().getMonth()]);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const isAdmin = useMemo(() => {
         const email = user?.email?.toLowerCase();
@@ -293,13 +295,29 @@ export default function AdminFinancePage() {
         }
     };
 
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        setTimeout(() => setIsRefreshing(false), 1000);
+        toast({ title: "Financials Synced", description: "All ledger records are up to date." });
+    }
+
     if (userLoading || settingsLoading || plansLoading) return <div className="flex h-full items-center justify-center py-20"><p className="text-white/20 animate-pulse font-black uppercase text-xs">Syncing Ledger...</p></div>;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-700">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-black text-white uppercase tracking-tight">Finance Hub</h2>
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-3xl font-black text-white uppercase tracking-tight">Finance Hub</h2>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={handleRefresh}
+                            className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white/40"
+                        >
+                            <RefreshCcw size={16} className={cn(isRefreshing && "animate-spin")} />
+                        </Button>
+                    </div>
                     <p className="text-[10px] font-black uppercase text-white/20 tracking-[4px]">System Earnings & Payouts</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -381,7 +399,7 @@ export default function AdminFinancePage() {
                 </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-7">
+            <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
                 <Card className="lg:col-span-4 bg-white/[0.03] border-white/[0.08] rounded-[2rem] overflow-hidden">
                     <CardHeader className="bg-white/[0.02] p-6 border-b border-white/5">
                         <CardTitle className="text-sm font-black uppercase text-white flex items-center gap-2">

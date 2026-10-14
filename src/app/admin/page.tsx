@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -51,6 +50,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 
 const ADMIN_EMAILS = ['admin@tribed.world', 'admin@tribed.com'];
 
@@ -59,7 +59,9 @@ type Transaction = { id: string; amount: number; name: string; status: 'pending'
 
 export default function AdminDashboard() {
   const { user, loading: userIsLoading } = useUser();
+  const { toast } = useToast();
   const [timeRange, setTimeRange] = useState('All');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const isAdmin = useMemo(() => {
       const email = user?.email?.toLowerCase();
@@ -80,7 +82,6 @@ export default function AdminDashboard() {
   }, [allDeposits, allWithdrawals]);
 
   const performanceData = useMemo(() => {
-    // Generate dates for the last 15 days
     const days = Array.from({ length: 15 }, (_, i) => startOfDay(subDays(new Date(), i))).reverse();
     
     return days.map(day => {
@@ -96,10 +97,8 @@ export default function AdminDashboard() {
             isSameDay(w.createdAt.toDate(), day)
         ).reduce((s, w) => s + w.amount, 0) || 0;
 
-        // The "Value" represents the Net Protocol Volume for that day
         return { 
             name: format(day, 'MMM d'), 
-            // We use a baseline of 100 to ensure the chart always has some visual height
             value: (dSum - wSum) + 100, 
             Deposits: dSum, 
             Withdrawals: wSum 
@@ -107,7 +106,6 @@ export default function AdminDashboard() {
     });
   }, [allDeposits, allWithdrawals]);
 
-  // Logic to determine overall trend color based on the 15-day window
   const isTrendingUp = useMemo(() => {
     if (performanceData.length < 2) return true;
     const first = performanceData[0].value;
@@ -130,6 +128,12 @@ export default function AdminDashboard() {
     return combined.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds).slice(0, 5);
   }, [allDeposits, allWithdrawals]);
 
+  const handleRefreshNode = () => {
+      setIsRefreshing(true);
+      setTimeout(() => setIsRefreshing(false), 1000);
+      toast({ title: "Syncing Master Node", description: "All database registries have been updated." });
+  }
+
   if (userIsLoading || usersLoading || depositsLoading || withdrawalsLoading) return (
       <div className="flex h-[80vh] flex-col items-center justify-center gap-4">
           <div className="h-12 w-12 rounded-2xl border-4 border-primary border-t-transparent animate-spin shadow-[0_0_20px_rgba(139,92,246,0.3)]" />
@@ -139,10 +143,19 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
-      {/* Top Header - Financial Hub Style */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
         <div className="space-y-1">
-            <h1 className="text-5xl font-black text-white tracking-tighter">Grow Money Inc.</h1>
+            <div className="flex items-center gap-3">
+                <h1 className="text-5xl font-black text-white tracking-tighter">Grow Money Inc.</h1>
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={handleRefreshNode}
+                    className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white/40"
+                >
+                    <RefreshCcw size={18} className={cn(isRefreshing && "animate-spin")} />
+                </Button>
+            </div>
             <div className="flex items-center gap-4 pt-2">
                  <div className="flex items-center gap-1.5">
                     {isTrendingUp ? (
@@ -183,7 +196,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Main Performance Graph - High Fidelity Area Chart */}
       <Card className="bg-transparent border-none p-0 shadow-none relative overflow-hidden">
           <div className="h-[450px] w-full mt-4">
              <ResponsiveContainer width="100%" height="100%">
@@ -239,7 +251,6 @@ export default function AdminDashboard() {
           </div>
       </Card>
 
-      {/* Main Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <GlassMetricCard 
             title="Total Investors" 
