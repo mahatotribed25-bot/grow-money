@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Send, X, Trash2, MoreVertical, Circle, Clock } from 'lucide-react';
+import { MessageSquare, Send, X, Trash2, MoreVertical, Circle, Clock, Camera, ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useUser, useCollection, useFirestore } from '@/firebase';
@@ -17,20 +17,25 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
+import Image from 'next/image';
 
 type ChatMessage = {
     id: string;
     text: string;
     senderId: string;
     createdAt: Timestamp;
+    imageUrl?: string;
 }
 
 export function ChatSupportWidget() {
     const [isOpen, setIsOpen] = useState(false);
     const [message, setMessage] = useState('');
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [fullPreviewUrl, setFullPreviewUrl] = useState<string | null>(null);
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     const messagesQuery = user ? query(collection(firestore, `chats/${user.uid}/messages`), orderBy('createdAt', 'asc')) : null;
     const { data: messages, loading } = useCollection<ChatMessage>(messagesQuery);
@@ -51,18 +56,55 @@ export function ChatSupportWidget() {
         }
     }, [messages, isOpen]);
     
+    const compressImage = async (base64: string): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new window.Image();
+            img.src = base64;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_DIM = 800;
+                if (width > height) {
+                    if (width > MAX_DIM) { height *= MAX_DIM / width; width = MAX_DIM; }
+                } else {
+                    if (height > MAX_DIM) { width *= MAX_DIM / height; height = MAX_DIM; }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.6));
+            };
+        });
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const compressed = await compressImage(reader.result as string);
+            setSelectedImage(compressed);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleSendMessage = async () => {
-        if (!user || !message.trim()) return;
+        if (!user || (!message.trim() && !selectedImage)) return;
         
         const messagesCol = collection(firestore, `chats/${user.uid}/messages`);
         const chatDoc = doc(firestore, `chats/${user.uid}`);
         
         const currentMsg = message;
+        const currentImg = selectedImage;
         setMessage('');
+        setSelectedImage(null);
 
         try {
             await addDoc(messagesCol, {
                 text: currentMsg,
+                imageUrl: currentImg || null,
                 senderId: user.uid,
                 createdAt: serverTimestamp(),
                 isRead: false,
@@ -70,7 +112,7 @@ export function ChatSupportWidget() {
             await setDoc(chatDoc, {
                 userId: user.uid,
                 userName: user.displayName,
-                lastMessage: currentMsg,
+                lastMessage: currentImg ? "📷 Image" : currentMsg,
                 lastMessageAt: serverTimestamp(),
                 unreadByAdmin: true,
                 unreadByUser: false,
@@ -131,7 +173,7 @@ export function ChatSupportWidget() {
             
             {isOpen && (
                 <div className="fixed bottom-24 right-6 z-50 animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-10 sm:w-96 w-[calc(100vw-3rem)]">
-                    <Card className="h-[34rem] flex flex-col shadow-2xl border-primary/20 overflow-hidden bg-background/95 backdrop-blur-xl">
+                    <Card className="h-[34rem] flex flex-col shadow-2xl border-primary/20 overflow-hidden bg-background/95 backdrop-blur-xl rounded-[2rem]">
                         <CardHeader className="bg-primary text-primary-foreground py-4 px-4 flex flex-row items-center justify-between space-y-0 shadow-lg">
                             <div className="flex items-center gap-3">
                                 <div className="relative">
@@ -142,7 +184,7 @@ export function ChatSupportWidget() {
                                 </div>
                                 <div>
                                     <CardTitle className="text-base font-black tracking-tight">Support Desk</CardTitle>
-                                    <p className="text-[10px] text-primary-foreground/70 uppercase tracking-widest font-black">24/7 Secure Node</p>
+                                    <p className="text-[10px] text-primary-foreground/70 uppercase tracking-widest font-black">Secure Tunnel</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
@@ -182,8 +224,6 @@ export function ChatSupportWidget() {
                                         const prevMsg = messages[idx - 1];
                                         const msgDate = msg.createdAt?.toDate();
                                         const prevMsgDate = prevMsg?.createdAt?.toDate();
-                                        
-                                        // Show date separator if day has changed
                                         const showDate = !prevMsg || (msgDate && prevMsgDate && format(msgDate, 'yyyyMMdd') !== format(prevMsgDate, 'yyyyMMdd'));
                                         
                                         return (
@@ -199,7 +239,12 @@ export function ChatSupportWidget() {
                                                             ? "bg-primary text-primary-foreground rounded-tr-none" 
                                                             : "bg-card text-foreground rounded-tl-none border border-border/50"
                                                     )}>
-                                                        <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                                                        {msg.imageUrl && (
+                                                            <div className="relative aspect-square w-48 mb-2 rounded-xl overflow-hidden cursor-pointer bg-black/5" onClick={() => setFullPreviewUrl(msg.imageUrl!)}>
+                                                                <Image src={msg.imageUrl} alt="chat" fill className="object-cover" />
+                                                            </div>
+                                                        )}
+                                                        {msg.text && <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>}
                                                         <div className={cn(
                                                             "flex items-center gap-1 mt-1 opacity-50 justify-end",
                                                             msg.senderId === user.uid ? "text-primary-foreground" : "text-muted-foreground"
@@ -217,8 +262,20 @@ export function ChatSupportWidget() {
                                 </div>
                             </ScrollArea>
                             
-                            <div className="p-4 bg-background border-t">
+                            <div className="p-4 bg-background border-t space-y-3">
+                                {selectedImage && (
+                                    <div className="relative h-20 w-20 rounded-xl overflow-hidden border border-primary animate-in zoom-in-95">
+                                        <Image src={selectedImage} alt="preview" fill className="object-cover" />
+                                        <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-5 w-5 rounded-full" onClick={() => setSelectedImage(null)}>
+                                            <X size={10} />
+                                        </Button>
+                                    </div>
+                                )}
                                 <div className="flex items-end gap-2 bg-muted/30 p-1.5 rounded-2xl border border-border/50">
+                                    <input type="file" className="hidden" ref={fileInputRef} accept="image/*" onChange={handleFileChange} />
+                                    <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 text-muted-foreground hover:text-primary rounded-xl" onClick={() => fileInputRef.current?.click()}>
+                                        <Camera size={18} />
+                                    </Button>
                                     <Textarea 
                                         placeholder="Type your query..." 
                                         className="min-h-[44px] max-h-32 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 resize-none p-2 text-sm"
@@ -235,7 +292,7 @@ export function ChatSupportWidget() {
                                         size="icon" 
                                         className="rounded-xl h-10 w-10 shrink-0 bg-primary text-white shadow-lg hover:scale-105 transition-transform" 
                                         onClick={handleSendMessage} 
-                                        disabled={!message.trim()}
+                                        disabled={!message.trim() && !selectedImage}
                                     >
                                         <Send className="h-4 w-4" />
                                     </Button>
@@ -245,6 +302,18 @@ export function ChatSupportWidget() {
                     </Card>
                 </div>
             )}
+
+            {/* Image Preview Modal */}
+            <Dialog open={!!fullPreviewUrl} onOpenChange={() => setFullPreviewUrl(null)}>
+                <DialogContent className="max-w-[95vw] h-[80vh] p-0 border-none bg-black/90 rounded-3xl overflow-hidden">
+                    <div className="relative w-full h-full flex items-center justify-center p-4">
+                        {fullPreviewUrl && <Image src={fullPreviewUrl} alt="full" fill className="object-contain" />}
+                        <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white" onClick={() => setFullPreviewUrl(null)}>
+                            <X />
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

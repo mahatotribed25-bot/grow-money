@@ -42,7 +42,8 @@ import {
   Settings2,
   IndianRupee,
   Save,
-  Shield
+  Shield,
+  MessageCircle
 } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp, orderBy } from 'firebase/firestore';
@@ -104,6 +105,7 @@ type UserData = {
   panImage?: string;
   aadhaarImage?: string;
   baseSalary?: number;
+  canAccessPrivateChat?: boolean;
 };
 
 type WalletHistoryEntry = {
@@ -253,6 +255,7 @@ export default function UserDetailPage() {
   const [reKycReason, setReKycReason] = useState('');
   const [baseSalary, setBaseSalary] = useState('');
   const [isSavingPermissions, setIsSavingPermissions] = useState(false);
+  const [canAccessPrivateChat, setCanAccessPrivateChat] = useState(false);
 
   const defaultPermissions: UserPermissions = {
     canManageDeposits: false,
@@ -283,6 +286,9 @@ export default function UserDetailPage() {
     if (user?.baseSalary !== undefined) {
         setBaseSalary(user.baseSalary.toString());
     }
+    if (user?.canAccessPrivateChat !== undefined) {
+        setCanAccessPrivateChat(user.canAccessPrivateChat);
+    }
   }, [user]);
 
   const handlePermissionChange = (permission: keyof UserPermissions, value: boolean) => {
@@ -301,10 +307,11 @@ export default function UserDetailPage() {
             permissions,
             role: newRole,
             baseSalary: parseFloat(baseSalary) || 0,
+            canAccessPrivateChat: canAccessPrivateChat
         });
         toast({
-            title: 'Staff Access Updated',
-            description: `${user?.name} has been updated to ${newRole.toUpperCase()}.`,
+            title: 'Settings Updated',
+            description: `${user?.name} settings have been updated.`,
         });
         refetchUser();
     } catch (error) {
@@ -429,6 +436,15 @@ export default function UserDetailPage() {
                     
                     <Separator className="bg-white/5 my-4" />
                     
+                    <div className="flex items-center justify-between group">
+                        <Label htmlFor="private-chat" className="text-[11px] font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-colors cursor-pointer flex items-center gap-2">
+                            <MessageCircle size={14} className="text-blue-400" /> Enable Private Chat Access
+                        </Label>
+                        <Switch id="private-chat" checked={canAccessPrivateChat} onCheckedChange={setCanAccessPrivateChat} className="data-[state=checked]:bg-blue-500" />
+                    </div>
+
+                    <Separator className="bg-white/5 my-4" />
+
                     <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Monthly Base Salary (INR)</Label>
                         <div className="relative">

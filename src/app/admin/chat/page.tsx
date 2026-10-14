@@ -6,7 +6,7 @@ import { collection, query, orderBy, addDoc, serverTimestamp, doc, setDoc, updat
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, User, Search, MessageSquare, MoreVertical, Trash2, Clock, CheckCircle2, Circle, Timer } from 'lucide-react';
+import { Send, User, Search, MessageSquare, MoreVertical, Trash2, Clock, CheckCircle2, Circle, Timer, Camera, ImageIcon, X } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { format, isToday, isYesterday } from 'date-fns';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import Image from 'next/image';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 type Chat = {
     id: string;
@@ -33,6 +35,7 @@ type ChatMessage = {
     text: string;
     senderId: string;
     createdAt: Timestamp;
+    imageUrl?: string;
 }
 
 export default function AdminChatPage() {
@@ -42,8 +45,10 @@ export default function AdminChatPage() {
     const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
     const [message, setMessage] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [fullPreviewUrl, setFullPreviewUrl] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
-    // Memoize query to prevent re-subscriptions unless selectedChat ID changes
     const messagesQuery = useMemo(() => 
         selectedChat ? query(collection(firestore, `chats/${selectedChat.id}/messages`), orderBy('createdAt', 'asc')) : null
     , [selectedChat?.id, firestore]);
@@ -71,25 +76,62 @@ export default function AdminChatPage() {
             updateDoc(doc(firestore, 'chats', chat.id), { unreadByAdmin: false });
         }
     }
+
+    const compressImage = async (base64: string): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new window.Image();
+            img.src = base64;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_DIM = 800;
+                if (width > height) {
+                    if (width > MAX_DIM) { height *= MAX_DIM / width; width = MAX_DIM; }
+                } else {
+                    if (height > MAX_DIM) { width *= MAX_DIM / height; height = MAX_DIM; }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.6));
+            };
+        });
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const compressed = await compressImage(reader.result as string);
+            setSelectedImage(compressed);
+        };
+        reader.readAsDataURL(file);
+    };
     
     const handleSendMessage = async () => {
-        if (!selectedChat || !message.trim()) return;
+        if (!selectedChat || (!message.trim() && !selectedImage)) return;
 
         const chatRef = doc(firestore, 'chats', selectedChat.id);
         const messagesCol = collection(firestore, `chats/${selectedChat.id}/messages`);
         
         const currentMsg = message;
+        const currentImg = selectedImage;
         setMessage('');
+        setSelectedImage(null);
 
         try {
             await addDoc(messagesCol, {
                 text: currentMsg,
+                imageUrl: currentImg || null,
                 senderId: 'admin',
                 createdAt: serverTimestamp(),
                 isRead: false,
             });
             await updateDoc(chatRef, {
-                lastMessage: currentMsg,
+                lastMessage: currentImg ? "📷 Image" : currentMsg,
                 lastMessageAt: serverTimestamp(),
                 unreadByUser: true,
                 unreadByAdmin: false,
@@ -247,8 +289,6 @@ export default function AdminChatPage() {
                                         const prevMsg = messages[idx - 1];
                                         const msgDate = msg.createdAt?.toDate();
                                         const prevMsgDate = prevMsg?.createdAt?.toDate();
-                                        
-                                        // Show date separator if day has changed
                                         const showDate = !prevMsg || (msgDate && prevMsgDate && format(msgDate, 'yyyyMMdd') !== format(prevMsgDate, 'yyyyMMdd'));
                                         
                                         return (
@@ -264,7 +304,12 @@ export default function AdminChatPage() {
                                                             ? "bg-primary text-primary-foreground rounded-tr-none border border-primary/20" 
                                                             : "bg-white/[0.04] text-white rounded-tl-none border border-white/10"
                                                     )}>
-                                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                                                        {msg.imageUrl && (
+                                                            <div className="relative aspect-square w-64 mb-2 rounded-xl overflow-hidden cursor-pointer bg-black/5" onClick={() => setFullPreviewUrl(msg.imageUrl!)}>
+                                                                <Image src={msg.imageUrl} alt="chat" fill className="object-cover" />
+                                                            </div>
+                                                        )}
+                                                        {msg.text && <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>}
                                                         <div className={cn(
                                                             "flex items-center gap-1.5 mt-2 justify-end opacity-40 text-[9px] font-black uppercase",
                                                             msg.senderId === 'admin' ? "text-primary-foreground" : "text-white"
@@ -282,7 +327,19 @@ export default function AdminChatPage() {
                         </ScrollArea>
 
                         <div className="p-6 border-t border-white/5 bg-card/80 backdrop-blur-xl">
+                            {selectedImage && (
+                                <div className="mb-4 relative h-24 w-24 rounded-2xl overflow-hidden border-2 border-primary shadow-2xl animate-in zoom-in-95">
+                                    <Image src={selectedImage} alt="preview" fill className="object-cover" />
+                                    <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 rounded-full shadow-lg" onClick={() => setSelectedImage(null)}>
+                                        <X size={12} />
+                                    </Button>
+                                </div>
+                            )}
                             <div className="flex gap-3 max-w-5xl mx-auto bg-black/40 p-2 rounded-2xl border border-white/5 shadow-inner">
+                                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+                                <Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl text-white/40 hover:text-primary mt-auto" onClick={() => fileInputRef.current?.click()}>
+                                    <Camera size={20} />
+                                </Button>
                                 <Textarea 
                                     placeholder="Type your response... (Shift+Enter for new line)" 
                                     className="flex-1 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 min-h-[50px] max-h-40 resize-none text-sm font-medium py-3 px-4"
@@ -299,7 +356,7 @@ export default function AdminChatPage() {
                                     size="icon" 
                                     className="h-12 w-12 rounded-xl bg-primary text-white shadow-2xl hover:scale-105 active:scale-95 transition-all mt-auto" 
                                     onClick={handleSendMessage} 
-                                    disabled={!message.trim()}
+                                    disabled={!message.trim() && !selectedImage}
                                 >
                                     <Send className="h-5 w-5" />
                                 </Button>
@@ -316,6 +373,18 @@ export default function AdminChatPage() {
                     </div>
                 )}
             </div>
+
+            {/* Image Preview Modal */}
+            <Dialog open={!!fullPreviewUrl} onOpenChange={() => setFullPreviewUrl(null)}>
+                <DialogContent className="max-w-[95vw] h-[90vh] p-0 border-none bg-black/95 rounded-3xl overflow-hidden">
+                    <div className="relative w-full h-full flex items-center justify-center p-4">
+                        {fullPreviewUrl && <Image src={fullPreviewUrl} alt="full" fill className="object-contain" />}
+                        <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white" onClick={() => setFullPreviewUrl(null)}>
+                            <X />
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

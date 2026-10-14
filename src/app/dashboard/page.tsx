@@ -31,7 +31,8 @@ import {
   Users2,
   Gift,
   PiggyBank,
-  ShoppingBag
+  ShoppingBag,
+  MessageCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -90,6 +91,7 @@ type UserData = {
   email?: string;
   trustScore?: number;
   referralCode?: string;
+  canAccessPrivateChat?: boolean;
 };
 
 type Investment = {
@@ -252,19 +254,16 @@ export default function Dashboard() {
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/20 bg-background/95 backdrop-blur-xl px-4 sm:px-6">
         <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /><h1 className="text-xl font-bold tracking-tighter">Grow Money</h1></div>
         <Link href="/profile">
-          <Badge variant="outline" className="border-border bg-muted h-10 px-1.5 gap-2 rounded-full hover:bg-accent transition-all pl-1">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={userData?.photoURL} className="object-cover" />
-              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-black">{userData?.name?.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <span className="font-black text-xs tracking-tight pr-2">{userData?.name || 'User'}</span>
-          </Badge>
+          <Avatar className="h-9 w-9 border border-primary/20 p-0.5 rounded-xl shadow-lg">
+            <AvatarImage src={userData?.photoURL} className="object-cover rounded-[10px]" />
+            <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-black uppercase">{userData?.name?.charAt(0)}</AvatarFallback>
+          </Avatar>
         </Link>
       </header>
 
       <ActivityPulse />
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-24">
         {isStaff && (
           <Card className="bg-primary/5 border border-primary/20 rounded-[1.5rem] p-4 animate-in slide-in-from-top-4 duration-700 shadow-lg relative overflow-hidden group">
              <div className="absolute inset-0 bg-primary/5 animate-pulse group-hover:bg-primary/10 transition-colors" />
@@ -294,10 +293,10 @@ export default function Dashboard() {
                 <Activity size={14} className="text-primary" /> {t.dashboard.active_portfolios}
             </h2>
             <div className="flex gap-2">
-                <Button variant="ghost" size="sm" asChild className="text-muted-foreground text-[10px] font-black uppercase tracking-widest border border-border/10">
+                <Button variant="ghost" size="sm" asChild className="text-muted-foreground text-[10px] font-black uppercase tracking-widest border border-border/10 rounded-xl">
                     <Link href="/my-plans">{t.dashboard.vault} <ArrowRight className="ml-1 h-3 w-3" /></Link>
                 </Button>
-                <Button variant="ghost" size="sm" asChild className="text-primary text-[10px] font-black uppercase tracking-widest">
+                <Button variant="ghost" size="sm" asChild className="text-primary text-[10px] font-black uppercase tracking-widest rounded-xl">
                     <Link href="/plans">{t.dashboard.market} <ArrowRight className="ml-1 h-3 w-3" /></Link>
                 </Button>
             </div>
@@ -319,6 +318,11 @@ export default function Dashboard() {
                 <QuickActionButton icon={FileText} label={t.dashboard.flexi_loan} href="/custom-loan" color="text-red-600" />
                 <QuickActionButton icon={Users} label={t.dashboard.syndicate} href="/group-investing" color="text-purple-600" />
                 <QuickActionButton icon={PlayCircle} label={t.dashboard.media_hub} href="/media" color="text-red-500" />
+                
+                {/* Admin-controlled Private Chat Access */}
+                {userData?.canAccessPrivateChat && (
+                    <QuickActionButton icon={MessageCircle} label="Private Chat" href="/user-chats" color="text-blue-400" />
+                )}
             </div>
         </Card>
       </main>
