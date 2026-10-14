@@ -43,10 +43,13 @@ import {
   IndianRupee,
   Save,
   Shield,
-  MessageCircle
+  MessageCircle,
+  LinkIcon,
+  Trash2,
+  Search
 } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp, orderBy } from 'firebase/firestore';
+import { doc, updateDoc, runTransaction, collection, getDocs, query, where, deleteField, serverTimestamp, orderBy, addDoc, deleteDoc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -76,6 +79,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import Image from 'next/image';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type UserPermissions = {
     canManageDeposits?: boolean;
@@ -174,6 +178,14 @@ type GroupInvestment = {
     investorId: string;
 }
 
+type ChatSession = {
+    id: string;
+    participants: string[];
+    participantNames: Record<string, string>;
+    createdAt: any;
+    lastMessage: string;
+}
+
 function useUserGroupInvestments(userId?: string) {
     const [investments, setInvestments] = useState<GroupInvestment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -256,6 +268,8 @@ export default function UserDetailPage() {
   const [baseSalary, setBaseSalary] = useState('');
   const [isSavingPermissions, setIsSavingPermissions] = useState(false);
   const [canAccessPrivateChat, setCanAccessPrivateChat] = useState(false);
+  const [targetUserForChat, setTargetUserForChat] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const defaultPermissions: UserPermissions = {
     canManageDeposits: false,
@@ -268,6 +282,7 @@ export default function UserDetailPage() {
   const [permissions, setPermissions] = useState<UserPermissions>(defaultPermissions);
 
   const { data: user, loading: userLoading, refetch: refetchUser } = useDoc<UserData>(userId ? `users/${userId}` : null);
+  const { data: allUsers } = useCollection<UserData>('users');
   const { data: walletHistory, loading: historyLoading } = useCollection<WalletHistoryEntry>(userId ? `users/${userId}/walletHistory` : null, undefined, orderBy('createdAt', 'desc'));
   const { data: investments, loading: investmentsLoading } = useCollection<Investment>(userId ? `users/${userId}/investments` : null);
   const { data: loans, loading: loansLoading } = useCollection<ActiveLoan>(userId ? `users/${userId}/loans` : null);
@@ -275,6 +290,9 @@ export default function UserDetailPage() {
   const { data: withdrawals, loading: withdrawalsLoading } = useCollection<Transaction>(`withdrawals`, { where: ['userId', '==', userId]});
   const { data: groupInvestments, loading: groupInvestmentsLoading } = useUserGroupInvestments(userId);
   
+  const sessionsQuery = useMemo(() => userId ? query(collection(firestore, 'userChatSessions'), where('participants', 'array-contains', userId)) : null, [userId, firestore]);
+  const { data: userChatSessions, refetch: refetchChatSessions } = useCollection<ChatSession>(sessionsQuery);
+
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const loading = userLoading || investmentsLoading || depositsLoading || withdrawalsLoading || loansLoading || groupInvestmentsLoading || historyLoading;
@@ -398,6 +416,47 @@ export default function UserDetailPage() {
         .then(() => { toast({ title: 'Identity Node Reset' }); setIsReKycDialogOpen(false); refetchUser(); });
   };
 
+  const handleCreateChatBridge = async () => {
+      if (!userId || !targetUserForChat || userId === targetUserForChat) return;
+
+      const u2 = allUsers?.find(u => u.id === targetUserForChat);
+      if (!u2) return;
+
+      const sessionData = {
+          participants: [userId, targetUserForChat],
+          participantNames: {
+              [userId]: user?.name || 'User 1',
+              [targetUserForChat]: u2.name || 'User 2'
+          },
+          createdAt: serverTimestamp(),
+          lastMessage: 'Secure channel established by admin',
+          lastMessageAt: serverTimestamp()
+      };
+
+      try {
+          await addDoc(collection(firestore, 'userChatSessions'), sessionData);
+          toast({ title: "Bridge Established", description: `Linked with ${u2.name}` });
+          setTargetUserForChat('');
+      } catch (e) {
+          toast({ title: "Protocol Error", variant: "destructive" });
+      }
+  };
+
+  const handleDeleteBridge = async (sessionId: string) => {
+      try {
+          await deleteDoc(doc(firestore, 'userChatSessions', sessionId));
+          toast({ title: "Bridge Purged" });
+      } catch (e) {
+          toast({ title: "Error", variant: "destructive" });
+      }
+  };
+
+  const filteredBridges = allUsers?.filter(u => 
+    u.id !== userId && 
+    u.email !== 'admin@tribed.world' && 
+    (u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase()))
+  ) || [];
+
   if (loading) return <div className="flex items-center justify-center h-full"><Timer className="animate-spin text-primary" /></div>;
   if (!user) return <p className="text-white/40 text-center py-20">User not found.</p>;
 
@@ -424,7 +483,7 @@ export default function UserDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-           <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] shadow-2xl p-8">
+           <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] shadow-2xl p-8 h-fit">
                 <div className="flex items-center gap-3 mb-8"><div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary"><Shield size={20}/></div><div><h3 className="text-sm font-black text-white uppercase tracking-widest">Permissions Node</h3><p className="text-[9px] font-bold text-white/20 uppercase tracking-[2px]">RBAC Access Control</p></div></div>
                 <div className="space-y-5">
                     <PermissionToggle id="kyc" label="Manage Identity (KYC)" checked={permissions.canManageKyc} onChange={v => handlePermissionChange('canManageKyc', v)} />
@@ -442,6 +501,70 @@ export default function UserDetailPage() {
                         </Label>
                         <Switch id="private-chat" checked={canAccessPrivateChat} onCheckedChange={setCanAccessPrivateChat} className="data-[state=checked]:bg-blue-500" />
                     </div>
+
+                    {canAccessPrivateChat && (
+                        <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 space-y-5 animate-in zoom-in-95">
+                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                                <LinkIcon size={12}/> Establish New Bridge
+                            </p>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label className="text-[9px] font-bold text-white/20 uppercase ml-1">Search Investor Node</Label>
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
+                                        <Input 
+                                            placeholder="Name or email..." 
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                            className="h-10 pl-9 bg-white/5 border-white/10 rounded-xl text-xs"
+                                        />
+                                    </div>
+                                </div>
+                                <Select value={targetUserForChat} onValueChange={setTargetUserForChat}>
+                                    <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl">
+                                        <SelectValue placeholder="Select target investor" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-[#030408] border-white/10 max-h-60">
+                                        {filteredBridges.map(u => (
+                                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button onClick={handleCreateChatBridge} disabled={!targetUserForChat} className="w-full h-11 rounded-xl bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-500/20">
+                                    Forge Connection
+                                </Button>
+                            </div>
+
+                            <Separator className="bg-white/5" />
+
+                            <div className="space-y-3">
+                                <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">Active Channels</p>
+                                {userChatSessions && userChatSessions.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {userChatSessions.map(s => {
+                                            const otherId = s.participants.find(p => p !== userId);
+                                            const otherName = otherId ? s.participantNames[otherId] : 'Unknown';
+                                            return (
+                                                <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 group hover:border-primary/20 transition-all">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xs font-black">
+                                                            {otherName.charAt(0)}
+                                                        </div>
+                                                        <span className="text-xs font-bold text-white/80">{otherName}</span>
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteBridge(s.id)} className="h-8 w-8 text-white/10 hover:text-red-400">
+                                                        <Trash2 size={14} />
+                                                    </Button>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                ) : (
+                                    <p className="text-[9px] text-white/10 italic text-center py-2">No active bridges linked.</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     <Separator className="bg-white/5 my-4" />
 
@@ -464,7 +587,7 @@ export default function UserDetailPage() {
                 </div>
            </Card>
 
-           <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] shadow-2xl p-8">
+           <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur-xl rounded-[2rem] shadow-2xl p-8 h-fit">
                 <div className="flex items-center gap-3 mb-8"><div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400"><Settings2 size={20}/></div><div><h3 className="text-sm font-black text-white uppercase tracking-widest">Account Status</h3><p className="text-[9px] font-bold text-white/20 uppercase tracking-[2px]">System Integrity Node</p></div></div>
                 <div className="space-y-6">
                     <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between"><div><p className="text-xs font-bold text-white/60">Investor Role</p><p className="text-sm font-black text-primary uppercase tracking-tighter">{user.role || 'User'}</p></div><Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase px-2 h-5">Verified</Badge></div>

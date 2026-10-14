@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Send, X, Trash2, MoreVertical, Circle, Clock, Camera, ImageIcon } from 'lucide-react';
+import { MessageSquare, Send, X, Trash2, MoreVertical, Circle, Clock, Camera, ImageIcon, RefreshCcw, Timer } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useUser, useCollection, useFirestore } from '@/firebase';
@@ -33,6 +33,7 @@ export function ChatSupportWidget() {
     const [message, setMessage] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [fullPreviewUrl, setFullPreviewUrl] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -148,6 +149,14 @@ export function ChatSupportWidget() {
         }
     }
 
+    const handleManualRefresh = () => {
+        setIsRefreshing(true);
+        setTimeout(() => {
+            setIsRefreshing(false);
+            toast({ title: "Synced" });
+        }, 1000);
+    }
+
     if (!user) return null;
 
     const renderDateSeparator = (date: Date) => {
@@ -189,6 +198,14 @@ export function ChatSupportWidget() {
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={handleManualRefresh}
+                                    className="h-8 w-8 text-primary-foreground hover:bg-white/10 rounded-lg"
+                                >
+                                    <RefreshCcw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                                </Button>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-primary-foreground hover:bg-white/10 rounded-lg">

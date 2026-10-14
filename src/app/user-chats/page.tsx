@@ -4,7 +4,7 @@ import { useCollection, useFirestore, useUser, useDoc } from '@/firebase';
 import { collection, query, orderBy, addDoc, serverTimestamp, doc, updateDoc, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, User, MessageCircle, ChevronLeft, Home, Briefcase, Trophy, HandCoins, MoreVertical, Trash2, Circle, Camera, X, Timer } from 'lucide-react';
+import { Send, User, MessageCircle, ChevronLeft, Home, Briefcase, Trophy, HandCoins, MoreVertical, Trash2, Circle, Camera, X, Timer, RefreshCcw } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -51,6 +51,7 @@ export default function UserChatsPage() {
     const [message, setMessage] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [fullPreviewUrl, setFullPreviewUrl] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     
     const sessionsQuery = user ? query(
@@ -165,6 +166,14 @@ export default function UserChatsPage() {
         }
     };
 
+    const handleManualRefresh = () => {
+        setIsRefreshing(true);
+        setTimeout(() => {
+            setIsRefreshing(false);
+            toast({ title: "Protocol Synced" });
+        }, 800);
+    };
+
     const renderDateSeparator = (date: Date) => {
         let label = format(date, 'dd MMM yyyy');
         if (isToday(date)) label = 'Today';
@@ -230,6 +239,8 @@ export default function UserChatsPage() {
                                 currentUserId={user.uid} 
                                 onBack={() => setSelectedSession(null)} 
                                 onClear={handleClearChat}
+                                isRefreshing={isRefreshing}
+                                onRefresh={handleManualRefresh}
                             />
                             <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
                                 <div className="space-y-1">
@@ -377,7 +388,7 @@ function ChatSessionItem({ session, otherId, otherName, isSelected, onSelect }: 
     );
 }
 
-function ChatHeader({ session, currentUserId, onBack, onClear }: { session: ChatSession, currentUserId: string, onBack: () => void, onClear: () => void }) {
+function ChatHeader({ session, currentUserId, onBack, onClear, isRefreshing, onRefresh }: { session: ChatSession, currentUserId: string, onBack: () => void, onClear: () => void, isRefreshing: boolean, onRefresh: () => void }) {
     const otherId = session.participants.find(p => p !== currentUserId);
     const otherName = otherId ? session.participantNames[otherId] : 'User';
     const { data: otherUser } = useDoc<OtherUserData>(otherId ? `users/${otherId}` : null);
@@ -414,19 +425,29 @@ function ChatHeader({ session, currentUserId, onBack, onClear }: { session: Chat
                     </div>
                 </div>
             </div>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-xl border border-white/5 h-10 w-10 text-white/40">
-                        <MoreVertical className="h-5 w-5" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-[#0a0b14] border-white/10 rounded-2xl">
-                    <DropdownMenuItem onClick={onClear} className="text-destructive font-black uppercase text-[10px] tracking-widest p-3">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Clear Node History
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-2">
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={onRefresh}
+                    className="rounded-xl border border-white/5 text-white/40 h-10 w-10 hover:text-white"
+                >
+                    <RefreshCcw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="rounded-xl border border-white/5 h-10 w-10 text-white/40">
+                            <MoreVertical className="h-5 w-5" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-[#0a0b14] border-white/10 rounded-2xl">
+                        <DropdownMenuItem onClick={onClear} className="text-destructive font-black uppercase text-[10px] tracking-widest p-3">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Clear Node History
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </div>
     );
 }

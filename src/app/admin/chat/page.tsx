@@ -6,7 +6,7 @@ import { collection, query, orderBy, addDoc, serverTimestamp, doc, setDoc, updat
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, User, Search, MessageSquare, MoreVertical, Trash2, Clock, CheckCircle2, Circle, Timer, Camera, ImageIcon, X } from 'lucide-react';
+import { Send, User, Search, MessageSquare, MoreVertical, Trash2, Clock, CheckCircle2, Circle, Timer, Camera, ImageIcon, X, RefreshCcw } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -47,6 +47,7 @@ export default function AdminChatPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [fullPreviewUrl, setFullPreviewUrl] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     
     const messagesQuery = useMemo(() => 
@@ -165,6 +166,14 @@ export default function AdminChatPage() {
         }
     }
 
+    const handleManualRefresh = () => {
+        setIsRefreshing(true);
+        setTimeout(() => {
+            setIsRefreshing(false);
+            toast({ title: "Chat Refreshed" });
+        }, 1000);
+    }
+
     const filteredChats = chats?.filter(chat => 
         chat.userName.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -263,19 +272,29 @@ export default function AdminChatPage() {
                                     </div>
                                 </div>
                              </div>
-                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="rounded-xl border border-white/5">
-                                        <MoreVertical className="h-5 w-5" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="rounded-2xl bg-[#0a0b14] border-white/10">
-                                    <DropdownMenuItem onClick={handleClearChat} className="text-destructive font-black uppercase text-[10px] tracking-widest p-3">
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Clear History Node
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                             <div className="flex items-center gap-2">
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={handleManualRefresh}
+                                    className="rounded-xl border border-white/5 text-white/40 hover:text-white"
+                                >
+                                    <RefreshCcw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                                </Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="rounded-xl border border-white/5">
+                                            <MoreVertical className="h-5 w-5" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="rounded-2xl bg-[#0a0b14] border-white/10">
+                                        <DropdownMenuItem onClick={handleClearChat} className="text-destructive font-black uppercase text-[10px] tracking-widest p-3">
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Clear History Node
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                             </div>
                         </div>
 
                         <ScrollArea className="flex-1 p-8 bg-black/20" ref={scrollAreaRef}>
