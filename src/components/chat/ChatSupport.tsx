@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
 import Image from 'next/image';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 type ChatMessage = {
     id: string;
@@ -264,7 +265,7 @@ export function ChatSupportWidget() {
                             
                             <div className="p-4 bg-background border-t space-y-3">
                                 {selectedImage && (
-                                    <div className="relative h-20 w-20 rounded-xl overflow-hidden border border-primary animate-in zoom-in-95">
+                                    <div className="relative h-20 w-20 rounded-xl overflow-hidden border-2 border-primary animate-in zoom-in-95">
                                         <Image src={selectedImage} alt="preview" fill className="object-cover" />
                                         <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-5 w-5 rounded-full" onClick={() => setSelectedImage(null)}>
                                             <X size={10} />
@@ -305,7 +306,7 @@ export function ChatSupportWidget() {
 
             {/* Image Preview Modal */}
             <Dialog open={!!fullPreviewUrl} onOpenChange={() => setFullPreviewUrl(null)}>
-                <DialogContent className="max-w-[95vw] h-[80vh] p-0 border-none bg-black/90 rounded-3xl overflow-hidden">
+                <DialogContent className="max-w-[95vw] h-[80vh] p-0 border-none bg-black/95 rounded-3xl overflow-hidden">
                     <div className="relative w-full h-full flex items-center justify-center p-4">
                         {fullPreviewUrl && <Image src={fullPreviewUrl} alt="full" fill className="object-contain" />}
                         <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white" onClick={() => setFullPreviewUrl(null)}>
