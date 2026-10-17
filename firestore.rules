@@ -9,8 +9,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Global settings - Allowing public read for UI themes and public config
-    // Write still requires admin/auth
+    // Global settings - Allowing public read for UI themes and festive config
+    // This fixed the LoginPage permission error
+    match /settings/admin {
+      allow read: if true;
+    }
+
     match /settings/{id} {
       allow read: if true;
       allow write: if isSignedIn();

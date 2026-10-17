@@ -114,12 +114,17 @@ export function BannerCarousel() {
                         {banner.description}
                         </p>
                     </div>
-                    <Button asChild className={cn(
-                        "mt-6 w-fit h-11 px-8 rounded-xl font-bold shadow-2xl transition-all",
-                        banner.theme === 'diwali' ? "bg-yellow-500 text-black hover:bg-yellow-400" : "bg-primary text-white"
-                    )}>
-                      <a href={banner.buttonLink}>{banner.buttonText}</a>
-                    </Button>
+                    <div className="flex items-center gap-4 mt-6">
+                        <Button asChild className={cn(
+                            "w-fit h-11 px-8 rounded-xl font-bold shadow-2xl transition-all",
+                            banner.theme === 'diwali' ? "bg-yellow-500 text-black hover:bg-yellow-400" : "bg-primary text-white"
+                        )}>
+                        <a href={banner.buttonLink}>{banner.buttonText}</a>
+                        </Button>
+                        {banner.theme === 'diwali' && (
+                             <span className="text-[10px] font-black uppercase text-white/40 tracking-[3px]">Official Team Notice</span>
+                        )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
