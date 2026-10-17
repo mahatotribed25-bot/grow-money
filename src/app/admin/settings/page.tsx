@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
-import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Users, Phone, Zap, PlayCircle, Plus, Trash2, ShieldCheck, PiggyBank } from 'lucide-react';
+import { Timer, Mail, KeyRound, RefreshCcw, HandCoins, UserPlus, Users, Phone, Zap, PlayCircle, Plus, Trash2, ShieldCheck, PiggyBank, Sparkles } from 'lucide-react';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
@@ -26,6 +26,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type AdminSettings = {
   adminUpi?: string;
@@ -57,6 +64,7 @@ type AdminSettings = {
   homepageVideoUrls?: string[];
   globalSavingsInterestRate?: number;
   minSavingsDeposit?: number;
+  festiveTheme?: 'none' | 'diwali';
 };
 
 export default function SettingsPage() {
@@ -89,6 +97,7 @@ export default function SettingsPage() {
   const [homepageVideoUrls, setHomepageVideoUrls] = useState<string[]>(['', '', '', '', '']);
   const [globalSavingsRate, setGlobalSavingsRate] = useState(0.5);
   const [minSavingsDeposit, setMinSavingsDeposit] = useState(100);
+  const [festiveTheme, setFestiveTheme] = useState<'none' | 'diwali'>('none');
 
   // Spin Settings
   const [spinCost, setSpinCost] = useState(0);
@@ -130,6 +139,7 @@ export default function SettingsPage() {
       setProfitStartDate(settings.profitCalculationStartDate?.toDate() || null);
       setGlobalSavingsRate(settings.globalSavingsInterestRate ?? 0.5);
       setMinSavingsDeposit(settings.minSavingsDeposit ?? 100);
+      setFestiveTheme(settings.festiveTheme || 'none');
       
       const savedUrls = settings.homepageVideoUrls || [];
       const paddedUrls = [...savedUrls, '', '', '', '', ''].slice(0, 5);
@@ -189,6 +199,7 @@ export default function SettingsPage() {
       homepageVideoUrls: homepageVideoUrls.filter(u => u.trim() !== ''),
       globalSavingsInterestRate: Number(globalSavingsRate),
       minSavingsDeposit: Number(minSavingsDeposit),
+      festiveTheme: festiveTheme,
     };
 
     setDoc(settingsRef, settingsData, { merge: true })
@@ -433,6 +444,31 @@ export default function SettingsPage() {
                       </div>
                     </div>
                      <Button onClick={handleStopMaintenance} variant="destructive">Stop All Maintenance</Button>
+                </div>
+                <Separator />
+
+                <div>
+                    <CardTitle className="flex items-center gap-2"><Sparkles className="text-yellow-400" /> Festive Appearance</CardTitle>
+                    <CardDescription>
+                        Enable special visual themes for festivals like Diwali.
+                    </CardDescription>
+                    <div className="space-y-4 mt-4 p-4 border border-yellow-500/20 rounded-xl bg-yellow-500/5">
+                         <div className="space-y-2">
+                            <Label htmlFor="festive-theme">Active Festival Theme</Label>
+                            <Select value={festiveTheme} onValueChange={(v: any) => setFestiveTheme(v)}>
+                                <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl">
+                                    <SelectValue placeholder="Select Theme" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#030408] border-white/10">
+                                    <SelectItem value="none">None (Standard App)</SelectItem>
+                                    <SelectItem value="diwali">Diwali (Golden Lights & Diyas)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-[9px] text-white/40 uppercase tracking-widest pt-1">
+                                Enabling a theme adds visual effects to the user dashboard.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <Separator />
 

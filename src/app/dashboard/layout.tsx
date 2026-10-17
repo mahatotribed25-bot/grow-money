@@ -9,10 +9,12 @@ import type { Timestamp } from 'firebase/firestore';
 import { FlipCountdown } from '@/components/dashboard/FlipCountdown';
 import { LogOut } from 'lucide-react';
 import { ChatSupportWidget } from '@/components/chat/ChatSupport';
+import { FestiveVisuals } from '@/components/dashboard/FestiveVisuals';
 
 type AdminSettings = {
   isUnderMaintenance?: boolean;
   maintenanceEndTime?: Timestamp;
+  festiveTheme?: 'none' | 'diwali';
 };
 
 type UserData = {
@@ -110,6 +112,9 @@ export default function DashboardLayout({
        <div className="fixed top-[-10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px] pointer-events-none animate-pulse z-0" />
        <div className="fixed bottom-[-10%] -right-[10%] w-[50%] h-[50%] rounded-full bg-secondary/5 blur-[120px] pointer-events-none z-0" />
        
+       {/* Festive Visuals Layer */}
+       <FestiveVisuals theme={settings?.festiveTheme} />
+
        <div className="relative z-10 flex-1 flex flex-col">
          {children}
          <ChatSupportWidget />
