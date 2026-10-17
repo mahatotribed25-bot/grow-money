@@ -164,27 +164,28 @@
   animation: progress-indefinite 2s infinite ease-in-out;
 }
 
-/* Firework Particle Animation */
+/* Firework Particle Animation - Enhanced Gravity and Spread */
 @keyframes firework-particle {
   0% { transform: scale(0) translateY(0); opacity: 1; }
-  50% { opacity: 1; }
-  100% { transform: scale(1.5) translateY(100px); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: scale(1.8) translateY(180px); opacity: 0; }
 }
 
 .animate-firework-particle {
-  animation: firework-particle 1.5s ease-out forwards;
+  animation: firework-particle 1.8s cubic-bezier(0.1, 0.5, 0.2, 1) forwards;
   transform-origin: center top;
 }
 
-/* Skyrocket Launch Animation */
-@keyframes rocket-launch {
-  0% { transform: translateY(100vh) scale(1); opacity: 1; }
-  95% { opacity: 1; }
-  100% { transform: translateY(0) scale(0.2); opacity: 0; }
+/* Skyrocket Launch Animation - Controlled speed slowly effect */
+@keyframes rocket-climb {
+  0% { transform: translateY(80vh) scale(1); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(0) scale(0.6); opacity: 0; }
 }
 
-.animate-rocket-launch {
-  animation: rocket-launch 1s cubic-bezier(0.15, 0, 0.2, 1) forwards;
+.animate-rocket-climb {
+  animation: rocket-climb 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @keyframes side-wobble {
