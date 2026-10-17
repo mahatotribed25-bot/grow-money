@@ -59,35 +59,42 @@ function DiwaliVisuals() {
     setParticles(newParticles);
   }, []);
 
-  // Skyrocket Launch Logic
-  const triggerRocket = useCallback(() => {
-    const id = Date.now();
+  // Skyrocket Launch Logic - Spawns a group of 3-5 rockets
+  const triggerRocketBurst = useCallback(() => {
+    const burstId = Date.now();
+    const rocketCount = 3 + Math.floor(Math.random() * 3); // Spawns 3 to 5 rockets
     const colorPalettes = [
         ['#facc15', '#ef4444', '#3b82f6'], // Gold, Red, Blue
         ['#fb923c', '#22c55e', '#ffffff'], // Orange, Green, White
         ['#ec4899', '#8b5cf6', '#06b6d4'], // Pink, Purple, Cyan
         ['#f59e0b', '#fbbf24', '#fef3c7']  // Multi-tone Gold
     ];
-    
-    const leftPos = `${10 + Math.random() * 80}%`;
-    const targetTop = `${10 + Math.random() * 35}%`;
-    const colors = colorPalettes[Math.floor(Math.random() * colorPalettes.length)];
 
-    setFireworks(prev => [...prev, { id, top: targetTop, left: leftPos, colors, isRocket: true }]);
+    const newRockets = Array.from({ length: rocketCount }).map((_, i) => {
+        const id = burstId + i;
+        const leftPos = `${10 + Math.random() * 80}%`;
+        const targetTop = `${10 + Math.random() * 35}%`;
+        const colors = colorPalettes[Math.floor(Math.random() * colorPalettes.length)];
+        
+        // Launch effect
+        setTimeout(() => {
+            setFireworks(prev => prev.map(f => f.id === id ? { ...f, isRocket: false } : f));
+            // Blast duration
+            setTimeout(() => {
+                setFireworks(prev => prev.filter(f => f.id !== id));
+            }, 1800);
+        }, 1200);
 
-    setTimeout(() => {
-      setFireworks(prev => prev.map(f => f.id === id ? { ...f, isRocket: false } : f));
-      
-      setTimeout(() => {
-        setFireworks(prev => prev.filter(f => f.id !== id));
-      }, 1800);
-    }, 1200);
+        return { id, top: targetTop, left: leftPos, colors, isRocket: true };
+    });
+
+    setFireworks(prev => [...prev, ...newRockets]);
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(triggerRocket, 2500);
+    const interval = setInterval(triggerRocketBurst, 2500);
     return () => clearInterval(interval);
-  }, [triggerRocket]);
+  }, [triggerRocketBurst]);
 
   return (
     <>
@@ -170,7 +177,6 @@ function DiwaliVisuals() {
 function FireworkBlast({ colors }: { colors: string[] }) {
     return (
         <div className="relative">
-            {/* Blast particles based on the provided reference image style */}
             {Array.from({ length: 32 }).map((_, i) => {
                 const color = colors[i % colors.length];
                 return (
