@@ -93,7 +93,7 @@
   background: hsl(var(--primary));
 }
 
-/* Skyrocket Launch Animation */
+/* Skyrocket Launch Animation - Slower climb */
 @keyframes rocket-launch {
   0% { transform: translateY(100vh); opacity: 1; }
   90% { opacity: 1; }
@@ -101,10 +101,10 @@
 }
 
 .animate-rocket-launch {
-  animation: rocket-launch 1.2s ease-in forwards;
+  animation: rocket-launch 2s ease-in-out forwards;
 }
 
-/* Circular Firework Particle Animation */
+/* Circular Firework Particle Animation - Slower spread */
 @keyframes firework-burst-circle {
   0% {
     transform: rotate(var(--angle)) translateY(0);
@@ -119,7 +119,7 @@
 }
 
 .animate-firework-burst-circle {
-  animation: firework-burst-circle 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: firework-burst-circle 3s cubic-bezier(0.15, 0, 0.15, 1) forwards;
 }
 
 @keyframes fall {

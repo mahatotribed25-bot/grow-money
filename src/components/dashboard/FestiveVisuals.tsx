@@ -30,18 +30,18 @@ function DiwaliVisuals() {
   
   const fullText = "Happy Diwali from Grow Money Team".split(" ");
 
-  // Word-by-word reveal animation
+  // Word-by-word reveal animation - Slightly slower for a majestic feel
   useEffect(() => {
     if (visibleWords < fullText.length) {
       const timer = setTimeout(() => {
         setVisibleWords(prev => prev + 1);
-      }, 500); // Reveal one word every 500ms
+      }, 600); // Reveal one word every 600ms
       return () => clearTimeout(timer);
     } else {
-        // Reset and repeat after a delay
+        // Reset and repeat after a long delay
         const resetTimer = setTimeout(() => {
             setVisibleWords(0);
-        }, 8000);
+        }, 10000);
         return () => clearTimeout(resetTimer);
     }
   }, [visibleWords, fullText.length]);
@@ -58,10 +58,10 @@ function DiwaliVisuals() {
     setParticles(newParticles);
   }, []);
 
-  // Skyrocket Launch Logic - Spawns a group of 3-5 rockets simultaneously
+  // Skyrocket Launch Logic - Slower interval and launch duration
   const triggerRocketBurst = useCallback(() => {
     const burstId = Date.now();
-    const rocketCount = 3 + Math.floor(Math.random() * 3); // Spawns 3 to 5 rockets
+    const rocketCount = 3 + Math.floor(Math.random() * 2); // 3 to 4 rockets
     const colorPalettes = [
         ['#FFD700', '#FF4500', '#00BFFF'], // Gold, OrangeRed, DeepSkyBlue
         ['#ADFF2F', '#00FF00', '#FFFFFF'], // GreenYellow, Lime, White
@@ -71,18 +71,18 @@ function DiwaliVisuals() {
 
     const newRockets = Array.from({ length: rocketCount }).map((_, i) => {
         const id = burstId + i;
-        const leftPos = `${10 + Math.random() * 80}%`; // Keep within screen bounds
-        const targetTop = `${10 + Math.random() * 40}%`; // Blast in upper area
+        const leftPos = `${10 + Math.random() * 80}%`;
+        const targetTop = `${15 + Math.random() * 35}%`; // Blast point
         const colors = colorPalettes[Math.floor(Math.random() * colorPalettes.length)];
         
-        // Schedule the blast phase
+        // Schedule the blast phase - matches 2s climb in CSS
         setTimeout(() => {
             setFireworks(prev => prev.map(f => f.id === id ? { ...f, isRocket: false } : f));
-            // Cleanup blast after animation
+            // Cleanup blast after animation - matches 3s spread in CSS
             setTimeout(() => {
                 setFireworks(prev => prev.filter(f => f.id !== id));
-            }, 1500);
-        }, 1200); // Time for rocket to climb
+            }, 3000);
+        }, 2000);
 
         return { id, top: targetTop, left: leftPos, colors, isRocket: true };
     });
@@ -91,7 +91,7 @@ function DiwaliVisuals() {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(triggerRocketBurst, 3500);
+    const interval = setInterval(triggerRocketBurst, 4500); // Wait longer between bursts
     return () => clearInterval(interval);
   }, [triggerRocketBurst]);
 
@@ -112,14 +112,14 @@ function DiwaliVisuals() {
         />
       ))}
 
-      {/* Typing/Animated Greeting Message */}
+      {/* Typing Greeting Message */}
       <div className="absolute top-28 left-1/2 -translate-x-1/2 text-center w-full px-4">
           <div className="flex flex-wrap justify-center gap-x-2 gap-y-1">
             {fullText.map((word, idx) => (
               <span 
                 key={idx}
                 className={cn(
-                    "text-3xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-yellow-100 via-yellow-400 to-amber-600 drop-shadow-[0_0_20px_rgba(234,179,8,0.7)] transition-all duration-700",
+                    "text-3xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-yellow-100 via-yellow-400 to-amber-600 drop-shadow-[0_0_25px_rgba(234,179,8,0.8)] transition-all duration-1000",
                     idx < visibleWords ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-8 scale-90"
                 )}
               >
@@ -140,9 +140,9 @@ function DiwaliVisuals() {
             {fw.isRocket ? (
                 <div className="relative animate-rocket-launch">
                     {/* Rocket Body */}
-                    <div className="w-2 h-5 bg-gradient-to-t from-orange-600 to-yellow-300 rounded-full shadow-[0_0_15px_#f59e0b]" />
+                    <div className="w-2.5 h-6 bg-gradient-to-t from-orange-600 to-yellow-300 rounded-full shadow-[0_0_20px_#f59e0b]" />
                     {/* Rocket Trail */}
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-16 bg-gradient-to-b from-yellow-300 via-orange-500/50 to-transparent blur-[2px]" />
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-20 bg-gradient-to-b from-yellow-300 via-orange-500/30 to-transparent blur-[2px]" />
                 </div>
             ) : (
                 <CircularFireworkBlast colors={fw.colors} />
@@ -151,10 +151,10 @@ function DiwaliVisuals() {
       ))}
 
       {/* Side Decorative Diyas */}
-      <div className="fixed top-24 left-6 z-[110] animate-side-wobble">
+      <div className="fixed bottom-24 left-6 z-[110] animate-side-wobble">
           <DiyaSVG />
       </div>
-      <div className="fixed top-24 right-6 z-[110] animate-side-wobble" style={{ animationDelay: '1.5s' }}>
+      <div className="fixed bottom-24 right-6 z-[110] animate-side-wobble" style={{ animationDelay: '1.5s' }}>
           <DiyaSVG />
       </div>
     </>
@@ -162,7 +162,6 @@ function DiwaliVisuals() {
 }
 
 function CircularFireworkBlast({ colors }: { colors: string[] }) {
-    // Generate particles in a perfect circle (360 degrees)
     const particleCount = 40;
     const particles = Array.from({ length: particleCount });
 
@@ -171,12 +170,12 @@ function CircularFireworkBlast({ colors }: { colors: string[] }) {
             {particles.map((_, i) => {
                 const angle = (360 / particleCount) * i;
                 const color = colors[i % colors.length];
-                const distance = 100 + Math.random() * 60; // Spread distance
+                const distance = 120 + Math.random() * 80; 
                 
                 return (
                     <div 
                         key={i}
-                        className="absolute w-1.5 h-1.5 rounded-full animate-firework-burst-circle"
+                        className="absolute w-2 h-2 rounded-full animate-firework-burst-circle"
                         style={{ 
                             backgroundColor: color,
                             boxShadow: `0 0 15px ${color}, 0 0 30px ${color}`,
@@ -187,8 +186,7 @@ function CircularFireworkBlast({ colors }: { colors: string[] }) {
                     />
                 );
             })}
-            {/* Bright Center Flash */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full blur-2xl animate-out fade-out duration-700" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white rounded-full blur-2xl animate-out fade-out duration-1000" />
         </div>
     );
 }
