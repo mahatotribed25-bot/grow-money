@@ -9,8 +9,7 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Global settings - Allowing public read for UI themes and festive config
-    // This fixed the LoginPage permission error
+    // CRITICAL: Allowing public read for settings/admin to enable Festive Theme on Login Page
     match /settings/admin {
       allow read: if true;
     }
@@ -93,16 +92,6 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
-    match /customLoanRequests/{requestId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-
-    match /upiRequests/{requestId} {
-       allow read: if isSignedIn();
-       allow write: if isSignedIn();
-    }
-
     // Group Loan Pools
     match /groupLoanPlans/{planId} {
       allow read: if isSignedIn();
@@ -111,6 +100,16 @@ service cloud.firestore {
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn();
       }
+    }
+
+    match /customLoanRequests/{requestId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /upiRequests/{requestId} {
+       allow read: if isSignedIn();
+       allow write: if isSignedIn();
     }
 
     // Staff and Payroll
