@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -19,12 +20,14 @@ import {
   Briefcase,
   Timer,
   RefreshCcw,
-  Coins
+  Coins,
+  X,
+  Sparkles
 } from "lucide-react";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +41,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { useAuth, useFirestore } from "@/firebase";
+import { useAuth, useFirestore, useDoc } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -50,6 +53,7 @@ import {
     DialogFooter,
     DialogClose,
 } from "@/components/ui/dialog";
+import Image from "next/image";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -59,6 +63,10 @@ const formSchema = z.object({
     message: "Password is required.",
   }),
 });
+
+type AdminSettings = {
+    festiveTheme?: 'none' | 'diwali';
+};
 
 /**
  * Smooth Counting Animation Component
@@ -92,21 +100,11 @@ function Counter({ value, duration = 2000, decimals = 0 }: { value: number, dura
 function GoldCoin({ className }: { className?: string }) {
   return (
     <div className={cn("relative flex items-center justify-center", className)}>
-        {/* Intense Glow effect */}
         <div className="absolute inset-0 bg-yellow-500/30 blur-3xl rounded-full animate-pulse" />
-        
-        {/* High-visibility Coin SVG with depth */}
         <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="relative drop-shadow-[0_15px_35px_rgba(0,0,0,0.6)]">
-            {/* Outer edge/rim for 3D effect */}
             <circle cx="50" cy="50" r="48" fill="url(#gold_edge)" stroke="#78350F" strokeWidth="1"/>
-            
-            {/* Main body of the coin */}
             <circle cx="50" cy="50" r="42" fill="url(#gold_grad)" stroke="#B45309" strokeWidth="2"/>
-            
-            {/* Inner decorative dashed circle */}
             <circle cx="50" cy="50" r="34" stroke="#FDE68A" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.4"/>
-            
-            {/* High-contrast Rupee (₹) sign */}
             <path 
                 d="M30 32h40 M30 44h40 M65 32c0 0 0 28-30 28 M40 60c15 0 25 15 25 25" 
                 stroke="#78350F" 
@@ -114,7 +112,6 @@ function GoldCoin({ className }: { className?: string }) {
                 strokeLinecap="round" 
                 strokeLinejoin="round"
             />
-            
             <defs>
                 <linearGradient id="gold_edge" x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
                     <stop stopColor="#92400E"/>
@@ -134,35 +131,101 @@ function GoldCoin({ className }: { className?: string }) {
 }
 
 /**
- * Animated Falling Cash emojis for background atmosphere.
+ * Diwali Diya Component for festive atmosphere
  */
-function FallingAtmosphere() {
+function DiyaSVG({ className }: { className?: string }) {
+    return (
+        <div className={cn("relative w-16 h-16", className)}>
+            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-2xl">
+                <path d="M10 60C10 80 30 95 50 95C70 95 90 80 90 60H10Z" fill="url(#diya_body)" stroke="#78350F" strokeWidth="0.5" />
+                <path d="M50 10C50 10 35 40 35 55C35 65 42 70 50 70C58 70 65 65 65 55C65 40 50 10 50 10Z" fill="url(#flame_grad)" className="animate-flicker origin-bottom" />
+                <defs>
+                    <linearGradient id="diya_body" x1="50" y1="60" x2="50" y2="95" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#92400E" />
+                        <stop offset="0.5" stopColor="#D97706" />
+                        <stop offset="1" stopColor="#78350F" />
+                    </linearGradient>
+                    <radialGradient id="flame_grad" cx="50" cy="55" r="30" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#FFF" />
+                        <stop offset="0.4" stopColor="#FBBF24" />
+                        <stop offset="0.8" stopColor="#EA580C" />
+                        <stop offset="1" stopColor="transparent" />
+                    </radialGradient>
+                </defs>
+            </svg>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 bg-yellow-500/20 blur-3xl rounded-full animate-pulse" />
+        </div>
+    );
+}
+
+/**
+ * Animated Firework Particles for circular spread
+ */
+function CircularFireworkBlast({ colors }: { colors: string[] }) {
+    const particleCount = 40;
+    const particles = Array.from({ length: particleCount });
+
+    return (
+        <div className="relative">
+            {particles.map((_, i) => {
+                const angle = (360 / particleCount) * i;
+                const color = colors[i % colors.length];
+                const distance = 120 + Math.random() * 80; 
+                
+                return (
+                    <div 
+                        key={i}
+                        className="absolute w-2 h-2 rounded-full animate-firework-burst-circle"
+                        style={{ 
+                            backgroundColor: color,
+                            boxShadow: `0 0 15px ${color}, 0 0 30px ${color}`,
+                            '--angle': `${angle}deg`,
+                            '--distance': `${distance}px`,
+                            opacity: 0
+                        } as React.CSSProperties}
+                    />
+                );
+            })}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white rounded-full blur-2xl animate-out fade-out duration-1000" />
+        </div>
+    );
+}
+
+/**
+ * Animated Falling items for background atmosphere.
+ */
+function FallingAtmosphere({ type = 'cash' }: { type?: 'cash' | 'gold' }) {
   const [items, setItems] = useState<{ id: number; left: string; delay: string; duration: string; size: number; symbol: string }[]>([]);
 
   useEffect(() => {
-    const symbols = ['💸', '💵', '💰', '💴', '💶'];
-    const newItems = Array.from({ length: 60 }).map((_, i) => ({
+    const cashSymbols = ['💸', '💵', '💰', '💴', '💶'];
+    const goldSymbols = ['✨', '✨', '🟡', '🔱', '🪔'];
+    const symbols = type === 'cash' ? cashSymbols : goldSymbols;
+    
+    const newItems = Array.from({ length: 40 }).map((_, i) => ({
       id: i,
       left: `${Math.random() * 100}%`,
       delay: `${Math.random() * 20}s`,
       duration: `${Math.random() * 8 + 8}s`,
-      size: Math.random() * 30 + 15,
-      symbol: symbols[Math.floor(Math.random() * symbols.length)]
+      size: type === 'cash' ? (Math.random() * 30 + 15) : (Math.random() * 5 + 2),
+      symbol: type === 'cash' ? symbols[Math.floor(Math.random() * symbols.length)] : ''
     }));
     setItems(newItems);
-  }, []);
+  }, [type]);
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40">
       {items.map((item) => (
         <div 
           key={item.id}
-          className="absolute top-[-15%] select-none animate-fall"
+          className={cn("absolute top-[-15%] select-none animate-fall", type === 'gold' && "rounded-full bg-yellow-400/40 blur-[1px]")}
           style={{
             left: item.left,
             animationDelay: item.delay,
             animationDuration: item.duration,
-            fontSize: `${item.size}px`,
+            fontSize: type === 'cash' ? `${item.size}px` : undefined,
+            width: type === 'gold' ? `${item.size}px` : undefined,
+            height: type === 'gold' ? `${item.size}px` : undefined,
           }}
         >
           {item.symbol}
@@ -177,10 +240,72 @@ export default function LoginPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const { data: settings } = useDoc<AdminSettings>('settings/admin');
+  
   const [loginStatus, setLoginStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [showPassword, setShowPassword] = useState(false);
   const [particles, setParticles] = useState<{ top: string; left: string; delay: string }[]>([]);
-  
+  const [fireworks, setFireworks] = useState<{ id: number; top: string; left: string; colors: string[]; isRocket?: boolean }[]>([]);
+  const [visibleWords, setVisibleWords] = useState<number>(0);
+
+  const isDiwali = settings?.festiveTheme === 'diwali';
+  const fullText = "Happy Diwali from Grow Money Team".split(" ");
+
+  // Word-by-word reveal animation
+  useEffect(() => {
+    if (isDiwali) {
+      if (visibleWords < fullText.length) {
+        const timer = setTimeout(() => {
+          setVisibleWords(prev => prev + 1);
+        }, 600);
+        return () => clearTimeout(timer);
+      } else {
+          const resetTimer = setTimeout(() => {
+              setVisibleWords(0);
+          }, 10000);
+          return () => clearTimeout(resetTimer);
+      }
+    }
+  }, [visibleWords, fullText.length, isDiwali]);
+
+  // Rocket Trigger Logic
+  const triggerRocketBurst = useCallback(() => {
+    if (!isDiwali) return;
+    const burstId = Date.now();
+    const rocketCount = 2 + Math.floor(Math.random() * 2); 
+    const colorPalettes = [
+        ['#FFD700', '#FF4500', '#FF0000'], 
+        ['#ADFF2F', '#00FF00', '#FFFFFF'], 
+        ['#FF00FF', '#8A2BE2', '#00FFFF'], 
+        ['#FF8C00', '#FFFF00', '#FFFACD']  
+    ];
+
+    const newRockets = Array.from({ length: rocketCount }).map((_, i) => {
+        const id = burstId + i;
+        const leftPos = `${10 + Math.random() * 80}%`;
+        const targetTop = `${10 + Math.random() * 30}%`; 
+        const colors = colorPalettes[Math.floor(Math.random() * colorPalettes.length)];
+        
+        setTimeout(() => {
+            setFireworks(prev => prev.map(f => f.id === id ? { ...f, isRocket: false } : f));
+            setTimeout(() => {
+                setFireworks(prev => prev.filter(f => f.id !== id));
+            }, 3000);
+        }, 2000);
+
+        return { id, top: targetTop, left: leftPos, colors, isRocket: true };
+    });
+
+    setFireworks(prev => [...prev, ...newRockets]);
+  }, [isDiwali]);
+
+  useEffect(() => {
+    if (isDiwali) {
+        const interval = setInterval(triggerRocketBurst, 4500);
+        return () => clearInterval(interval);
+    }
+  }, [triggerRocketBurst, isDiwali]);
+
   // Forgot Password States
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -265,7 +390,6 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen w-full flex-col items-center bg-[#020306] overflow-x-hidden pt-4 pb-12 px-4">
-      {/* Background Atmosphere */}
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0">
         <div className="absolute top-[-10%] -left-[20%] w-[80%] h-[40%] rounded-full bg-primary/10 blur-[150px] animate-pulse" />
         <div className="absolute bottom-[-10%] -right-[20%] w-[80%] h-[40%] rounded-full bg-secondary/10 blur-[150px]" />
@@ -285,7 +409,25 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <FallingAtmosphere />
+      <FallingAtmosphere type={isDiwali ? 'gold' : 'cash'} />
+
+      {/* Diwali Skyrockets */}
+      {isDiwali && fireworks.map(fw => (
+        <div 
+          key={fw.id} 
+          className="fixed pointer-events-none z-50" 
+          style={{ top: fw.top, left: fw.left }}
+        >
+            {fw.isRocket ? (
+                <div className="relative animate-rocket-launch">
+                    <div className="w-2.5 h-6 bg-gradient-to-t from-orange-600 to-yellow-300 rounded-full shadow-[0_0_20px_#f59e0b]" />
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-20 bg-gradient-to-b from-yellow-300 via-orange-500/30 to-transparent blur-[2px]" />
+                </div>
+            ) : (
+                <CircularFireworkBlast colors={fw.colors} />
+            )}
+        </div>
+      ))}
 
       {/* Floating Decorative Elements */}
       <div className="absolute top-10 left-0 w-full h-96 pointer-events-none overflow-hidden z-0 select-none">
@@ -315,7 +457,14 @@ export default function LoginPage() {
             </a>
         </div>
 
-        <div className="flex flex-col items-center space-y-2 text-center py-4">
+        <div className="flex flex-col items-center space-y-2 text-center py-4 relative">
+          {isDiwali && (
+              <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex gap-12 w-full justify-center">
+                  <DiyaSVG className="animate-side-wobble" />
+                  <DiyaSVG className="animate-side-wobble" style={{ animationDelay: '1s' }} />
+              </div>
+          )}
+          
           <div className="h-16 w-16 rounded-2xl bg-primary/20 flex items-center justify-center mb-2 shadow-2xl shadow-primary/20 border border-primary/20">
             <Briefcase size={32} className="text-primary" />
           </div>
@@ -325,6 +474,24 @@ export default function LoginPage() {
           </h1>
           <p className="text-xs font-bold text-white/40 tracking-[3px] uppercase">Smart Investment Hub</p>
         </div>
+
+        {isDiwali && (
+            <div className="text-center px-4 animate-in fade-in duration-1000">
+                <div className="flex flex-wrap justify-center gap-x-2 gap-y-1">
+                  {fullText.map((word, idx) => (
+                    <span 
+                      key={idx}
+                      className={cn(
+                          "text-xl md:text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-yellow-100 via-yellow-400 to-amber-600 drop-shadow-[0_0_15px_rgba(234,179,8,0.6)] transition-all duration-1000",
+                          idx < visibleWords ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-90"
+                      )}
+                    >
+                      {word}
+                    </span>
+                  ))}
+                </div>
+            </div>
+        )}
 
         <div className="grid grid-cols-3 gap-3 w-full px-2">
             <StatsMiniCard icon={Users} value={5000} suffix="+" desc="Users" color="text-purple-400" />
