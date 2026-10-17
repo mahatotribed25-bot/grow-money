@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -13,13 +12,29 @@ import {
 import Image from 'next/image';
 import { Button } from '../ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useDoc } from '@/firebase';
+import { cn } from '@/lib/utils';
+
+type AdminSettings = {
+    festiveTheme?: 'none' | 'diwali';
+};
 
 export function BannerCarousel() {
   const plugin = React.useRef(
     Autoplay({ delay: 5000, stopOnInteraction: true })
   );
+  
+  const { data: settings } = useDoc<AdminSettings>('settings/admin');
 
   const bannerData = [
+    {
+      id: 'banner-diwali',
+      title: 'Happy Diwali! 🪔',
+      description: 'Wishing you a prosperous year from Grow Money Team. Claim your festive rewards now!',
+      buttonText: 'Get Bonus',
+      buttonLink: '/plans',
+      theme: 'diwali'
+    },
     {
       id: 'banner-offer',
       title: 'Special Offer LIVE Now!',
@@ -40,45 +55,19 @@ export function BannerCarousel() {
       description: 'The high-yield Alpha Pro plan is now open for limited slots.',
       buttonText: 'Invest Now',
       buttonLink: '/plans',
-    },
-    {
-      id: 'banner-security',
-      title: 'Your Funds are Safe',
-      description: 'We use bank-grade encryption to protect your financial assets.',
-      buttonText: 'How it works',
-      buttonLink: '/profile',
-    },
-    {
-      id: 'banner-invest',
-      title: 'Invest More, Earn More',
-      description: 'Explore our latest high-yield fixed-return investment plans.',
-      buttonText: 'View Plans',
-      buttonLink: '/plans',
-    },
-    {
-      id: 'banner-referral',
-      title: 'Invite Friends, Get Cash',
-      description: 'Earn rewards for every friend who joins and invests today.',
-      buttonText: 'Get Code',
-      buttonLink: '/profile',
-    },
-    {
-      id: 'banner-group',
-      title: 'Secure Group Loans',
-      description: 'Invest together in high-value loan opportunities for shared profit.',
-      buttonText: 'Explore Groups',
-      buttonLink: '/group-investing',
-    },
+    }
   ];
 
-  const banners = bannerData.map(banner => {
-    const placeholder = PlaceHolderImages.find(img => img.id === banner.id);
-    return {
-      ...banner,
-      imageUrl: placeholder?.imageUrl || 'https://picsum.photos/seed/fallback/1200/400',
-      imageHint: placeholder?.imageHint || 'finance'
-    };
-  });
+  const banners = bannerData
+    .filter(b => b.theme !== 'diwali' || settings?.festiveTheme === 'diwali')
+    .map(banner => {
+        const placeholder = PlaceHolderImages.find(img => img.id === banner.id);
+        return {
+            ...banner,
+            imageUrl: placeholder?.imageUrl || 'https://picsum.photos/seed/finance/1200/400',
+            imageHint: placeholder?.imageHint || 'finance'
+        };
+    });
 
   return (
     <Carousel
@@ -95,26 +84,39 @@ export function BannerCarousel() {
           <CarouselItem key={index}>
             <Card className="overflow-hidden border-none bg-transparent">
               <CardContent className="p-0">
-                <div className="relative aspect-video sm:aspect-[2.4/1] md:aspect-[3/1] lg:aspect-[3.5/1]">
-                  <Image
-                    src={banner.imageUrl}
-                    alt={banner.title}
-                    fill
-                    priority={index === 0}
-                    className="object-cover"
-                    data-ai-hint={banner.imageHint}
-                  />
+                <div className={cn(
+                    "relative aspect-video sm:aspect-[2.4/1] md:aspect-[3/1] lg:aspect-[3.5/1]",
+                    banner.theme === 'diwali' ? "bg-gradient-to-r from-purple-900 to-indigo-950" : ""
+                )}>
+                  {banner.theme === 'diwali' ? (
+                      <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/diwali-pattern/1200/400')] opacity-20 mix-blend-overlay" />
+                  ) : (
+                      <Image
+                        src={banner.imageUrl}
+                        alt={banner.title}
+                        fill
+                        priority={index === 0}
+                        className="object-cover"
+                        data-ai-hint={banner.imageHint}
+                      />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
                   <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-10">
                     <div className="space-y-1">
-                        <h2 className="text-2xl md:text-4xl font-black text-white tracking-tighter drop-shadow-2xl">
+                        <h2 className={cn(
+                            "text-2xl md:text-4xl font-black text-white tracking-tighter drop-shadow-2xl",
+                            banner.theme === 'diwali' && "text-yellow-400 italic"
+                        )}>
                         {banner.title}
                         </h2>
                         <p className="text-sm md:text-lg text-white/70 max-w-lg font-medium">
                         {banner.description}
                         </p>
                     </div>
-                    <Button asChild className="mt-6 w-fit h-11 px-8 rounded-xl font-bold bg-primary text-white shadow-2xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+                    <Button asChild className={cn(
+                        "mt-6 w-fit h-11 px-8 rounded-xl font-bold shadow-2xl transition-all",
+                        banner.theme === 'diwali' ? "bg-yellow-500 text-black hover:bg-yellow-400" : "bg-primary text-white"
+                    )}>
                       <a href={banner.buttonLink}>{banner.buttonText}</a>
                     </Button>
                   </div>

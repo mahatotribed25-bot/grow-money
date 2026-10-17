@@ -1,6 +1,12 @@
 {
   "placeholderImages": [
     {
+      "id": "banner-diwali",
+      "description": "Diwali Festive Greeting Banner",
+      "imageUrl": "https://picsum.photos/seed/diwali-lights/1200/400",
+      "imageHint": "diwali lights"
+    },
+    {
       "id": "banner-offer",
       "description": "Exclusive bonus offer for investors",
       "imageUrl": "https://picsum.photos/seed/finance-bonus/1200/400",
