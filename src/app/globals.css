@@ -176,6 +176,17 @@
   transform-origin: center top;
 }
 
+/* Skyrocket Launch Animation */
+@keyframes rocket-launch {
+  0% { transform: translateY(100vh) scale(1); opacity: 1; }
+  95% { opacity: 1; }
+  100% { transform: translateY(0) scale(0.2); opacity: 0; }
+}
+
+.animate-rocket-launch {
+  animation: rocket-launch 1s cubic-bezier(0.15, 0, 0.2, 1) forwards;
+}
+
 @keyframes side-wobble {
   0%, 100% { transform: translateX(0) rotate(-5deg); }
   50% { transform: translateX(15px) rotate(5deg); }

@@ -26,7 +26,7 @@ export function FestiveVisuals({ theme = 'none' }: FestiveVisualsProps) {
 
 function DiwaliVisuals() {
   const [particles, setParticles] = useState<{ id: number; top: string; left: string; delay: string; size: number }[]>([]);
-  const [fireworks, setFireworks] = useState<{ id: number; top: string; left: string; color: string }[]>([]);
+  const [fireworks, setFireworks] = useState<{ id: number; top: string; left: string; color: string; isRocket?: boolean }[]>([]);
 
   // Create golden dust
   useEffect(() => {
@@ -40,27 +40,32 @@ function DiwaliVisuals() {
     setParticles(newParticles);
   }, []);
 
-  // Periodic Firework Logic
-  const triggerFirework = useCallback(() => {
+  // Skyrocket Launch Logic
+  const triggerRocket = useCallback(() => {
     const id = Date.now();
-    const colors = ['#facc15', '#fbbf24', '#f59e0b', '#fb923c', '#ffffff'];
-    const newFirework = {
-      id,
-      top: `${20 + Math.random() * 60}%`,
-      left: `${10 + Math.random() * 80}%`,
-      color: colors[Math.floor(Math.random() * colors.length)]
-    };
-    
-    setFireworks(prev => [...prev, newFirework]);
+    const colors = ['#facc15', '#fbbf24', '#f59e0b', '#fb923c', '#ffffff', '#ef4444', '#3b82f6'];
+    const leftPos = `${10 + Math.random() * 80}%`;
+    const targetTop = `${15 + Math.random() * 40}%`;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    // Phase 1: Launch Rocket
+    setFireworks(prev => [...prev, { id, top: targetTop, left: leftPos, color, isRocket: true }]);
+
+    // Phase 2: Explode after launch animation (1s)
     setTimeout(() => {
-      setFireworks(prev => prev.filter(f => f.id !== id));
-    }, 2000);
+      setFireworks(prev => prev.map(f => f.id === id ? { ...f, isRocket: false } : f));
+      
+      // Phase 3: Cleanup after explosion (1.5s)
+      setTimeout(() => {
+        setFireworks(prev => prev.filter(f => f.id !== id));
+      }, 1500);
+    }, 1000);
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(triggerFirework, 3000);
+    const interval = setInterval(triggerRocket, 2500); // Trigger every 2.5s
     return () => clearInterval(interval);
-  }, [triggerFirework]);
+  }, [triggerRocket]);
 
   return (
     <>
@@ -82,24 +87,34 @@ function DiwaliVisuals() {
 
       {/* Center Happy Diwali Greeting */}
       <div className="absolute top-24 left-1/2 -translate-x-1/2 text-center animate-in fade-in zoom-in duration-1000">
-          <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-500 to-amber-700 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]">
+          <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-500 to-amber-700 drop-shadow-[0_0_20px_rgba(234,179,8,0.6)]">
             Happy Diwali
           </h2>
           <div className="flex items-center justify-center gap-2 mt-1">
-              <div className="h-px w-8 bg-gradient-to-r from-transparent to-yellow-500" />
-              <Sparkles size={12} className="text-yellow-400 animate-spin duration-[4000ms]" />
-              <div className="h-px w-8 bg-gradient-to-l from-transparent to-yellow-500" />
+              <div className="h-px w-12 bg-gradient-to-r from-transparent to-yellow-500" />
+              <Sparkles size={14} className="text-yellow-400 animate-spin duration-[4000ms]" />
+              <div className="h-px w-12 bg-gradient-to-l from-transparent to-yellow-500" />
           </div>
       </div>
 
-      {/* Animated Fireworks */}
+      {/* Rockets and Fireworks */}
       {fireworks.map(fw => (
         <div 
           key={fw.id} 
           className="absolute w-4 h-4" 
           style={{ top: fw.top, left: fw.left }}
         >
-            <FireworkBlast color={fw.color} />
+            {fw.isRocket ? (
+                <div className="relative">
+                    {/* The Rocket Node */}
+                    <div className="w-1.5 h-4 bg-gradient-to-t from-orange-500 to-yellow-200 rounded-full animate-rocket-launch shadow-[0_0_15px_#f59e0b]">
+                        {/* Rocket Trail/Tail */}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-12 bg-gradient-to-b from-yellow-500 to-transparent blur-[1px]" />
+                    </div>
+                </div>
+            ) : (
+                <FireworkBlast color={fw.color} />
+            )}
         </div>
       ))}
 
@@ -111,10 +126,10 @@ function DiwaliVisuals() {
           <DiyaSVG />
       </div>
       
-      {/* Floating Toran/Lights at top */}
-      <div className="fixed top-0 left-0 w-full flex justify-around opacity-30 pointer-events-none">
-          {Array.from({length: 10}).map((_, i) => (
-              <div key={i} className="h-12 w-4 bg-gradient-to-b from-yellow-600 to-transparent rounded-full blur-sm" />
+      {/* Hanging Toran/Lights at top */}
+      <div className="fixed top-0 left-0 w-full flex justify-around opacity-40 pointer-events-none">
+          {Array.from({length: 12}).map((_, i) => (
+              <div key={i} className="h-16 w-4 bg-gradient-to-b from-yellow-600 via-yellow-500/50 to-transparent rounded-full blur-md animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
           ))}
       </div>
 
@@ -127,14 +142,15 @@ function DiwaliVisuals() {
 function FireworkBlast({ color }: { color: string }) {
     return (
         <div className="relative">
-            {Array.from({ length: 12 }).map((_, i) => (
+            {Array.from({ length: 16 }).map((_, i) => (
                 <div 
                     key={i}
-                    className="absolute w-1 h-8 rounded-full animate-firework-particle"
+                    className="absolute w-1 h-12 rounded-full animate-firework-particle"
                     style={{ 
                         backgroundColor: color,
-                        transform: `rotate(${i * 30}deg)`,
-                        boxShadow: `0 0 10px ${color}`
+                        transform: `rotate(${i * 22.5}deg)`,
+                        boxShadow: `0 0 12px ${color}`,
+                        animationDelay: `${Math.random() * 0.1}s`
                     }}
                 />
             ))}
