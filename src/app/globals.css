@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,7 +15,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 4%;
 
-    --primary: 262 83% 45%; /* Sharper purple for white bg */
+    --primary: 262 83% 45%; 
     --primary-foreground: 0 0% 100%;
 
     --secondary: 240 5% 96%;
@@ -23,7 +24,7 @@
     --muted: 240 5% 90%;
     --muted-foreground: 240 5% 35%;
 
-    --accent: 142 71% 35%; /* Deeper green for better contrast */
+    --accent: 142 71% 35%; 
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 45%;
@@ -47,7 +48,7 @@
     --popover: 240 10% 6%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 262 83% 65%; /* Brighter purple for dark bg */
+    --primary: 262 83% 65%; 
     --primary-foreground: 240 10% 4%;
 
     --secondary: 240 4% 15%;
@@ -56,7 +57,7 @@
     --muted: 240 4% 12%;
     --muted-foreground: 240 5% 65%;
 
-    --accent: 142 71% 55%; /* Vibrant green for visibility */
+    --accent: 142 71% 55%; 
     --accent-foreground: 240 10% 4%;
 
     --destructive: 0 84% 60%;
@@ -93,60 +94,58 @@
   background: hsl(var(--primary));
 }
 
-/* Skyrocket Launch Animation - Slower climb */
+/* Majestic Skyrocket Launch Animation - Slower climb */
 @keyframes rocket-launch {
-  0% { transform: translateY(100vh); opacity: 1; }
+  0% { transform: translateY(100vh); opacity: 0; }
+  10% { opacity: 1; }
   90% { opacity: 1; }
   100% { transform: translateY(0); opacity: 0; }
 }
 
 .animate-rocket-launch {
-  animation: rocket-launch 2s ease-in-out forwards;
+  animation: rocket-launch 2.5s ease-in-out forwards;
 }
 
-/* Circular Firework Particle Animation - Slower spread */
+/* Majestic Circular Firework Particle Animation - Slower spread */
 @keyframes firework-burst-circle {
   0% {
     transform: rotate(var(--angle)) translateY(0);
     opacity: 1;
     scale: 0;
   }
+  70% {
+    opacity: 1;
+  }
   100% {
     transform: rotate(var(--angle)) translateY(var(--distance));
     opacity: 0;
-    scale: 1.5;
+    scale: 1.2;
   }
 }
 
 .animate-firework-burst-circle {
-  animation: firework-burst-circle 3s cubic-bezier(0.15, 0, 0.15, 1) forwards;
+  animation: firework-burst-circle 3.5s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
 }
 
 @keyframes fall {
   0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 0; }
   10% { opacity: 1; }
-  20% { transform: translateY(20vh) translateX(20px) rotate(45deg); }
-  40% { transform: translateY(40vh) translateX(-20px) rotate(90deg); }
-  60% { transform: translateY(60vh) translateX(20px) rotate(135deg); }
-  80% { transform: translateY(80vh) translateX(-20px) rotate(180deg); }
-  100% { transform: translateY(110vh) translateX(0) rotate(225deg); opacity: 0; }
+  100% { transform: translateY(110vh) translateX(0) rotate(360deg); opacity: 0; }
 }
 
 .animate-fall {
-  animation: fall 10s linear infinite;
+  animation: fall 12s linear infinite;
 }
 
 @keyframes rgb-glow {
-  0% { color: #ff0000; text-shadow: 0 0 10px rgba(255, 0, 0, 0.8), 0 0 20px rgba(255, 0, 0, 0.4) }
-  20% { color: #ffff00; text-shadow: 0 0 10px rgba(255, 255, 0, 0.8), 0 0 20px rgba(255, 255, 0, 0.4) }
-  40% { color: #00ff00; text-shadow: 0 0 10px rgba(0, 255, 0, 0.8), 0 0 20px rgba(0, 255, 0, 0.4) }
-  60% { color: #00ffff; text-shadow: 0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4) }
-  80% { color: #0000ff; text-shadow: 0 0 10px rgba(0, 0, 255, 0.8), 0 0 20px rgba(0, 0, 255, 0.4) }
-  100% { color: #ff00ff; text-shadow: 0 0 10px rgba(255, 0, 255, 0.8), 0 0 20px rgba(255, 0, 255, 0.4) }
+  0% { color: #ff00ff; text-shadow: 0 0 10px rgba(255, 0, 255, 0.8) }
+  33% { color: #00ffff; text-shadow: 0 0 10px rgba(0, 255, 255, 0.8) }
+  66% { color: #ffff00; text-shadow: 0 0 10px rgba(255, 255, 0, 0.8) }
+  100% { color: #ff00ff; text-shadow: 0 0 10px rgba(255, 0, 255, 0.8) }
 }
 
 .animate-rgb-glow {
-  animation: rgb-glow 8s linear infinite;
+  animation: rgb-glow 6s linear infinite;
 }
 
 /* Diwali Flame Flicker Animation */
@@ -158,14 +157,14 @@
 }
 
 .animate-flicker {
-  animation: flicker 0.3s ease-in-out infinite;
+  animation: flicker 0.4s ease-in-out infinite;
 }
 
 @keyframes side-wobble {
   0%, 100% { transform: translateX(0) rotate(-5deg); }
-  50% { transform: translateX(15px) rotate(5deg); }
+  50% { transform: translateX(10px) rotate(5deg); }
 }
 
 .animate-side-wobble {
-  animation: side-wobble 3s ease-in-out infinite;
+  animation: side-wobble 4s ease-in-out infinite;
 }

@@ -9,13 +9,19 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Global settings - Allowing public read for UI themes and public config
+    // Write still requires admin/auth
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
     // User collection and its subcollections (investments, history, loans)
     match /users/{userId} {
       allow read: if isSignedIn();
       // Allow creation of own profile
       allow create: if isSignedIn() && request.auth.uid == userId;
       // Allow update for any authenticated user to facilitate referral bonuses and status updates
-      // The transaction requires being able to update the referrer's balance
       allow update: if isSignedIn();
 
       match /{allSubcollections=**} {
@@ -43,7 +49,7 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
     
-    // Investment plans - allowing write for stock updates during purchase
+    // Investment plans
     match /investmentPlans/{planId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
@@ -51,12 +57,6 @@ service cloud.firestore {
     
     // Savings Vault configuration
     match /savingsPlans/{id} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-
-    // Global settings - allowing write for admin profit balance updates
-    match /settings/{id} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
