@@ -164,28 +164,33 @@
   animation: progress-indefinite 2s infinite ease-in-out;
 }
 
-/* Firework Particle Animation - Enhanced Gravity and Spread */
-@keyframes firework-particle {
-  0% { transform: scale(0) translateY(0); opacity: 1; }
-  20% { opacity: 1; }
-  100% { transform: scale(1.8) translateY(180px); opacity: 0; }
+/* Circular Firework Particle Animation */
+@keyframes firework-burst-circle {
+  0% {
+    transform: rotate(var(--angle)) translateY(0);
+    opacity: 1;
+    scale: 0;
+  }
+  100% {
+    transform: rotate(var(--angle)) translateY(var(--distance));
+    opacity: 0;
+    scale: 1;
+  }
 }
 
-.animate-firework-particle {
-  animation: firework-particle 1.8s cubic-bezier(0.1, 0.5, 0.2, 1) forwards;
-  transform-origin: center top;
+.animate-firework-burst-circle {
+  animation: firework-burst-circle 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
-/* Skyrocket Launch Animation - Controlled speed slowly effect */
-@keyframes rocket-climb {
-  0% { transform: translateY(80vh) scale(1); opacity: 0; }
-  10% { opacity: 1; }
+/* Skyrocket Launch Animation */
+@keyframes rocket-launch {
+  0% { transform: translateY(100vh); opacity: 1; }
   90% { opacity: 1; }
-  100% { transform: translateY(0) scale(0.6); opacity: 0; }
+  100% { transform: translateY(0); opacity: 0; }
 }
 
-.animate-rocket-climb {
-  animation: rocket-climb 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+.animate-rocket-launch {
+  animation: rocket-launch 1.2s ease-in forwards;
 }
 
 @keyframes side-wobble {
