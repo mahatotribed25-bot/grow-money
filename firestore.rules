@@ -10,7 +10,7 @@ service cloud.firestore {
     }
 
     // CRITICAL: Allowing public read for settings/admin to enable Festive Theme on Login Page
-    // We explicitly allow 'get' to fix the PermissionError on the login terminal.
+    // We explicitly allow 'get' and 'list' to fix the PermissionError on the login terminal.
     match /settings/admin {
       allow read: if true;
     }

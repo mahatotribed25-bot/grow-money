@@ -127,7 +127,7 @@ export default function ReminderHubPage() {
         const amount = (loan.nextAmount + (loan.penalty || 0)).toFixed(2);
         
         let message = '';
-        if (loan.isOverdue) {
+        if (loan.isDateCrossed) {
             message = `🚨 *URGENT REPAYMENT NOTICE* 🚨\n\nDear *${loan.userName}*,\n\nYour loan for *${loan.planName}* has *CROSSED THE DUE DATE*.\n\n💰 *Total Due:* ₹${amount}\n⚠️ *Includes Penalty:* ₹${loan.penalty?.toFixed(2) || '0.00'}\n\nPlease settle this immediately to avoid further penalties or account restrictions.\n\n*Grow Money Team* 💰`;
         } else {
             message = `🔔 *Repayment Reminder* 🔔\n\nHello *${loan.userName}*,\n\nFriendly reminder for your upcoming payment for *${loan.planName}*.\n\n💰 *Amount:* ₹${amount}\n🗓️ *Due Date:* ${dateStr}\n\n*Grow Money Team* 💰`;
@@ -145,10 +145,10 @@ export default function ReminderHubPage() {
         const dateStr = new Date(loan.nextDueDate.seconds * 1000).toLocaleDateString();
         const amount = (loan.nextAmount + (loan.penalty || 0)).toFixed(2);
         
-        const subject = loan.isOverdue ? `URGENT NOTICE: Due Date Crossed - Grow Money` : `Reminder: Upcoming Loan Payment - Grow Money`;
+        const subject = loan.isDateCrossed ? `URGENT NOTICE: Due Date Crossed - Grow Money` : `Reminder: Upcoming Loan Payment - Grow Money`;
         
         let body = `Hello ${loan.userName},\n\n`;
-        if (loan.isOverdue) {
+        if (loan.isDateCrossed) {
             body += `This is an urgent formal notice regarding your loan for "${loan.planName}". Your repayment date has been CROSSED.\n\n`;
             body += `Pending Amount: INR ${amount}\n`;
             if (loan.penalty > 0) body += `Late Penalty Included: INR ${loan.penalty.toFixed(2)}\n`;
@@ -225,7 +225,7 @@ export default function ReminderHubPage() {
                                     reminderData.map((loan) => (
                                         <TableRow key={loan.id} className={cn(
                                             "border-white/[0.03] hover:bg-white/[0.01] transition-colors",
-                                            loan.isDateCrossed && "bg-red-500/[0.02]"
+                                            loan.isDateCrossed && "bg-red-500/[0.05]"
                                         )}>
                                             <TableCell className="pl-8 py-5">
                                                 <div className="flex items-center gap-3">
@@ -264,7 +264,7 @@ export default function ReminderHubPage() {
                                                 <div className="flex flex-col">
                                                     <span className={cn(
                                                         "text-xs font-black tracking-tighter",
-                                                        loan.isDateCrossed ? "text-red-400 animate-pulse" : "text-white/60"
+                                                        loan.isDateCrossed ? "text-red-400" : "text-white/60"
                                                     )}>
                                                         {new Date(loan.nextDueDate.seconds * 1000).toLocaleDateString()}
                                                     </span>
@@ -273,7 +273,7 @@ export default function ReminderHubPage() {
                                             </TableCell>
                                             <TableCell>
                                                 {loan.isDateCrossed ? (
-                                                    <Badge className="bg-red-600 text-white border-none text-[8px] font-black uppercase px-2 h-5 animate-bounce shadow-lg shadow-red-600/20">
+                                                    <Badge className="bg-red-600 text-white border-none text-[8px] font-black uppercase px-2 h-5 animate-pulse shadow-lg shadow-red-600/20">
                                                         DATE CROSSED
                                                     </Badge>
                                                 ) : (
@@ -334,7 +334,7 @@ export default function ReminderHubPage() {
                     <div className="h-14 w-14 rounded-2xl bg-red-500/20 flex items-center justify-center text-red-500 shadow-xl shadow-red-500/10 border border-red-500/20">
                         <AlertCircle size={28} />
                     </div>
-                    <h3 className="text-2xl font-black text-white uppercase tracking-tight">Recovery Protocol</h3>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Recovery Protocol</h3>
                     <p className="text-xs text-white/50 leading-relaxed font-medium max-w-lg">
                         The **Date Crossed** notice is triggered when a user fails to settle their node within the authorized term. Continued non-compliance should be met with formal system notices and Trust Score penalties.
                     </p>
