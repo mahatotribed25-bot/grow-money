@@ -160,11 +160,6 @@ service cloud.firestore {
         allow write: if isSignedIn();
     }
 
-    match /scratchCards/{id} {
-        allow read: if isSignedIn();
-        allow write: if isSignedIn();
-    }
-
     // Support and Private Communication
     match /chats/{id} {
         allow read: if isSignedIn();
