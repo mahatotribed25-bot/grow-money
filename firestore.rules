@@ -169,6 +169,7 @@ service cloud.firestore {
         }
     }
 
+    // Support and Private Communication
     match /userChatSessions/{id} {
         allow read: if isSignedIn();
         allow write: if isSignedIn();
