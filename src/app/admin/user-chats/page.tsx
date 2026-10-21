@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
@@ -11,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 type UserData = {

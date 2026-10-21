@@ -10,6 +10,7 @@ service cloud.firestore {
     }
 
     // CRITICAL: Allowing public read for settings/admin to enable Festive Theme on Login Page
+    // This MUST be before broader rules to ensure public access is granted.
     match /settings/admin {
       allow read: if true;
     }
