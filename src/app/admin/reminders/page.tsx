@@ -326,26 +326,18 @@ export default function ReminderHubPage() {
                 </CardContent>
             </Card>
 
-            <div className="p-8 bg-red-500/5 border border-red-500/10 rounded-[2rem] flex flex-col justify-center gap-6 relative overflow-hidden group">
+            <div className="p-8 bg-white/[0.02] border border-white/5 rounded-[2rem] flex flex-col justify-center gap-6 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-700">
-                    <Zap size={140} className="text-red-500" />
+                    <HandCoins size={140} className="text-primary" />
                 </div>
                 <div className="space-y-4 relative z-10">
-                    <div className="h-14 w-14 rounded-2xl bg-red-500/20 flex items-center justify-center text-red-500 shadow-xl shadow-red-500/10 border border-red-500/20">
-                        <AlertCircle size={28} />
+                    <div className="h-14 w-14 rounded-2xl bg-primary/20 flex items-center justify-center text-primary shadow-xl shadow-primary/10 border border-primary/20">
+                        <BellRing size={28} />
                     </div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Recovery Protocol</h3>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Recovery Intelligence</h3>
                     <p className="text-xs text-white/50 leading-relaxed font-medium max-w-lg">
-                        The **Date Crossed** notice is triggered when a user fails to settle their node within the authorized term. Continued non-compliance should be met with formal system notices and Trust Score penalties.
+                        The **Date Crossed** protocol is triggered when a user bypasses the authorized term. Formal notices through WhatsApp/Email are the first step in asset recovery before Trust Score penalties are applied.
                     </p>
-                </div>
-                <div className="pt-2">
-                    <Button 
-                        onClick={() => toast({ title: "Notice Pipeline", description: "Analyzing all overdue nodes..." })}
-                        className="bg-white text-black font-black uppercase text-[10px] h-10 px-6 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-xl"
-                    >
-                        Execute Batch Notice Node
-                    </Button>
                 </div>
             </div>
         </div>
